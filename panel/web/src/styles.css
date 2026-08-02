@@ -1,0 +1,942 @@
+/* Type scales with the window, because it did not.
+ *
+ * Every size in this file was a fixed pixel value between 9.5 and 13, which is
+ * legible on the laptop it was written on and small on a 27-inch display -- the
+ * screen someone actually reads a fleet from. They are rem now, and the root
+ * grows with the viewport: 16px at 1280 wide, where this used to be tuned, up
+ * to 21px past 2560. Nothing changes at the size it was designed for.
+ *
+ * Only font-size was converted. Borders, shadows and outlines stay in pixels,
+ * because a hairline rule that scales stops being a hairline.
+ */
+html { font-size: clamp(15px, 0.3125vw + 12px, 21px); }
+
+/* The identity kit's four colours, under their own names, so a component can
+   reach for the brand rather than for whatever the panel calls it today. */
+:root {
+  --helena-obsidian:#23242B;
+  --helena-papyrus:#E8D7B9;
+  --helena-terracotta:#C65A36;
+  --helena-parchment:#F7F4ED;
+}
+
+/* Which half of every token below is used. `data-theme` is written before the
+   first paint by the boot script in index.html, from the stored choice or the
+   system's when that choice is "auto"; the bare `light dark` is what applies
+   in the moment before it runs. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+/* The panel's semantic tokens, mapped onto those. Terracotta is the accent
+   because it is the kit's reveal colour and the accent marks what is live.
+   That forces one deliberate change: `crit` used to be #A63E2C, half a step
+   from Terracotta, and a red that close to the accent makes "running" and
+   "failed" the same colour in a vertical list. It is a deeper crimson now,
+   and the two states also differ in glyph and in whether they move.
+   Light value first, dark second, one line per token: the two themes are
+   edited in the same place instead of in two blocks that drift apart. */
+:root {
+  --ground:light-dark(var(--helena-parchment),var(--helena-obsidian));
+  --panel:light-dark(#FFFFFF,#2B2C34);
+  --sunk:light-dark(#EFEBE1,#1E1F26);
+  --rule:light-dark(#DCD5C7,#3A3B44);
+  --rule-strong:light-dark(#B9B0A0,#50515C);
+  --ink:light-dark(var(--helena-obsidian),#EFEAE0);
+  --ink-mid:light-dark(#585A63,#A6A39C);
+  --ink-faint:light-dark(#8A8B93,#7A7871);
+  --accent:light-dark(#B24E2C,var(--helena-terracotta));
+  --accent-soft:light-dark(#F6E3DA,#3A2018);
+  --ok:light-dark(#3F7A4A,#7FB88A);
+  --ok-soft:light-dark(#DEEBDF,#1D2A20);
+  /* In dark, Papyrus itself is the material colour and reads as a neutral;
+     caution has to be warmer than the page without competing with Terracotta. */
+  --warn:light-dark(#8A6410,#D9A05B);
+  --warn-soft:light-dark(#F2E7CC,#332C1D);
+  --crit:light-dark(#8C2230,#E4707F);
+  --crit-soft:light-dark(#F5DCE0,#37191F);
+  --idle:light-dark(#7A7B83,#7E7F88);
+  --idle-soft:light-dark(#E7E3D9,#26272E);
+  --mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  /* Inter where it is installed, which is what the kit asks for; the system
+     face otherwise. No font files are shipped, so nothing is downloaded to
+     render a page. */
+  --sans: Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+* { box-sizing: border-box; margin:0; padding:0; }
+body {
+  background: var(--ground); color: var(--ink); font-family: var(--sans);
+  font-size: 0.875rem; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+/* In px, not rem, and that is the whole point: the root font-size above grows
+   with the viewport, so a cap in rem grew with the thing it was meant to cap
+   and only bit past ~2660px -- wider than any monitor here. The panel ran
+   edge to edge on a 27-inch screen and a table row was 2274px long.
+   2000 and not 1900 because 1920 is the commonest desktop width there is: a
+   cap just under it leaves a 10px margin, which reads as a mistake rather
+   than as a decision. This clears 1920 outright and takes hold at 2560. */
+.shell { max-width: 2000px; margin:0 auto; padding:1.375rem 1.375rem 4rem; }
+
+.masthead {
+  display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap;
+  padding-bottom:0.8125rem; border-bottom:2px solid var(--rule-strong);
+}
+/* The mark beside the name in type. The kit's minimum applies to its drawn
+   lockup, not to the mark, which has no wordmark inside it to go illegible. */
+.wordmark { display:flex; align-items:center; gap:0.625rem; line-height:0;
+            text-decoration:none; }
+/* The same treatment the sign-in gate gives it, so the platform is called one
+   thing in one voice on both screens. */
+.wordmark-name { font-family:var(--mono); font-size:0.875rem; letter-spacing:.16em;
+                 color:var(--ink); line-height:1.1; white-space:nowrap; }
+.wordmark-name span { color:var(--accent); }
+@media (max-width:560px){ .wordmark-name { font-size:0.75rem; letter-spacing:.1em; } }
+/* Scoped to .wordmark, or this rule reaches the gate's mark too. In rem, and
+   that is the point rather than the number: the root font-size at the top of
+   this file grows with the viewport, so artwork pinned to px was the one thing
+   in the masthead that did not scale -- every word around it grew and it
+   stayed put, which is why it kept reading as small. */
+.wordmark img { height:2.5rem; width:auto; }
+/* `display` cannot read `color-scheme`, so the artwork swap is the one place
+   that keys off the resolved attribute directly. Unscoped, because the gate
+   uses the same pair for the mark it shows above the sign-in form. */
+.only-dark { display:none; }
+.only-light { display:block; }
+:root[data-theme="dark"] .only-dark { display:block; }
+:root[data-theme="dark"] .only-light { display:none; }
+/* Smaller on a phone, where the masthead wraps and the name below it is the
+   thing that has to stay readable. */
+@media (max-width:560px){ .wordmark img { height:2rem; } }
+/* Four figures on one line inside a tile: gpu, cpu, memory, instances. Wraps
+   to two rows rather than shrinking the numbers, because the numbers are the
+   point and there are four of them in the width of one readout. */
+.hardware { display:flex; flex-wrap:wrap; gap:0.25rem 0.875rem; align-items:baseline; }
+.hardware span { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.08em;
+                 text-transform:uppercase; color:var(--ink-faint); white-space:nowrap; }
+.hardware b { font-family:var(--sans); font-size:1.375rem; font-weight:600;
+              letter-spacing:0; color:var(--ink); margin-right:0.1875rem;
+              font-variant-numeric:tabular-nums; }
+
+/* Under every page, quiet. */
+.footpiece { display:flex; gap:1rem; align-items:baseline; flex-wrap:wrap;
+             margin-top:2rem; padding-top:0.8125rem;
+             border-top:1px solid var(--rule);
+             font-family:var(--mono); font-size:0.6562rem; letter-spacing:.06em;
+             text-transform:uppercase; color:var(--ink-faint); }
+.footpiece a { color:var(--ink-faint); text-decoration:none;
+               border-bottom:1px solid var(--rule-strong); }
+.footpiece a:hover { color:var(--accent); border-bottom-color:var(--accent); }
+
+.crumb { font-family:var(--mono); font-size:0.7188rem; color:var(--ink-faint); letter-spacing:.06em; }
+.clock { margin-left:auto; font-family:var(--mono); font-size:0.7188rem; color:var(--ink-faint); font-variant-numeric:tabular-nums; }
+
+nav.stages { display:flex; gap:2px; margin-top:0.875rem; flex-wrap:wrap; background:var(--sunk); padding:3px; border:1px solid var(--rule); }
+nav.stages a { font-family:var(--mono); font-size:0.7188rem; letter-spacing:.04em; padding:0.375rem 0.6875rem; color:var(--ink-mid); text-decoration:none; white-space:nowrap; }
+nav.stages a[aria-current] { background:var(--panel); color:var(--ink); font-weight:600; box-shadow:inset 0 -2px 0 var(--accent); }
+nav.stages a:hover:not([aria-current]) { color:var(--ink); background:var(--panel); }
+nav.stages a:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+
+/* The theme picker borrows the stage nav's shape: three segments in a sunk
+   tray, the chosen one lifted onto panel with an accent underline. */
+.themepick { display:flex; gap:2px; width:max-content; max-width:100%; flex-wrap:wrap;
+             background:var(--sunk); border:1px solid var(--rule); padding:3px; margin-top:0.875rem; }
+.themepick button { display:flex; flex-direction:column; gap:1px; align-items:flex-start;
+                    font-family:var(--mono); font-size:0.7188rem; letter-spacing:.04em;
+                    padding:0.375rem 0.6875rem; background:none; border:0; cursor:pointer;
+                    color:var(--ink-mid); text-align:left; }
+.themepick button[aria-pressed="true"] { background:var(--panel); color:var(--ink); font-weight:600;
+                                         box-shadow:inset 0 -2px 0 var(--accent); }
+.themepick button:hover[aria-pressed="false"] { color:var(--ink); background:var(--panel); }
+.themepick button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.themepick .hint { font-size:0.6563rem; font-weight:400; letter-spacing:0; color:var(--ink-faint);
+                   font-family:var(--sans); }
+
+.strip { display:grid; grid-template-columns:repeat(auto-fit,minmax(10.62rem,1fr)); gap:0.75rem; margin-top:1.25rem; }
+.tile { background:var(--panel); border:1px solid var(--rule); border-top:3px solid var(--rule-strong); padding:0.75rem 0.875rem 0.8125rem; display:flex; flex-direction:column; gap:0.4375rem; }
+.tile.alert { border-top-color:var(--crit); } .tile.steady { border-top-color:var(--ok); }
+.tile.busy { border-top-color:var(--accent); } .tile.warn { border-top-color:var(--warn); }
+.tile h2 { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; }
+.readout { font-family:var(--mono); font-size:1.688rem; line-height:1; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+.readout.alert { color:var(--crit); } .readout.good { color:var(--ok); }
+.readout small { font-size:0.8125rem; color:var(--ink-faint); letter-spacing:0; }
+.tile p { font-size:0.75rem; color:var(--ink-mid); }
+.tile p b { color:var(--ink); font-weight:600; }
+
+.meter { display:flex; flex-direction:column; gap:0.25rem; }
+.meter-row { display:flex; align-items:center; gap:0.5rem; }
+.meter-row span:first-child { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); width:36px; }
+.bar { flex:1; height:7px; background:var(--sunk); position:relative; }
+.bar i { position:absolute; inset:0 auto 0 0; background:var(--accent); }
+.meter-row span:last-child { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-mid); font-variant-numeric:tabular-nums; width:38px; text-align:right; }
+
+.split { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:0.75rem; margin-top:0.75rem; align-items:start; }
+.split.wide { grid-template-columns:minmax(0,1fr) 340px; }
+@media (max-width:1000px){ .strip{grid-template-columns:repeat(2,1fr);} .split,.split.wide{grid-template-columns:minmax(0,1fr);} }
+@media (max-width:560px){ .strip{grid-template-columns:1fr;} }
+
+section.card { background:var(--panel); border:1px solid var(--rule); }
+.card-head { display:flex; align-items:baseline; gap:0.625rem; flex-wrap:wrap; padding:0.6875rem 0.875rem; border-bottom:1px solid var(--rule); }
+.card-head h2 { font-family:var(--mono); font-size:0.6875rem; letter-spacing:.13em; text-transform:uppercase; font-weight:600; }
+.card-head .note { font-size:0.75rem; color:var(--ink-faint); margin-left:auto; }
+.rail { display:flex; flex-direction:column; gap:0.75rem; }
+
+.scroller { overflow-x:auto; }
+table { border-collapse:collapse; width:auto; max-width:100%; font-variant-numeric:tabular-nums; }
+thead th { font-family:var(--mono); font-size:0.625rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); font-weight:600; text-align:right; padding:0.5625rem 0.625rem; border-bottom:1px solid var(--rule); white-space:nowrap; }
+thead th:first-child, thead th.l { text-align:left; }
+tbody td { padding:0.5625rem 0.625rem; border-bottom:1px solid var(--rule); text-align:right; font-family:var(--mono); font-size:0.7812rem; white-space:nowrap; }
+tbody td:first-child, tbody td.l { text-align:left; }
+tbody tr:hover { background:var(--sunk); }
+tbody tr.diff td { background:var(--crit-soft); }
+.scrollid { font-weight:600; color:var(--ink); }
+/* The growing column is wide; right-aligned text in it drifts across the
+   table and lands against the next column. */
+tbody td.grow, thead th.grow { text-align:left; }
+.dash { color:var(--ink-faint); }
+.wrap { white-space:normal !important; word-break:break-all; }
+
+.pill { display:inline-block; font-family:var(--mono); font-size:0.625rem; letter-spacing:.07em; text-transform:uppercase; font-weight:600; padding:3px 0.4375rem; white-space:nowrap; }
+.pill.neg { background:var(--idle-soft); color:var(--ink-mid); box-shadow:inset 0 0 0 1px var(--rule-strong); }
+.pill.none { background:transparent; color:var(--ink-faint); box-shadow:inset 0 0 0 1px var(--rule); }
+.pill.crit { background:var(--crit-soft); color:var(--crit); box-shadow:inset 0 0 0 1px var(--crit); }
+.pill.warn { background:var(--warn-soft); color:var(--warn); box-shadow:inset 0 0 0 1px var(--warn); }
+.pill.ok { background:var(--ok-soft); color:var(--ok); box-shadow:inset 0 0 0 1px var(--ok); }
+.pill.run { background:var(--accent-soft); color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+
+.lane { padding:0.6875rem 0.875rem; border-bottom:1px solid var(--rule); display:flex; flex-direction:column; gap:0.3125rem; }
+.lane:last-child { border-bottom:0; }
+.lane-id { font-family:var(--mono); font-size:0.7188rem; font-weight:600; word-break:break-all; }
+.lane-meta { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); display:flex; gap:0.5rem; flex-wrap:wrap; }
+
+.body-pad { padding:0.75rem 0.875rem; display:flex; flex-direction:column; gap:0.5625rem; }
+.body-pad p { font-size:0.7812rem; color:var(--ink-mid); max-width:96ch; }
+code { font-family:var(--mono); font-size:0.7188rem; background:var(--sunk); padding:1px 0.25rem; color:var(--ink); }
+pre { font-family:var(--mono); font-size:0.6875rem; background:var(--sunk); padding:0.625rem; overflow-x:auto; color:var(--ink); line-height:1.45; }
+
+/* provenance chain */
+.chain { display:flex; flex-direction:column; }
+.link { padding:0.625rem 0.875rem; border-bottom:1px solid var(--rule); display:flex; flex-direction:column; gap:3px; position:relative; padding-left:1.875rem; }
+.link:last-child { border-bottom:0; }
+.link::before { content:""; position:absolute; left:14px; top:15px; width:7px; height:7px; border-radius:50%; background:var(--ok); }
+.link.bad::before { background:var(--crit); }
+.link.unknown::before { background:var(--idle); }
+.link::after { content:""; position:absolute; left:17px; top:22px; bottom:-1px; width:1px; background:var(--rule); }
+.link:last-child::after { display:none; }
+.link .k { font-family:var(--mono); font-size:0.5938rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); }
+.link .v { font-family:var(--mono); font-size:0.7188rem; word-break:break-all; }
+
+/* map viewer */
+.mapwrap { background:var(--sunk); padding:0.625rem; display:flex; flex-direction:column; gap:0.625rem; }
+.mapwrap img { width:100%; height:auto; display:block; border:1px solid var(--rule); }
+.controls { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+.controls label { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); }
+input[type=range] { flex:1; min-width:180px; accent-color:var(--accent); }
+.ticks { position:relative; height:16px; flex-basis:100%; }
+.ticks i { position:absolute; top:0; width:1px; height:6px; background:var(--ink-faint); }
+.ticks i span { position:absolute; left:2px; top:5px; font-family:var(--mono); font-size:0.5625rem; color:var(--ink-faint); white-space:nowrap; }
+select, button { font-family:var(--mono); font-size:0.7188rem; background:var(--panel); color:var(--ink); border:1px solid var(--rule-strong); padding:0.3125rem 0.5rem; }
+button { cursor:pointer; }
+button:hover { border-color:var(--accent); color:var(--accent); }
+
+footer.disclaim { margin-top:1.25rem; padding-top:0.75rem; border-top:1px solid var(--rule); font-size:0.7188rem; color:var(--ink-faint); display:flex; flex-direction:column; gap:3px; }
+footer.disclaim strong { font-family:var(--mono); font-size:0.625rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-mid); }
+.empty { padding:1.625rem 0.875rem; text-align:center; color:var(--ink-faint); font-size:0.7812rem; }
+
+/* ---- React: router link state ---- */
+nav.stages a.active { background:var(--panel); color:var(--ink); font-weight:600; box-shadow:inset 0 -2px 0 var(--accent); }
+
+/* ---- map viewer ---- */
+.mapviewer { background:var(--sunk); padding:0.625rem; display:flex; flex-direction:column; gap:0.5rem; }
+.mapviewer canvas { width:100%; display:block; border:1px solid var(--rule); touch-action:none; background:#12151a; }
+.mapstatus { display:flex; align-items:center; gap:0.75rem; font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); }
+.mapstatus .loading { color:var(--accent); }
+.mapstatus button { margin-left:auto; }
+.hint { padding:0 0.875rem 0.75rem; font-size:0.7188rem; color:var(--ink-faint); }
+.controls output { font-family:var(--mono); font-size:0.75rem; min-width:46px; }
+
+/* ---- docs ---- */
+.search { width:100%; font-family:var(--mono); font-size:0.7812rem; padding:0.5rem 0.625rem; background:var(--panel); color:var(--ink); border:1px solid var(--rule-strong); }
+.search:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.docgroup-title { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); padding:0.75rem 0.875rem 0.375rem; border-top:1px solid var(--rule); }
+.docmod { border-top:1px solid var(--rule); }
+.docmod-head { width:100%; display:flex; align-items:center; gap:0.625rem; padding:0.5625rem 0.875rem; background:none; border:0; text-align:left; cursor:pointer; font-family:var(--sans); color:var(--ink); }
+.docmod-head:hover { background:var(--sunk); }
+.docmod-name { font-family:var(--mono); font-size:0.7812rem; font-weight:600; }
+.docmod-count { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); }
+.docmod-path { margin-left:auto; font-family:var(--mono); font-size:0.625rem; color:var(--ink-faint); }
+.docmod-body { padding:0.25rem 0.875rem 1rem; display:flex; flex-direction:column; gap:0.625rem; }
+.docmod-body h4 { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-top:0.375rem; }
+.docstring { font-size:0.7812rem; color:var(--ink-mid); white-space:pre-wrap; max-width:78ch; }
+.fn { padding:0.5rem 0 0.5rem 0.75rem; border-left:2px solid var(--rule); display:flex; flex-direction:column; gap:0.25rem; }
+.fn-sig { font-family:var(--mono); font-size:0.75rem; background:var(--sunk); padding:3px 0.375rem; display:inline-block; word-break:break-word; }
+
+/* ---- command forms ---- */
+.formgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(13.12rem,1fr)); gap:0.625rem; }
+.formgrid label { display:flex; flex-direction:column; gap:0.25rem; font-family:var(--mono); font-size:0.6562rem; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); }
+.formgrid label.wide { grid-column:1/-1; }
+.formgrid input, .formgrid select { font-family:var(--mono); font-size:0.7812rem; padding:0.375rem 0.5rem; background:var(--panel); color:var(--ink); border:1px solid var(--rule-strong); text-transform:none; letter-spacing:0; }
+.formgrid input:focus-visible, .formgrid select:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.resolved { margin-top:0.875rem; border-top:1px solid var(--rule); padding-top:0.75rem; }
+.resolved h4 { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:0.375rem; }
+.resolved table { width:auto; }
+.resolved td { border-bottom:0; padding:3px 0.75rem 3px 0; }
+.resolved p { font-size:0.75rem; color:var(--ink-faint); margin-top:0.5rem; max-width:74ch; }
+
+/* ---- phases ---- */
+.phasegrid { display:flex; flex-direction:column; gap:0.375rem; margin:0.25rem 0 0.25rem; }
+.phasegrid > div { display:grid; grid-template-columns:110px 1fr; gap:0.625rem; align-items:baseline; }
+.phasegrid .k { font-family:var(--mono); font-size:0.5938rem; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); }
+.phasegrid span:last-child { font-size:0.7812rem; color:var(--ink-mid); }
+.phasegrid code { display:inline-block; margin-right:0.375rem; }
+
+/* ---- phase implementations ---- */
+.impl { margin-top:0.75rem; padding:0.625rem 0.75rem; border-left:2px solid var(--accent); background:var(--sunk); display:flex; flex-direction:column; gap:0.375rem; }
+.impl-head { display:flex; align-items:center; gap:0.625rem; flex-wrap:wrap; }
+.impl-name { font-family:var(--mono); font-size:0.7812rem; font-weight:600; }
+.impl-head a { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.06em; text-transform:uppercase; }
+.impl p { font-size:0.7812rem; color:var(--ink-mid); max-width:78ch; }
+.impl p.dash { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); }
+.entrypoints { list-style:none; display:flex; flex-direction:column; gap:0.25rem; font-size:0.75rem; color:var(--ink-mid); }
+.entrypoints code { font-size:0.7188rem; }
+
+/* ---- workspace: general tabs on top, phase rail on the left ---- */
+/* The rail was 216px at every width, so "Geometry certification" broke onto a
+   second line on a 27-inch screen with two thousand pixels idle beside it. It
+   grows with the viewport now and stops at 320px, which is where the longest
+   phase name fits on one line; below ~2100px wide the clamp returns 216px and
+   nothing moves. */
+.workspace { display:grid; grid-template-columns:clamp(216px,15vw,320px) minmax(0,1fr); gap:0.75rem; margin-top:0.75rem; align-items:start; }
+@media (max-width:900px){ .workspace { grid-template-columns:minmax(0,1fr); } }
+.workarea { display:flex; flex-direction:column; gap:0.75rem; min-width:0; }
+
+.rail { background:var(--panel); border:1px solid var(--rule); display:flex; flex-direction:column; position:sticky; top:12px; }
+.rail-title { font-family:var(--mono); font-size:0.625rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); padding:0.625rem 0.75rem 0.5rem; border-bottom:1px solid var(--rule); }
+.rail-item { display:grid; grid-template-columns:26px 1fr auto 19px; align-items:center; gap:0.5rem; padding:0.5rem 0.75rem; text-decoration:none; color:var(--ink-mid); border-bottom:1px solid var(--rule); }
+.rail-item:last-child { border-bottom:0; }
+.rail-item:hover { background:var(--sunk); color:var(--ink); }
+.rail-item.active { background:var(--sunk); color:var(--ink); box-shadow:inset 2px 0 0 var(--accent); }
+.rail-item:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.rail-id { font-family:var(--mono); font-size:0.6875rem; font-weight:600; color:var(--ink-faint); }
+.rail-item.active .rail-id { color:var(--accent); }
+.rail-name { font-size:0.75rem; line-height:1.25; }
+.rail-badges { display:flex; align-items:center; gap:0.3125rem; }
+.rail-badges em { font-family:var(--mono); font-size:0.5938rem; font-style:normal; color:var(--ink-faint); background:var(--sunk); padding:1px 0.25rem; }
+.rail-badges em.rail-active { background:var(--accent-soft); color:var(--accent); font-weight:600; }
+.rail-badges i { width:5px; height:5px; border-radius:50%; background:var(--accent); display:block; }
+.rail-item.active .rail-badges em { background:var(--panel); }
+
+/* ---- sub tabs inside a general surface ---- */
+/* Wraps, like the stage nav it copies. Six tabs -- Settings through Audit log
+   -- do not fit a phone in one row, and without this the whole page scrolled
+   sideways to accommodate them. */
+.subtabs { display:flex; flex-wrap:wrap; gap:2px; background:var(--sunk); padding:3px; border:1px solid var(--rule); }
+.subtabs button { font-family:var(--mono); font-size:0.7188rem; letter-spacing:.04em; padding:0.375rem 0.6875rem; background:none; border:0; color:var(--ink-mid); cursor:pointer; }
+.subtabs button[aria-current] { background:var(--panel); color:var(--ink); font-weight:600; box-shadow:inset 0 -2px 0 var(--accent); }
+.subtabs button:hover:not([aria-current]) { color:var(--ink); background:var(--panel); }
+/* The launcher. `margin-left:auto` takes the slack the wrapped row leaves, so it
+   ends the bar; on a phone the row wraps and it simply lands last, which is the
+   same reading order. Filled rather than outlined because it is the only control
+   on this bar that starts work -- the rest change what you are looking at. */
+.subtabs button.cta { margin-left:auto; background:var(--accent); color:var(--panel);
+                      font-weight:600; }
+.subtabs button.cta:hover { background:var(--ink); color:var(--panel); }
+.subtabs button.cta[aria-current] { background:var(--accent); color:var(--panel);
+                                    box-shadow:inset 0 -2px 0 var(--ink); }
+/* The queued-job count rides inside it, so it needs to read on the accent. */
+.subtabs button.cta .subtab-count { background:var(--panel); color:var(--accent); }
+tbody tr.muted td { color:var(--ink-faint); }
+
+/* ---- mission switcher ---- */
+.missionpick { display:flex; align-items:center; gap:0.5rem; margin-left:auto; }
+.missionpick select { font-family:var(--mono); font-size:0.7188rem; max-width:280px; background:var(--panel); color:var(--ink); border:1px solid var(--rule-strong); padding:0.25rem 0.4375rem; }
+.missionscrolls { font-family:var(--mono); font-size:0.625rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-faint); background:var(--sunk); padding:3px 0.375rem; white-space:nowrap; }
+.masthead .clock { margin-left:0; }
+
+.subtab-count { font-family:var(--mono); font-style:normal; font-size:0.5938rem; margin-left:0.375rem; background:var(--accent-soft); color:var(--accent); padding:1px 0.25rem; }
+
+/* ---- collapsible sections ---- */
+.section-head { display:flex; align-items:baseline; gap:0.625rem; width:100%; padding:0.6875rem 0.875rem; background:none; border:0; cursor:pointer; text-align:left; color:var(--ink); font-family:var(--sans); }
+.section-head:hover { background:var(--sunk); }
+.section-head:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.section-head h2 { font-family:var(--mono); font-size:0.6875rem; letter-spacing:.13em; text-transform:uppercase; font-weight:600; }
+.section-head .note { font-size:0.75rem; color:var(--ink-faint); margin-left:auto; }
+.chevron { font-size:0.625rem; color:var(--ink-faint); transition:transform .12s ease; display:inline-block; }
+.chevron.open { transform:rotate(90deg); }
+@media (prefers-reduced-motion:reduce) { .chevron { transition:none; } }
+.card > .section-head + * { border-top:1px solid var(--rule); }
+
+/* ---- inline editing ---- */
+.cfgvalue { font-family:var(--mono); font-size:0.75rem; width:100%; min-width:180px; padding:0.25rem 0.4375rem; background:var(--panel); color:var(--ink); border:1px solid var(--rule); }
+.cfgvalue:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; border-color:var(--accent); }
+.cfgvalue:disabled { opacity:.55; }
+.rowactions { display:flex; align-items:center; gap:0.375rem; }
+.rowactions button { font-size:0.6562rem; padding:3px 0.4375rem; }
+
+/* ---- info popover ---- */
+.infowrap { position:relative; display:inline-flex; }
+.infobtn { width:1.06rem; height:1.06rem; padding:0; border-radius:50%; border:1px solid var(--rule-strong); background:var(--panel); color:var(--ink-faint); font-family:var(--mono); font-size:0.625rem; line-height:1; cursor:pointer; }
+.infobtn:hover, .infobtn[aria-expanded="true"] { border-color:var(--accent); color:var(--accent); }
+.infobtn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.infopop { position:absolute; right:0; top:22px; z-index:20; width:330px; display:flex; flex-direction:column; gap:0.375rem; padding:0.6875rem 0.8125rem; background:var(--panel); border:1px solid var(--rule-strong); box-shadow:0 6px 22px rgba(0,0,0,.34); font-size:0.75rem; color:var(--ink-mid); text-align:left; white-space:normal; }
+.infopop b { font-family:var(--mono); font-size:0.7188rem; color:var(--ink); }
+.infometa { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); }
+.infometa code { margin-right:0.3125rem; }
+.infometa.warn { color:var(--warn); }
+
+.inlinecheck { display:flex; align-items:center; gap:0.375rem; font-family:var(--mono); font-size:0.6875rem; color:var(--ink-mid); white-space:nowrap; }
+.inlinecheck input { accent-color:var(--accent); }
+tbody td input[type=checkbox] { accent-color:var(--accent); }
+
+/* ---- nested collapsible groups ---- */
+.subsection { border-top:1px solid var(--rule); }
+.subsection-head { display:flex; align-items:center; gap:0.5625rem; width:100%; padding:0.5rem 0.875rem; background:none; border:0; cursor:pointer; text-align:left; color:var(--ink-mid); font-family:var(--mono); font-size:0.6562rem; letter-spacing:.11em; text-transform:uppercase; }
+.subsection-head:hover { background:var(--sunk); color:var(--ink); }
+.subsection-head:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.subsection-count { margin-left:auto; font-size:0.625rem; color:var(--ink-faint); background:var(--sunk); padding:1px 0.375rem; letter-spacing:0; }
+
+/* ---- mission gate ---- */
+/* The mission picker. Named apart from the sign-in screen below, which is
+   also a "gate" and wants the opposite layout: that one centres itself in the
+   viewport, and sharing the class gave this one a 100vh box with the card
+   floating in the middle of it. */
+.missiongate { display:flex; flex-direction:column; gap:0.75rem; margin-top:0.75rem; }
+.missionlist { display:grid; grid-template-columns:repeat(auto-fill,minmax(14.38rem,1fr)); gap:0.625rem; }
+.missioncard { display:flex; flex-direction:column; gap:0.3125rem; align-items:flex-start; text-align:left; padding:0.75rem 0.875rem; background:var(--sunk); border:1px solid var(--rule); cursor:pointer; color:var(--ink); font-family:var(--sans); }
+.missioncard:hover { border-color:var(--accent); background:var(--panel); }
+.missioncard:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.missioncard-name { font-family:var(--mono); font-size:0.7812rem; font-weight:600; }
+.missioncard-meta { font-family:var(--mono); font-size:0.6562rem; color:var(--ink-faint); }
+.missioncard-scrolls { font-size:0.7188rem; color:var(--ink-mid); }
+
+/* ---- subject picker, under the rail title ---- */
+.subjectpick { display:flex; flex-direction:column; gap:0.25rem; padding:0.5rem 0.75rem 0.625rem; border-bottom:1px solid var(--rule); background:var(--sunk); }
+.subjectpick select { width:100%; font-family:var(--mono); font-size:0.6562rem; padding:0.25rem 0.375rem; background:var(--panel); color:var(--ink); border:1px solid var(--rule-strong); }
+.subjectpick select:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.subjectmeta { font-family:var(--mono); font-size:0.5938rem; color:var(--ink-faint); }
+
+/* ---- header action, right-aligned in a card head ---- */
+.card-head .headaction { margin-left:0.75rem; font-size:0.6875rem; padding:0.3125rem 0.6875rem; }
+.card-head .note + .headaction { margin-left:0.75rem; }
+.newmission { border-bottom:1px solid var(--rule); background:var(--sunk); }
+tbody tr.clickable { cursor:pointer; }
+tbody tr.clickable:hover { background:var(--sunk); }
+
+
+.truncate { display:block; max-width:34ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Columns size to their content; the one marked `grow` takes the slack. Naming
+   it rather than assuming the first column matters: a checkbox column is first
+   in several tables here, and giving the slack to it crams everything else
+   against the right edge. The floor keeps the short columns from collapsing
+   onto each other at the right, which reads as one blob rather than four. */
+table td, table th { width:1px; min-width:6ch; white-space:nowrap; }
+/* And it has to be given some. The rule above puts every column at width:1px --
+   shrink to content -- including the one marked `grow`, and the table itself was
+   width:auto, so there was never any slack for that column to take: the comment
+   above described an intention the stylesheet did not carry out. A table with a
+   growing column claims its container; the column claims what the others leave. */
+table:has(td.grow) { width:100%; }
+table td.grow, table th.grow { width:auto; min-width:14ch; }
+table td.pick, table th.pick { min-width:0; width:1px; }
+table td.wrap, table th.wrap { width:auto; min-width:18ch; white-space:normal; }
+/* A cell holding a sentence rather than a value. 18ch is enough for a joined
+   list of fields and far too narrow for prose, which came out a word per line. */
+table td.prose, table th.prose { min-width:34ch; max-width:52ch; }
+table th { position:relative; }
+/* uppercase turns the micron sign into a capital Mu, which reads as MM. */
+thead th.unit { text-transform:none; letter-spacing:.05em; }
+.colgrip { position:absolute; top:0; right:-3px; width:7px; height:100%; cursor:col-resize; user-select:none; touch-action:none; }
+.colgrip:hover::after, table.resizing .colgrip::after { content:""; position:absolute; top:4px; bottom:4px; left:3px; width:1px; background:var(--accent); }
+table.resizing { user-select:none; }
+
+/* ---- mission block, foot of the rail ---- */
+.missionfoot { border-top:2px solid var(--rule-strong); padding:0.625rem 0.75rem 0.6875rem; display:flex; flex-direction:column; gap:3px; background:var(--sunk); margin-top:auto; }
+.missionfoot-label { font-family:var(--mono); font-size:0.5938rem; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-faint); }
+.missionfoot-name { font-family:var(--mono); font-size:0.75rem; font-weight:600; color:var(--ink); line-height:1.25; overflow:hidden; text-overflow:ellipsis; }
+.missionfoot-meta { font-family:var(--mono); font-size:0.625rem; color:var(--ink-faint); }
+.missionfoot-change { margin-top:0.375rem; width:100%; font-size:0.6562rem; padding:0.3125rem 0.5rem; }
+.rail { min-height:0; }
+.masthead .clock { margin-left:auto; }
+
+/* ---- phase heading: name and one-liner on one line ---- */
+.phasehead { display:flex; align-items:baseline; gap:0.875rem; flex-wrap:wrap; padding:2px 2px 0.25rem; }
+.phasehead h1 { font-family:var(--mono); font-size:0.8125rem; letter-spacing:.1em; text-transform:uppercase; font-weight:600; display:flex; align-items:baseline; gap:0.5625rem; }
+.phasehead-id { color:var(--accent); }
+.phasehead p { font-size:0.8125rem; color:var(--ink-mid); }
+.phasehead-pills { margin-left:auto; display:flex; gap:0.375rem; }
+/* The contract button rides the text baseline rather than the flex baseline:
+   a round button aligned on its own baseline sits a few pixels low against
+   uppercase mono. */
+.phasehead .infowrap { align-self:center; }
+.phasehead .infopop { left:0; right:auto; }
+
+.notewithinfo { display:inline-flex; align-items:center; gap:0.5rem; }
+.visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+th.pick, td.pick { width:34px; padding-right:0; }
+
+/* The `change` affordance on a tile heading: present, but not competing with
+   the readout it sits above. */
+.tinylink { background:none; border:0; padding:0 0 0 0.5rem; font-family:var(--mono); font-size:0.5938rem;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--accent); cursor:pointer; }
+.tinylink:hover { text-decoration:underline; }
+.sourcebox { display:flex; flex-direction:column; gap:0.4375rem; margin-top:0.25rem; }
+.sourcebox .search { font-size:0.6875rem; padding:0.3125rem 0.4375rem; }
+.sourcebox .hint { padding:0; }
+
+/* The phase contract: a definition list, because that is what it is. */
+.contract { display:grid; grid-template-columns:max-content 1fr; gap:0.4375rem 1.125rem; align-items:baseline; }
+.contract dt { font-family:var(--mono); font-size:0.625rem; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-faint); font-weight:600; white-space:nowrap; }
+.contract dd { font-size:0.8125rem; color:var(--ink-mid); margin:0; }
+.contract dd code { display:inline-block; margin-right:0.5rem; }
+@media (max-width: 720px) { .contract { grid-template-columns:1fr; gap:2px 0; }
+  .contract dd { margin-bottom:0.5rem; } }
+
+/* A card heading that folds. The control is the heading itself, so the hit
+   target is the whole thing rather than a caret nobody aims at. */
+.cardfold { background:none; border:0; padding:0; margin:0; display:flex; align-items:center;
+  gap:0.4375rem; cursor:pointer; color:inherit; font:inherit; text-align:left; }
+.cardfold h2 { margin:0; }
+.cardfold-mark { font-size:0.5625rem; color:var(--ink-faint); width:9px; }
+.cardfold:hover h2 { color:var(--accent); }
+
+/* ---- the sign-in gate ---- */
+.gate { min-height:100vh; display:grid; place-items:center; padding:1.5rem; }
+/* In rem, because everything inside it is. The title alone is 20rem wide, and
+   the card was 380 fixed pixels: on a wide screen the root font-size grows,
+   the title grows with it and the card did not, so the name ran off its own
+   edge. 26rem holds the title plus its padding at every root size. */
+.gatecard { width:min(26rem,100%); display:flex; flex-direction:column; gap:0.8125rem;
+  background:var(--panel); border:1px solid var(--rule); border-top:3px solid var(--accent);
+  padding:1.625rem 1.5rem 1.5rem; }
+/* The mark, not the full lockup: the wordmark is the heading right below it,
+   and printing the name twice is not branding. */
+.gatemark { line-height:0; margin-bottom:0.125rem; }
+.gatemark img { height:3rem; width:auto; }
+.gatecard h1 { font-family:var(--mono); font-size:0.9375rem; letter-spacing:.16em; color:var(--ink); }
+.gatecard h1 span { color:var(--accent); }
+.gatesub { font-family:var(--mono); font-size:0.6562rem; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--ink-faint); margin-top:-0.5rem; }
+.gatecard label { display:flex; flex-direction:column; gap:0.3125rem; }
+.gatecard label span { font-family:var(--mono); font-size:0.625rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-faint); }
+.gatecard input { background:var(--sunk); border:1px solid var(--rule); color:var(--ink);
+  font-family:var(--mono); font-size:0.8125rem; padding:0.5rem 0.625rem; }
+.gatecard input:focus { outline:none; border-color:var(--accent); }
+.gatecard button[type=submit] { margin-top:0.25rem; padding:0.5625rem; }
+.gatenote { font-size:0.7188rem; color:var(--ink-faint); line-height:1.5; }
+.gatecmd { display:block; white-space:pre-wrap; margin-top:0.5rem; padding:0.5625rem;
+  background:var(--sunk); font-size:0.6562rem; color:var(--ink-mid); overflow-x:auto; }
+.gateerror { font-size:0.75rem; color:var(--crit); }
+
+/* A refusal, in full.
+   It used to be rendered in a Pill -- an inline badge with nowrap -- so a
+   two-sentence explanation became one long line clipped at the card's edge, and
+   the half that said what to do instead was off-screen. Wraps, breaks a long
+   identifier rather than overflowing, and keeps the monospace of the API it
+   quotes. */
+/* Why a run failed, under the run. ponytail: a second row, not an expander --
+   there is nothing to collapse when the whole reason is one sentence. */
+/* The maintenance row. ponytail: reuses the button styling already on the
+   page, so this is spacing and nothing else. */
+/* Three CT slices. ponytail: flex and object-fit, no canvas. */
+.slices { padding:0.75rem 0; }
+.slices-controls { display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.75rem;
+                   font-family:var(--mono); font-size:0.6875rem; }
+.slices-controls label { display:flex; align-items:center; gap:0.5rem; }
+.slices-row { display:flex; gap:0.75rem; flex-wrap:wrap; }
+.slices-row figure { margin:0; }
+.slices-row img { display:block; width:15rem; height:15rem; object-fit:contain;
+                  background:#000; border:1px solid var(--rule); image-rendering:pixelated; }
+.slices-row figcaption { font-family:var(--mono); font-size:0.625rem;
+                         color:var(--ink-faint); text-align:center; padding-top:0.25rem; }
+/* A button that reads as a link, for an in-table toggle. */
+.linky { background:none; border:0; padding:0; font:inherit; color:var(--accent);
+         cursor:pointer; border-bottom:1px solid var(--rule-strong); }
+
+.maint { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:0.75rem; }
+
+tr.why td { padding-top:0; border-top:0; color:var(--crit); }
+tr.why .whytext { font-family:var(--mono); font-size:0.6875rem;
+                  margin-left:0.5rem; overflow-wrap:anywhere; }
+
+.formerror { margin:0.75rem 0 0; padding:0.5625rem 0.6875rem;
+             font-family:var(--mono); font-size:0.7188rem; line-height:1.55;
+             color:var(--crit); background:var(--crit-soft);
+             border-left:3px solid var(--crit);
+             white-space:pre-wrap; overflow-wrap:anywhere; }
+.sessionfoot { border-top:1px solid var(--rule); padding:0.5rem 0.75rem; display:flex;
+  align-items:center; justify-content:space-between; gap:0.5rem; background:var(--sunk); }
+.sessionwho { font-family:var(--mono); font-size:0.6875rem; color:var(--ink-mid); }
+
+/* The seed choice: a decision, not a dropdown among dropdowns. */
+.seedpick { border:1px solid var(--rule); border-left:3px solid var(--accent);
+  padding:0.75rem 0.875rem 0.375rem; margin:0.75rem 0; display:flex; flex-direction:column; gap:2px; }
+.seedpick legend { font-family:var(--mono); font-size:0.625rem; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--ink-faint); padding:0 0.375rem; }
+.seedpick .hint { padding:0 0 0.5rem; }
+.seedopt { display:grid; grid-template-columns:16px 1fr; gap:3px 0.5625rem; padding:0.4375rem 0;
+  border-top:1px solid var(--rule); cursor:pointer; align-items:baseline; }
+.seedopt:first-of-type { border-top:0; }
+.seedopt.on .seedname { color:var(--accent); }
+.seedname { grid-column:2; display:flex; align-items:center; gap:0.4375rem; font-size:0.8125rem;
+  font-weight:600; color:var(--ink); }
+.seednote { grid-column:2; font-size:0.7188rem; color:var(--ink-faint); line-height:1.5; }
+
+/* GPUs, one per line. A host with eight of them is normal and a single run of
+   them wraps into a block nobody can read. */
+.gpulist { list-style:none; display:flex; flex-direction:column; gap:3px; margin:0; padding:0; }
+.gpulist li { display:grid; grid-template-columns:auto 1fr 54px auto; gap:0.5rem;
+  align-items:center; font-family:var(--mono); font-size:0.7188rem; white-space:nowrap; }
+.gpuindex { color:var(--ink-faint); }
+.gpuname { color:var(--ink-mid); overflow:hidden; text-overflow:ellipsis; }
+.gpubar { height:5px; background:var(--sunk); border:1px solid var(--rule); display:block; }
+.gpubar i { display:block; height:100%; background:var(--accent); }
+.gpunums { color:var(--ink); font-variant-numeric:tabular-nums; }
+
+/* ---- phase state on the rail ----
+   Colour on a left edge, shape in the mark, and the sentence in the title. The
+   edge is what you read while scanning; the mark is what makes it legible
+   without colour; the title is what makes a dot interrogable. */
+.rail-status { display:flex; align-items:center; justify-content:center; width:19px;
+  color:var(--ink-faint); }
+
+/* The ten status marks, drawn rather than typeset. As glyphs they came from
+   four Unicode blocks and arrived at four optical sizes in one column: U+2298
+   is a maths operator and comes in at twice the height of a black circle,
+   while the small square and the middle dot are drawn small on purpose and
+   the dash is a stroke barely a pixel tall. No font-size can bring those to
+   one weight -- and which font answers for U+2298 is the operating system's
+   decision, not ours. One 10px box each, in currentColor, so every state
+   colour set below still applies. */
+.mark { display:inline-block; position:relative; width:10px; height:10px; flex:none; }
+.mark::before, .mark::after { content:""; position:absolute; }
+/* A pixel in from the rings: a filled disc of the same diameter reads heavier
+   than an outline of one. */
+.mark-running::before  { inset:0.5px; border-radius:50%; background:currentColor; }
+.mark-ready::before    { inset:0; border-radius:50%; border:1.5px solid currentColor; }
+/* Half filled: the ring, then a half-covered disc inside it. */
+.mark-queued::before   { inset:0; border-radius:50%; border:1.5px solid currentColor; }
+.mark-queued::after    { inset:2.5px; border-radius:50%;
+                         background:linear-gradient(90deg,currentColor 50%,transparent 50%); }
+.mark-done::before     { inset:1.5px; background:currentColor; transform:rotate(45deg); }
+.mark-stopped::before  { inset:1px; background:currentColor; }
+.mark-failed::before, .mark-failed::after {
+  top:50%; left:0; width:100%; height:1.5px; margin-top:-0.75px; background:currentColor; }
+.mark-failed::before   { transform:rotate(45deg); }
+.mark-failed::after    { transform:rotate(-45deg); }
+.mark-blocked::before  { inset:0; border-radius:50%; border:1.5px solid currentColor; }
+.mark-blocked::after   { top:50%; left:0; width:100%; height:1.5px; margin-top:-0.75px;
+                         background:currentColor; transform:rotate(-45deg); }
+/* The two quiet states stay smaller than the rest -- that hierarchy is the
+   point -- but large enough to read as a shape rather than as a speck. */
+.mark-waiting::before  { inset:3px; border-radius:50%; background:currentColor; }
+.mark-no-run::before   { inset:2.5px; background:currentColor; }
+.mark-elsewhere::before { top:50%; left:1px; width:8px; height:1.5px; margin-top:-0.75px;
+                          background:currentColor; }
+
+/* Every state carries a left edge, including the quiet ones. Leaving three of
+   them with no edge at all made "nothing upstream yet", "nothing to run here"
+   and "runs on another machine" identical while scanning, which is three
+   different answers to "why is this phase not moving". */
+.rail-item.is-running   { box-shadow:inset 3px 0 0 var(--accent); }
+.rail-item.is-queued    { box-shadow:inset 3px 0 0 var(--warn); }
+.rail-item.is-failed    { box-shadow:inset 3px 0 0 var(--crit); }
+.rail-item.is-stopped   { box-shadow:inset 3px 0 0 var(--ink-mid); }
+.rail-item.is-done      { box-shadow:inset 3px 0 0 var(--ok); }
+.rail-item.is-ready     { box-shadow:inset 3px 0 0 var(--ok-soft); }
+.rail-item.is-blocked   { box-shadow:inset 3px 0 0 var(--warn-soft); }
+.rail-item.is-waiting   { box-shadow:inset 3px 0 0 var(--rule); }
+.rail-item.is-elsewhere,
+.rail-item.is-no-run    { box-shadow:inset 3px 0 0 transparent; }
+
+.rail-item.is-running .rail-status { color:var(--accent); }
+.rail-item.is-queued  .rail-status { color:var(--warn); }
+.rail-item.is-failed  .rail-status { color:var(--crit); }
+.rail-item.is-stopped .rail-status { color:var(--ink-mid); }
+.rail-item.is-done    .rail-status { color:var(--ok); }
+/* Ready is the one state that invites an action, so its mark reads at full
+   strength while the two "not yet" states stay quiet. */
+.rail-item.is-ready   .rail-status { color:var(--ok); }
+.rail-item.is-blocked .rail-status { color:var(--warn); }
+.rail-item.is-waiting .rail-status { color:var(--ink-faint); }
+.rail-item.is-elsewhere .rail-name, .rail-item.is-elsewhere .rail-id,
+.rail-item.is-no-run .rail-name,    .rail-item.is-no-run .rail-id { opacity:.55; }
+
+/* The active route already owns the left edge, so it wins over the state. */
+.rail-item.active { box-shadow:inset 2px 0 0 var(--accent); }
+
+/* The count next to the name says which kind of work it is: teal for a worker
+   executing, amber for work nobody has claimed. */
+.rail-badges em.rail-queued { background:var(--warn-soft); color:var(--warn); font-weight:600; }
+
+/* Two states move, and they move differently: running breathes, queued creeps.
+   Nothing else animates. */
+.rail-item.is-running .rail-status { animation:railpulse 1.6s ease-in-out infinite; }
+@keyframes railpulse {
+  0%, 100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.35; transform:scale(.8); }
+}
+.rail-item.is-queued .rail-status { animation:railcreep 2.8s linear infinite; }
+@keyframes railcreep {
+  0%, 100% { opacity:.45; }
+  50%      { opacity:1; }
+}
+.rail-item.is-failed .rail-status { animation:railknock .9s ease-out 2; }
+@keyframes railknock {
+  0%, 100% { transform:translateX(0); }
+  25%      { transform:translateX(-2px); }
+  75%      { transform:translateX(2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail-item .rail-status { animation:none !important; }
+}
+
+/* A unit that belongs to a readout without competing with it. */
+.readout-unit { font-size:0.875rem; color:var(--ink-faint); font-weight:400; }
+
+/* Run states: every one of them, sized by how many. */
+.statecounts { display:flex; flex-wrap:wrap; gap:0.5rem; }
+.statecount { display:flex; flex-direction:column; gap:1px; padding:0.4375rem 0.6875rem;
+  background:var(--sunk); border:1px solid var(--rule); border-left-width:3px; min-width:84px; }
+.statecount b { font-family:var(--mono); font-size:1.062rem; color:var(--ink); }
+.statecount span { font-family:var(--mono); font-size:0.5938rem; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-faint); }
+.statecount.is-ok { border-left-color:var(--ok); }
+.statecount.is-crit { border-left-color:var(--crit); }
+.statecount.is-run { border-left-color:var(--accent); }
+.statecount.is-warn { border-left-color:var(--warn); }
+.statecount.is-neg { border-left-color:var(--rule-strong); }
+
+/* A seeder's settings, only while it is the one chosen. */
+.seedconfig { grid-column:2; display:flex; flex-wrap:wrap; gap:0.625rem 1rem; margin:0.5rem 0 2px;
+  padding:0.5625rem 0.6875rem; background:var(--sunk); border:1px solid var(--rule); }
+.seedconfig label { display:flex; flex-direction:column; gap:3px; min-width:170px; }
+.seedconfig label > span { font-family:var(--mono); font-size:0.5938rem; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-faint); }
+.seedconfig input, .seedconfig select { background:var(--panel); border:1px solid var(--rule);
+  color:var(--ink); font-family:var(--mono); font-size:0.7188rem; padding:0.3125rem 0.4375rem; }
+.seedconfig em { font-style:normal; font-size:0.6562rem; color:var(--ink-faint); line-height:1.45; }
+
+/* Where the candidates went: three screens, in order. */
+.causes { list-style:none; display:flex; flex-direction:column; gap:0.375rem; margin:0.25rem 0 0; padding:0; }
+.causes li { font-size:0.75rem; color:var(--ink-mid); line-height:1.5; }
+.causes b { font-family:var(--mono); color:var(--ink); }
+
+/* ---- role toggles ---- */
+/* Buttons rather than checkboxes: each one saves on click, and a checkbox that
+   commits immediately reads as a form that has not been submitted yet. */
+.rolepick { display:flex; flex-wrap:wrap; gap:0.25rem; }
+.roletag { padding:2px 0.4375rem; font-family:var(--mono); font-size:0.6562rem; letter-spacing:.04em;
+           border:1px solid var(--rule); background:transparent; color:var(--ink-faint);
+           cursor:pointer; }
+.roletag:hover:not(:disabled) { border-color:var(--accent); color:var(--ink); }
+.roletag.is-on { border-color:var(--accent); color:var(--accent); background:var(--panel); }
+.roletag:disabled { opacity:.5; cursor:default; }
+.roletag:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
+/* ---- run options ---- */
+/* The hints used to sit inside the <label>, so they inherited its uppercase and
+   its letter-spacing: fifteen sentences set in shouting mono, each as loud as
+   the field it described. They are behind the info button now, and this file no
+   longer has a rule that can do that to a sentence. */
+.knobs { border:1px solid var(--rule); border-left:2px solid var(--rule-strong);
+         margin:0 0.875rem 0.5rem; background:var(--panel); }
+.knobs[open] { border-left-color:var(--accent); }
+.knobs > summary { display:flex; align-items:baseline; gap:0.625rem; padding:0.5rem 0.75rem;
+                   cursor:pointer; font-family:var(--mono); font-size:0.6562rem;
+                   letter-spacing:.09em; text-transform:uppercase; color:var(--ink-mid);
+                   list-style:none; }
+.knobs > summary::-webkit-details-marker { display:none; }
+/* A caret the reader can find without hovering: a summary that looks like a
+   heading is a heading nobody clicks. */
+.knobs > summary::before { content:"▸"; color:var(--ink-faint); font-size:0.5625rem; }
+.knobs[open] > summary::before { content:"▾"; color:var(--accent); }
+.knobs > summary:hover { color:var(--ink); }
+.knobs > summary:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+/* How many of this group's fields are no longer the queue's default, so a
+   collapsed group still says whether it holds anything. */
+.knobs-count { margin-left:auto; font-size:0.5938rem; letter-spacing:.06em;
+               color:var(--ink-faint); text-transform:none; }
+.knobs[open] .knobs-count { color:var(--accent); }
+
+/* Narrow columns: almost every one of these is a three- or four-digit integer,
+   and a full-width box for "64" reads as a field expecting a sentence. */
+.knobgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));
+            gap:0.5625rem 0.75rem; padding:2px 0.75rem 0.75rem; }
+.knobgrid label { display:flex; flex-direction:column; gap:3px; }
+.knoblabel { display:flex; align-items:center; gap:0.3125rem; font-family:var(--mono);
+             font-size:0.625rem; letter-spacing:.07em; text-transform:uppercase;
+             color:var(--ink-faint); }
+.knobgrid input, .knobgrid select { font-family:var(--mono); font-size:0.7812rem;
+    padding:0.3125rem 0.4375rem; background:var(--bg); color:var(--ink);
+    border:1px solid var(--rule-strong); text-transform:none; letter-spacing:0;
+    width:100%; box-sizing:border-box; }
+/* A field left alone should look left alone, not filled in. */
+.knobgrid input::placeholder { color:var(--ink-faint); opacity:.65; }
+.knobgrid input:not(:placeholder-shown) { border-color:var(--accent); color:var(--ink); }
+.knobgrid select { color:var(--ink); }
+.knobgrid input:focus-visible, .knobgrid select:focus-visible {
+    outline:2px solid var(--accent); outline-offset:-2px; }
+
+.knobs-readonly { padding:2px 1.625rem 0.75rem; line-height:1.55; }
+.knobs-readonly b { color:var(--ink-mid); font-weight:400; }
+
+/* Supplied seed points: a coordinate list, so mono and wide enough for three
+   five-digit numbers and a note without wrapping. */
+.seedpoints { width:100%; box-sizing:border-box; margin:0.5rem 0;
+              font-family:var(--mono); font-size:0.78rem; line-height:1.6;
+              padding:0.5rem 0.6rem; background:var(--bg); color:var(--ink);
+              border:1px solid var(--rule-strong); resize:vertical; }
+.seedpoints::placeholder { color:var(--ink-faint); opacity:.6; }
+.seedpoints:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+
+/* ---- run header ---- */
+/* The scroll a run covers, from the input that decides it. This used to be two
+   labels that could disagree, plus a paragraph reconciling them. */
+.runhead { display:flex; align-items:baseline; flex-wrap:wrap; gap:0.75rem 1.4rem;
+           padding-bottom:0.4rem; }
+.runhead-label { font-family:var(--mono); font-size:0.62rem; letter-spacing:.1em;
+                 text-transform:uppercase; color:var(--ink-faint);
+                 margin-right:0.45rem; }
+.runhead-cover b { font-family:var(--mono); font-size:1rem; color:var(--accent); }
+.runhead-reads { display:flex; align-items:baseline; flex:1 1 22rem; min-width:0; }
+.runhead-reads select { flex:1 1 auto; min-width:0; font-family:var(--mono);
+    font-size:0.78rem; padding:0.3rem 0.4rem; background:var(--panel);
+    color:var(--ink); border:1px solid var(--rule-strong); }
+.runhead-aside { flex-basis:100%; font-size:0.7rem; }
+
+/* ---- segmented switch ---- */
+/* Two mutually exclusive modes, so they share one control rather than looking
+   like two independent tags that happen to be next to each other. */
+.segswitch { display:inline-flex; margin:0 0.85rem 0.6rem;
+             border:1px solid var(--rule-strong); }
+.segswitch button { padding:0.3rem 0.8rem; font-family:var(--mono);
+    font-size:0.7rem; letter-spacing:.05em; border:0; background:transparent;
+    color:var(--ink-faint); cursor:pointer; }
+.segswitch button + button { border-left:1px solid var(--rule-strong); }
+.segswitch button:hover { color:var(--ink); }
+.segswitch button[aria-current] { background:var(--accent); color:var(--ground); }
+.segswitch button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
+/* Backend and task budget: settings, not decisions. One backend actually works,
+   and a cell count is a dial. They sit quietly under the header so the seed
+   section is the first thing on the page that looks like a choice, because it is
+   the only one that is. */
+.runsizing { display:flex; align-items:baseline; flex-wrap:wrap; gap:0.6rem 1.5rem;
+             padding:0.3rem 0 0.9rem; }
+.runsizing .inlinecheck { font-size:0.68rem; }
+
+/* A label whose control sits beside its text rather than under it. The phase
+   buttons put "how many" and a checkbox on the same row as the button, and the
+   default label layout stacks them into a column three times as tall. */
+label.inline { display:inline-flex; align-items:center; gap:0.375rem; margin:0;
+  font-size:0.75rem; color:var(--dim); }
+label.inline input[type=text], label.inline input:not([type]) { width:4.5rem; }
+
+/* The user guide: one collapsible module per phase. Native <details>, so it
+   works before any script runs and the browser owns the open/closed state. */
+.guide-phase { border-top:1px solid var(--rule); }
+.guide-phase:first-of-type { border-top:0; }
+.guide-phase > summary {
+  display:grid; grid-template-columns:34px auto 1fr; align-items:baseline; gap:0.6rem;
+  padding:0.7rem 1rem; cursor:pointer; list-style:none;
+}
+.guide-phase > summary::-webkit-details-marker { display:none; }
+.guide-phase > summary:hover { background:var(--sunk); }
+.guide-phase > summary:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.guide-phase[open] > summary { background:var(--sunk); border-bottom:1px solid var(--rule); }
+.guide-phase > summary .dim { font-size:0.875rem; }
+.guide-phase h4 { margin:1.2rem 0 0.35rem; font-size:0.9375rem; }
+.guide-phase h4:first-child { margin-top:0; }
+.guide-facts { display:grid; grid-template-columns:auto 1fr; gap:0.3rem 0.9rem; margin:0 0 0.4rem; }
+.guide-facts dt { color:var(--ink-faint); font-size:0.8125rem; }
+.guide-facts dd { margin:0; }
+
+/* Numbered decisions, with the reason under each one rather than beside it. */
+.guide-steps { margin:0 0 0.5rem 1.1rem; display:flex; flex-direction:column; gap:0.5rem; }
+.guide-steps li b { display:block; }
+.guide-steps li span { display:block; color:var(--ink-mid); }
+.guide-phase h5 { margin:0.9rem 0 0.3rem; font-size:0.8125rem; color:var(--ink-faint);
+  font-family:var(--mono); letter-spacing:.04em; text-transform:none; }
+.guide-phase ul { margin:0 0 0.5rem 1.1rem; }
+.guide-phase ul li { margin-bottom:0.25rem; }
+
+/* Screenshots in the guide: full width of the prose column, with the caption
+   doing the teaching rather than the picture. */
+.guide-figure { margin:0.9rem 0 1.1rem; }
+/* Never upscaled: a 220px-wide crop stretched to the column is a blurred
+   picture of something legible. */
+.guide-figure img { display:block; width:auto; max-width:100%; height:auto;
+  border:1px solid var(--rule); background:var(--sunk); }
+.guide-figure figcaption { margin-top:0.45rem; font-size:0.8125rem; color:var(--ink-mid); line-height:1.55; }
+.guide-flow { margin:0 0 0.6rem 1.1rem; display:flex; flex-direction:column; gap:0.2rem; }
+.guide-flow li b { color:var(--ink); margin-right:0.35rem; }
+
+
+/* ---- documentation: a column you can actually read ---- */
+/* 96ch of 12px text is a line the eye loses its place in. Prose in the guide
+   sits at a normal measure; tables and figures keep the full width, because
+   they are scanned rather than read. */
+.guide-prose p, .guide-prose li, .guide-prose dd, .guide-figure figcaption {
+  max-width:74ch;
+}
+.guide-prose p { font-size:0.8125rem; line-height:1.65; margin-bottom:0.7rem; }
+.guide-prose > p:last-child { margin-bottom:0; }
+.guide-prose h4 { margin:1.35rem 0 0.4rem; font-size:0.9375rem; }
+.guide-prose h4:first-child { margin-top:0; }
+.guide-prose li { font-size:0.8125rem; line-height:1.6; }
+
+/* The status marks, as a key rather than a paragraph of symbols. */
+.guide-marks { display:grid; grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));
+  gap:0.2rem 1rem; margin:0.6rem 0 0.2rem; }
+/* Centred rather than on the baseline: a drawn mark has no baseline to sit on. */
+.guide-marks > div { display:grid; grid-template-columns:1.9rem 1fr; align-items:center; }
+.guide-marks dt { display:flex; justify-content:center; color:var(--accent); }
+.guide-marks dd { margin:0; font-size:0.8125rem; color:var(--ink-mid); }
+
+/* A phase module, once open, is a document. Give it room. */
+.guide-phase > .body-pad { padding-top:0.9rem; padding-bottom:1.1rem; }
+.guide-phase p, .guide-phase li { max-width:74ch; font-size:0.8125rem; line-height:1.62; }
+.guide-phase .guide-facts dd { max-width:74ch; }
+.guide-phase h4 { margin:1.5rem 0 0.45rem; padding-top:0.55rem;
+  border-top:1px solid var(--rule); font-size:0.9375rem; }
+.guide-phase h4:first-child { margin-top:0; padding-top:0; border-top:0; }
+
+/* The models table carries two columns of prose -- the profiles that declare a
+   checkpoint, and why its source is or is not usable. Left to itself a table
+   widens to fit them and the last column leaves the screen.
+
+   The constraint is on the children, not on the cell: a table sizes its columns
+   to their content and treats max-width on a td as a suggestion it is free to
+   ignore, which it does. A block child obeys it. */
+.grid.models { table-layout: fixed; width: 100%; }
+/* .grid is nowrap throughout, which is right for a table of identifiers and
+   wrong for the cells here that hold sentences and long filenames. */
+.grid.models td, .grid.models th {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  /* .grid right-aligns, which is right for numbers and wrong for sentences. */
+  text-align: left;
+}
+
+/* The API reference: one row per operation, expanding to its parameters.
+   Collapsed by default because 104 operations expanded is a wall, and the
+   thing somebody scans for is the path. */
+.apiop { border-top: 1px solid var(--rule); }
+.apiop:first-child { border-top: none; }
+.apiop-head {
+  display: flex; align-items: center; gap: .6rem;
+  width: 100%; padding: .5rem .9rem;
+  background: none; border: none; color: inherit; font: inherit;
+  text-align: left; cursor: pointer;
+}
+.apiop-head:disabled { cursor: default; }
+.apiop-head:hover:not(:disabled) { background: var(--sunk); }
+.apiop-head code { flex: 0 0 auto; }
+.apiop-head .dim { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apitable { width: 100%; border-collapse: collapse; margin: .4rem 0 .6rem; }
+.apitable th { text-align: left; font-weight: normal; color: var(--ink-faint); }
+.apitable th, .apitable td { padding: .18rem .6rem .18rem 0; }

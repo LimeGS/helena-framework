@@ -1,0 +1,33 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "timesformer-scroll5-pherc172-screening@1.0.0",
+  "method_id": "timesformer-scroll5-pherc172@1.0.0",
+  "checkpoint_sha256": "b5f9f48c231728548e906ec52b56434aa2bbe86e90927212be1322314d35b331",
+  "adapter": "framework/stages/03-ink/scripts/run_ink_timesformer.py",
+  "input_contract": {
+    "modality": "registered surface CT stack",
+    "frames": 26,
+    "tile_size_y_x": [64, 64],
+    "training_pixel_um": 7.91,
+    "training_slice_um": 7.91,
+    "physical_resampling_required": true,
+    "model_family": "timesformer_scroll5_july_retreat"
+  },
+  "output_contract": {
+    "maps": ["mean_probability.npy", "stability_std.npy"],
+    "receipt": "INK_SCREENING_RECEIPT.json",
+    "coordinate_space": "normalized flattened surface"
+  },
+  "default_execution": {
+    "depth_centers": [25, 32, 39],
+    "tiling_offsets": [0, 8],
+    "replica_count": 6,
+    "stride": 16,
+    "minimum_valid_ratio": 0.6
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "silence_proves_absence": false
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "$defs": {
+    "entry": {
+      "additionalProperties": false,
+      "properties": {
+        "input_contract": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "integration_status": {
+          "$comment": "Widened on 2026-07-24 after BL-SCHEMA-ENFORCE validated this registry against its own contract for the first time. The registry had carried RUNNABLE_SHADOW_ONLY and RUNNABLE_EXPERIMENTAL_NOT_DEFAULT since bc46ad133 without any validator. Both express states the original five cannot: shadow runs beside production without influencing a decision, and experimental-not-default runs but may never be selected by default. Widening an enum cannot invalidate a previously valid document.",
+          "enum": [
+            "RUNNABLE_PRIMARY",
+            "RUNNABLE_AUXILIARY",
+            "RUNNABLE_DIAGNOSTIC",
+            "RUNNABLE_SHADOW_ONLY",
+            "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+            "EXPERIMENTAL_BLOCKED",
+            "KNOWN_NOT_INTEGRATED",
+            "INTEGRATED_THEN_DISQUALIFIED"
+          ]
+        },
+        "known_checkpoint_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "local_adapter": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "method_id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]+@[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "type": "string"
+        },
+        "method_kind": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "notes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "receipt_model_family_aliases": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "recommended_policy": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_url": {
+          "$comment": "Null for a Campaign X internal method that has no public upstream page. The uri format applies only when a string is supplied.",
+          "format": "uri",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stage_id": {
+          "enum": [
+            "01-segmentation",
+            "02-flattening",
+            "03-ink",
+            "04-validation",
+            "05-reconstruction",
+            "06-discovery"
+          ]
+        },
+        "training_or_reference_domain": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "validation_status": {
+          "$comment": "Widened with the three outcomes the failed multiscroll transfer series produced. They record which benchmark consumed the method and that it was not promoted; the original five cannot express a specific failed prospective transfer.",
+          "enum": [
+            "CONTROL_AND_TARGET_SUPPORTED",
+            "CONTROL_SUPPORTED_TARGET_UNCALIBRATED",
+            "LOCAL_FUNCTIONAL_ONLY",
+            "FAILED_REFERENCE_CONTROL",
+            "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED",
+            "BLOCKED_INSUFFICIENT_INDEPENDENT_MULTISCROLL_CONTROLS",
+            "MULTISCROLL_TRANSFER_V3_FAILED_NOT_PROMOTED",
+            "MULTISCROLL_TRANSFER_V4_FAILED_NOT_PROMOTED",
+            "LOCALLY_DISQUALIFIED_UNTRAINED_OUTPUT_HEAD"
+          ]
+        }
+      },
+      "required": [
+        "method_id",
+        "stage_id",
+        "method_kind",
+        "source_url",
+        "integration_status",
+        "validation_status",
+        "input_contract",
+        "training_or_reference_domain",
+        "recommended_policy"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://campaignx.local/schemas/method-capability-registry-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/$defs/entry"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "generated_from_public_sources_at_utc": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "identity_policy": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "registry_version": {
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "campaignx.method_capability_registry.v1"
+    }
+  },
+  "required": [
+    "schema",
+    "registry_version",
+    "generated_from_public_sources_at_utc",
+    "identity_policy",
+    "entries"
+  ],
+  "title": "Campaign X method capability registry v1",
+  "type": "object"
+}

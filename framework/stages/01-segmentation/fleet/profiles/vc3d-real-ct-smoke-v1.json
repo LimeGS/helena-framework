@@ -1,0 +1,8 @@
+{
+  "mode": "seed",
+  "generations": 20,
+  "step_size": 12,
+  "min_area_cm": 0.0,
+  "use_cuda": false,
+  "voxelsize": 9.362
+}

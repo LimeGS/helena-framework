@@ -1,0 +1,29 @@
+{
+  "component": "pherc0139-column-atlas-gh",
+  "file_count": 12,
+  "files": {
+    "CITATION.md": "a74b47e4e1f23eae10e035c8bd52b7b1f13c7228989286ee562fe40b49bee0ca",
+    "README.md": "9fd01f42b0751e0d829ae7713610efc1ffee7ca29f045759c813aa0f7181ac2c",
+    "scripts/build_viewer.py": "f086ba153358adc836af8d01ce4e7f02954b9c3d88c8b6ae2c8b9558b466352f",
+    "scripts/estimate_extent.py": "cb497cb413a3a1b1bb16fd967dc6d7428ee844e2b7a534e4555717614f0acf80",
+    "scripts/fit_local_centerline.py": "d61f240274318350b130a997660d73754dc437b8723340f1a0431404e4266b3f",
+    "scripts/make_photo_plates.py": "eb65d4239085223bbb8ffcc3b39844b2a772314201d1ef304f74c3f227e25bf5",
+    "scripts/make_plates.py": "ad4c7c9bfdee850c3a8ae4867e5d2b81c1996640334b386facd240faaf38da69",
+    "scripts/reparametrize_to_column.py": "8f06e3a93982feb24ce68fe24a3e43c9ee6f167d1a469d25b6b550f404071eae",
+    "scripts/separate_wraps_by_winding.py": "5e7b34928da863c5b4b997724d4fa473b339f3a61e053b7bd9a8e88636521926",
+    "scripts/validate_release.py": "bae1de5f1efc4be41001c803bece389f2d8125f525f7858d51b9c1cfe19b8e11",
+    "scripts/vesuvius_data.py": "25c68f7d7c6ee51959b0cd87fc1672d98d8244a20139ba26b6ada5cb88ffd8b6",
+    "scripts/wrap_order.py": "9b397b7b7f860275c0e775200e186c2a19e029c6e2f7c20c37f4ebabfe3e6435"
+  },
+  "phases": [
+    "P8",
+    "P9"
+  ],
+  "policy": "code only; plates, indices, reviews, checkpoints and fixtures are findings and stay at the source",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": "6bc0a7dcc462e0a1faa2be717197c674a44fabb3",
+  "source_path": "release/pherc0139-column-atlas-gh",
+  "source_remote": "git@github.com:LimeGS/pherc0139-column-atlas.git",
+  "unavailable_dataless": [],
+  "vendored_at_utc": "2026-07-25T17:51:05Z"
+}

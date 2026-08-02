@@ -1,0 +1,55 @@
+{
+  "schema": "campaignx.scientific_profile.v1",
+  "profile_id": "segmentation.scrollfiesta-m7-mesh@0.1.0",
+  "status": "EXPERIMENTAL_LOCKED",
+  "backend": {
+    "family": "scrollfiesta",
+    "repository": "https://github.com/Hob3rMallow/scrollfiesta_public",
+    "commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+    "tree": "5299f2cb5a6f19ab84333d084b370f9664c8c7d6"
+  },
+  "input": {
+    "prediction_family": "m7",
+    "level": 0,
+    "threshold": "nonzero",
+    "canonical_roi_layout": "Z0,Y0,X0,Z1,Y1,X1",
+    "scrollfiesta_cli_bbox_layout": "Z0,Z1,Y0,Y1,X0,X1",
+    "cube_edge_voxels": 128
+  },
+  "meshing": {
+    "halo_voxels": 13,
+    "qem_enabled": true,
+    "components": "all",
+    "minimum_faces": 200,
+    "maximum_components": 0,
+    "fill_max_edges": 30
+  },
+  "flattening": {
+    "iterations": 20,
+    "energy": "symmetric_dirichlet",
+    "tolerance": null,
+    "step_size": 20
+  },
+  "runtime": {
+    "maximum_concurrent_cubes": 8,
+    "threads_per_cube": 1,
+    "cube_timeout_seconds": 600.0,
+    "flatboi_timeout_seconds": 300.0,
+    "render_in_scrollfiesta": false,
+    "anonymous_s3": true
+  },
+  "coordinate_contract": {
+    "native_obj_order": "ZYX",
+    "canonical_order": "XYZ",
+    "winding_flips": 1,
+    "maximum_roundtrip_error_voxels": 0.0001
+  },
+  "safety": {
+    "require_new_output_directory": true,
+    "fail_on_any_weld_nonzero_exit": true,
+    "fail_on_missing_topology_report": true,
+    "physical_mesh_fusion": false,
+    "ink_may_override_geometry_failure": false,
+    "explicit_absolute_tool_paths": true
+  }
+}

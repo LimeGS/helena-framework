@@ -1,0 +1,14 @@
+# core tools (renderers, tracer, wedge extractor, label transport)
+numpy
+pillow
+scipy          # label_transport.py QC overlays
+zarr           # winding_tracer.py one-time mask decompress
+
+# adapters/ additionally need (install the torch pair together and LAST --
+# letting timm/transformers resolve torch afterwards pulls a cu13 wheel that
+# fails on 5xx drivers with a misleading "driver too old" error):
+# torch==2.6.0+cu124 torchvision==0.21.0+cu124 transformers==4.57.6 vesuvius
+#
+# adapters/infer_timesformer.py is a patched copy of the upstream script and
+# keeps its original stack: opencv-python, albumentations, typed-argument-parser,
+# timesformer-pytorch, segmentation-models-pytorch, pytorch-lightning, tqdm

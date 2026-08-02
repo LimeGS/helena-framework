@@ -1,0 +1,8 @@
+{
+  "stage_id": "02-flattening",
+  "purpose": "A TIFXYZ surface and immutable CT snapshot produce registered flattened renders and quality maps.",
+  "inputs": ["tifxyz_surface", "immutable_ct_snapshot", "flattening_profile"],
+  "outputs": ["registered_renders", "rendered_tiles", "quality_maps", "render_receipt"],
+  "image": "helena-vc3d",
+  "acceptance_boundary": "A render is not proof that the underlying surface is physically correct."
+}

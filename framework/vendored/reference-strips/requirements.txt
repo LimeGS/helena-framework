@@ -1,0 +1,13 @@
+# Core (format, builder core, qualification, scorer, tests):
+numpy>=1.24
+scipy>=1.10
+
+# Optional extras -- clearly separated, NOT needed for the core:
+#   tifffile   -> only for reading real tifxyz segment directories
+#                 (make_strip.py on real data; mesh mode with a tifxyz pred)
+#   zarr       -> only for qualify_strip.py --ct-check (network CT volume;
+#                 remote URLs additionally need fsspec + aiohttp)
+# tifffile
+# zarr
+# fsspec
+# aiohttp

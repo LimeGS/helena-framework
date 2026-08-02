@@ -1,0 +1,104 @@
+name: campaignx
+
+# The context is containers/images/ so neither source data nor secrets can enter an
+# image.  Mounts are intentionally declared by the caller (or a site-specific
+# compose override) because their paths differ between Mac and Vast.
+x-common: &common
+  init: true
+  working_dir: /workspace/campaign-x
+  environment:
+    PYTHONUNBUFFERED: "1"
+    PYTHONDONTWRITEBYTECODE: "1"
+  volumes:
+    - type: bind
+      source: ${CAMPAIGN_X_REPO:?set_an_absolute_repository_path}
+      target: /workspace/campaign-x
+      read_only: true
+    - type: bind
+      source: ${CAMPAIGN_X_ARTIFACTS:?set_an_absolute_artifact_path}
+      target: /artifacts
+
+services:
+  vc3d:
+    <<: *common
+    profiles: ["gpu"]
+    build:
+      context: ../images
+      dockerfile: Containerfile.vc3d
+      additional_contexts:
+        vc3d_runtime: ${VC3D_RUNTIME_CONTEXT:?set_a_directory_containing_only_vc3d-runtime.tgz}
+      args:
+        BASE_IMAGE: ${VC3D_BASE_IMAGE:?must_be_pinned_by_digest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
+    image: ${VC3D_IMAGE:-helena-vc3d:${HELENA_RUNTIME_VERSION:-0.2.0}}
+    gpus: all
+
+  scrollfiesta:
+    <<: *common
+    profiles: ["cpu"]
+    build:
+      context: ../images
+      dockerfile: Containerfile.scrollfiesta
+      additional_contexts:
+        scrollfiesta_runtime: ${SCROLLFIESTA_RUNTIME_CONTEXT:?set_a_verified_scrollfiesta_OCI_context}
+      args:
+        BASE_IMAGE: ${SCROLLFIESTA_BASE_IMAGE:?must_be_pinned_by_digest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
+        SCROLLFIESTA_RUNTIME_PACKAGE_VERSION: ${SCROLLFIESTA_RUNTIME_PACKAGE_VERSION:-0.1.0}
+    image: ${SCROLLFIESTA_IMAGE:-helena-scrollfiesta:${SCROLLFIESTA_RUNTIME_PACKAGE_VERSION:-0.1.0}}
+
+  ink:
+    <<: *common
+    profiles: ["gpu"]
+    build:
+      context: ../images
+      dockerfile: Containerfile.ink
+      args:
+        BASE_IMAGE: ${INK_BASE_IMAGE:?must_be_pinned_by_digest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
+    image: ${INK_IMAGE:-helena-ink:${HELENA_RUNTIME_VERSION:-0.2.0}}
+    gpus: all
+    volumes:
+      - type: bind
+        source: ${CAMPAIGN_X_REPO:?set_an_absolute_repository_path}
+        target: /workspace/campaign-x
+        read_only: true
+      - type: bind
+        source: ${CAMPAIGN_X_ARTIFACTS:?set_an_absolute_artifact_path}
+        target: /artifacts
+      - type: bind
+        source: ${CAMPAIGN_X_MODELS:?set_an_absolute_model_path}
+        target: /models
+        read_only: true
+
+  qc:
+    <<: *common
+    profiles: ["cpu", "gpu", "viewer"]
+    build:
+      context: ../images
+      dockerfile: Containerfile.qc
+      args:
+        BASE_IMAGE: ${QC_BASE_IMAGE:?must_be_pinned_by_digest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
+    image: ${QC_IMAGE:-helena-qc:${HELENA_RUNTIME_VERSION:-0.2.0}}
+
+  orchestrator:
+    <<: *common
+    profiles: ["cpu"]
+    build:
+      context: ../images
+      dockerfile: Containerfile.orchestrator
+      args:
+        BASE_IMAGE: ${ORCHESTRATOR_BASE_IMAGE:?must_be_pinned_by_digest}
+        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
+        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
+    image: ${ORCHESTRATOR_IMAGE:-helena-orchestrator:${HELENA_RUNTIME_VERSION:-0.2.0}}

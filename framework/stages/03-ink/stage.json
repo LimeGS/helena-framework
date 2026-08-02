@@ -1,0 +1,8 @@
+{
+  "stage_id": "03-ink",
+  "purpose": "Frozen ink models score flattened tiles under declared replica settings.",
+  "inputs": ["registered_renders", "ink_profile", "model_snapshot"],
+  "outputs": ["replica_probability_maps", "aggregate_maps", "ink_receipt"],
+  "image": "helena-ink",
+  "acceptance_boundary": "A probability map is a routing signal, not proof of ink or letters."
+}

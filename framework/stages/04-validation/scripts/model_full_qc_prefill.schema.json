@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["assessments"],
+  "properties": {
+    "assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seed_id", "surface_continuity", "potential_false_bridge", "potential_sheet_switch", "flattening_distortion", "local_haze_compression", "fiber_like_texture", "single_lamina_thickness_mm", "recommended_action", "evidence_citations", "human_confirmation_required", "rationale"],
+        "properties": {
+          "seed_id": {"type": "string"},
+          "surface_continuity": {"type": "string", "enum": ["LOCAL_CONSISTENT", "POSSIBLE_DISCONTINUITY", "CT_INSUFFICIENT"]},
+          "potential_false_bridge": {"type": "string", "enum": ["NONE_OBSERVED", "SUSPECTED", "CT_INSUFFICIENT"]},
+          "potential_sheet_switch": {"type": "string", "enum": ["NONE_OBSERVED", "SUSPECTED", "CT_INSUFFICIENT"]},
+          "flattening_distortion": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "INSUFFICIENT"]},
+          "local_haze_compression": {"type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "INSUFFICIENT"]},
+          "fiber_like_texture": {"type": "string", "enum": ["PRESENT", "NOT_DEMONSTRATED", "CT_INSUFFICIENT"]},
+          "single_lamina_thickness_mm": {"type": "string", "enum": ["NOT_MEASURABLE_FROM_PACKET"]},
+          "recommended_action": {"type": "string", "enum": ["PRIORITIZE_HUMAN_QC", "DEFER", "ESCALATE"]},
+          "evidence_citations": {"type": "array", "items": {"type": "string"}},
+          "human_confirmation_required": {"type": "array", "items": {"type": "string"}},
+          "rationale": {"type": "string"}
+        }
+      }
+    }
+  }
+}

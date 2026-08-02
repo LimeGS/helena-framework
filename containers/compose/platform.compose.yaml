@@ -1,0 +1,301 @@
+# The whole platform, from a clean checkout, with nothing prepared first.
+#
+#   docker compose -f containers/compose/platform.compose.yaml up -d
+#
+# That is the entire instruction. No env file, no directories to create, no
+# image to build first, no credentials to write: the images build from this
+# checkout, every piece of state is a named volume Docker creates, and the
+# database initialises its own schema before the panel starts.
+#
+# It got that way deliberately. This file used to demand five variables --
+# HELENA_POSTGRES_ENV, HELENA_POSTGRES_DATA, HELENA_PANEL_STATE,
+# HELENA_BACKUP_S3 -- and default two more to host paths that exist on exactly
+# one machine. Bringing up a second host meant reconstructing, from a shell
+# somebody had closed, what those files were supposed to contain. A platform you
+# can only stand up if you were there the first time is not distributable.
+#
+# What is still worth setting, when you get past a first look:
+#
+#   HELENA_PANEL_TLS_NAMES   every hostname a browser will use, so the
+#                            self-signed certificate covers them
+#   POSTGRES_PASSWORD        see the note on the postgres service
+#   HELENA_AWS_ENV           a file of AWS_* credentials, for S3 artifacts and
+#                            surface previews
+#   --profile backup         turns on the scheduled control-plane backup, which
+#                            needs HELENA_BACKUP_S3
+#
+# The workers are the other three files -- segment, ink, surface-qc -- because
+# what a worker needs is a per-machine fact (a GPU index, a device) and this set
+# is identical on every host.
+name: helena
+
+# Both places the panel image is named. An anchor, so a deployment that pins
+# HELENA_PANEL_IMAGE to a registry gets it in both and the schema is never
+# created by a different build from the one that reads it.
+x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.10.0}}
+
+x-panel-build: &panel-build
+  context: ../..
+  dockerfile: containers/images/Containerfile.panel
+  args:
+    BUILD_COMMIT: ${HELENA_VERSION:-local}
+
+# Credentials and the connection string are one fact stated once. They were two,
+# in two files, and a password changed in one place produced a panel that
+# started cleanly and answered every page with "no control plane".
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-campaignx}
+  POSTGRES_DB: ${POSTGRES_DB:-campaignx}
+  # A default, so `up` works on a clean machine, and safe on its own terms
+  # rather than by being secret: PostgreSQL is published to 127.0.0.1 only, so
+  # reaching it already means being on the host. Set POSTGRES_PASSWORD before
+  # the first `up` if this host is shared -- after the first `up` the password
+  # is baked into the volume and changing it means ALTER USER, not a variable.
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-helena-local-only}
+
+services:
+  # ------------------------------------------------------------------ control
+  postgres:
+    image: ${HELENA_POSTGRES_IMAGE:-postgres:16-alpine}
+    container_name: helena-postgres
+    restart: unless-stopped
+      # A ceiling, because this host has already lost PostgreSQL to a full
+      # disk. Docker's default json-file driver has no limit at all: a
+      # worker in a retry loop writes until the volume the database is on
+      # runs out, and nothing in this stack was bounded before.
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    environment: *postgres-env
+    # An override file, for a deployment that keeps its credentials outside the
+    # repository. Optional: without `required: false` a missing file is a hard
+    # error, which is what made /etc/helena/postgres.env a precondition.
+    env_file:
+      - path: ${HELENA_POSTGRES_ENV:-/etc/helena/postgres.env}
+        required: false
+    # Loopback only, on the port the workers already use. Changing it would
+    # break the DSN in every worker's environment on every host at once, which
+    # is a migration and not a tidy-up.
+    ports:
+      - "127.0.0.1:${HELENA_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ${HELENA_POSTGRES_DATA:-helena-postgres-data}:/var/lib/postgresql/data
+    healthcheck:
+      # The panel and every worker are useless before this answers, so say so
+      # here rather than letting each of them discover it.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # --------------------------------------------------------------------- schema
+  # Runs once, before the panel, and exits.
+  #
+  # Nothing created the schema. `initialize()` is called by the fleet CLI and by
+  # the worker, and the panel calls it only on the handful of endpoints that
+  # write to the control plane -- so a fresh database plus a panel gave a UI
+  # where every page reported no data and nothing said why. On a host with no
+  # worker yet, which is exactly what a first deployment is, the platform never
+  # became usable at all.
+  #
+  # Both schemas: the segmentation control plane and the ink job store are
+  # separate migration sets, and the panel reads both.
+  init:
+    image: *panel-image
+    build: *panel-build
+    container_name: helena-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    network_mode: host
+    restart: "no"
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    environment:
+      # Derived from the credentials above so the two cannot drift, but
+      # overridable whole: an existing deployment already has a DSN with a
+      # password that was generated once and written to a file, and a compose
+      # `environment:` beats that deployment's `env_file:` -- so hardcoding the
+      # derivation here would hand the panel a wrong password on every host
+      # that predates this file.
+      CX_DB: &dsn ${CX_DB:-postgresql://${POSTGRES_USER:-campaignx}:${POSTGRES_PASSWORD:-helena-local-only}@127.0.0.1:${HELENA_POSTGRES_PORT:-55432}/${POSTGRES_DB:-campaignx}}
+    command:
+      - python3
+      - -c
+      - |
+        import sys
+        sys.path[:0] = ["/workspace/campaign-x/framework/stages/01-segmentation",
+                        "/workspace/campaign-x/framework/stages/03-ink/fleet"]
+        import os
+        dsn = os.environ["CX_DB"]
+        from fleet.store_factory import open_fleet_store
+        open_fleet_store(dsn).initialize()
+        print("segmentation control plane ready")
+        from job_store import InkJobStore
+        InkJobStore(dsn).initialize()
+        print("ink job store ready")
+
+  # ---------------------------------------------------------------------- panel
+  panel:
+    image: *panel-image
+    # Built from this checkout when the image is not already present, so a
+    # clone and an `up` is the whole procedure. The frontend is built inside the
+    # image too -- panel/web/dist is gitignored, so anything that COPYied it
+    # required a machine with node that had remembered to run npm.
+    build: *panel-build
+    container_name: helena-panel
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    # Host networking, so the panel reaches the control plane on the same
+    # 127.0.0.1:55432 the workers use and its CX_DB is one string everywhere. A
+    # compose-internal name would work here and nowhere else.
+    network_mode: host
+    env_file:
+      # Both optional. A deployment that keeps settings outside the repository
+      # still gets them; one that has neither still starts.
+      - path: ${HELENA_PANEL_ENV:-/etc/helena/panel.env}
+        required: false
+      # Read-only S3, for the surface previews: a TIFXYZ is three private
+      # objects, so the slice overlay cannot draw the sheet without them. The
+      # same file the backup service below reads, rather than a third copy of
+      # a credential to rotate and forget. Without it the panel runs and the
+      # previews of S3-hosted surfaces are the one thing that does not work.
+      - path: ${HELENA_AWS_ENV:-/etc/helena/aws.env}
+        required: false
+    volumes:
+      # Accounts, configuration overrides, their version history, the cache,
+      # the TLS certificate. One volume to persist; the image holds no state.
+      - ${HELENA_PANEL_STATE:-helena-panel-state}:/state
+      # Missions and P0 selections. A named volume by default, at /runs.
+      #
+      # The target is the same expression as the source on purpose. A deployment
+      # that overrides HELENA_PANEL_RUNS with a host path gets it mounted at that
+      # same path inside, which is what the old file did unconditionally and what
+      # records written by it depend on: they hold absolute paths. Moving an
+      # existing deployment to /runs would leave every one of those pointing at
+      # nothing. A fresh deployment overrides nothing and gets the volume.
+      - ${HELENA_PANEL_RUNS:-helena-runs}:${HELENA_PANEL_RUNS:-/runs}
+      # Where the platform keeps what it produces, by default: a named Docker
+      # volume, so a deployment stores everything itself and needs no bucket and
+      # no credentials to be complete. Set HELENA_ARTIFACTS to a host path to
+      # bind-mount one instead; point the CX_*_STORE settings at an s3:// URL to
+      # publish to object storage rather than here. The volume survives
+      # `compose down` -- only `down -v` removes it.
+      - ${HELENA_ARTIFACTS:-helena-artifacts}:/artifacts
+      # Model checkpoints, read-write here and read-only on every worker. The
+      # panel is the only thing that writes one: a worker that could overwrite a
+      # checkpoint could change what a frozen profile means, silently, because
+      # the profile identifies the model by hash and the worker would be the
+      # thing computing it. Empty on a fresh deployment; Configuration -> Models
+      # fills it from Hugging Face.
+      - ${HELENA_MODELS:-helena-models}:/models
+    # The image's own entrypoint generates a self-signed certificate into
+    # /state/tls the first time and then execs uvicorn with it. Set
+    # HELENA_PANEL_TLS_NAMES to every hostname a browser will use, or point
+    # CX_TLS_CERT and CX_TLS_KEY at a real certificate.
+    environment:
+      CX_DB: *dsn
+      CX_RUNS: ${HELENA_PANEL_RUNS:-/runs}
+      HELENA_PANEL_PORT: "${HELENA_PANEL_PORT:-8800}"
+      HELENA_PANEL_TLS_NAMES: "${HELENA_PANEL_TLS_NAMES:-localhost}"
+
+  # --------------------------------------------------------------------- backup
+  # The control plane, in object storage, on a schedule.
+  #
+  # Everything this platform produces already outlives the machine that made it:
+  # a surface, a sheet, a layer stack and a probability map are published with a
+  # digest. The record of which of them is certified, which cell was attempted
+  # and what every verdict was lived in one database on one host with no copy
+  # anywhere -- and on 2026-07-28 that host filled its disk and PostgreSQL died
+  # mid-recovery.
+  #
+  # Behind a profile, because it is the one service that genuinely cannot be
+  # defaulted: it needs a bucket and credentials that belong to whoever is
+  # deploying. It used to make the whole file refuse to parse without them.
+  #
+  #   docker compose --profile backup up -d
+  backup:
+    profiles: [backup]
+    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.10.0}}
+    build:
+      context: ../..
+      dockerfile: containers/images/Containerfile.backup
+    container_name: helena-backup
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    network_mode: host
+    env_file:
+      - path: ${HELENA_PANEL_ENV:-/etc/helena/panel.env}
+        required: false
+      - path: ${HELENA_AWS_ENV:-/etc/helena/aws.env}
+        required: false
+    environment:
+      CX_DB: *dsn
+      # Empty rather than required. Compose interpolates every service before it
+      # applies profiles, so a `:?` here made a bare `up` fail on a service it
+      # was never going to start. backup_to_s3.py already refuses an empty
+      # prefix by name, which is the better place for the message anyway.
+      HELENA_BACKUP_S3: ${HELENA_BACKUP_S3:-}
+      HELENA_BACKUP_INTERVAL_HOURS: ${HELENA_BACKUP_INTERVAL_HOURS:-24}
+      HELENA_BACKUP_STATE: /state
+      # The mount below made the runs root reachable and nothing read it. A
+      # mount is not a backup.
+      HELENA_BACKUP_RUNS: ${HELENA_PANEL_RUNS:-/runs}
+    # The panel's state is mode 700 and owned by root, because it holds the
+    # password hashes; the image's own user cannot read it. Root to read a
+    # root-owned directory, with the mount read-only so that is all it can do.
+    user: root
+    volumes:
+      # Read-only: this reads the panel's accounts and settings and has no
+      # business writing them.
+      - ${HELENA_PANEL_STATE:-helena-panel-state}:/state:ro
+      # The runs root holds missions and P0 selections and was backed up by
+      # nothing at all.
+      - ${HELENA_PANEL_RUNS:-helena-runs}:${HELENA_PANEL_RUNS:-/runs}:ro
+
+# Declared, so Docker creates and keeps them rather than inventing an anonymous
+# volume per container. Named explicitly, so the workers' own compose files can
+# mount the same storage by that name instead of guessing a project prefix.
+#
+# None of these has to exist before `up`. That is the point of them being
+# volumes: a host path has to be created, owned and sized by somebody first, and
+# on a distributable platform that somebody is not always there.
+volumes:
+  helena-postgres-data:
+    name: ${HELENA_POSTGRES_DATA_VOLUME:-helena-postgres-data}
+  helena-panel-state:
+    name: ${HELENA_PANEL_STATE_VOLUME:-helena-panel-state}
+  helena-runs:
+    name: ${HELENA_RUNS_VOLUME:-helena-runs}
+  helena-artifacts:
+    name: ${HELENA_ARTIFACTS_VOLUME:-helena-artifacts}
+  # Empty on a fresh deployment, and filled from the panel: Configuration ->
+  # Models lists the checkpoints the frozen profiles name and fetches them from
+  # Hugging Face. Nothing has to be staged on the host first, which is what
+  # makes a new host a `compose up` rather than a copy of somebody's disk.
+  helena-models:
+    name: ${HELENA_MODELS_VOLUME:-helena-models}
+
+# Named, rather than left to compose's project-derived default. A recreate that
+# raced the daemon left an endpoint called helena-postgres in helena_default
+# that no container owned: every start after it failed with "endpoint with name
+# helena-postgres already exists", the endpoint could not be disconnected by
+# name or by id, and the network could not be removed while it was there. The
+# control plane was down until it moved to a network of its own.
+networks:
+  default:
+    name: helena-platform

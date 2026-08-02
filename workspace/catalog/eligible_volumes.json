@@ -1,0 +1,253 @@
+{
+  "entries": [
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0125/volumes/20250821151825-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151825-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151825-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc125",
+      "shape_zyx": [
+        20840,
+        8387,
+        8387
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0125/representations/predictions/surfaces/20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0191/volumes/20250821151635-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151635-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151635-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc191",
+      "shape_zyx": [
+        18977,
+        8387,
+        8387
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0191/representations/predictions/surfaces/20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0211/volumes/20250821151803-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151803-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151803-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc211",
+      "shape_zyx": [
+        19416,
+        7948,
+        7948
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0211/representations/predictions/surfaces/20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0257/volumes/20250821151750-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151750-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151750-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc257",
+      "shape_zyx": [
+        18872,
+        8388,
+        8388
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0257/representations/predictions/surfaces/20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0268/volumes/20251110183117-8.640um-1.2m-116keV-masked.zarr",
+      "eligible_scan_id": "20251110183117-8.640um-1.2m-116keV",
+      "eligible_volume_id": "20251110183117-8.640um-1.2m-116keV",
+      "energy_kev": 116,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc268",
+      "shape_zyx": [
+        14833,
+        12145,
+        12145
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0268/representations/predictions/surfaces/20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 8.64
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0358/volumes/20250821151737-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151737-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151737-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc358",
+      "shape_zyx": [
+        14744,
+        7783,
+        7783
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0358/representations/predictions/surfaces/20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0800/volumes/20250521135224-8.640um-1.2m-116keV-masked.zarr",
+      "eligible_scan_id": "20250521135224-8.640um-1.2m-116keV",
+      "eligible_volume_id": "20250521135224-8.640um-1.2m-116keV",
+      "energy_kev": 116,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc800",
+      "shape_zyx": [
+        24298,
+        9867,
+        9867
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0800/representations/predictions/surfaces/20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 8.64
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0813/volumes/20250821151723-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151723-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151723-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc813",
+      "shape_zyx": [
+        16993,
+        7947,
+        7947
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0813/representations/predictions/surfaces/20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151701-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151701-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc826",
+      "shape_zyx": [
+        16920,
+        8169,
+        8169
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/representations/predictions/surfaces/20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1203/volumes/20250820131727-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250820131727-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250820131727-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1203/volumes/20260319130212-2.403um-0.2m-77keV-masked.zarr",
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc1203",
+      "shape_zyx": [
+        18977,
+        6844,
+        6844
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1203/representations/predictions/surfaces/20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1218/volumes/20250521120456-8.640um-1.2m-116keV-masked.zarr",
+      "eligible_scan_id": "20250521120456-8.640um-1.2m-116keV",
+      "eligible_volume_id": "20250521120456-8.640um-1.2m-116keV",
+      "energy_kev": 116,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc1218",
+      "shape_zyx": [
+        23247,
+        7593,
+        7593
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1218/representations/predictions/surfaces/20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 8.64
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1447/volumes/20250521151220-8.640um-1.2m-116keV-masked.zarr",
+      "eligible_scan_id": "20250521151220-8.640um-1.2m-116keV",
+      "eligible_volume_id": "20250521151220-8.640um-1.2m-116keV",
+      "energy_kev": 116,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc1447",
+      "shape_zyx": [
+        24297,
+        8343,
+        8343
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1447/representations/predictions/surfaces/20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 8.64
+    },
+    {
+      "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1545/volumes/20250821151648-9.362um-1.2m-113keV-masked.zarr",
+      "eligible_scan_id": "20250821151648-9.362um-1.2m-113keV",
+      "eligible_volume_id": "20250821151648-9.362um-1.2m-113keV",
+      "energy_kev": 113,
+      "higher_resolution_sibling_uri": null,
+      "reason": "Named eligible CT on the official Open Prizes page.",
+      "sample_id": "PHerc1545",
+      "shape_zyx": [
+        20961,
+        7506,
+        7506
+      ],
+      "surface_prediction_threshold": 0.2,
+      "surface_prediction_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1545/representations/predictions/surfaces/20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "target_allowed": true,
+      "training_allowed": true,
+      "voxel_size_um": 9.362
+    }
+  ],
+  "frozen_at_utc": "2026-07-14T23:33:15Z",
+  "schema_version": 1
+}

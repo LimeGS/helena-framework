@@ -1,0 +1,167 @@
+# The GitLab runner, on a host that has work only it can do.
+#
+# Two of them now, and the difference is entirely in the tag each carries:
+#
+#   swisspost-1  builds, deploys and smoke-tests. Tag `swisspost-1`.
+#   gpu-1        the heavy end-to-end stage, which needs the cards. Tag `gpu-1`.
+#
+#   HELENA_RUNNER_NAME=gpu-1 docker compose -p helena-ci \
+#     -f containers/compose/runner.compose.yaml up -d
+#
+# Each needs its OWN runner created in the UI. Registering a second manager with
+# the first one's token does not make a second runner -- it makes another
+# manager of the same one, sharing its tag, and gpu-1 would start claiming
+# deploy jobs meant for swisspost-1.
+#
+# Then register it once, with a runner authentication token from
+# Settings -> CI/CD -> Runners in the project:
+#
+#   docker exec -it helena-runner gitlab-runner register \
+#     --non-interactive \
+#     --url https://gitlab.example.com \
+#     --token glrt-xxxxxxxxxxxxxxxxxxxx \
+#     --executor docker \
+#     --tls-ca-file /etc/gitlab-runner/certs/ca.crt \
+#
+# This runner is untagged and runs every job in the pipeline, which is what
+# .gitlab-ci.yml expects today.
+#
+# A tag list and "run untagged jobs" are NOT settable by `register` when the
+# token is a glrt- authentication token: they are properties of the runner as
+# created in the UI, and --tag-list is accepted and ignored. That cost real
+# time -- the tagged jobs matched no runner and sat pending, and a job with no
+# matching runner does not fail, it waits, so pipelines went green having built
+# and deployed nothing.
+#     --docker-image alpine:3 \
+#     --docker-network-mode host \
+#     --docker-volumes /var/run/docker.sock:/var/run/docker.sock \
+#     --docker-volumes /cache \
+#     --docker-pull-policy always --docker-pull-policy if-not-present
+#
+# That pull policy is not decoration. The prepare stage builds helena-ci on this
+# daemon and pushes it nowhere, and a runner defaults to pulling every job image
+# from a registry -- so the unit job failed with "pull access denied for
+# helena-ci" while the image sat on the same machine. The list is tried in
+# order: pull when there is something to pull, fall back to what is already
+# here when there is not.
+#
+# The registration is written into the config volume and survives a recreate,
+# so this is a one-time step rather than part of the deployment.
+#
+# ---------------------------------------------------------------------------
+# Why it lives here rather than on a build machine
+# ---------------------------------------------------------------------------
+#
+# The deploy target is this host, and nothing else on the network can reach both
+# it and the GitLab server. Putting the runner here removes the SSH hop
+# entirely: no deploy key in the project's CI variables, nothing to rotate,
+# nothing that grants a second machine root-equivalent access to this one.
+#
+# It is the only runner: this instance has no shared ones, so every job lands
+# here. Splitting the suites onto shared runners and leaving only the deploy on
+# this one is worth doing when they exist -- it would bound what a runner
+# holding the host's Docker socket can be asked to run -- and .gitlab-ci.yml's
+# header says exactly which three lines to put back.
+#
+# ---------------------------------------------------------------------------
+# What the jobs are given, and what that costs
+# ---------------------------------------------------------------------------
+#
+# Three mounts, each of which is a real grant:
+#
+#   docker.sock   jobs build the platform's images and run `compose up`. The
+#                 Docker socket is root on this host -- a job can start a
+#                 privileged container mounting anything. This is the price of
+#                 a deploy runner and it is why the staging branch must be
+#                 protected: whoever can push to it can run commands here.
+#   host network  so a job reaches the panel on 127.0.0.1:8800, which is where
+#                 it listens. The alternative was exposing the panel or
+#                 tunnelling into it; neither is better than this.
+#
+# No source tree is mounted, because none is deployed. The build job produces
+# an image tagged by commit and the deploy job runs it; the host holds Docker,
+# its volumes, and nothing else of ours.
+#
+# The runner is not given the platform's data volumes, its database, or its
+# credentials. A job can reach all of them through the Docker socket anyway --
+# said plainly rather than implied by a shorter list of mounts.
+
+# ---------------------------------------------------------------------------
+# Concurrency: leave it at 1
+# ---------------------------------------------------------------------------
+#
+# Raising it to 2 was tried and measured, and it made the pipeline slower: the
+# sum of job durations went from 394 seconds to 553. These jobs are CPU-bound,
+# so two at once on one box just split the CPU -- the unit suite went from 142
+# seconds alone to 238 contended. Parallelism pays when jobs wait on IO. These
+# wait on a processor.
+#
+# What did pay was not reinstalling the dependencies: see the prepare stage in
+# .gitlab-ci.yml. 394 seconds to 274.
+
+name: helena-ci
+
+services:
+  runner:
+    # Pinned, like every other service here. `latest` means two hosts run
+    # different bytes under one name, and a runner that silently changes
+    # version is a pipeline that changes behaviour with no commit to blame.
+    image: ${HELENA_RUNNER_IMAGE:-gitlab/gitlab-runner:v19.2.1}
+    container_name: helena-runner
+    restart: unless-stopped
+    # Unbounded logs are how this host's neighbour lost PostgreSQL to a full
+    # disk. A runner polling every few seconds writes steadily forever.
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    # The runner talks outbound to GitLab and starts sibling containers through
+    # the host's daemon. It serves nothing and needs no inbound port.
+    network_mode: host
+    volumes:
+      # The registration, so it survives a recreate. Without this the runner
+      # comes back as a stranger and the project shows a dead entry.
+      - ${HELENA_RUNNER_CONFIG:-helena-runner-config}:/etc/gitlab-runner
+      # Sibling containers rather than Docker-in-Docker: the images a job builds
+      # are the images this host runs, with no registry in the path and no
+      # second daemon's cache to warm.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The host's trust store. the GitLab host presents a certificate
+      # from a private CA -- Grilli Offline Root, installed on this host and in
+      # no container image -- so without this the runner cannot open TLS to the
+      # server it exists to poll, and says only "HTTP 000".
+      #
+      # Registering with --tls-ca-file pointed here also hands the chain to
+      # every job container, which each need it to clone.
+      - ${HELENA_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}:/etc/gitlab-runner/certs/ca.crt:ro
+      # This host's env files, which the compose files read: its database
+      # credentials, its paths, its host id. The deploy job needs them because
+      # it brings up the whole platform, and they are deliberately not in the
+      # repository.
+      #
+      # NOTE: this mount is for the manager only, and the manager is not what
+      # runs your job. A job container gets its mounts from `volumes` under
+      # [runners.docker] in /etc/gitlab-runner/config.toml, so that list needs
+      # "/etc/helena:/etc/helena" too -- adding it here and nowhere else gets
+      # you a deploy job reporting that /etc/helena is not mounted, while the
+      # manager beside it can see the directory perfectly well.
+      #
+      # This grants a job nothing it did not already have. The Docker socket
+      # above is root on this machine, so anything that can reach it can read
+      # and rewrite /etc/helena anyway -- said plainly rather than left implied
+      # by a shorter list of mounts.
+      #
+      # Writable, and not as an oversight: a deploy records which image it put
+      # in place by writing the tag back into the env file, keeping a .bak per
+      # commit. That record is what stops a later `compose up` on this host from
+      # silently reverting a locally built worker to whatever the old tag means
+      # now. A read-only mount would mean the file said one thing and the
+      # running container another.
+      - /etc/helena:/etc/helena
+    environment:
+      # Names the machine in the runner list. A fleet of identical "runner-1"
+      # entries is a fleet nobody can point at.
+      RUNNER_NAME: ${HELENA_RUNNER_NAME:?set it to this host's name}
+
+volumes:
+  helena-runner-config:
+    name: ${HELENA_RUNNER_CONFIG_VOLUME:-helena-runner-config}

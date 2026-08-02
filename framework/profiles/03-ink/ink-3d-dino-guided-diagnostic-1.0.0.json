@@ -1,0 +1,33 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "ink-3d-dino-guided-diagnostic@1.0.0",
+  "method_id": "ink-3d-dino-guided@1.0.0",
+  "checkpoint_sha256": "5a148c2c1bb730bfa683f2b3e3cdfc2000424003605e42300b527ff90118b303",
+  "config_sha256": "7f3e817016c581b1827e1aad076a9c3bb1163c41e68d3ab98e380d06baf63849",
+  "pinned_source_revision": "05dcf0349356bc833670d61e5eca00be58376e35",
+  "adapter": "framework/stages/03-ink/scripts/run_ink_3d_dino.py",
+  "input_contract": {
+    "modality": "native or traceably resampled volumetric CT",
+    "shape_zyx": [256, 256, 256],
+    "native_voxel_um": 2.4,
+    "normalization": "per-patch p1/p99 clipping and min-max scaling",
+    "coordinate_space": "CT Z,Y,X",
+    "resampling_receipt_required_if_resampled": true
+  },
+  "output_contract": {
+    "probability": "compressed float16 NPZ in CT Z,Y,X",
+    "projection": "maximum-Z PNG for diagnostics",
+    "receipt": "INK_3D_DINO_EXECUTION.json"
+  },
+  "default_execution": {
+    "weights_key": "ema_model",
+    "batch_size": 1,
+    "mixed_precision": "bf16",
+    "threshold_is_not_frozen": true
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "silence_proves_absence": false
+  }
+}

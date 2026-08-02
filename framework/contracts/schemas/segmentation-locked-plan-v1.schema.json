@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-locked-plan-v1.schema.json",
+  "title": "Campaign X locked segmentation plan",
+  "type": "object",
+  "required": ["schema", "status", "task_id", "attempt_id", "source_snapshot_id", "source", "selected_seed", "profile_id", "parameters", "proposal_sha256", "catalog_snapshot_sha256", "ink_used"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_locked_plan.v1"},
+    "status": {"const": "LOCKED_READY"},
+    "task_id": {"type": "string", "format": "uuid"},
+    "attempt_id": {"type": "string", "format": "uuid"},
+    "source_snapshot_id": {"type": "string", "format": "uuid"},
+    "source": {"type": "object"},
+    "selected_seed": {"type": "object"},
+    "profile_id": {"type": "string"},
+    "parameters": {"type": "object"},
+    "proposal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "catalog_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": true
+}

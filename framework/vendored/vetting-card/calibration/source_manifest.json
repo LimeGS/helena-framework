@@ -1,0 +1,321 @@
+{
+  "schema_version": "v1",
+  "calibration_set_sha256": "b8a78179512f7fb9a71f2fb711ae81879252d999aa0f3ad0e93f37ce0f4b1921",
+  "sources": [
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000000-w025_2025010863/PHerc0139-20250108000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 870689,
+      "sha256": "7eb22ec46fd4092ab6619d999692618edeccfd67c4332ac31f2b5a32c82af7ae"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000001-w026_2025010854/PHerc0139-20250108000001-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 741123,
+      "sha256": "0ab0a5ea8b6864253e16d018094f2e36dcb8e4a04007cb5f034a68a9a9663605"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000002-w027_2025010845/PHerc0139-20250108000002-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 799700,
+      "sha256": "dc9742012f714244c4513af199bc24798b667ae395363642de1fca3f69fc9fc3"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000003-w028_2025010836/PHerc0139-20250108000003-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 846169,
+      "sha256": "f634c8d29ba5c57f9ce5a537e7cede3427f935e73bdc5a295e1aedd317f4e38c"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000004-w029_2025010827/PHerc0139-20250108000004-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 792419,
+      "sha256": "60dacc49ef02cd834830a1b5c006544a7d6065bf15cf3bc8527403f324d66e7a"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250108000005-w030_2025010818/PHerc0139-20250108000005-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 994092,
+      "sha256": "f31cf16e2249fe1e3caf2bedb45ce2eac58a2dcaf349a3173b44e8fb99279a89"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250223000000-w059_2025022312/PHerc0139-20250223000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1319561,
+      "sha256": "47e0989ec15f046058151ffb16b83d41478af1636d67265a1d980c486164feb8"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20250831000000-w040_2025083102/PHerc0139-20250831000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 832616,
+      "sha256": "c72a00fc93bd32389d64dfed7c3c79e2544e48605c0d70082d1317e52a585809"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20251226000000-w055_2025122611/PHerc0139-20251226000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1241836,
+      "sha256": "cdf03a6eb0269bb2a059e495e0398415ebf83bef75beac68b010f46841facfa3"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260108000000-w041_2026010816/PHerc0139-20260108000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 872681,
+      "sha256": "32a67c416cbf34f414852d50948e5d19bb3cecd8e023dd4a2a00c9754f8cd266"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260112000000-w043_2026011217/PHerc0139-20260112000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 984048,
+      "sha256": "d4d41f9b459f0aa2c6775efa65e2ad23acd232c6d7921bed68051ffbe5224071"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260115000000-w044_2026011522/PHerc0139-20260115000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 956674,
+      "sha256": "4a6cd6205efc8e292aefba090abc434839aac6b9bc6b3f863a4b14dc7d28e84c"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260115000001-w056_2026011514/PHerc0139-20260115000001-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1136819,
+      "sha256": "a6782c2c19adb28124b7b191bf63653d6bdd2c20965cc3a223f5e1b57a8dca72"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260126000000-w045_2026012619/PHerc0139-20260126000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 878212,
+      "sha256": "6bd2df05e56b0be0cf4072a4b035f483e9f92cd8e6dbce506d113124515533a8"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260127000000-w057_2026012713/PHerc0139-20260127000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1070133,
+      "sha256": "982141cf67343c976987a7cd7bf424c66ff63569ec6d96f0c9431696b2c3bc03"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260130000000-w031_2026013019/PHerc0139-20260130000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 925238,
+      "sha256": "c5079e3b109d487048f0ac5da073293d8b76373413a3afb0108192c6076c8e5a"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260203000000-w032_2026020303/PHerc0139-20260203000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1051425,
+      "sha256": "59963fc52485e5e44a30ff95dbef3a17db77ca4769f5db7f7e92b700a01a549c"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260206000000-w042_2026020613/PHerc0139-20260206000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 840075,
+      "sha256": "13c30f04f2bd7598f8b32ff5fadf3551a96363b4a00dfe226d0be7bf7184cee1"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260206000001-w047_2026020613/PHerc0139-20260206000001-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 805985,
+      "sha256": "d81293babee837cf486c3a9413a841ab56247c9a7283a2106a26dcff8c814f50"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260206000002-w054_2026020617/PHerc0139-20260206000002-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1294645,
+      "sha256": "f5668ab8788e17fe3a0a48b01fb6f4f905368f284793ca5a87e992f11decdfce"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260210000000-w058_2026021020/PHerc0139-20260210000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1337148,
+      "sha256": "4c7bc636f90dc6293769d66ac4348d569e6ed9bc869aeb4783dd38d66f1fb47c"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260215000000-w024_2026021572/PHerc0139-20260215000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1162264,
+      "sha256": "29773fd929d4358f1874233fffed52bdb91e223ad28c90bb4bf424375f753246"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260219000000-w033_2026021913/PHerc0139-20260219000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1173454,
+      "sha256": "f2ae59b1cc57f8a7883d81a81ffc83ea8f0f06b6b7ca6299c29dfbe269dc4c3c"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260219000001-w048_2026021912/PHerc0139-20260219000001-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 642762,
+      "sha256": "94a4f9fc166fcc6b8f0e390a23f499075e352bf68f90390b0eefd618139aad95"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260220000000-w053_2026022021/PHerc0139-20260220000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 979094,
+      "sha256": "4966ca4e5ba6333735b70b936073a209c8296662d80eaae7406296ae3947a26b"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260227000000-w052_2026022705/PHerc0139-20260227000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1163813,
+      "sha256": "97142e2e6b0ce6ca8f366c66043ab5a141fe55cbdc5a37a3dbd8203b10e43de2"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260302000000-w039_2026030210/PHerc0139-20260302000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 762871,
+      "sha256": "5194490aab93212fc9ad4e14e8aac08eec7349cadcb60672c294e44dbc088a52"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260303000000-w034_2026030317/PHerc0139-20260303000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 938443,
+      "sha256": "af64fc08cadd62985e6d691fb93a6cfd7da056c61f7fb82f8b344c44302457f9"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260306000001-w051_2026030600/PHerc0139-20260306000001-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 981280,
+      "sha256": "e8a053013ff399532b0a6d497a6882efb4401e8325c236131a91bfb4fa7b452a"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260310000000-w037_2026031015/PHerc0139-20260310000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 747119,
+      "sha256": "c9efd8f30c200253d733099f0dc4f1914cf9bf4d5a0794011df9043a2784bdc1"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260311000000-w023_202603112281/PHerc0139-20260311000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 1091409,
+      "sha256": "66a969ffa3f5b6ee754ddca57ba7dc21925f99503a960545b07203a3b23be36f"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260316000000-w036_2026031607/PHerc0139-20260316000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 711601,
+      "sha256": "59e4055a9ef90898ab3fcc102acd9e2607b154beb5058a66f3fe47517c35ec88"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260318000000-w049_20260318/PHerc0139-20260318000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 720590,
+      "sha256": "b4d288021dc1a0a166f6e821c57f3b008297f32d175803db2a560876241e6bd3"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260325000000-w046_20260325/PHerc0139-20260325000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 870483,
+      "sha256": "16217b849828b46b063964b83da656d306588ec3cc6fdddf4cfd5b4c7a049530"
+    },
+    {
+      "path": "data/index_s5_0139/maps/pherc0139/20260422000000-title_2026042222_zmid_flatboi/PHerc0139-20260422000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128-ds8.jpg",
+      "size_bytes": 166137,
+      "sha256": "64fc76c23fe0196e45e4fe39ffb3e7031ceb04e94330abb73dd03d50aaa2e3fb"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623141924-w010-027.jpg",
+      "size_bytes": 8313666,
+      "sha256": "eef262bc44bf2d78395ea1714d5977a18dbeb71789ff9f75278e08e001646cc7"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623142658-w028-037.jpg",
+      "size_bytes": 9995364,
+      "sha256": "43994eef5d3076bb569c805dbe18112fa8da62ba7ec5e70d852933f0ee4c55bf"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623143441-w038-045.jpg",
+      "size_bytes": 11772561,
+      "sha256": "d1330f92ac76c91fb0ed257e0cecdf478c85ad357dcc11d6cccccd1b3efd8f05"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623144224-w046-052.jpg",
+      "size_bytes": 13673200,
+      "sha256": "d89e73cb3488382cf6c46759b1158d5ef3e0aa887f67b4c86f50ec6d2a316638"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623144957-w053-058.jpg",
+      "size_bytes": 12882335,
+      "sha256": "d7ef1f47037c2842194d555aef45a83236885a2ce42f383bd627f773f4d775c9"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623145652-w059-063.jpg",
+      "size_bytes": 12394956,
+      "sha256": "df760a3e3751d93e0cc6b8221cd0df447c5d4402380494bb8652220fc7fd2717"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623150417-w064-068.jpg",
+      "size_bytes": 13628696,
+      "sha256": "731d67cdd7bfb0191fd1110edad5f41c342dd358d0c21a26aeed4cec11877ef5"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623151041-w069-072.jpg",
+      "size_bytes": 12112365,
+      "sha256": "5c9378c553750b2aa7f65b0b903bb2bcd2644d394ff4048549df0fe68903e770"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623151729-w073-076.jpg",
+      "size_bytes": 13080298,
+      "sha256": "2e2a40ffb88356c8c324f93538ca0c8c409fff1c48ebed68c7e05ddbad1901cd"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623152443-w077-080.jpg",
+      "size_bytes": 13492552,
+      "sha256": "e736a4e0a967ae3d7223c63e56fcbf601bf1f7e1ff247ffaabc178f2a40145c1"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623153216-w081-084.jpg",
+      "size_bytes": 14312311,
+      "sha256": "d997a48014548b2b5b897feb4f3b5fbde431ee404265d9cbaae10dbedd7abcd5"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623154006-w085-088.jpg",
+      "size_bytes": 14797470,
+      "sha256": "bdcf36d7f0fc58037ad718d0825c717ba5ca71e78841046f0ac4f405ba476b48"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623154617-w089-091.jpg",
+      "size_bytes": 12183593,
+      "sha256": "87bfbe72f18d2877827f2accb4dce5cca9e1f0a3fbfec0d29450036f37d905cf"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623155240-w092-094.jpg",
+      "size_bytes": 12313840,
+      "sha256": "7a2f1d62d6a52b3cb0f5384277244ef2d9c2137a3296ce7cd63a23dd3cb29ce9"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623155914-w095-097.jpg",
+      "size_bytes": 11403731,
+      "sha256": "927229b6bbe9f97978908e66518cd45d56548d1504f40096d224798509a65221"
+    },
+    {
+      "path": "data/letters/s1_atlas/20260623160554-w098-100.jpg",
+      "size_bytes": 11285105,
+      "sha256": "7bb875e4da18183352e507ed9b7162df163cf0c963292a801d35776675bbcf01"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w011.jpg",
+      "size_bytes": 506050,
+      "sha256": "8a9bdf0f013c672439273af33e547833d903cf5aa6707bce30742fb9a94c54df"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w028.jpg",
+      "size_bytes": 1586743,
+      "sha256": "e3339eca94f22bd8400339e6f75ba835d8c1140405dadd6210c463b19145ad12"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w029.jpg",
+      "size_bytes": 1593801,
+      "sha256": "f70107458e49a58b600d8bfe484a0cdfde01017b56a8fa94778f8c5616c46b85"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w030.jpg",
+      "size_bytes": 1334977,
+      "sha256": "06bb816696c8a8cd31d892a50ba93131ebd36a50ccaf5940e232bfdf208f3817"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w031.jpg",
+      "size_bytes": 1224190,
+      "sha256": "58380c58c3de894f9f69ebe33598aae223e72364fe933973e496dd1e0130adc7"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w032.jpg",
+      "size_bytes": 1273939,
+      "sha256": "6bca3eb22a5cd003fbaaca3355196aa96ba2608d0e5a96087e25f22039f57452"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w033.jpg",
+      "size_bytes": 1117742,
+      "sha256": "b7f25329a62fb7b028238776e40af8c57c3f4c0d3d4aa149531dcf47f98521cb"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w037.jpg",
+      "size_bytes": 760223,
+      "sha256": "4f461dd921ad94d19716c1277065aa89405ef80aa70533a63f8ae846087ed8e0"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w038.jpg",
+      "size_bytes": 728379,
+      "sha256": "b7e660b05937a9ef48e2d016f00f77324344cc533eaf0c0248bda554bbe643c1"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w039.jpg",
+      "size_bytes": 734178,
+      "sha256": "f51790dc68a33c7582fd12c18f46ff9e39307d78f9f3865c4bcb64e8cfc52c03"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w040.jpg",
+      "size_bytes": 594398,
+      "sha256": "16c84aef48f4def6747a32c2b810e6ef911b7e734a012c7696c0e6b08971bb4d"
+    },
+    {
+      "path": "data/ocr_align/wrap_ds8/w041.jpg",
+      "size_bytes": 486426,
+      "sha256": "ad70b909a59b55de89c66ebd5ec7fb2893d0a89d103ee4bd98ae4ffaf8faa8ba"
+    }
+  ]
+}

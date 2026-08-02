@@ -1,0 +1,86 @@
+# P2's scientific screen: one instance per GPU.
+#
+#   HELENA_QC_DEVICE=0 docker compose -p helena-qc-0 \
+#     --env-file /etc/helena/surface-qc.env \
+#     -f containers/compose/surface-qc.compose.yaml up -d
+#   HELENA_QC_DEVICE=1 docker compose -p helena-qc-1 ... up -d
+#
+# The project name is what makes two of these coexist; everything that must
+# differ between them -- container name, GPU, run root, worker id -- is derived
+# from HELENA_QC_DEVICE. An eight-card rig is the same two lines eight times,
+# which is worth saying out loud because the alternative people reach for is
+# eight copies of this file.
+#
+# Concurrency was always safe: claim_qc takes one job under FOR UPDATE SKIP
+# LOCKED with an atomic lease.
+name: helena-qc
+
+services:
+  surface-qc:
+    # The phase runtime, which is helena-surface-qc plus tifffile plus this
+    # repository baked in. QC needs the adapter, the watch script and the frozen
+    # profile; taking them from the image rather than a mounted checkout is what
+    # lets a machine run this with nothing on its disk. The model underneath is
+    # the same model, byte for byte, that every past verdict was issued with.
+    image: ${HELENA_QC_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.10.0}}
+    container_name: helena-surface-qc-${HELENA_QC_DEVICE:-0}
+    restart: unless-stopped
+      # A ceiling, because this host has already lost PostgreSQL to a full
+      # disk. Docker's default json-file driver has no limit at all: a
+      # worker in a retry loop writes until the volume the database is on
+      # runs out, and nothing in this stack was bounded before.
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    network_mode: host
+    env_file:
+      - ${HELENA_QC_ENV:-/etc/helena/surface-qc.env}
+      - ${HELENA_QC_AWS_ENV:-/etc/helena/aws.env}
+    environment:
+      # Evidence provenance belongs to this immutable deployment, not to the
+      # long-lived host env file.  deploy-platform.sh resolves and exports the
+      # full SHA before compose starts either worker.
+      HELENA_QC_CODE_COMMIT: "${HELENA_COMMIT_FULL:-${HELENA_QC_CODE_COMMIT:?set in surface-qc.env}}"
+      # Leases and receipts name a worker. Two instances under one name make the
+      # record unable to say which card measured a surface.
+      QC_WORKER_ID: ${HELENA_QC_HOST_ID:?set it to this machine's name}-gpu${HELENA_QC_DEVICE:-0}-surface-qc
+      # Where the checkpoint sits inside the volume: the panel downloads under
+      # the model family the profile names, so the default is the path a fresh
+      # deployment ends up with and needs no configuration. A deployment that
+      # already sets this in its env file keeps whatever it says.
+      HELENA_QC_CHECKPOINT: ${HELENA_QC_CHECKPOINT:-/models/timesformer_GP_scroll1/model.safetensors}
+    gpus:
+      - driver: nvidia
+        device_ids: ["${HELENA_QC_DEVICE:-0}"]
+        capabilities: [gpu]
+    volumes:
+      # The models volume, read-only. It was a single file bind-mounted from
+      # the host, so bringing up QC on a new machine meant putting a 152 MB
+      # checkpoint somewhere by hand first and saying where. The panel fills
+      # this volume from Hugging Face -- the profile names the hash, and the
+      # repository publishes it -- and the worker verifies the same hash before
+      # it measures anything. A host path still works: set HELENA_QC_MODELS.
+      - ${HELENA_QC_MODELS:-helena-models}:/models:ro
+      - ${HELENA_QC_POSTGRES_ENV:?set HELENA_QC_POSTGRES_ENV to the postgres credentials}:/run/secrets/postgres.env:ro
+      # Its own run root. Two workers staging surfaces into one directory write
+      # the same paths.
+      - ${HELENA_QC_RUN_ROOT:?set HELENA_QC_RUN_ROOT}/gpu${HELENA_QC_DEVICE:-0}:/artifacts/qc-runtime
+      # Surfaces published to a local artifact root on this host, so a URI that
+      # names a container path still resolves.
+      - ${HELENA_QC_SURFACES:?set HELENA_QC_SURFACES}:/artifacts/surfaces
+      # P8 publishes merged children under a separate durable namespace and
+      # immediately queues the same physical QC used by P1 surfaces.  Without
+      # this mount that automatic job can be claimed but can never materialize
+      # its input.  Read-only: QC publishes evidence elsewhere and must not
+      # rewrite the scientific artifact it is measuring.
+      - ${HELENA_QC_RECONSTRUCTIONS:?set HELENA_QC_RECONSTRUCTIONS}:/artifacts/reconstruction-v1:ro
+    command:
+      - sh
+      - /workspace/campaign-x/framework/stages/01-segmentation/scripts/run_with_postgres_control_plane.sh
+      - sh
+      - /workspace/campaign-x/framework/stages/01-segmentation/scripts/run_surface_qc_watch.sh
+
+volumes:
+  helena-models:
+    name: ${HELENA_MODELS_VOLUME:-helena-models}
+    external: true

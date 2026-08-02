@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/surface_backend_comparison.v1.schema.json",
+  "title": "Campaign X VC3D and ScrollFiesta surface comparison v1",
+  "description": "Immutable, like-for-like comparison over one frozen ROI. It classifies evidence but never fuses meshes or certifies text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "comparison_id",
+    "generated_at_utc",
+    "sample_id",
+    "roi_level0_zyx",
+    "surfaces",
+    "thresholds",
+    "aggregate_metrics",
+    "regions",
+    "summary",
+    "decision",
+    "physical_mesh_fusion_performed",
+    "evidence",
+    "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.surface_backend_comparison.v1"},
+    "comparison_id": {"type": "string", "pattern": "^CMP-[A-Za-z0-9][A-Za-z0-9._-]{7,159}$"},
+    "generated_at_utc": {"type": "string", "format": "date-time"},
+    "sample_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+    "roi_level0_zyx": {"$ref": "#/$defs/roi_level0_zyx"},
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vc3d", "scrollfiesta"],
+      "properties": {
+        "vc3d": {"$ref": "#/$defs/surface_ref"},
+        "scrollfiesta": {"$ref": "#/$defs/surface_ref"}
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_sheet_separation_voxels",
+        "maximum_agreement_distance_voxels",
+        "minimum_normal_dot",
+        "ct_support_required"
+      ],
+      "properties": {
+        "local_sheet_separation_voxels": {"type": "number", "exclusiveMinimum": 0},
+        "maximum_agreement_distance_voxels": {"type": "number", "exclusiveMinimum": 0, "maximum": 2},
+        "minimum_normal_dot": {"type": "number", "minimum": 0.866, "maximum": 1},
+        "ct_support_required": {"const": true}
+      }
+    },
+    "aggregate_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "common_area_cm2",
+        "scrollfiesta_only_area_cm2",
+        "vc3d_only_area_cm2",
+        "disagreement_area_cm2",
+        "bidirectional_distance_voxels",
+        "normal_dot_p50",
+        "normal_dot_p05",
+        "ct_supported_fraction",
+        "continuity_supported"
+      ],
+      "properties": {
+        "common_area_cm2": {"type": "number", "minimum": 0},
+        "scrollfiesta_only_area_cm2": {"type": "number", "minimum": 0},
+        "vc3d_only_area_cm2": {"type": "number", "minimum": 0},
+        "disagreement_area_cm2": {"type": "number", "minimum": 0},
+        "bidirectional_distance_voxels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["p50", "p95", "p99"],
+          "properties": {
+            "p50": {"type": "number", "minimum": 0},
+            "p95": {"type": "number", "minimum": 0},
+            "p99": {"type": "number", "minimum": 0}
+          }
+        },
+        "normal_dot_p50": {"type": "number", "minimum": -1, "maximum": 1},
+        "normal_dot_p05": {"type": "number", "minimum": -1, "maximum": 1},
+        "ct_supported_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "continuity_supported": {"type": ["boolean", "null"]}
+      }
+    },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/region"}
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["area_by_class_cm2", "region_count_by_class"],
+      "properties": {
+        "area_by_class_cm2": {"$ref": "#/$defs/class_totals_number"},
+        "region_count_by_class": {"$ref": "#/$defs/class_totals_integer"}
+      }
+    },
+    "decision": {"enum": ["CONSENSUS_AVAILABLE", "PROVISIONAL_ONLY", "DISAGREEMENT_REQUIRES_AUDIT", "INSUFFICIENT_CT"]},
+    "physical_mesh_fusion_performed": {"const": false},
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/artifact"}
+    },
+    "ink_used": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "uri": {"type": "string", "format": "uri", "minLength": 3, "maxLength": 2048},
+    "backend_profile": {
+      "type": "string",
+      "pattern": "^segmentation\\.[a-z0-9][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "roi_level0_zyx": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "surface_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surface_id", "backend_profile", "artifact_uri", "artifact_sha256", "receipt_sha256"],
+      "properties": {
+        "surface_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$"},
+        "backend_profile": {"$ref": "#/$defs/backend_profile"},
+        "artifact_uri": {"$ref": "#/$defs/uri"},
+        "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "classification": {"enum": ["CONSENSUS", "SCROLLFIESTA_ONLY", "VC3D_ONLY", "DISAGREEMENT"]},
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "region_id",
+        "classification",
+        "area_cm2",
+        "vc3d_component_ids",
+        "scrollfiesta_component_ids",
+        "distance_p95_voxels",
+        "normal_dot_p05",
+        "ct_support",
+        "reasons",
+        "disposition"
+      ],
+      "properties": {
+        "region_id": {"type": "string", "pattern": "^REG-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+        "classification": {"$ref": "#/$defs/classification"},
+        "area_cm2": {"type": "number", "exclusiveMinimum": 0},
+        "vc3d_component_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "scrollfiesta_component_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "distance_p95_voxels": {"type": ["number", "null"], "minimum": 0},
+        "normal_dot_p05": {"type": ["number", "null"], "minimum": -1, "maximum": 1},
+        "ct_support": {"enum": ["SUPPORTED", "UNVERIFIED", "CONTRADICTED"]},
+        "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+        "disposition": {"enum": ["ELIGIBLE_FOR_PROMOTION", "KEEP_PROVISIONAL", "AUDIT_REQUIRED", "REJECTED"]}
+      }
+    },
+    "class_totals_number": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CONSENSUS", "SCROLLFIESTA_ONLY", "VC3D_ONLY", "DISAGREEMENT"],
+      "properties": {
+        "CONSENSUS": {"type": "number", "minimum": 0},
+        "SCROLLFIESTA_ONLY": {"type": "number", "minimum": 0},
+        "VC3D_ONLY": {"type": "number", "minimum": 0},
+        "DISAGREEMENT": {"type": "number", "minimum": 0}
+      }
+    },
+    "class_totals_integer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CONSENSUS", "SCROLLFIESTA_ONLY", "VC3D_ONLY", "DISAGREEMENT"],
+      "properties": {
+        "CONSENSUS": {"type": "integer", "minimum": 0},
+        "SCROLLFIESTA_ONLY": {"type": "integer", "minimum": 0},
+        "VC3D_ONLY": {"type": "integer", "minimum": 0},
+        "DISAGREEMENT": {"type": "integer", "minimum": 0}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "uri", "sha256", "bytes"],
+      "properties": {
+        "role": {"enum": ["CT_OVERLAY", "DISTANCE_MAP", "NORMAL_AGREEMENT", "TOPOLOGY_REPORT", "COMPARISON_VIEWER", "LOG"]},
+        "uri": {"$ref": "#/$defs/uri"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,45 @@
+diff --git a/apps/VC3D/mcp/PredictionService.cpp b/apps/VC3D/mcp/PredictionService.cpp
+index 083695c..a4d8973 100644
+--- a/apps/VC3D/mcp/PredictionService.cpp
++++ b/apps/VC3D/mcp/PredictionService.cpp
+@@ -8,6 +8,8 @@
+ #include <array>
+ #include <cmath>
+ #include <cstdint>
++#include <cstdlib>
++#include <cerrno>
+ #include <map>
+ #include <stdexcept>
+ #include <string>
+@@ -34,5 +36,23 @@ void require(bool condition, const std::string& message)
+         throw fastmcpp::ValidationError(message);
+ }
+ 
++int maxCandidateChunks()
++{
++    // Candidate discovery reads one Zarr chunk at a time; this cap bounds
++    // server work while permitting a radius-128 cube that spans 3x3x3 m7
++    // chunks.  The historical cap of eight rejected valid broad probes.
++    constexpr int kDefault = 27;
++    constexpr int kAbsoluteMaximum = 27;
++    const char* raw = std::getenv("VC_MCP_MAX_SEED_CANDIDATE_CHUNKS");
++    if (raw == nullptr || *raw == '\0')
++        return kDefault;
++    char* end = nullptr;
++    errno = 0;
++    const long parsed = std::strtol(raw, &end, 10);
++    require(errno == 0 && end != raw && *end == '\0' && parsed >= 1 && parsed <= kAbsoluteMaximum,
++            "VC_MCP_MAX_SEED_CANDIDATE_CHUNKS must be an integer from 1 through 27");
++    return static_cast<int>(parsed);
++}
++
+ bool allowedUri(const std::string& uri)
+ {
+@@ -201,7 +221,7 @@ std::vector<Candidate> PredictionService::findSeedCandidates(const SeedCandidate
+     const int minCy = minY / surface.chunks[1], maxCy = maxY / surface.chunks[1];
+     const int minCz = minZ / surface.chunks[0], maxCz = maxZ / surface.chunks[0];
+     const int chunkCount = (maxCx - minCx + 1) * (maxCy - minCy + 1) * (maxCz - minCz + 1);
+-    require(chunkCount <= 8, "candidate region touches more than 8 chunks");
++    require(chunkCount <= maxCandidateChunks(), "candidate region touches more chunks than the configured candidate-query cap");
+ 
+     std::map<std::array<int, 3>, Candidate> buckets;

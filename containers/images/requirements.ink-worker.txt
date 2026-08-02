@@ -1,0 +1,23 @@
+# What the ink WORKER needs on top of a runtime that already has the model and
+# the VC3D binaries. helena-surface-qc is that runtime: it is composed of the
+# frozen TimeSformer image and the verified VC3D bundle, so it already carries
+# torch, timesformer-pytorch, psycopg, boto3, scipy, numpy and Pillow.
+#
+# Pillow is repeated deliberately even though the frozen parent carries it:
+# that validated parent has 10.2.0, which has published image-decoder
+# vulnerabilities.  The worker and QC adapter decode untrusted public images,
+# so the deploy layer must replace it rather than wait for a new parent image.
+Pillow==12.3.0
+# tifffile is absent, and P4 needs it: a flattened sheet is a TIFXYZ, and
+# reading one is how the worker checks it fetched a surface rather than four
+# files with the right names.
+#
+# Nothing else is pinned here on purpose. Re-pinning a package the base already
+# installs would change the version the QC model was validated against, in an
+# image whose whole point is that the model's runtime is frozen.
+tifffile==2026.3.3
+# vc_render_tifxyz writes LZW-compressed TIFFs, and tifffile decodes LZW only
+# through imagecodecs: without it the worker can write a layer stack and not
+# read it back -- "<COMPRESSION.LZW: 5> requires the 'imagecodecs' package" --
+# so the check that the stack carries any signal at all cannot run.
+imagecodecs

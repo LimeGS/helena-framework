@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-policy-v1.schema.json",
+  "title": "Campaign X deterministic seed probe policy v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "policy_id",
+    "mode",
+    "top_k",
+    "probe_profile_id",
+    "probe_profile_sha256",
+    "probe_parameters",
+    "maximum_total_probe_generations",
+    "maximum_attempts_per_candidate",
+    "evaluation_profile_id",
+    "evaluation_profile_sha256",
+    "decision_policy_id",
+    "inconclusive_action",
+    "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_policy.v1"},
+    "policy_id": {"const": "seed-probe-v1"},
+    "mode": {"enum": ["shadow", "select"]},
+    "top_k": {"type": "integer", "minimum": 1, "maximum": 3},
+    "probe_profile_id": {"const": "vc3d-m7-probe-v1"},
+    "probe_profile_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "probe_parameters": {
+      "type": "object",
+      "required": [
+        "generations",
+        "step_size",
+        "min_area_cm",
+        "use_cuda"
+      ],
+      "properties": {
+        "generations": {"type": "integer", "minimum": 10, "maximum": 20},
+        "step_size": {"type": "integer", "minimum": 8, "maximum": 15},
+        "min_area_cm": {"const": 0.0},
+        "use_cuda": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "maximum_total_probe_generations": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 180
+    },
+    "maximum_attempts_per_candidate": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "evaluation_profile_id": {
+      "const": "tifxyz-geometry-gate-probe-v1"
+    },
+    "evaluation_profile_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_policy_id": {
+      "const": "unique-geometry-certified-v1"
+    },
+    "inconclusive_action": {"const": "HUMAN_REVIEW"},
+    "ink_used": {"const": false},
+    "review_owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": ".*\\S.*"
+    },
+    "benchmark_authorization": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "schema",
+            "benchmark_id",
+            "decision_receipt_sha256",
+            "spec_sha256",
+            "results_sha256",
+            "paired_cell_count",
+            "scroll_count",
+            "authorized_sample_ids",
+            "execution_scope"
+          ],
+          "properties": {
+            "schema": {
+              "const": "campaignx.seed_probe_benchmark_authorization.v1"
+            },
+            "benchmark_id": {"type": "string", "minLength": 1},
+            "decision_receipt_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "spec_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "results_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "paired_cell_count": {
+              "type": "integer",
+              "minimum": 40,
+              "maximum": 60
+            },
+            "scroll_count": {"type": "integer", "minimum": 3},
+            "authorized_sample_ids": {
+              "type": "array",
+              "minItems": 3,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1}
+            },
+            "execution_scope": {"const": "ISOLATED_NONPRODUCTION"}
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "schema",
+            "benchmark_id",
+            "benchmark_spec_sha256",
+            "execution_scope",
+            "arm",
+            "baseline_policy_version",
+            "policy_version",
+            "planner",
+            "seed_probe_mode",
+            "cells"
+          ],
+          "properties": {
+            "schema": {
+              "const": "campaignx.seed_probe_benchmark_execution_authorization.v1"
+            },
+            "benchmark_id": {"type": "string", "minLength": 1},
+            "benchmark_spec_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "execution_scope": {"const": "ISOLATED_NONPRODUCTION"},
+            "arm": {"const": "closed_loop"},
+            "baseline_policy_version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "policy_version": {"type": "string", "minLength": 1},
+            "planner": {"const": "deterministic-v2"},
+            "seed_probe_mode": {"const": "select"},
+            "cells": {
+              "type": "array",
+              "minItems": 40,
+              "maxItems": 60,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "required": [
+                  "cell_id",
+                  "sample_id",
+                  "independence_block_id"
+                ],
+                "properties": {
+                  "cell_id": {"type": "string", "minLength": 1},
+                  "sample_id": {"type": "string", "minLength": 1},
+                  "independence_block_id": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"mode": {"const": "select"}},
+        "required": ["mode"]
+      },
+      "then": {
+        "properties": {"top_k": {"minimum": 2}}
+      }
+    },
+    {
+      "if": {
+        "properties": {"mode": {"const": "shadow"}},
+        "required": ["mode"]
+      },
+      "then": {
+        "not": {"required": ["benchmark_authorization"]}
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "benchmark_authorization": {
+            "properties": {
+              "schema": {
+                "const": "campaignx.seed_probe_benchmark_authorization.v1"
+              }
+            },
+            "required": ["schema"]
+          }
+        },
+        "required": ["benchmark_authorization"]
+      },
+      "then": {
+        "required": ["review_owner"]
+      },
+      "else": {
+        "not": {"required": ["review_owner"]}
+      }
+    }
+  ],
+  "additionalProperties": false
+}

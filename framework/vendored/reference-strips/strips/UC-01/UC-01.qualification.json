@@ -1,0 +1,155 @@
+{
+  "schema_version": "strip-v0",
+  "strip_path": "strips/UC-01/UC-01.npz",
+  "generated_by": "qualify_strip.py (reference-strips v0)",
+  "config": {
+    "self_test_max_dist": 1e-06,
+    "self_test_min_own_wrap_pct": 100.0,
+    "wrong_side_min_fail_pct": 95.0,
+    "wrong_side_separation_factor": 3.0,
+    "null_min_wrong_pct": 99.0,
+    "null_offset_gap_multiplier": 2.0,
+    "null_gap_outlier_multiplier": 3.0,
+    "null_min_abs_cos_gap_normal": 0.5,
+    "null_normal_neighbors": 10,
+    "ct_ratio_min": 0.5,
+    "ct_ratio_max": 2.0,
+    "max_points_per_check": 250000,
+    "subsample_seed": 0
+  },
+  "validation": {
+    "pass": true,
+    "problems": []
+  },
+  "checks": {
+    "self_test": {
+      "pass": true,
+      "max_dist_any_wrap": 0.0,
+      "min_pct_nearest_own_wrap": 100.0,
+      "per_wrap": {
+        "0": {
+          "n_tested": 114509,
+          "max_dist_to_own_wrap": 0.0,
+          "pct_nearest_own_wrap": 100.0
+        },
+        "1": {
+          "n_tested": 250000,
+          "max_dist_to_own_wrap": 0.0,
+          "pct_nearest_own_wrap": 100.0
+        },
+        "2": {
+          "n_tested": 250000,
+          "max_dist_to_own_wrap": 0.0,
+          "pct_nearest_own_wrap": 100.0
+        },
+        "3": {
+          "n_tested": 250000,
+          "max_dist_to_own_wrap": 0.0,
+          "pct_nearest_own_wrap": 100.0
+        }
+      },
+      "what_this_proves": "pipeline plumbing only (indexing, coordinate order, dtype, tree construction); label geometry is check (b)'s job"
+    },
+    "wrong_side": {
+      "pass": true,
+      "min_fail_pct_over_pairs": 99.61749731462156,
+      "required_min_fail_pct": 95.0,
+      "separation_factor": 3.0,
+      "pairs": {
+        "0->1": {
+          "n_tested": 114509,
+          "fail_pct": 99.61749731462156,
+          "wrongly_close_pct": 0.3825026853784408,
+          "median_d_cross": 17.56298076459047,
+          "median_d_self": 0.9739477954726212
+        },
+        "1->0": {
+          "n_tested": 250000,
+          "fail_pct": 99.97319999999999,
+          "wrongly_close_pct": 0.026800000000008595,
+          "median_d_cross": 1464.335361128729,
+          "median_d_self": 0.9956902977172172
+        },
+        "1->2": {
+          "n_tested": 250000,
+          "fail_pct": 99.97160000000001,
+          "wrongly_close_pct": 0.028399999999990655,
+          "median_d_cross": 15.380953842068779,
+          "median_d_self": 0.9956902977172172
+        },
+        "2->1": {
+          "n_tested": 250000,
+          "fail_pct": 99.98,
+          "wrongly_close_pct": 0.01999999999999602,
+          "median_d_cross": 15.227542455941624,
+          "median_d_self": 0.9968511133112461
+        },
+        "2->3": {
+          "n_tested": 250000,
+          "fail_pct": 99.9748,
+          "wrongly_close_pct": 0.025199999999998113,
+          "median_d_cross": 26.18785813048371,
+          "median_d_self": 0.9968511133112461
+        },
+        "3->2": {
+          "n_tested": 250000,
+          "fail_pct": 99.9692,
+          "wrongly_close_pct": 0.030799999999999272,
+          "median_d_cross": 26.142372267300523,
+          "median_d_self": 0.999382075859652
+        }
+      },
+      "what_this_proves": "adjacent wraps are spatially distinct at this strip's own sampling resolution; catches wrap-label shuffles and undersampled references"
+    },
+    "null_baseline": {
+      "pass": true,
+      "min_wrong_hop_pct_over_pairs": 99.16050944426875,
+      "required_min_wrong_pct": 99.0,
+      "offset_gap_multiplier": 2.0,
+      "pairs": {
+        "0->front(1)": {
+          "n_included": 99158,
+          "n_excluded": 10574,
+          "n_edge_excluded": 438,
+          "n_coverage_hole_excluded": 4339,
+          "wrong_hop_pct": 99.99798301700316,
+          "wrong_wrap_pct": 60.127271627100185
+        },
+        "1->front(2)": {
+          "n_included": 233986,
+          "n_excluded": 3899,
+          "n_edge_excluded": 71,
+          "n_coverage_hole_excluded": 12044,
+          "wrong_hop_pct": 99.55852059524929,
+          "wrong_wrap_pct": 51.62189190806288
+        },
+        "2->front(3)": {
+          "n_included": 139132,
+          "n_excluded": 7087,
+          "n_edge_excluded": 63,
+          "n_coverage_hole_excluded": 103718,
+          "wrong_hop_pct": 99.16050944426875,
+          "wrong_wrap_pct": 0.03234338613690596
+        }
+      },
+      "what_this_proves": "the half-gap scorer flags a deliberate constant-rule overshoot on this strip's geometry (scorer sensitivity)"
+    },
+    "ct_check": {
+      "run": true,
+      "pass": true,
+      "ct_median_spacing_vox": 13.0,
+      "ct_median_spacing_um": 102.83,
+      "ct_p10_vox": 8.0,
+      "ct_p90_vox": 29.0,
+      "n_spacings": 83,
+      "n_cells": 9,
+      "strip_pitch_um": 141.80207156913133,
+      "ratio_ct_over_pitch": 0.7251657106424453,
+      "accepted_ratio_band": [
+        0.5,
+        2.0
+      ]
+    }
+  },
+  "overall_pass": true
+}

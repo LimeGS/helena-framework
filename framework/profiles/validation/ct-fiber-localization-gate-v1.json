@@ -1,0 +1,44 @@
+{
+  "kind": "campaign_x_phase4_ct_surface_localization_gate_v1",
+  "status": "FROZEN_PROSPECTIVELY_FOR_NEW_TARGET_COMPONENTS",
+  "frozen_at_utc": "2026-07-19T18:16:30Z",
+  "source_benchmark": "phase4/ct_fiber_benchmark_v1/features_v1/CT_FIBER_FEATURE_BENCHMARK.json",
+  "source_feature_csv": "phase4/ct_fiber_benchmark_v1/features_v1/CT_FIBER_FEATURES.csv",
+  "requirements": [
+    {
+      "feature": "depth_profile_peak_count",
+      "operator": "<=",
+      "threshold": 8.0,
+      "reason": "surface-localized controls have 1-7 peaks; known fibrous confounds have 9-17"
+    },
+    {
+      "feature": "depth_profile_top3_fraction",
+      "operator": ">=",
+      "threshold": 0.12,
+      "reason": "controls concentrate at least 18.95% of axial edge energy in three planes; confounds at most 7.51%"
+    },
+    {
+      "feature": "depth_profile_entropy",
+      "operator": "<=",
+      "threshold": 0.982,
+      "reason": "controls are axially localized at or below 0.9736; confounds are diffuse at or above 0.9889"
+    },
+    {
+      "feature": "argmax_depth_p90_p10_span",
+      "operator": "<=",
+      "threshold": 30.0,
+      "reason": "control argmax depths span 6-25 slices; confounds span 34-58"
+    }
+  ],
+  "decision": {
+    "all_requirements_pass": "CT_SURFACE_LOCALIZED_RETAIN_FOR_INK_REVIEW",
+    "any_requirement_fails": "CT_DEPTH_DIFFUSE_DOWNRANK_LIKELY_FIBER_LAMINAR_CONFOUND"
+  },
+  "selection_note": "Thresholds were selected after observing the four-group development benchmark and are post-hoc for that benchmark. They are frozen before use on any new target component.",
+  "policy": {
+    "never_upgrades_model_output_to_confirmed_ink": true,
+    "never_upgrades_model_output_to_confirmed_letters": true,
+    "a_failed_component_is_not_scroll_wide_absence": true,
+    "changing_any_threshold_requires_a_new_version": true
+  }
+}

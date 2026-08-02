@@ -1,0 +1,148 @@
+{
+  "schema": "campaignx.threshold_calibration_declaration.v1",
+  "declaration_id": "strict-text-like-screen-calibration@1.0.0",
+  "profile_id": "strict-text-like-screen-calibration@1.0.0",
+  "status": "METADATA_ONLY_NO_THRESHOLD_CHANGE",
+  "purpose": "The strict text-like screen decides whether a surface window is promoted as a potential text-like signal, but its three constants live in source with no profile and no calibration record. This declaration states the sample each constant actually rests on.",
+  "bound_implementation": {
+    "path": "framework/stages/03-ink/scripts/annotate_glyph_candidates.py",
+    "function": "strict_text_like_screen",
+    "criterion_id": "campaignx.strict_text_like_screen.v1",
+    "constants": {
+      "STRICT_SCREEN_MINIMUM_CANDIDATES": 10,
+      "STRICT_SCREEN_MINIMUM_CANDIDATES_PER_ROW": 4,
+      "STRICT_SCREEN_MINIMUM_QUALIFYING_ROWS": 2
+    },
+    "second_call_site": "framework/stages/04-validation/scripts/analyze_ink_stability.py",
+    "binding_note": "This declaration binds the constants by value rather than the file by digest, so unrelated edits to the module do not break the audit while any change to a screen threshold does."
+  },
+  "evidence_bindings": [
+    {
+      "role": "PRIMARY_POSITIVE_CONTROL_PHERC0139_GP_SCROLL1",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/expanded_candidate_surface_screen_v1/manual_review_bundle_gp_scroll1_v1/cross-scroll-control/INK_STABILITY_ANALYSIS.json",
+      "sha256": "cc706eb1706745060464463f0bc0b8925333be758d66b6eed900036475cdd938",
+      "note": "PHerc0139 at source_pixel_um 9.362: 15 candidates, 5 row bands, 2 rows with at least four candidates, histogram {1:3, 2:1, 3:1, 4:6, 5:4}. This is the single control that motivates all three constants."
+    },
+    {
+      "role": "THREE_CHECKPOINT_COMPARISON_ON_ONE_FROZEN_WINDOW",
+      "path": "workspace/campaigns/campaign-x-2026/runs/exp-20260724-ink-pherc0139-second-lane-t0-r01/T0_RESULT.json",
+      "sha256": "89ef3cc1d38be958af354b956fa751d903fd986b6a7e4a8f3837731afb3881de",
+      "note": "The same frozen PHerc0139 window under three checkpoints: 15/2 (gp-scroll1, passes), 4/0 (large-scroll1), 2/0 (scroll5-pherc172). Two of the three checkpoints fail the screen on the acknowledged positive control."
+    },
+    {
+      "role": "U0_NEGATIVE_DIRECTION_CONTROL_ON_A_TYPICAL_VC3D_SURFACE",
+      "path": "workspace/campaigns/campaign-x-2026/runs/exp-20260724-val-u0-pherc0139-vc3d-positive-control-r01/U0_THRESHOLD_CHAIN.json",
+      "sha256": "73bf822be8b94cb77e24b871543a44f254e3f3840c0f2bdb2a0cb3be07b27426",
+      "note": "1 candidate against a minimum of 10 and 0 qualifying rows against a minimum of 2. This is the evidence that cancelled the U1 relaxation."
+    },
+    {
+      "role": "SECOND_SCROLL_POSITIVE_CONTROL_PHERC172",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/open_data/PHerc172/in_domain_control_v1/ink_screening_v1/analysis/INK_STABILITY_ANALYSIS.json",
+      "sha256": "47a51e32b0a997f3d27dd646128ec6dcda2b62658e2c337b4ca114ee96b52aa2",
+      "note": "20 candidates, 2 qualifying rows, in-domain for the scroll5-pherc172 checkpoint."
+    },
+    {
+      "role": "THE_ENTIRE_LABELLED_NEGATIVE_SET",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/timesformer_large_scroll1_control_ab_v1/runtime/CONTROL_AB_RESULT.json",
+      "sha256": "a92e7ae6ccfd1caf6692a69ff7cc7101da6e30bdd97bb4783808fda07fca434a",
+      "note": "The only two designated hard negatives ever screened: PHerc1447 (5 candidates, 0 qualifying rows) and PHerc800 (4 candidates, 0 qualifying rows). Both were run under the large-scroll1 checkpoint, and this artifact's own status is REJECT_LARGE_MODEL."
+    },
+    {
+      "role": "TARGET_SELECTIVITY_PASS_47_WINDOWS",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/expanded_candidate_surface_screen_v1/robust_windows_gp_scroll1_all_shortlist_v1/ROBUST_WINDOW_BATCH_RECEIPT_GP_SCROLL1_ALL_SHORTLIST.json",
+      "sha256": "4ff19ff645374360c6e890540d96c7b82613497df816770a135fcdbdb1f27e06",
+      "note": "47 unlabelled target windows under one checkpoint: 10 passed, 17 were rejected by the row term alone, 20 by both terms, and none by the candidate-count term alone."
+    }
+  ],
+  "requirement_calibration": [
+    {
+      "feature": "STRICT_SCREEN_MINIMUM_CANDIDATES",
+      "calibration": {
+        "positive_n": 7,
+        "negative_n": 2,
+        "sources": [
+          "PHerc0139-positive-control-gp-scroll1",
+          "PHerc0139-end-to-end-positive-control-scroll5",
+          "PHerc0139-positive-control-large-scroll1",
+          "PHerc0139-u0-vc3d-surface-control",
+          "PHerc172-in-domain-positive-control",
+          "PHerc172-control-gp-scroll1-transfer",
+          "PHerc172-positive-control-large-scroll1",
+          "PHerc1447-rank01-large-scroll1-hard-negative",
+          "PHerc800-rank02-large-scroll1-hard-negative"
+        ],
+        "independent_validation": false,
+        "declared_value": 10,
+        "positive_n_independent_source_artifacts": 3,
+        "positive_n_independent_scrolls": 2,
+        "canonical_lane_positive_n": 3,
+        "canonical_lane_negative_n": 0,
+        "note": "The two labelled negatives measured 5 and 4 candidates, both far below 10, so no negative constrains the value from nearby. The lowest passing positive measured 15, so nothing in the corpus distinguishes 10 from any cut between 6 and 15."
+      }
+    },
+    {
+      "feature": "STRICT_SCREEN_MINIMUM_CANDIDATES_PER_ROW",
+      "calibration": {
+        "positive_n": 7,
+        "negative_n": 2,
+        "sources": [
+          "PHerc0139-positive-control-gp-scroll1",
+          "PHerc0139-end-to-end-positive-control-scroll5",
+          "PHerc0139-positive-control-large-scroll1",
+          "PHerc0139-u0-vc3d-surface-control",
+          "PHerc172-in-domain-positive-control",
+          "PHerc172-control-gp-scroll1-transfer",
+          "PHerc172-positive-control-large-scroll1",
+          "PHerc1447-rank01-large-scroll1-hard-negative",
+          "PHerc800-rank02-large-scroll1-hard-negative"
+        ],
+        "independent_validation": false,
+        "declared_value": 4,
+        "canonical_lane_positive_n": 3,
+        "canonical_lane_negative_n": 0,
+        "margin_on_primary_positive_control": 0,
+        "note": "Zero margin. The primary control's fifth row band holds exactly 4 candidates against a floor of 4; raising the floor to 5 would drop that row, leave one qualifying row, and fail the control outright."
+      }
+    },
+    {
+      "feature": "STRICT_SCREEN_MINIMUM_QUALIFYING_ROWS",
+      "calibration": {
+        "positive_n": 7,
+        "negative_n": 2,
+        "sources": [
+          "PHerc0139-positive-control-gp-scroll1",
+          "PHerc0139-end-to-end-positive-control-scroll5",
+          "PHerc0139-positive-control-large-scroll1",
+          "PHerc0139-u0-vc3d-surface-control",
+          "PHerc172-in-domain-positive-control",
+          "PHerc172-control-gp-scroll1-transfer",
+          "PHerc172-positive-control-large-scroll1",
+          "PHerc1447-rank01-large-scroll1-hard-negative",
+          "PHerc800-rank02-large-scroll1-hard-negative"
+        ],
+        "independent_validation": false,
+        "declared_value": 2,
+        "canonical_lane_positive_n": 3,
+        "canonical_lane_negative_n": 0,
+        "margin_on_primary_positive_control": 0,
+        "note": "Zero margin. The primary control produced exactly 2 qualifying rows against a floor of 2; raising the floor to 3 would fail the control. On the 47-window target pass this is the term that binds alone 17 times, while the candidate-count term never binds alone."
+      }
+    }
+  ],
+  "audit_policy": {
+    "minimum_positive_n": 10,
+    "minimum_negative_n": 5,
+    "low_sample_requirements_are_flagged_not_silently_accepted": true,
+    "threshold_changes_from_this_declaration": false,
+    "frozen_v1_v2_v3_profiles_remain_immutable": true
+  },
+  "known_limitations": [
+    "All three constants fall below the declared audit minimums on both sides: 7 positive measurements against a minimum of 10, and 2 negative measurements against a minimum of 5.",
+    "The 7 positive measurements are not 7 independent samples. They are 3 source artifacts across 2 scrolls, re-measured under 3 checkpoints.",
+    "Both labelled negatives were screened only under the large-scroll1 checkpoint, and that checkpoint was itself rejected (REJECT_LARGE_MODEL). On the canonical timesformer-gp-scroll1 lane that produced the positive control, negative_n is 0: no designated negative control has ever been run through this screen with the checkpoint the screen is operated with.",
+    "Two of the three constants have zero margin on the single control that motivates them, so the screen cannot be tightened at all without failing its own positive control.",
+    "The source comment states that the candidate count and not the row term is what binds, citing the U0 control. That generalisation is not supported: across the 47-window target pass the row term was the sole binding term 17 times and the candidate-count term was never the sole binding term.",
+    "The 253 further screened windows are unlabelled target surfaces with no ground truth and are not counted as negatives here.",
+    "A window that fails this screen is not evidence of absence of ink or text, and a window that passes is not accepted ink, text, letters, or First Letters."
+  ]
+}

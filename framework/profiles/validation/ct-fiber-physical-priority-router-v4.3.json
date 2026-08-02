@@ -1,0 +1,97 @@
+{
+  "kind": "campaignx.ct_fiber_physical_priority_router_profile.v4_3",
+  "profile_id": "ct-fiber-physical-priority-router@4.3.0",
+  "status": "MULTISCROLL_TRANSFER_V4_FAILED_NOT_PROMOTED",
+  "base_router": {
+    "profile": "framework/profiles/validation/ct-fiber-supported-window-router-v4.1.json",
+    "meaning": "v4.1 remains authoritative. v4.3 was evaluated only as a non-destructive ordering layer for supported Tier B."
+  },
+  "feature_schema": {
+    "feature_schema_id": "ct-physical-morphology-compact@1.0.0",
+    "input": "65-plane surface-normal CT stack with canonical 2.4 um XY sampling and a centered 35x35 audit ROI",
+    "feature_count": 163,
+    "descriptors": [
+      "depth profiles sampled on a fixed micrometre grid",
+      "physical depth concentration and peak-density statistics",
+      "projection distribution moments and gradient coherence",
+      "thresholded connected-component morphology"
+    ],
+    "raw_pixels": false,
+    "hog": false,
+    "pca": false,
+    "learned_embedding": false,
+    "scanner_identifier": false
+  },
+  "model": {
+    "kind": "L2_REGULARIZED_HISTOGRAM_GRADIENT_BOOSTING",
+    "artifact": "workspace/campaigns/campaign-x-2026/findings/ct-priority-router-v43/development/model-v43-source-holdout-r02/CT_PRIORITY_ROUTER_V43.joblib",
+    "sha256": "86efcd2e5a75295d2f375fe46b99ac245cf4c3e67bb7c71c687cff3f52b1ccd5",
+    "maximum_iterations": 200,
+    "maximum_leaf_nodes": 15,
+    "l2_regularization": 5.0,
+    "learning_rate": 0.05,
+    "random_seed": 20260724,
+    "surface_relative_downrank_fraction": 0.125,
+    "score_semantics": "within-complete-surface review priority; not a calibrated ink probability"
+  },
+  "development_contract": {
+    "base_training_benchmarks": [
+      "MULTISCROLL_TRANSFER_V1",
+      "MULTISCROLL_TRANSFER_V2"
+    ],
+    "base_training_scrolls": [
+      "PHerc0814",
+      "PHerc1667",
+      "PHercParis4"
+    ],
+    "source_holdout_calibration_benchmark": "CT_PRIORITY_ROUTER_V43_DEVELOPMENT",
+    "source_holdout_calibration_scrolls": [
+      "PHerc0139",
+      "PHerc0841"
+    ],
+    "development_component_count": 800,
+    "development_complete_surface_count": 18,
+    "source_holdout_positive_b1_recall_per_scroll": 0.96,
+    "source_holdout_confound_b2_rate": 0.24,
+    "receipt": "workspace/campaigns/campaign-x-2026/findings/ct-priority-router-v43/development/model-v43-source-holdout-r02/DEVELOPMENT_RECEIPT.json",
+    "receipt_sha256": "00eb277f64337fff6579786824f27779edd86e0527f5a6b7c23659c797ad0c2b"
+  },
+  "transfer_result": {
+    "benchmark": "MULTISCROLL_TRANSFER_V4",
+    "executed_once": true,
+    "rerun_performed": false,
+    "result": "FAILED_NOT_PROMOTED",
+    "positive_b1_recall": {
+      "PHerc0009B": 0.94,
+      "PHerc0500P2": 0.98,
+      "PHercMAN5": 0.92
+    },
+    "confound_b2_rate": {
+      "PHerc0009B": 0.2,
+      "PHerc0500P2": 0.24,
+      "PHercMAN5": 0.18
+    },
+    "evidence_preservation": 1.0,
+    "result_artifact": "workspace/campaigns/campaign-x-2026/findings/ct-priority-router-v43/multiscroll-transfer-v4/one-shot-v43-r01/MULTISCROLL_TRANSFER_V4_RESULT.json",
+    "result_sha256": "a4b558f5a4134164eb14ed53f89ff90935e31cf7ddd4f730cbe72c72aefacaf4"
+  },
+  "routing": {
+    "tier_b1": "review first",
+    "tier_b2": "preserved and review later; never a negative",
+    "tier_c": "extend or resegment",
+    "automatic_discard": false,
+    "automatic_ink_claim": false
+  },
+  "operational_decision": {
+    "default_router": "ct-fiber-supported-window-router@4.1.0",
+    "v4_3_allowed_as_default": false,
+    "multiscroll_transfer_v4_consumed": true,
+    "future_changes_require_new_profile_and_new_benchmark": true
+  },
+  "non_claims": [
+    "not promoted",
+    "not a calibrated ink probability",
+    "Tier B2 is not evidence of absence",
+    "not accepted ink, text, letters, or First Letters"
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "schema": "campaignx.threshold_calibration_declaration.v1",
+  "declaration_id": "ct-fiber-localization-gate-v3-calibration@1.0.0",
+  "status": "METADATA_ONLY_NO_THRESHOLD_CHANGE",
+  "bound_profile": {
+    "path": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+  },
+  "evidence_bindings": [
+    {
+      "role": "DEPTH_DEVELOPMENT_BENCHMARK_SPEC",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/BENCHMARK_SPEC.json",
+      "sha256": "62ed84fa4a1f7f6cce64fc65ec03b6b6bb6b0f8c55d1daeac90ec7cae6b0a974"
+    },
+    {
+      "role": "DEPTH_DEVELOPMENT_FEATURES",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/features_v1/CT_FIBER_FEATURE_BENCHMARK.json",
+      "sha256": "58c6d4ec17b937667f59ff293c0ef5db5871bc1ad9480c57a5205dbe57b9e06a"
+    },
+    {
+      "role": "DEPTH_POST_HOC_GATE_EVALUATION",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/gate_evaluation_v1/CT_FIBER_GATE_EVALUATION.json",
+      "sha256": "5474ac5d3a9a9321f633fcb9c576419829e1f42686cdfab4f346bfcdc49aacc6"
+    },
+    {
+      "role": "COVERAGE_PHERC211_BOUNDARY_AUDIT",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC211_69064FF9_VISUAL_ASSESSMENT.json",
+      "sha256": "9e47e09fff95640480278c20384ec57875aa74aef103d31e8fc1557193ac6ae4"
+    },
+    {
+      "role": "COVERAGE_PHERC268_BOUNDARY_AUDIT",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC268_14744EC1_C002_VISUAL_ASSESSMENT.json",
+      "sha256": "6a30ef2edc83ed11ae014359138b04a5176cb5dae506f2bc231bfa2cf162c848"
+    }
+  ],
+  "requirement_calibration": [
+    {
+      "feature": "candidate_bbox_nonzero_fraction",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 1,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc268-boundary-artifact"
+        ],
+        "independent_validation": false,
+        "note": "The only audited negative is the PHerc268 boundary artifact. This threshold is post-hoc and statistically underpowered."
+      }
+    },
+    {
+      "feature": "central_slice_center_nonzero",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "note": "Coverage-only calibration; PHerc172 is not source-locked full-positive evidence for the inherited depth gate."
+      }
+    },
+    {
+      "feature": "central_slice_nonzero_fraction",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "note": "Coverage-only calibration; negative count remains below the audit minimum."
+      }
+    },
+    {
+      "feature": "central_slice_zero_distance_ratio",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "note": "Coverage-only calibration; negative count remains below the audit minimum."
+      }
+    },
+    {
+      "feature": "depth_profile_peak_count",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "note": "Only the 15 PHerc0139 candidates remain source-locked full-positive evidence after the PHerc172 slice-order audit."
+      }
+    },
+    {
+      "feature": "depth_profile_top3_fraction",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "note": "Frozen inherited requirement; this declaration does not change the 0.12 threshold."
+      }
+    },
+    {
+      "feature": "depth_profile_entropy",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "note": "Frozen inherited requirement; calibration and evaluation used the same four development groups."
+      }
+    },
+    {
+      "feature": "argmax_depth_p90_p10_span",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "note": "Frozen inherited requirement measured in slices; physical-unit replacement requires a new profile version."
+      }
+    }
+  ],
+  "audit_policy": {
+    "minimum_positive_n": 10,
+    "minimum_negative_n": 5,
+    "low_sample_requirements_are_flagged_not_silently_accepted": true,
+    "threshold_changes_from_this_declaration": false,
+    "frozen_v1_v2_v3_profiles_remain_immutable": true
+  },
+  "known_limitations": [
+    "PHerc0139 participated in development and is DEVELOPMENT_ONLY, not independent transfer validation.",
+    "Coverage requirements have fewer than five audited negative examples.",
+    "Depth thresholds were selected and evaluated on the same grouped development benchmark.",
+    "Several depth variables remain expressed in slices rather than physical units.",
+    "A failed requirement routes evidence non-destructively; it never proves absence of ink or text."
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/ink-volumetric-patch-input-v1.schema.json",
+  "title": "Volumetric ink patch input v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "sample_id",
+    "array",
+    "input_voxel_size_um",
+    "source_volume",
+    "extraction"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.ink_volumetric_patch_input.v1"},
+    "sample_id": {"type": "string", "minLength": 1},
+    "array": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "format", "dtype", "shape_zyx"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "format": {"const": "npy"},
+        "dtype": {"type": "string", "minLength": 1},
+        "shape_zyx": {
+          "type": "array",
+          "prefixItems": [{"type": "integer"}, {"type": "integer"}, {"type": "integer"}],
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "input_voxel_size_um": {"type": "number", "exclusiveMinimum": 0},
+    "source_volume": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["uri", "array_path", "voxel_size_um"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1},
+        "array_path": {"type": "string"},
+        "voxel_size_um": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["center_xyz", "bounds_zyx", "resampled"],
+      "properties": {
+        "center_xyz": {"type": "array", "minItems": 3, "maxItems": 3},
+        "bounds_zyx": {"type": "array", "minItems": 3, "maxItems": 3},
+        "resampled": {"type": "boolean"}
+      }
+    }
+  }
+}

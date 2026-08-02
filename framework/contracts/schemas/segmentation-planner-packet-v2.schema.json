@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-planner-packet-v2.schema.json",
+  "title": "Campaign X segmentation planner v2 input packet",
+  "type": "object",
+  "required": ["schema", "task_id", "attempt_id", "sample_id", "source_snapshot", "cell", "catalog_snapshot_sha256", "nearby_geometry", "m7_query", "candidate_seeds", "candidate_selection_policy", "parameter_envelope", "constraints", "regional_attempt_history", "adaptation_policy"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_planner_packet.v2"},
+    "task_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "sample_id": {"type": "string", "minLength": 1},
+    "source_snapshot": {"type": "object"},
+    "cell": {"type": "object"},
+    "catalog_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nearby_geometry": {"type": "object"},
+    "m7_query": {"type": ["object", "null"]},
+    "candidate_seeds": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "object"}},
+    "candidate_selection_policy": {"enum": ["score-cell-volume-clearance-v1", "adaptive-geometry-history-v2"]},
+    "benchmark_execution": {
+      "$ref": "seed-probe-benchmark-execution-v1.schema.json"
+    },
+    "resume_from": {"type": "string", "minLength": 1},
+    "resume_artifact": {"type": "object"},
+    "corrections": {"type": "string", "minLength": 1},
+    "seed_probe_decision": {
+      "$ref": "seed-probe-decision-v1.schema.json"
+    },
+    "parameter_envelope": {"type": "object"},
+    "constraints": {"type": "object"},
+    "regional_attempt_history": {"$ref": "segmentation-regional-attempt-history-v1.schema.json"},
+    "adaptation_policy": {"type": "object"}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,46 @@
+{
+  "benchmark_id": "MULTISCROLL_TRANSFER_V1",
+  "profile_id": "multiscroll-transfer-v1@1.0.0",
+  "status": "FROZEN_CONTRACT_NO_EXECUTABLE_CONTROL_SET",
+  "comparison": {
+    "v3_profile": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+    "v4_profile": "ct-fiber-shadow-router-v4-physical@4.0.0",
+    "same_controls_required": true,
+    "threshold_changes_after_freeze": false
+  },
+  "eligibility": {
+    "allowed_label_authorities": [
+      "PUBLIC_EXPERT_LABEL",
+      "HUMAN_CT_ADJUDICATION",
+      "DIRECTLY_VISIBLE_VOLUMETRIC_INK_ADJUDICATION"
+    ],
+    "prohibited_as_ground_truth": [
+      "MODEL_PREDICTION",
+      "PSEUDO_LABEL",
+      "SELF_CONSISTENCY",
+      "MODEL_ASSISTED_UNADJUDICATED"
+    ],
+    "development_scrolls": [
+      "PHerc0139",
+      "PHerc0172"
+    ]
+  },
+  "policy": {
+    "minimum_independent_positive_scrolls": 3,
+    "minimum_independent_confound_scrolls": 2,
+    "minimum_positive_components_per_scroll": 50,
+    "minimum_confound_components_per_scroll": 50,
+    "minimum_surface_groups_per_scroll": 5,
+    "minimum_positive_recall_per_scroll": 0.95,
+    "minimum_v4_preservation_recall_per_scroll": 1.0,
+    "bootstrap_iterations": 2000,
+    "bootstrap_seed": 20260723
+  },
+  "promotion_rule": {
+    "v4_direct_review_recall_definition": "TIER_A + TIER_B",
+    "tier_c_definition": "EXTEND_OR_RESEGMENT; preserved, not negative",
+    "pass_requires_every_positive_scroll": true,
+    "failed_benchmark_may_not_be_retuned": true,
+    "next_revision_on_failure": "v4.1"
+  }
+}

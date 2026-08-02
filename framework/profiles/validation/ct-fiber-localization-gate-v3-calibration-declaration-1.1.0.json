@@ -1,0 +1,251 @@
+{
+  "schema": "campaignx.threshold_calibration_declaration.v1",
+  "declaration_id": "ct-fiber-localization-gate-v3-calibration@1.1.0",
+  "profile_id": "ct-fiber-localization-gate-v3-calibration@1.1.0",
+  "status": "METADATA_ONLY_NO_THRESHOLD_CHANGE",
+  "supersedes_for_reporting_only": "ct-fiber-localization-gate-v3-calibration@1.0.0",
+  "supersession_note": "Version 1.0.0 remains committed, immutable, and independently audited by BL-10. This version adds measured joint-recall and per-term discrimination fields to the same eight rows. Every positive_n, negative_n and source list is carried over from 1.0.0 unchanged; no sample count, threshold, or source was revised.",
+  "bound_profile": {
+    "path": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+  },
+  "evidence_bindings": [
+    {
+      "role": "DEPTH_DEVELOPMENT_BENCHMARK_SPEC",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/BENCHMARK_SPEC.json",
+      "sha256": "62ed84fa4a1f7f6cce64fc65ec03b6b6bb6b0f8c55d1daeac90ec7cae6b0a974"
+    },
+    {
+      "role": "DEPTH_DEVELOPMENT_FEATURES",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/features_v1/CT_FIBER_FEATURE_BENCHMARK.json",
+      "sha256": "58c6d4ec17b937667f59ff293c0ef5db5871bc1ad9480c57a5205dbe57b9e06a"
+    },
+    {
+      "role": "DEPTH_POST_HOC_GATE_EVALUATION",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/gate_evaluation_v1/CT_FIBER_GATE_EVALUATION.json",
+      "sha256": "5474ac5d3a9a9321f633fcb9c576419829e1f42686cdfab4f346bfcdc49aacc6"
+    },
+    {
+      "role": "COVERAGE_PHERC211_BOUNDARY_AUDIT",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC211_69064FF9_VISUAL_ASSESSMENT.json",
+      "sha256": "9e47e09fff95640480278c20384ec57875aa74aef103d31e8fc1557193ac6ae4"
+    },
+    {
+      "role": "COVERAGE_PHERC268_BOUNDARY_AUDIT",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC268_14744EC1_C002_VISUAL_ASSESSMENT.json",
+      "sha256": "6a30ef2edc83ed11ae014359138b04a5176cb5dae506f2bc231bfa2cf162c848"
+    },
+    {
+      "role": "EIGHT_TERM_GATE_DECISIONS_ON_OWN_CALIBRATION_CONTROLS",
+      "path": "workspace/campaigns/campaign-x-2026/findings/ct-gate-v3-validation/runtime/controls/gate-v3/CT_FIBER_GATE_DECISIONS.json",
+      "sha256": "b8bc3b4ad3f28058b28d508e5b7759f43dc7c96eda8f639172fa605dcdd5cb27",
+      "note": "Per-candidate, per-requirement pass/fail for all 33 calibration controls. Every recall and per-term rejection number in this declaration is recomputed from this file."
+    }
+  ],
+  "measured_joint_recall": {
+    "status": "FIRST_MEASUREMENT_OF_THE_EIGHT_TERM_CONJUNCTION",
+    "note": "Until this measurement the eight requirements had only ever been reported term by term. The conjunction had never been evaluated, so the gate's actual retention on its own calibration controls was unknown.",
+    "evaluated_control_count": 33,
+    "retained_control_count": 15,
+    "joint_recall": 0.4545454545454545,
+    "joint_recall_percent": "45.45",
+    "by_group": [
+      {
+        "group_id": "PHerc0139-public-positive",
+        "control_class": "PUBLIC_POSITIVE_CONTROL",
+        "evaluated": 15,
+        "retained": 15,
+        "recall": 1.0
+      },
+      {
+        "group_id": "PHerc172-public-positive",
+        "control_class": "COVERAGE_DIAGNOSTIC_CONTROL",
+        "evaluated": 18,
+        "retained": 0,
+        "recall": 0.0
+      }
+    ],
+    "interpretation": [
+      "The 33 controls are not 33 equivalent positives: 15 are source-locked PHerc0139 positive controls and 18 are PHerc172 coverage diagnostics.",
+      "The gate retains every source-locked positive control and none of the coverage diagnostics.",
+      "45.45% is retention on the mixed calibration set, measured post-hoc on the same controls the thresholds were selected against. It is not independent recall and does not estimate performance on new surfaces.",
+      "A downranked control is routed for review, never deleted, and is never evidence of absence of ink or text."
+    ]
+  },
+  "measured_term_discrimination": {
+    "note": "Number of the 33 calibration controls each requirement rejected, recomputed from the bound decision receipt. A requirement that rejected nothing has no measured negative on this control set, so its threshold is unfalsified here: any looser value would have produced identical decisions.",
+    "rejections_by_feature": {
+      "candidate_bbox_nonzero_fraction": 0,
+      "central_slice_center_nonzero": 0,
+      "central_slice_nonzero_fraction": 0,
+      "central_slice_zero_distance_ratio": 0,
+      "depth_profile_peak_count": 0,
+      "depth_profile_top3_fraction": 8,
+      "depth_profile_entropy": 18,
+      "argmax_depth_p90_p10_span": 0
+    },
+    "discriminating_requirement_count": 2,
+    "inert_requirement_count": 6,
+    "inert_requirements": [
+      "candidate_bbox_nonzero_fraction",
+      "central_slice_center_nonzero",
+      "central_slice_nonzero_fraction",
+      "central_slice_zero_distance_ratio",
+      "depth_profile_peak_count",
+      "argmax_depth_p90_p10_span"
+    ],
+    "interpretation": [
+      "Six of the eight requirements never rejected any calibration control, so six of the eight thresholds are not validated against a single measured negative on this set.",
+      "The entire 45.45% retention is produced by depth_profile_entropy (18 rejections) and depth_profile_top3_fraction (8 rejections, all a subset of the entropy rejections).",
+      "All 18 rejections fall on PHerc172, so the two discriminating terms separate scroll from scroll on this set, not text from non-text.",
+      "The four coverage requirements were calibrated against boundary artifacts outside this control set (PHerc268 at 0.938602, PHerc211); their inertia here means the calibration controls never exercised them, not that they are unmotivated."
+    ]
+  },
+  "requirement_calibration": [
+    {
+      "feature": "candidate_bbox_nonzero_fraction",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 1,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc268-boundary-artifact"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "The only audited negative is the PHerc268 boundary artifact. This threshold is post-hoc and statistically underpowered, and it rejected none of the 33 calibration controls."
+      }
+    },
+    {
+      "feature": "central_slice_center_nonzero",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "Coverage-only calibration; PHerc172 is not source-locked full-positive evidence for the inherited depth gate. Rejected none of the 33 calibration controls."
+      }
+    },
+    {
+      "feature": "central_slice_nonzero_fraction",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "Coverage-only calibration; negative count remains below the audit minimum. Rejected none of the 33 calibration controls."
+      }
+    },
+    {
+      "feature": "central_slice_zero_distance_ratio",
+      "calibration": {
+        "positive_n": 33,
+        "negative_n": 4,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-coverage-diagnostic",
+          "PHerc211-boundary-confounds"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "Coverage-only calibration; negative count remains below the audit minimum. Rejected none of the 33 calibration controls."
+      }
+    },
+    {
+      "feature": "depth_profile_peak_count",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "Only the 15 PHerc0139 candidates remain source-locked full-positive evidence after the PHerc172 slice-order audit. The 26 negatives are the separate PHerc191/PHerc211 confound benchmark, not the 33 controls; against those 33 this requirement rejected nothing."
+      }
+    },
+    {
+      "feature": "depth_profile_top3_fraction",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 8,
+        "note": "Frozen inherited requirement; this declaration does not change the 0.12 threshold. One of the two requirements that discriminates on the calibration controls."
+      }
+    },
+    {
+      "feature": "depth_profile_entropy",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 18,
+        "note": "Frozen inherited requirement; calibration and evaluation used the same four development groups. This single requirement accounts for every one of the 18 downranked calibration controls."
+      }
+    },
+    {
+      "feature": "argmax_depth_p90_p10_span",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 26,
+        "observed_development_positive_n": 33,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc172-development-only-after-slice-order-audit",
+          "PHerc191-fiber-confound",
+          "PHerc211-fiber-confound"
+        ],
+        "independent_validation": false,
+        "measured_rejections_on_calibration_controls": 0,
+        "note": "Frozen inherited requirement measured in slices; physical-unit replacement requires a new profile version. Rejected none of the 33 calibration controls."
+      }
+    }
+  ],
+  "audit_policy": {
+    "minimum_positive_n": 10,
+    "minimum_negative_n": 5,
+    "low_sample_requirements_are_flagged_not_silently_accepted": true,
+    "inert_requirements_are_flagged_not_silently_accepted": true,
+    "threshold_changes_from_this_declaration": false,
+    "frozen_v1_v2_v3_profiles_remain_immutable": true
+  },
+  "known_limitations": [
+    "PHerc0139 participated in development and is DEVELOPMENT_ONLY, not independent transfer validation.",
+    "Coverage requirements have fewer than five audited negative examples.",
+    "Depth thresholds were selected and evaluated on the same grouped development benchmark.",
+    "Several depth variables remain expressed in slices rather than physical units.",
+    "A failed requirement routes evidence non-destructively; it never proves absence of ink or text.",
+    "The measured 45.45% joint recall is post-hoc on the calibration controls themselves and is an upper bound, not a transfer estimate.",
+    "Six of the eight requirements have never rejected a measured control, so their thresholds could be loosened without changing any recorded decision on this set."
+  ]
+}

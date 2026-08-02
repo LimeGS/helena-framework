@@ -1,0 +1,21 @@
+{
+  "component": "helena-framework",
+  "file_count": 7,
+  "files": {
+    "README.md": "20d9b334b235c7bb0c194f96deb72cffed3bc9e0b73a9ca41331a756b88127a7",
+    "camplog.py": "308dd302ca25cc8c29639ab575a8f1f550aa015cb179e56f43c558190b8d2abb",
+    "executor_loop.py": "0eb0c7a1422517b502b7af007cc564a61cdc560a8c349691f05040bea8359dd1",
+    "heartbeat.py": "b50f69911152e4727b4ac7944f4d83ee62955b26e1c1c33ce6037ab85d2db6b1",
+    "openrouter_helper.py": "0b51c19b5d8d3b8735f22e8e558c2d0878623208be23f4cc22b1c8b947b1e641",
+    "qa_watchdog.sh": "c735c1712355e226b2b313d5b31a178d719c52c9e932aabd64fc50baeab0c770",
+    "watchdog.sh": "ef2e1b7da5cb80e0362937f074e4145c69bb5695d2ba6ff5fd4a2710a0efc914"
+  },
+  "phases": [],
+  "policy": "code only; plates, indices, reviews, checkpoints and fixtures are findings and stay at the source",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": "a14d59dc70ce4fcadf6e7a645e1ddf4b5f4d97a1",
+  "source_path": "release/helena-framework",
+  "source_remote": null,
+  "unavailable_dataless": [],
+  "vendored_at_utc": "2026-07-25T17:51:05Z"
+}

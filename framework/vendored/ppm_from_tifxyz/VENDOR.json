@@ -1,0 +1,18 @@
+{
+  "component": "ppm_from_tifxyz",
+  "file_count": 1,
+  "files": {
+    "ppm_from_tifxyz.py": "0fb746bcba675f1dd0d36bd237b4e12c17bbc0f52450980f7c9fc920223d59df"
+  },
+  "phases": [
+    "P3",
+    "P4"
+  ],
+  "policy": "single file",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": null,
+  "source_path": "vendor/ppm_from_tifxyz.py",
+  "source_remote": null,
+  "unavailable_dataless": [],
+  "vendored_at_utc": "2026-07-25T17:51:05Z"
+}

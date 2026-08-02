@@ -1,0 +1,43 @@
+{
+  "kind": "campaignx.discovery.ct_depth_concentration_priority.v1",
+  "profile_id": "ct-depth-concentration-priority@0.1.0",
+  "status": "FROZEN_FOR_PROSPECTIVE_PRIORITY_ONLY",
+  "frozen_at_utc": "2026-07-22T09:04:00Z",
+  "applies_after": {
+    "profile": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+  },
+  "requirements": [
+    {
+      "feature": "depth_profile_top3_fraction",
+      "operator": ">=",
+      "threshold": 0.18,
+      "reason": "The 15 source-locked PHerc0139 positive-control components range from 0.214991 to 0.343081; the six visually audited geometry-correlated target components range from 0.124121 to 0.164342. The 0.18 threshold lies inside the observed separation with margins on both sides."
+    }
+  ],
+  "decision": {
+    "all_requirements_pass": "HIGH_PRIORITY_CONTROL_CONSISTENT_DEPTH_CONCENTRATION",
+    "any_requirement_fails": "STANDARD_REVIEW_GEOMETRY_CONFOUND_ENRICHED"
+  },
+  "calibration_evidence": {
+    "positive_control_group": "PHerc0139-public-positive",
+    "positive_control_count": 15,
+    "positive_control_min": 0.21499145030975342,
+    "positive_control_median": 0.25118377804756165,
+    "positive_control_max": 0.3430812656879425,
+    "audited_hard_negative_count": 6,
+    "audited_hard_negative_min": 0.12412095069885254,
+    "audited_hard_negative_median": 0.13192665576934814,
+    "audited_hard_negative_max": 0.16434216499328613,
+    "assessment": "workspace/campaigns/campaign-x-2026/findings/first-letters-review-v2/MODEL_VISUAL_ASSESSMENTS.json",
+    "positive_control_decisions": "workspace/campaigns/campaign-x-2026/findings/ct-gate-v3-validation/runtime/controls/gate-v3/CT_FIBER_GATE_DECISIONS.json"
+  },
+  "selection_note": "This threshold is post-hoc to six Campaign X target review components and is not independent validation. It creates a review-priority tier only. It must not delete evidence, change the frozen CT gate, or establish ink/letter identity.",
+  "policy": {
+    "gate_v3_remains_immutable": true,
+    "failed_priority_is_still_reviewable": true,
+    "never_upgrades_model_output_to_confirmed_ink": true,
+    "never_upgrades_model_output_to_confirmed_letters": true,
+    "changing_any_threshold_requires_a_new_semantic_version": true
+  }
+}

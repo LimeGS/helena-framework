@@ -1,0 +1,69 @@
+{
+  "schema": "campaignx.scientific_profile.v1",
+  "profile_id": "segmentation.scrollfiesta-m7-mesh@0.1.1",
+  "status": "EXPERIMENTAL_LOCKED",
+  "backend": {
+    "family": "scrollfiesta",
+    "repository": "https://github.com/Hob3rMallow/scrollfiesta_public",
+    "commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+    "tree": "5299f2cb5a6f19ab84333d084b370f9664c8c7d6",
+    "runtime_patchset": [
+      {
+        "name": "0001-api-add-stdlib-include.patch",
+        "sha256": "fa85f03468048435f23c5e212b8737705ddc2480bb635aa9dac77b47ef8ebb23"
+      },
+      {
+        "name": "0002-fix-clipper2-abi-linkage.patch",
+        "sha256": "bc3345e24c63885f84fc6cccb679b3930c05046dbb87c405fc47b0af56127e62"
+      }
+    ],
+    "bundle_sha256s_index_sha256": "a925a61d80534279302b9301d6580aeb0247b384ac1ca8a899a700aabd0d612c"
+  },
+  "input": {
+    "prediction_family": "m7",
+    "level": 0,
+    "threshold": "nonzero",
+    "canonical_roi_layout": "Z0,Y0,X0,Z1,Y1,X1",
+    "scrollfiesta_cli_bbox_layout": "Z0,Z1,Y0,Y1,X0,X1",
+    "cube_edge_voxels": 128
+  },
+  "meshing": {
+    "halo_voxels": 13,
+    "qem_enabled": true,
+    "components": "all",
+    "minimum_faces": 200,
+    "maximum_components": 0,
+    "fill_max_edges": 30
+  },
+  "flattening": {
+    "iterations": 20,
+    "energy": "symmetric_dirichlet",
+    "tolerance": null,
+    "step_size": 20
+  },
+  "runtime": {
+    "execution_mode": "compact_low_disk",
+    "maximum_concurrent_cubes": 1,
+    "threads_per_cube": 8,
+    "cube_timeout_seconds": 3600.0,
+    "flatboi_timeout_seconds": 3600.0,
+    "render_in_scrollfiesta": false,
+    "anonymous_s3": true
+  },
+  "coordinate_contract": {
+    "native_obj_order": "ZYX",
+    "canonical_order": "XYZ",
+    "winding_flips": 1,
+    "maximum_roundtrip_error_voxels": 0.0001
+  },
+  "safety": {
+    "require_new_output_directory": true,
+    "fail_on_any_weld_nonzero_exit": true,
+    "fail_on_missing_topology_report": true,
+    "physical_mesh_fusion": false,
+    "ink_may_override_geometry_failure": false,
+    "explicit_absolute_tool_paths": true,
+    "require_runtime_binary_hashes_in_receipts": true,
+    "reject_mixed_runtime_shards": true
+  }
+}

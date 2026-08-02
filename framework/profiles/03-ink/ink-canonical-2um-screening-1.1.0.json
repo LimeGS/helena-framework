@@ -1,0 +1,61 @@
+{
+ "schema": "campaignx.ink_lane_profile.v1",
+ "profile_id": "ink-canonical-2um-screening@1.1.0",
+ "method_id": "ink-canonical-2um@1.0.0",
+ "checkpoint_sha256": "36dd0de84b7b7aa6590184192c7415466cd8a1ba7c1e59f42c6373846373c3e0",
+ "adapter": "framework/stages/03-ink/scripts/run_ink_canonical2um.py",
+ "input_contract": {
+  "modality": "registered surface CT stack",
+  "model_type": "resnet3d-152-3d-decoder",
+  "model_depth": 152,
+  "frames": 62,
+  "tile_size_y_x": [
+   256,
+   256
+  ],
+  "training_pixel_um": 2.399,
+  "training_slice_um": 2.399,
+  "physical_resampling_required": false,
+  "max_clip_value": 200,
+  "model_family": "new_canon_autoresearch_recipe",
+  "preprocess_precision": "float32",
+  "normalization_provenance": [
+   "ScrollPrize/villa ink-detection/optimized_inference/inference.py declares CFG.max_clip_value = 200",
+   "the tile is np.clip(tile, 0, max_clip_value) and then A.ToFloat(max_value=max_clip_value)",
+   "the divisor is the clip value, not 255"
+  ],
+  "scale_note": "training_pixel_um is set to the scale of the reference PHerc0139 prediction this recipe produced, so the source runs native and the runner performs no resample; the published recipe does not state a single canonical training micron",
+  "normalization": "divide by 255, no clip -- what this recipe's own runner does",
+  "depth_sampling": "consecutive source layers centred on the stack; no resampling"
+ },
+ "output_contract": {
+  "maps": [
+   "probability.npy"
+  ],
+  "receipt": "INK_PROFILE_RECEIPT.json",
+  "coordinate_space": "native source surface plane",
+  "comparability": [
+   "this lane is scale-restricted: it was exercised at approximately 2 um and must not be routed to the 8.64/9.362 um target cohort without its own control at that scale",
+   "single depth centre per invocation: this lane has no built-in stability aggregation",
+   "not bit-comparable with @1.0.0 receipts: different preprocessing, same checkpoint"
+  ]
+ },
+ "default_execution": {
+  "stride": 128,
+  "minimum_valid_ratio": 0.6,
+  "batch_size": 4
+ },
+ "safety": {
+  "screening_only": true,
+  "requires_campaign_control": true,
+  "silence_proves_absence": false
+ },
+ "supersedes": "ink-canonical-2um-screening@1.0.0",
+ "why_this_version": [
+  "the recipe ships its own runner and 1.0.0 named the generic one",
+  "the generic runner normalises clip(0,200)/200 and this recipe divides by 255 with no clip",
+  "the generic runner resamples the depth axis, and at a ratio of 1.0 that samples half-integer positions -- every plane the average of two layers -- where this recipe takes consecutive layers",
+  "the generic runner blends tiles uniformly and this recipe blends them under a Hann window",
+  "measured 2026-07-28: under 1.0.0 the map correlates r=0.079 with the community map published for this very recipe, on ground where our render matches theirs at r=0.98"
+ ]
+}

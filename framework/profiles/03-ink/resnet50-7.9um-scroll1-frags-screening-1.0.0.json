@@ -1,0 +1,45 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "resnet50-7.9um-scroll1-frags-screening@1.0.0",
+  "method_id": "resnet50-7.9um-scroll1-frags@1.0.0",
+  "checkpoint_sha256": "fa00728db74d714769960dd77e9911a0e0938b3f272933c153632b5bed543c34",
+  "adapter": "framework/stages/03-ink/scripts/run_ink.py",
+  "input_contract": {
+    "modality": "registered surface CT stack",
+    "model_type": "resnet3d-50",
+    "model_depth": 50,
+    "frames": 18,
+    "tile_size_y_x": [256, 256],
+    "training_pixel_um": 7.9,
+    "training_slice_um": 7.9,
+    "physical_resampling_required": true,
+    "max_clip_value": 200,
+    "model_family": "resnet50_7.9um_scroll1_frags",
+    "preprocess_precision": "float32",
+    "normalization_provenance": [
+      "ScrollPrize/villa ink-detection/optimized_inference/inference.py declares CFG.max_clip_value = 200",
+      "the tile is np.clip(tile, 0, max_clip_value) and then A.ToFloat(max_value=max_clip_value)",
+      "the divisor is the clip value, not 255; dividing by 255 compresses the input to 78.4% of the trained contrast range and this checkpoint responds with a flat map near 0.51"
+    ],
+    "checkpoint_head_note": "config.json declares 1139 classes while the upstream code hardcodes 1039; the head is unused under forward_features and the runner resizes it to the checkpoint so the load stays strict"
+  },
+  "output_contract": {
+    "maps": ["probability.npy"],
+    "receipt": "INK_PROFILE_RECEIPT.json",
+    "coordinate_space": "model-scale resampled surface plane",
+    "comparability": [
+      "maps are produced at the training scale, not the source scale; a map from this lane may not be pooled pixelwise with a native-scale lane without resampling back",
+      "single depth centre per invocation: this lane has no built-in stability aggregation"
+    ]
+  },
+  "default_execution": {
+    "stride": 128,
+    "minimum_valid_ratio": 0.6,
+    "batch_size": 4
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "silence_proves_absence": false
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "schema": "campaignx.segment_fleet_profile.v1",
+  "profile_id": "vc3d-m7-growth-v1",
+  "description": "Ink-blind VC3D/m7 local surface growth envelope.",
+  "mode": "seed",
+  "parameters": {
+    "generations": {"type": "integer", "minimum": 20, "maximum": 45, "default": 35},
+    "step_size": {"type": "integer", "minimum": 12, "maximum": 24, "default": 20},
+    "min_area_cm": {"type": "number", "minimum": 0.0, "maximum": 0.0, "default": 0.0},
+    "use_cuda": {"type": "boolean", "const": false, "default": false}
+  },
+  "ink_used": false
+}

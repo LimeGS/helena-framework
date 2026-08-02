@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/source-content-lock-v1.schema.json",
+  "title": "Campaign X immutable CT and m7 source content lock v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "verification_method",
+    "verified_at_utc",
+    "ct_uri",
+    "ct_sha256",
+    "ct_version_id",
+    "m7_uri",
+    "m7_sha256",
+    "m7_version_id"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.source_content_lock.v1"},
+    "status": {"const": "VERIFIED_IMMUTABLE"},
+    "verification_method": {
+      "enum": [
+        "immutable-uri-manifest-sha256-v1",
+        "fixture-sha256-v1"
+      ]
+    },
+    "verified_at_utc": {"type": "string", "format": "date-time"},
+    "ct_uri": {"type": "string", "minLength": 1},
+    "ct_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ct_version_id": {"type": "string", "minLength": 8},
+    "m7_uri": {"type": "string", "minLength": 1},
+    "m7_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "m7_version_id": {"type": "string", "minLength": 8}
+  },
+  "additionalProperties": false
+}

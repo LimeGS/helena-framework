@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/multiscroll-transfer-control-v1.schema.json",
+  "title": "Campaign X multiscroll transfer control",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "scroll_id",
+    "surface_group_id",
+    "component_id",
+    "expected_class",
+    "label_source",
+    "ct_coordinate_xyz",
+    "voxel_size_um",
+    "slice_order",
+    "scanner_domain",
+    "decision_sources",
+    "v3_retained",
+    "v4_tier",
+    "v4_not_discarded"
+  ],
+  "properties": {
+    "scroll_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface_group_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "component_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_class": {
+      "enum": [
+        "POSITIVE",
+        "CONFOUND"
+      ]
+    },
+    "confound_subtype": {
+      "enum": [
+        "FIBER",
+        "EDGE",
+        "CRACK",
+        "DIFFUSE_SIGNAL",
+        "OTHER_ADJUDICATED_NON_INK"
+      ]
+    },
+    "ct_coordinate_xyz": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
+    "voxel_size_um": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "slice_order": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scanner_domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label_source": {
+      "$ref": "#/$defs/source"
+    },
+    "decision_sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "v3",
+        "v4"
+      ],
+      "properties": {
+        "v3": {
+          "$ref": "#/$defs/asset"
+        },
+        "v4": {
+          "$ref": "#/$defs/asset"
+        }
+      }
+    },
+    "v3_retained": {
+      "type": "boolean"
+    },
+    "v4_tier": {
+      "enum": [
+        "TIER_A_V3_RETAINED_REVIEW",
+        "TIER_B_SHADOW_REVIEW",
+        "TIER_C_EXTEND_OR_RESEGMENT"
+      ]
+    },
+    "v4_not_discarded": {
+      "const": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "expected_class": {
+            "const": "CONFOUND"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "confound_subtype"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "uri",
+        "sha256"
+      ],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "label_authority",
+        "assets"
+      ],
+      "properties": {
+        "label_authority": {
+          "enum": [
+            "PUBLIC_EXPERT_LABEL",
+            "HUMAN_CT_ADJUDICATION",
+            "DIRECTLY_VISIBLE_VOLUMETRIC_INK_ADJUDICATION"
+          ]
+        },
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/asset"
+          }
+        }
+      }
+    }
+  }
+}

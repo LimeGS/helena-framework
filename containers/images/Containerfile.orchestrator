@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1.7
+# Base image must contain Python 3.11+ and the standard library.  It validates
+# manifests/receipts and invokes stage containers through the host runner;
+# it deliberately does not contain Docker credentials or a Docker socket.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BUILD_COMMIT=unknown
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.2.0
+LABEL org.opencontainers.image.title="helena-orchestrator" \
+      org.opencontainers.image.description="Helena Framework immutable-artifact orchestration runtime contract" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=orchestrator \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts
+WORKDIR /workspace/campaign-x
+
+# This is a control-plane image.  A host-side launcher starts GPU stages,
+# avoiding Docker-in-Docker and preventing credentials from entering images.
+CMD ["sh"]

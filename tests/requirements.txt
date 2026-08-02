@@ -1,0 +1,40 @@
+# What the test suite needs beyond the panel's own runtime dependencies.
+#
+# Without these, 15 test modules did not collect and 37 tests failed on
+# ModuleNotFoundError -- which is indistinguishable, in a summary line, from 37
+# broken behaviours. An audit read that as a partly failing suite; it was a partly
+# installed environment.
+#
+#   panel/.venv/bin/python -m pip install -r tests/requirements.txt
+#
+# torch is the CPU build on purpose: nothing here trains, the ink tests only need
+# the module to import and a tensor to move around, and the CUDA wheels are
+# gigabytes. On a GPU host that already has CUDA torch installed, skip it:
+#
+#   grep -v '^torch' tests/requirements.txt | pip install -r /dev/stdin
+#
+# Versions are deliberately unpinned. These are third-party libraries the suite
+# imports rather than measures, and a lock file here would be a second thing to
+# maintain for no evidence gained -- the fleet's own contracts are what this
+# repository pins.
+# The runner itself. It was never listed, because every machine that had run
+# this suite already had it -- so the omission was invisible until CI, on a
+# clean python:3.11-slim, installed both requirements files and answered
+# "No module named pytest".
+pytest
+httpx           # fastapi's TestClient is built on it; 202 tests instantiate one
+pyyaml          # the compose and pipeline files these tests read as data
+
+jsonschema      # contract validation in the fleet and phase-4 tests
+tifffile        # TIFXYZ surfaces: the geometry and agreement tests read them
+zarr            # CT volumes in the multiscroll transfer tests
+requests        # asset resolution in the multiscroll transfer tests
+scikit-image    # image metrics in the transfer and flattening checks
+scikit-learn    # the CT priority router's model
+joblib          # how that router's model is loaded
+# The CPU build, which this file has claimed since it was written and did not
+# get: pip took torch from PyPI, which bundles CUDA, and installed 2.13.0+cu130
+# on machines with no card. The extra index carries a `+cpu` local version,
+# which sorts above the plain one, so this stays version-agnostic.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch           # ink detection: run_ink_timesformer imports it at module level

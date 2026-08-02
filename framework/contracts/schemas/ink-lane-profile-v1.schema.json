@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/ink-lane-profile-v1.schema.json",
+  "title": "Campaign X reusable ink lane profile v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "profile_id",
+    "method_id",
+    "checkpoint_sha256",
+    "adapter",
+    "input_contract",
+    "output_contract",
+    "safety"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.ink_lane_profile.v1"},
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]+@[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "method_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]+@[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "checkpoint_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "config_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "pinned_source_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "adapter": {"type": "string", "minLength": 1},
+    "input_contract": {"type": "object", "additionalProperties": true},
+    "output_contract": {"type": "object", "additionalProperties": true},
+    "default_execution": {"type": "object", "additionalProperties": true},
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "screening_only",
+        "requires_campaign_control",
+        "silence_proves_absence"
+      ],
+      "properties": {
+        "screening_only": {"const": true},
+        "requires_campaign_control": {"const": true},
+        "silence_proves_absence": {"const": false}
+      }
+    }
+  }
+}

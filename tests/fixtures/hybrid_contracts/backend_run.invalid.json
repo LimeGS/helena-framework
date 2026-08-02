@@ -1,0 +1,19 @@
+{
+  "schema": "campaignx.segmentation_backend_run.v1",
+  "run_id": "RUN-scrollfiesta-fixture-a01",
+  "status": "SUCCEEDED",
+  "started_at_utc": "2026-07-22T12:01:00Z",
+  "finished_at_utc": "2026-07-22T12:00:00Z",
+  "campaignx_git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "backend": {"family": "scrollfiesta", "profile": "segmentation.scrollfiesta-m7-mesh@0.1.0", "repository": "https://github.com/Hob3rMallow/scrollfiesta_public", "git_commit": "f344c17931b9e264a17c8d760a4c478390133bd4", "auxiliary_tools": []},
+  "runtime": {"kind": "OCI_IMAGE", "oci_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "platform": "linux/amd64"},
+  "command": {"argv": ["scrollunwrap", "run"], "argv_sha256": "0000000000000000000000000000000000000000000000000000000000000000", "working_directory": "/work/repo"},
+  "environment_non_sensitive": [{"name": "OPENROUTER_API_KEY", "value": "must-not-be-recorded"}],
+  "resources": {"cpu_threads": 8, "peak_ram_bytes": 1024, "gpu_devices": [], "elapsed_seconds": 60, "scratch_bytes": 2048},
+  "inputs": {"sample_id": "PHerc826", "ct": {"uri": "s3://helena-fixture/ct.zarr", "sha256_or_etag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, "surface_prediction": {"uri": "s3://helena-fixture/m7.zarr", "sha256_or_etag": "etag:fixture-m7-v1"}, "roi_level0_zyx": [10, 20, 30, 74, 84, 94], "coordinate_order": "ZYX"},
+  "parameters": [{"name": "iterations", "value_json": "20 ", "value_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}],
+  "durable_outputs": [],
+  "surface_artifact": null,
+  "error": null,
+  "ink_used": false
+}

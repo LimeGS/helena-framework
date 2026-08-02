@@ -1,0 +1,584 @@
+{
+  "schema": "helena.public_golden_run_evidence.v1",
+  "report_version": "1.0.0",
+  "mission_label": "golden-run",
+  "run_window_utc": {
+    "first_attempt": "2026-08-01T06:47:12Z",
+    "final_reproducibility_rerun": "2026-08-02T02:55:52Z"
+  },
+  "scope": {
+    "purpose": "Exercise and audit the production merge-to-review path on public PHerc0826 data.",
+    "is_community_positive_control": false,
+    "known_ink_or_letter_ground_truth": false,
+    "artifact_locations_disclosed": false,
+    "public_evidence_includes": [
+      "public source identity",
+      "scientifically meaningful parameters",
+      "profile and source revisions",
+      "content hashes and file inventories",
+      "measured results",
+      "failed and cancelled attempt history",
+      "limitations and non-claims"
+    ],
+    "redacted": [
+      "hostnames and worker identifiers",
+      "user and service-account names",
+      "private storage URIs and local paths",
+      "deployment topology and authentication details",
+      "raw environment-bearing logs"
+    ]
+  },
+  "source": {
+    "requested_sample_id": "PHerc0826",
+    "canonical_sample_id": "PHerc826",
+    "public_volume_url": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr",
+    "voxel_size_um": 9.362,
+    "source_snapshot_id": "458c9652-c188-55a5-9b16-8d5cb0111dfe"
+  },
+  "lineage": {
+    "relationship": "two immutable parents to one merged child",
+    "layout": "1x2",
+    "parents": [
+      {
+        "public_label": "parent-left",
+        "surface_id": "333baa6c-1401-5162-a74f-f854c46a3aab",
+        "artifact_sha256": "06ef1c0efaa38a473ee4c74fc5a1db26410bdbcc34b0a039da6ffa97317f5564",
+        "manifest_sha256": "ae50540f5cb059ef506d320b99fc39fd86d60fa3538fc7a0c6b4210edd5f0104",
+        "grid_shape": [72, 72],
+        "valid_cells": 4624
+      },
+      {
+        "public_label": "parent-right",
+        "surface_id": "e35c94e4-a432-5757-a845-274db76f09f4",
+        "artifact_sha256": "7a2700b78b8ddb5751962dcd385022f7ff795805f4fdfabcc2343740be419ef7",
+        "manifest_sha256": "cbef9db781590d5b0d18a02b5160c49cfc3891736d5f5f8b85966a786be84ee5",
+        "grid_shape": [72, 72],
+        "valid_cells": 4624
+      }
+    ],
+    "child": {
+      "surface_id": "151ea1c0-0308-5fbd-b4d8-2e4f34aa56bc",
+      "artifact_sha256": "aa1ab33036cfc080452c2388498d27fd14d6fac07c59a00edbfb1573fa992023",
+      "evidence_sha256": "b92a4ab6cee8ccfae6c27c60d4b1f819b32d6a8a8e89008093c21f405043c4f4",
+      "area_cm2": 1.52904552133499
+    }
+  },
+  "p8_merge": {
+    "public_run_label": "P8-official",
+    "profile_id": "vc3d-tifxyz-merge@1.0.0",
+    "profile_sha256": "bb42a9dbc93a683e9694acb5724451c00eab2c2364ce9434f4c9b36d5e8ec25d",
+    "upstream": {
+      "repository": "https://github.com/ScrollPrize/villa",
+      "source_commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+      "source_tree": "9116ebcd63f58cb723de9a028b657420235ea480",
+      "license": "GPL-3.0-or-later"
+    },
+    "parameters": {
+      "reference_parent": "parent-left",
+      "ransac_seed": 1729,
+      "anchor_cap": 2000,
+      "strip_cols": 0
+    },
+    "runtime": {
+      "image_digest": "sha256:ec45a3631d63f5bcc27b2101c58b2567748a3aacf635cbfd7037b699d3279d30",
+      "toolchain_receipt_sha256": "2b0e667e89852b8aab67cb86bcc99198669ddab597a115cc7a5a778bbeab047a",
+      "merge_binary_sha256": "4ecbb071f3d532b5ccbd31ea11b537aa6379555d8947c4ec95f93c9e0f7d719f",
+      "obj_converter_sha256": "7e928fa2af0f41be4f4fa8386c50d65a1a98b3031bdf6636b078bfe1f56995bf",
+      "exit_code": 0,
+      "wrapper_runtime_seconds": 10.6,
+      "merge_elapsed_seconds": 2.354,
+      "max_rss_kb": 81844
+    },
+    "seam_qc": {
+      "schema": "campaignx.vc3d_merge_seam_qc.v1",
+      "sha256": "fb0dd07e6416475e25dec42c35b744b8f953e6a5e1201ae939c7fdbc97c452dd",
+      "status": "PASS",
+      "anchor_count": 1000,
+      "ransac_inliers": 1000,
+      "ransac_total": 1000,
+      "inlier_fraction": 1.0,
+      "ransac_sigma_in_voxels": 0.030958916975155584,
+      "real_overlap_cells": [1000, 1003]
+    },
+    "coverage_and_continuity": {
+      "metric_note": "These measurements are separate from seam RANSAC and are not a union-area percentage.",
+      "selected_threshold_voxels": 7.0,
+      "match_cells": [1370, 1371],
+      "real_overlap_cells": [1000, 1003],
+      "real_overlap_components": [1, 1],
+      "purity": [0.7299270072992701, 0.7315827862873815],
+      "score": 0.7307544278253878
+    },
+    "geometry_qc": {
+      "schema": "campaignx.tifxyz_geometry_certification.v1",
+      "sha256": "d6fbb2ef1aa78629696f2029f517eab94b3ef94036bf34e278c17614b261c918",
+      "status": "PASS",
+      "state": "GEOMETRY_CERTIFIED",
+      "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+      "resolution_limited": true,
+      "grid_shape": [69, 69],
+      "valid_coordinate_count": 4490,
+      "valid_fraction": 0.9430791850451585,
+      "valid_triangle_count": 8712,
+      "largest_component_fraction": 0.9997772828507795,
+      "connected_component_count": 2,
+      "self_intersection_count": 0,
+      "hard_defects_observed": 0,
+      "coverage_failures": []
+    },
+    "artifact": {
+      "artifact_sha256": "aa1ab33036cfc080452c2388498d27fd14d6fac07c59a00edbfb1573fa992023",
+      "evidence_sha256": "b92a4ab6cee8ccfae6c27c60d4b1f819b32d6a8a8e89008093c21f405043c4f4",
+      "files": {
+        "x.tif": {"size_bytes": 19178, "sha256": "b413810ec3175ae53d0c3359f3b1cdda5b891c90985ced9abc12203adf411f12"},
+        "y.tif": {"size_bytes": 19178, "sha256": "b765818d972431f1b7950bae07b6cfcba0789bc27778db9f0bffb6147b8820a6"},
+        "z.tif": {"size_bytes": 19178, "sha256": "1bc40c0b43960dc61b6a205a4163496a391a3474d2972e1433bd2994e1a2f9a9"},
+        "meta.json": {"size_bytes": 214, "sha256": "2173423b7221a2dc53a695cb8d50587da71c7df9dcbfb38e48949412543f3984"},
+        "merge.json": {"size_bytes": 59, "sha256": "c8e5b153ba20054aa6fcba99c81e826aef106127e5d1fc8245da911351a8ff7a"},
+        "SEAM_QC.json": {"size_bytes": 742, "sha256": "fb0dd07e6416475e25dec42c35b744b8f953e6a5e1201ae939c7fdbc97c452dd"},
+        "GEOMETRY_CERTIFICATION.json": {"size_bytes": 2515, "sha256": "d6fbb2ef1aa78629696f2029f517eab94b3ef94036bf34e278c17614b261c918"},
+        "assembly_manifest.json": {"size_bytes": 1772, "sha256": "ac7f5201d667326092d10dab86c74e49cf15275f3ce1ee24fc14551c5529552d"},
+        "vc_merge_tifxyz_summary.json": {"size_bytes": 6193, "sha256": "d848acf29af1ee6e98492d5c876a7bd38b2d63b3c32854d40703bba83d771bb7"},
+        "combined.obj": {"size_bytes": 1056907, "sha256": "edcb0718e56bc098a8bee0b706a63e143f63a8f5d0df7b04fffe86225ccc885a"},
+        "stdout.log": {"size_bytes": 2621, "sha256": "999c4156be812141925aa2d567971ad0541162118932f4241b10808dd4fd05c6"},
+        "stderr.log": {"size_bytes": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+        "CORRESPONDING_SOURCE.json": {"size_bytes": 1708, "sha256": "96a7e54e4c2139726f962493fdcafc15d036fb68388461027f600a1265412e88"},
+        "VOLUME_CARTOGRAPHER_NOTICE.txt": {"size_bytes": 3484, "sha256": "e8c3ebfa77d3b0a63d6c10425951c73e7cb64fac2cab5733e178138b9fa622fe"},
+        "VOLUME_CARTOGRAPHER_LICENSE.txt": {"size_bytes": 35159, "sha256": "9130c815416fb30e59fc306ce1808da36159aeb2b817051a184f0395a9bf98f0"}
+      }
+    },
+    "attempt_history": [
+      {
+        "public_run_label": "P8-overlap-probe-1",
+        "state": "FAILED_AS_DESIGNED",
+        "runtime_seconds": 10.2,
+        "cause": "The candidate pair had zero real-overlap cells at every tested threshold. The edge was dropped and the disconnected merge was refused."
+      },
+      {
+        "public_run_label": "P8-overlap-probe-2",
+        "state": "FAILED_AS_DESIGNED",
+        "cause": "The candidate pair had proximity matches but zero real-overlap cells. The edge was dropped and the disconnected merge was refused."
+      },
+      {
+        "public_run_label": "P8-official",
+        "state": "SUCCEEDED",
+        "attempts": 1
+      }
+    ],
+    "independent_synthetic_control": {
+      "scope": "Separate source-build evidence, not a replacement for the digest-pinned production runtime.",
+      "source_commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+      "test": "test_merge_e2e_small",
+      "result": "PASS",
+      "tests_passed": 1,
+      "duration_seconds": 0.69,
+      "required_targets": [
+        "vc_merge_tifxyz",
+        "test_merge_e2e_small",
+        "vc_obj2tifxyz_legacy"
+      ],
+      "test_log_sha256": "830c86f422177fa32b74f78c59bb1abc6f9447c622ce14dffc9112a748647904",
+      "local_test_build_hashes": {
+        "vc_merge_tifxyz": "e3df52d7c9a4b84146ad458c7269b87058e3bec220519372686f585f20ba9c99",
+        "vc_obj2tifxyz_legacy": "2b16f270ba0ae098c9944dc389c9a8c6068802288e5049c7812b0f498ef4c33a",
+        "test_merge_e2e_small": "50ff675aa3d88fbff1547dfb139e100bc9e40adf30f5f88f0dc87b6d660b66c0"
+      }
+    }
+  },
+  "physical_qc": {
+    "public_run_label": "surface-physical-QC",
+    "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+    "profile_sha256": "e0e099eac347f4c590f4428dc361be8bdb5432ccb5b791c2801f131d0eaa4793",
+    "state": "COMPLETED",
+    "surface_state": "CT_SUPPORTED",
+    "completed_at_utc": "2026-08-01T23:11:02Z",
+    "outcome": "CT_SUPPORTED_NO_RETAINED_INK_SIGNAL",
+    "ink_used": true,
+    "ink_method_id": "timesformer-gp-scroll1@1.0.0",
+    "no_automatic_acceptance": true,
+    "retained_for_visual_review_count": 0,
+    "downranked_count": 12,
+    "evidence": {
+      "schema": "campaignx.segment_qc_evidence_manifest.v1",
+      "manifest_sha256": "a3f9a1f501b441616f61566aadbffcc2132bcf29afc3f41c6c3535f5b64410ad",
+      "file_count": 158,
+      "total_bytes": 12562833,
+      "files_rehashed": 158,
+      "rehash_mismatches": 0,
+      "surface_artifact_sha256": "aa1ab33036cfc080452c2388498d27fd14d6fac07c59a00edbfb1573fa992023"
+    },
+    "runtime_content": {
+      "adapter_sha256": "d5150c2832108acc417dc44811cd459feb9dc5378200b3634f250e6eb774d194",
+      "checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+      "ct_fiber_gate_sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+    },
+    "historical_provenance_caveat": {
+      "receipt_code_commit": "517672d6f1c006b10c2aac8b2063fe68cd7886f7",
+      "issue": "The environment-supplied code revision in this historical executor receipt was stale after a direct container restart.",
+      "integrity_basis": "The immutable adapter, checkpoint and gate hashes bind the executed content. The original receipt was not rewritten.",
+      "corrective_revision": "8645ea1428b4c49d6d045946248328303b95a327"
+    }
+  },
+  "p3_flattening": {
+    "public_run_label": "P3-final",
+    "profile_id": "flatten-abf-v1@1.0.0",
+    "profile_sha256": "8b4069f49294e4a9e215adab73d6cf029c7bee9f5aaf40fe096967b31f36a6cb",
+    "binary_sha256": "eaac4029b90434391251a73f4f8af5549e098473452227b5433f1c475ed8c30f",
+    "state": "FLATTENED",
+    "runtime_seconds": 11.2,
+    "parameters": {
+      "iterations": 10,
+      "downsample": 1,
+      "allow_unvalidated": true
+    },
+    "override_caveat": "Physical QC was still queued. The override was explicit in the receipt and allowed downstream execution, but final acceptance remained open until physical QC completed.",
+    "measurements": {
+      "input_grid_shape": [69, 69],
+      "output_grid_shape": [68, 68],
+      "surface_area_cm2": 1.52904552133499,
+      "flattened_area_cm2": 1.4542004626952072,
+      "area_ratio": 0.9510511246424916,
+      "area_ratio_floor": 0.8,
+      "input_valid_triangles": 8712,
+      "output_valid_triangles": 8450
+    },
+    "artifact": {
+      "artifact_sha256": "233fa1084161acf38c91aeec583a174fca6e38b210023ebeaf4cc4cb71b977ff",
+      "files": {
+        "x.tif": {"size_bytes": 18630, "sha256": "939716223731ba2efedb4b538221641844684def15962b2e0a603b1e0b68fb4f"},
+        "y.tif": {"size_bytes": 18630, "sha256": "4b2df911d19c521933febc3f68361d49567f3f620cc3096ac998925a91aca09b"},
+        "z.tif": {"size_bytes": 18630, "sha256": "4256669a377ee796aa1b556cd8a4edd25743d6b823b25d9b8a14011dd4fc0448"},
+        "meta.json": {"size_bytes": 387, "sha256": "25b261fc7df3ed8aabd7f8271a0a3592beb1c0dbd05d9b4a6dacea0db5566512"},
+        "ARTIFACT_SET.json": {"size_bytes": 653, "sha256": "138ae5d325fdf4bde776ebb66d1e92db5f26507b071940c78d78e7ade09b4a24"}
+      }
+    },
+    "attempt_history": [
+      {
+        "public_run_label": "P3-routing-attempt",
+        "state": "CANCELLED",
+        "attempts": 0,
+        "cause": "The enqueue record incorrectly required a GPU although flattening is CPU-capable, leaving no eligible worker.",
+        "corrective_revision": "d3fedba8c23ded0e0e45a6f4127b902315526d30"
+      },
+      {
+        "public_run_label": "P3-schema-attempt",
+        "queue_state": "SUCCEEDED",
+        "scientific_state": "FLATTENING_FAILED",
+        "cause": "The adapter rejected the merged TIFXYZ manifest schema and the batch command incorrectly returned exit code zero.",
+        "corrective_revision": "7c83d3d845db3ec2ca5ebd54eca3298be55a52a0"
+      },
+      {
+        "public_run_label": "P3-final",
+        "state": "SUCCEEDED",
+        "attempts": 1
+      }
+    ]
+  },
+  "p4_rendering": {
+    "public_run_label": "P4-reproducibility-rerun",
+    "renderer_binary_sha256": "4db1e249e9549af79b178bb60691ac7236ced586172f25b85b8c3e865d3eec76",
+    "rendered_from": {
+      "kind": "flattened_sheet",
+      "surface_id": "151ea1c0-0308-5fbd-b4d8-2e4f34aa56bc",
+      "flattening_profile": "flatten-abf-v1@1.0.0",
+      "non_claim": "The stack is rendered on a flattened parametrization resampled from the certified surface."
+    },
+    "parameters": {
+      "scale": 1.0,
+      "group_index": 0,
+      "cache_gb": 4,
+      "num_slices": 33,
+      "slice_step": 1.0,
+      "flip_normals": false,
+      "public_volume_url": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr"
+    },
+    "argv_public": [
+      "vc_render_tifxyz",
+      "--volume", "<local-volume-cache>",
+      "--segmentation", "<flattened-surface>",
+      "--scale", "1.0",
+      "--group-idx", "0",
+      "--remote-url", "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr",
+      "--prefetch-remote",
+      "--cache-gb", "4",
+      "--tif-output", "<layer-output>",
+      "--num-slices", "33",
+      "--slice-step", "1.0"
+    ],
+    "argv_redaction_note": "Only private local paths were replaced by angle-bracket placeholders. flip_normals=false correctly emits no --flip-normals flag.",
+    "result": {
+      "exit_code": 0,
+      "runtime_seconds": 26.7,
+      "slice_count": 33,
+      "shape_y_x": [1360, 1360],
+      "dtype": "uint8",
+      "tiff_bytes": 19398712,
+      "middle_slice_range": [0.0, 255.0],
+      "local_copy_removed_after_publication": true
+    },
+    "artifact": {
+      "schema": "campaignx.layer_stack_artifact_set.v1",
+      "artifact_sha256": "d2f117fbd46b710c6b1e8fcc0570b2da08d605d69cc81287d4942c9110b281b3",
+      "manifest_file_sha256": "9168810ab9a392bad7302e7fc1a43fae1a8ae5df2b177bd695d34da01e84aa25",
+      "manifest_file_size_bytes": 3705,
+      "slice_files_rehashed": 33,
+      "rehash_mismatches": 0,
+      "files": {
+        "00.tif": {"size_bytes": 585624, "sha256": "471fb63dcc0a2b14e06d1bef486f76cb6d5554ae8ff4e88452946202f52b9b03"},
+        "01.tif": {"size_bytes": 586196, "sha256": "074915a691cd87d323b9c50b277d4c108205517ca5995227767ddd7006ea5fc2"},
+        "02.tif": {"size_bytes": 586276, "sha256": "b64395f910c72770d9881493a61e8e1bd0087af797a958ad48960861f7935cb2"},
+        "03.tif": {"size_bytes": 586332, "sha256": "f1bffe0df8b56d0422744036cc6aaaafcae35f90386772972e3a363157ed0f67"},
+        "04.tif": {"size_bytes": 586062, "sha256": "1847f627a7c8604cd4cbe177d982583ead49ea37d32272890c0a5fbb1d1dc2ff"},
+        "05.tif": {"size_bytes": 584986, "sha256": "1bf5c08628f25107ca78a6fc8cbbee70f6d15b6dbec3b975157c1c33f168367c"},
+        "06.tif": {"size_bytes": 584768, "sha256": "c4fcf0823da0a118f7a9f33ad92dd0345da07b2ab5e20528690e1ca6d2a2f492"},
+        "07.tif": {"size_bytes": 584654, "sha256": "320fafa7991668342fb4802659cb9ab3681815938f6ac83374f343785c19d387"},
+        "08.tif": {"size_bytes": 584404, "sha256": "b8c2d55a5728f62d2322aa247ce5255541c3be1e2f16f665809316c2053247a2"},
+        "09.tif": {"size_bytes": 584380, "sha256": "9a3289b9e99b25301bbc68ba3f3f459707d97aaf9f04d3ab0a45e52621a0354a"},
+        "10.tif": {"size_bytes": 584968, "sha256": "91f9320ba57ddfd6e0e0c1c57008789ae0ca0283ab475103ad471c4384df3f0b"},
+        "11.tif": {"size_bytes": 584476, "sha256": "842de6d9c6506238585cedc8f0dabca1b9dd388c89187931ef9d8ef207ada5b7"},
+        "12.tif": {"size_bytes": 583998, "sha256": "8cd974a1d060fe9fda4298124e295a2e2703985afd10dcd1ff560f3d362d5678"},
+        "13.tif": {"size_bytes": 583886, "sha256": "9d22e1ead76e25e2d7e27559bffa76f51d65a8b811ae3f1f40962ee3a8cba8d1"},
+        "14.tif": {"size_bytes": 584222, "sha256": "91947f51d6e80617c91427bc6339f6c139e15ffdcd88951539dd5647d48dd43c"},
+        "15.tif": {"size_bytes": 584376, "sha256": "2c1bdadabaa52e7ad640bf5fe2256b8def8bf7176120826281d028d8c965999b"},
+        "16.tif": {"size_bytes": 585772, "sha256": "9ff2b88c3a29b84c97453d8e4926805dac0a944159ade91358a90b8dd070b030"},
+        "17.tif": {"size_bytes": 585910, "sha256": "facc025eb60b6ec0bdd16ce667876169c495e57ea8d4ac2a2810342bcd072fde"},
+        "18.tif": {"size_bytes": 586866, "sha256": "318000cca7fbcb19fc0e34eaa209354f609559123cd3dc6bc2151f4f60b2d659"},
+        "19.tif": {"size_bytes": 587374, "sha256": "9099ead148a7e8d82806bb1b4a82cdd44080fec3eb48ed4a76c0ad42ea0368e1"},
+        "20.tif": {"size_bytes": 588146, "sha256": "34abd40feaecf6bf2ba36587a6e8f44dcdc021763919c57c1517c3c5060104cf"},
+        "21.tif": {"size_bytes": 589138, "sha256": "064ed96ee723b8dcd47acca0243615d6132e180e341f9fcbb3760a2bcf445d26"},
+        "22.tif": {"size_bytes": 590614, "sha256": "e97f420883f8161cc355564cbf83caf6064a6ebc2517fad633477102042cef97"},
+        "23.tif": {"size_bytes": 590742, "sha256": "87ca1672157cf9d86e66785c149d15a4da7dcb956636e0e07be3c60db58380b4"},
+        "24.tif": {"size_bytes": 591482, "sha256": "80e3a028e80e9a9ac3f33e38ac4862b3f40da540aa44e370a61fc11703cb7b1f"},
+        "25.tif": {"size_bytes": 591902, "sha256": "1b698d6caedbf6350885697895d19307eaab1a5f8caef281269acbaae1b4ce2f"},
+        "26.tif": {"size_bytes": 591748, "sha256": "99a3749c67bb547292f950c32749bce0abdd0d9a9b2e5a5757cf082fba646e7c"},
+        "27.tif": {"size_bytes": 592124, "sha256": "5403a48cd1e086e56189883ef5d1ea4bb4d428b34358788465208934a447e423"},
+        "28.tif": {"size_bytes": 592964, "sha256": "65163000bedbda622c3cdb1be5127f4ceb426b344efe555ddfbc4f1ba51f6087"},
+        "29.tif": {"size_bytes": 593498, "sha256": "4612d6ea45d5c4442caee924b1647d71e86683ac41a9e4f4a39e508c6cbfcd78"},
+        "30.tif": {"size_bytes": 593930, "sha256": "48241d938a166043805a3845984a7e83b32798fb934c11a0ffde3e25522056d5"},
+        "31.tif": {"size_bytes": 593126, "sha256": "9216681319971cf035de9a23d18945424c6bade8148cb7de579161d19d867b4a"},
+        "32.tif": {"size_bytes": 593768, "sha256": "9275365f299291c8e7272c5dfd2c3fe6d90d4d0d0b7e402dc6f5741ae1a3d068"}
+      }
+    },
+    "reproducibility": {
+      "first_run_runtime_seconds": 30.0,
+      "rerun_runtime_seconds": 26.7,
+      "first_artifact_sha256": "d2f117fbd46b710c6b1e8fcc0570b2da08d605d69cc81287d4942c9110b281b3",
+      "rerun_artifact_sha256": "d2f117fbd46b710c6b1e8fcc0570b2da08d605d69cc81287d4942c9110b281b3",
+      "content_identical": true
+    }
+  },
+  "p5_ink_screening": {
+    "public_run_label": "P5-publication-rerun",
+    "profile_id": "timesformer-gp-scroll1-screening@1.1.0",
+    "profile_sha256": "0c3040c1c9532ac1d47d5b5dcaa058ca22aec0504b76b709b7622b7c71238235",
+    "method_id": "timesformer-gp-scroll1@1.0.0",
+    "model_family": "timesformer_GP_scroll1",
+    "checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+    "target_overlap_known": false,
+    "scope": "PRIVATE_LOCAL_FUNCTIONAL_INK_SCREENING",
+    "status": "COMPLETED_DIAGNOSTIC_ONLY",
+    "parameters": {
+      "batch_size": 2,
+      "depth_center": 16,
+      "frames": 26,
+      "stride": 16,
+      "tile_size": 64,
+      "source_pixel_um": 9.362,
+      "source_slice_um": 9.362,
+      "training_pixel_um": 7.91,
+      "training_slice_um": 7.91,
+      "normalization": "clamp(0,200)/200 to float32"
+    },
+    "result": {
+      "runtime_seconds": 297.6,
+      "inference_seconds": 287.1674073159229,
+      "liveness": "ALIVE",
+      "liveness_definition": "The probability map is non-degenerate. This is not an ink-detection verdict.",
+      "valid_pixels": 1014685,
+      "candidate_tiles": 3831,
+      "discarded_tiles": 5773,
+      "probability_mean": 0.1872132569551468,
+      "probability_p50": 0.15521223843097687,
+      "probability_p99": 0.5939670109748841,
+      "probability_std": 0.0857581430805087,
+      "spread_p99_p50": 0.43875477254390727,
+      "fraction_near_half": 0.01454540078940755
+    },
+    "artifact": {
+      "schema": "campaignx.ink_probability_map.v1",
+      "artifact_sha256": "b5b1739d6ee70730c075886e65aeda9d47121091eaa4d84de189cb2cc271605c",
+      "manifest_file_sha256": "7bb1be254ff0ad927d24bdb7be60dfe9bd01c418ed3f6aa36101f720a73079f0",
+      "manifest_file_size_bytes": 790,
+      "published_file_count": 4,
+      "published_bytes": 15558929,
+      "files_rehashed": 4,
+      "rehash_mismatches": 0,
+      "files": {
+        "center-016_offset-00.npy": {"size_bytes": 5184328, "sha256": "d5d6489192d73928059ba3e1425f941904723fff60826cdbbf670b03aa1f8c85"},
+        "mean_probability.npy": {"size_bytes": 5184328, "sha256": "d5d6489192d73928059ba3e1425f941904723fff60826cdbbf670b03aa1f8c85"},
+        "stability_std.npy": {"size_bytes": 5184328, "sha256": "91128f24025521adb9299d8093dd9e8c2385bc06ab2ae0c8f208dac5bd7b6654"},
+        "INK_SCREENING_RECEIPT.json": {"size_bytes": 5945, "sha256": "1620a883f6e2967c121638d03b2d2a3ba685b2bb47bba78a0766580df1e64747"}
+      }
+    },
+    "reproducibility": {
+      "original_run_runtime_seconds": 613.2,
+      "rerun_runtime_seconds": 297.6,
+      "original_liveness": "ALIVE",
+      "rerun_liveness": "ALIVE",
+      "all_liveness_metrics_equal": true,
+      "original_probability_artifact_published": false,
+      "rerun_probability_artifact_published": true,
+      "publication_corrective_revisions": [
+        "d768306bfbcb141cdf345de9b0509e8552e9e7ff",
+        "6f18ad78f8f8fa04c03b0a932ed7b1c994e0fb97"
+      ]
+    }
+  },
+  "p7_review": {
+    "public_run_label": "P7-structured-adjudication",
+    "input_map_sha256": "d5d6489192d73928059ba3e1425f941904723fff60826cdbbf670b03aa1f8c85",
+    "map_shape": [1610, 1610],
+    "map_dtype": "float64",
+    "pixel_size_um": 7.91,
+    "bbox": [0, 0, 1610, 1610],
+    "tool": "vet_map.py",
+    "tool_version": "0.4.0",
+    "evaluator_sha256": "7a5c4e49c8d679a2af67ccd7a1886b1d8e8ec014f4d991f7f717052754255227",
+    "config_hash": "808ce3d9fdea",
+    "verdict": "FAIL",
+    "overall_pass": false,
+    "checks": {
+      "degenerate": {
+        "pass": true,
+        "blank": false,
+        "saturated": false,
+        "map_constant": false
+      },
+      "structure": {
+        "pass": false,
+        "value": 0.003193549631572856,
+        "threshold": 0.13
+      },
+      "letter_energy": {
+        "pass": false,
+        "value": 0.1552686586812741,
+        "threshold": 0.225,
+        "patch_variance": 0.015771773807982028
+      },
+      "contrast_bimodality": {
+        "pass": false,
+        "value": 0.6920630101265522,
+        "threshold": 0.885
+      },
+      "render_family": {
+        "pass": true,
+        "skipped": true,
+        "reason": "The submitted map had insufficient surrounding context for this signal."
+      }
+    },
+    "attempt_history": [
+      {
+        "public_run_label": "P7-initial",
+        "process_state": "SUCCEEDED",
+        "stdout_verdict": "FAIL",
+        "structured_adjudication_persisted": false
+      },
+      {
+        "public_run_label": "P7-structured-adjudication",
+        "process_state": "SUCCEEDED",
+        "structured_adjudication_persisted": true,
+        "scientific_verdict": "FAIL",
+        "corrective_revision": "cb87f6191501081eeb0569cec1a21e59f55d80e2"
+      }
+    ]
+  },
+  "incident_ledger": [
+    {
+      "id": "GR-01",
+      "stage": "P8",
+      "type": "EXPECTED_FAIL_CLOSED",
+      "finding": "Two proposed parent pairs lacked real geometric overlap and were refused before publication.",
+      "resolution": "Select the evidence-backed overlapping pair; no gate was relaxed."
+    },
+    {
+      "id": "GR-02",
+      "stage": "P3",
+      "type": "ROUTING_DEFECT",
+      "finding": "A CPU-capable flattening job was persisted as GPU-required and could not be claimed.",
+      "resolution_revision": "d3fedba8c23ded0e0e45a6f4127b902315526d30"
+    },
+    {
+      "id": "GR-03",
+      "stage": "P3",
+      "type": "CONTRACT_AND_EXIT_STATUS_DEFECT",
+      "finding": "The adapter rejected the merged TIFXYZ schema, and the batch process returned success despite FLATTENING_FAILED.",
+      "resolution_revision": "7c83d3d845db3ec2ca5ebd54eca3298be55a52a0"
+    },
+    {
+      "id": "GR-04",
+      "stage": "P3",
+      "type": "EXPLICIT_VALIDATION_OVERRIDE",
+      "finding": "P3 ran with allow_unvalidated=true while physical QC was queued.",
+      "resolution": "The override remained visible in the receipt, and final acceptance waited for the later terminal CT_SUPPORTED verdict."
+    },
+    {
+      "id": "GR-05",
+      "stage": "physical-QC",
+      "type": "HISTORICAL_PROVENANCE_DEFECT",
+      "finding": "A direct restart preserved a stale environment-supplied code revision in the historical executor receipt.",
+      "resolution": "Preserve the immutable receipt, rely on executed-content hashes for that run, and correct restart provenance for future receipts.",
+      "resolution_revision": "8645ea1428b4c49d6d045946248328303b95a327"
+    },
+    {
+      "id": "GR-06",
+      "stage": "P5",
+      "type": "ARTIFACT_PUBLICATION_DEFECT",
+      "finding": "The original inference completed with ALIVE liveness but did not publish a durable probability-map artifact.",
+      "resolution": "Make publication part of success, fail P5 if it fails, then rerun. The rerun reproduced every liveness metric and published a hash-bound four-file artifact.",
+      "resolution_revisions": [
+        "d768306bfbcb141cdf345de9b0509e8552e9e7ff",
+        "6f18ad78f8f8fa04c03b0a932ed7b1c994e0fb97"
+      ]
+    },
+    {
+      "id": "GR-07",
+      "stage": "P7",
+      "type": "ADJUDICATION_PERSISTENCE_DEFECT",
+      "finding": "The first review wrote FAIL to its outputs but omitted the structured adjudication from the job result.",
+      "resolution": "Persist scientific FAIL as a valid completed adjudication and retain its structured checks.",
+      "resolution_revision": "cb87f6191501081eeb0569cec1a21e59f55d80e2"
+    }
+  ],
+  "final_verdicts": {
+    "operational_end_to_end": {
+      "verdict": "PASS",
+      "meaning": "The production path completed from two immutable parent surfaces through merge, QC, flattening, rendering, inference and structured review, with durable hash-bound outputs where required."
+    },
+    "merge_geometry": {
+      "verdict": "PASS",
+      "meaning": "The selected parents formed a supported seam and the merged child met the geometry gate at artifact sampling resolution."
+    },
+    "physical_ct_support": {
+      "verdict": "PASS",
+      "meaning": "The child surface reached CT_SUPPORTED under the recorded physical-QC profile."
+    },
+    "ink_or_letters": {
+      "verdict": "NO_RETAINED_SIGNAL",
+      "canonical_outcome": "CT_SUPPORTED_NO_RETAINED_INK_SIGNAL",
+      "meaning": "The map was non-degenerate, but physical QC retained zero candidates and the structured P7 screen failed. No ink, text, letters or First Letters claim was accepted."
+    },
+    "community_positive_control": {
+      "verdict": "NOT_TESTED",
+      "meaning": "The selected public surface has no bound community ground truth for known ink or letters. A separate ground-truthed positive run is still required."
+    }
+  },
+  "limitations": [
+    "This is a production-path golden run, not a community-confirmed positive ink or letter control.",
+    "CT_SUPPORTED is a surface-support result and does not establish ink or text.",
+    "ALIVE is a non-degeneracy result and does not establish ink or text.",
+    "The P4 stack is rendered from a flattened parametrization and therefore includes an additional interpolation relative to direct rendering from the certified TIFXYZ.",
+    "The P5 checkpoint declares target_overlap_known=false and its output remains diagnostic-only.",
+    "Geometry certification is resolution-limited to the artifact sampling scale.",
+    "Private artifacts are integrity-bound here by digest but are not downloadable from this public dossier."
+  ]
+}

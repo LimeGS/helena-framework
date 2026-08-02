@@ -1,0 +1,19 @@
+# The cards, for a host that has some.
+#
+# An overlay rather than a flag, because a `gpus:` reservation cannot be made
+# conditional inside one file: on a machine with no NVIDIA driver the container
+# refuses to start rather than reporting what it can see. swisspost-1 has no
+# nvidia-smi, and its cores, memory and disk are still worth knowing.
+#
+#   docker compose -f host-report.compose.yaml -f host-report.gpu.compose.yaml …
+#
+# `count: all` and not a device id: this container is the one thing on the host
+# that is supposed to see the whole machine. It never loads a model -- nvidia-smi
+# only reads -- so it does not compete for the memory the workers are pinned
+# apart to protect. `utility` is what puts nvidia-smi in the container.
+services:
+  host-report:
+    gpus:
+      - driver: nvidia
+        count: all
+        capabilities: [gpu, utility]

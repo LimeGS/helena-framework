@@ -1,0 +1,7 @@
+# Versions this release was built and smoke-tested with (2026-07-11).
+# Nothing here is version-critical by design, but for a reproduction
+# attempt start from these.
+torch==2.12.1
+torchvision==0.27.1
+numpy==2.2.6
+Pillow==12.2.0

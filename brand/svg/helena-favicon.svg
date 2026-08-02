@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Helena Framework favicon">
+<title>Helena Framework favicon</title>
+<rect width="512" height="512" rx="112" fill="#23242B"/>
+<g transform="translate(-10 70) scale(1.05)">
+<path d="M 92 300 L 92 145 C 92 82 141 48 205 48 C 269 48 318 82 318 145 L 318 216 C 318 257 346 285 387 285 L 426 285" fill="none" stroke="#E8D7B9" stroke-width="150" stroke-linecap="butt" stroke-linejoin="round"/>
+<path d="M 92 300 L 92 145 C 92 82 141 48 205 48 C 269 48 318 82 318 145 L 318 216 C 318 257 346 285 387 285 L 426 285" fill="none" stroke="#C65A36" stroke-width="70" stroke-linecap="butt" stroke-linejoin="round"/>
+</g>
+</svg>

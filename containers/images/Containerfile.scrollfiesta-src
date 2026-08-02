@@ -1,0 +1,265 @@
+# syntax=docker/dockerfile:1.7
+#
+# ScrollFiesta, on the toolchain its own README names.
+#
+# The first attempt built it on the Villa image, which is Ubuntu 26.04 with
+# gcc 15 because that is what upstream volume-cartographer pins. ScrollFiesta
+# then failed six mesh-topology checks in its own sf_api_dlopen suite -- no
+# non-manifold edges, one boundary loop, is a disk, and three cleanup
+# invariants -- on a clean test sheet.
+#
+# Its README says, in as many words:
+#
+#     Linux (GCC 13): ... Needs gcc/g++ 13, cmake, system libtiff, OpenMP,
+#     and pthread.
+#
+# There is no upstream container to copy: ScrollFiesta ships a Visual Studio
+# solution and a Makefile, and Windows is its first platform. So the official
+# requirement is a compiler version rather than an image, and this is built to
+# it instead of to whatever the neighbouring image happened to have.
+#
+# sf_api_dlopen is not optional. locks/source-lock.json lists it under
+# required_ctest_targets, so a bundle produced with it skipped is not a bundle.
+#
+# The two Villa tools are compiled here for the same reason a binary cannot be
+# borrowed across distributions: one built against 26.04's glibc and libstdc++
+# does not start on 24.04.
+ARG BASE_IMAGE
+
+# --------------------------------------------------------- villa: two tools --
+# Only flatboi and vc_obj2tifxyz_legacy. The full tree is 1162 targets and this
+# image needs two; the rest belong to helena-villa, which serves the fleet's
+# actual segmenter.
+FROM ${BASE_IMAGE} AS villa
+ARG DEBIAN_FRONTEND=noninteractive
+ARG VILLA_COMMIT
+ARG VILLA_TREE
+RUN test -n "${VILLA_COMMIT}" -a -n "${VILLA_TREE}" || { \
+      echo "VILLA_COMMIT and VILLA_TREE build-args are required" >&2; exit 2; \
+    }
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential gcc-13 g++-13 cmake ninja-build git pkg-config ca-certificates \
+      qt6-base-dev \
+      libboost-system-dev libboost-program-options-dev \
+      libceres-dev libsuitesparse-dev \
+      libopencv-dev libopencv-contrib-dev \
+      libcgal-dev libmpfr-dev libgmp-dev \
+      libblosc-dev libzstd-dev libcurl4-openssl-dev \
+      nlohmann-json3-dev liblz4-dev libtiff-dev \
+      zlib1g-dev gfortran libopenblas-dev liblapack-dev liblapacke-dev libomp-dev \
+      libscotch-dev libhwloc-dev python3 \
+ && rm -rf /var/lib/apt/lists/*
+ENV CC=gcc-13 CXX=g++-13
+
+COPY --from=villa_src / /src/villa-repo
+RUN git config --global --add safe.directory /src/villa-repo
+
+# Not the ci-release-gcc preset: that configures the GUI and every app. Asking
+# for two targets is the difference between minutes and an hour on a small host.
+#
+# Qt6 is still required to *configure*, even with VC_BUILD_GUI=OFF: the top-level
+# CMakeLists calls find_package(Qt6) unconditionally at line 425. Only the build
+# gets narrowed, not the configure.
+WORKDIR /src/villa-repo/volume-cartographer
+RUN cmake -S . -B /build/villa -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DVC_BUILD_GUI=OFF \
+      -DVC_BUILD_FLATBOI=ON \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+ && cmake --build /build/villa --target flatboi vc_obj2tifxyz_legacy
+
+RUN set -eu; \
+    mkdir -p /villa/bin; \
+    for tool in flatboi vc_obj2tifxyz_legacy; do \
+      found="$(find /build/villa -type f -name "$tool" -perm -u+x | head -1)"; \
+      test -n "$found" || { echo "did not build: $tool" >&2; exit 3; }; \
+      cp "$found" "/villa/bin/$tool"; \
+    done; \
+    find /build/villa -name '*.so*' -type f -exec cp -a {} /usr/local/lib/ \; ; \
+    ldconfig; \
+    if ldd /villa/bin/vc_obj2tifxyz_legacy | grep -q "not found"; then \
+      echo "villa tools do not resolve on this base" >&2; exit 3; \
+    fi
+
+# The packages these two tools load, resolved from the binaries rather than
+# restated. The stages that consume them install a narrower dependency set --
+# they are building ScrollFiesta, not volume-cartographer -- and flatboi links
+# OpenCV and Ceres, so `ldd` there finds nothing and the packager refuses an
+# unresolved dependency.
+#
+# Named binaries rather than a glob, and every failure prints what it saw. The
+# first version globbed and silenced stderr, so an empty result said only "no
+# runtime packages resolved" and gave nothing to work from.
+#
+# readlink -f first. An alternatives symlink belongs to no package -- dpkg -S on
+# /usr/lib/.../libopenblas.so.0 says "no path found matching pattern" -- while
+# its target does. That is how libopenblas went missing: not diverted, unowned.
+#
+# A diversion line names the package that made it -- "diversion by X from: /p" --
+# so it is rewritten to that name rather than dropped. Dropping it lost
+# libopenblas, which the alternatives system serves and therefore always
+# diverts, and flatboi links it.
+#
+# The /lib -> /usr/lib rewrite is the usrmerge. On 24.04 ldd reports the
+# symlinked path and dpkg indexes the real one, so every lookup missed and the
+# list came back empty. On 26.04 the two agree, which is why the Villa image
+# never hit this.
+RUN set -eu; \
+    : > /villa-runtime-packages.txt; \
+    for binary in /villa/bin/flatboi /villa/bin/vc_obj2tifxyz_legacy; do \
+      ldd "$binary" || { echo "ldd failed on $binary" >&2; exit 3; }; \
+    done > /tmp/ldd.txt; \
+    awk '/=> \//{print $3}' /tmp/ldd.txt \
+      | xargs -r -n1 readlink -f \
+      | sed 's|^/lib/|/usr/lib/|' \
+      | sort -u > /tmp/libs.txt; \
+    test -s /tmp/libs.txt || { echo "the tools link nothing dynamic, which cannot be right" >&2; \
+                               cat /tmp/ldd.txt >&2; exit 3; }; \
+    xargs -r dpkg -S < /tmp/libs.txt 2>/dev/null \
+      | sed -E 's/^diversion by ([^ ]+) .*/\1/' \
+      | cut -d: -f1 | tr ',' '\n' | sed 's/^ *//' \
+      | grep -E '^[a-z0-9][a-z0-9+.-]*$' | sort -u \
+      > /villa-runtime-packages.txt || true; \
+    if ! test -s /villa-runtime-packages.txt; then \
+      echo "no packages own these libraries; the ldd output was:" >&2; \
+      cat /tmp/libs.txt >&2; exit 3; \
+    fi; \
+    cat /villa-runtime-packages.txt
+
+# The receipt the packager requires, from the stage that did the compiling.
+RUN printf '%s\n' \
+      '{' \
+      '  "schema": "campaignx.villa_toolchain_receipt.v1",' \
+      "  \"source_commit\": \"${VILLA_COMMIT}\"," \
+      "  \"source_tree\": \"${VILLA_TREE}\"," \
+      '  "build_root": "/villa",' \
+      '  "toolchain": {' \
+      "    \"c_compiler\": \"$(gcc-13 --version | head -1)\"," \
+      "    \"cxx_compiler\": \"$(g++-13 --version | head -1)\"," \
+      "    \"cmake_version\": \"$(cmake --version | head -1)\"," \
+      '    "build_type": "Release",' \
+      '    "build_command": "cmake -DVC_BUILD_GUI=OFF -DVC_BUILD_FLATBOI=ON && cmake --build --target flatboi vc_obj2tifxyz_legacy"' \
+      '  }' \
+      '}' \
+      > /villa-toolchain.json \
+ && python3 -c "import json; json.load(open('/villa-toolchain.json'))"
+
+# ------------------------------------------------------------- scrollfiesta --
+FROM ${BASE_IMAGE} AS build
+ARG BASE_IMAGE
+ARG DEBIAN_FRONTEND=noninteractive
+ARG SCROLLFIESTA_COMMIT
+ARG BUILD_JOBS=2
+RUN test -n "${SCROLLFIESTA_COMMIT}" || { \
+      echo "SCROLLFIESTA_COMMIT build-arg is required; it must equal the commit in locks/source-lock.json" >&2; \
+      exit 2; \
+    }
+
+# The README's list, plus what build_native_bundle.sh checks for by name:
+# git cmake ctest patch uv tar python3.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      build-essential gcc-13 g++-13 cmake ninja-build make git patch tar curl \
+      ca-certificates libtiff-dev libomp-dev python3 python3-venv \
+      libopencv-dev libceres-dev libblosc-dev libcurl4-openssl-dev \
+ && rm -rf /var/lib/apt/lists/*
+ENV CC=gcc-13 CXX=g++-13
+
+COPY --from=uv_context /uv /usr/local/bin/uv
+COPY --from=sf_src / /src/scrollfiesta
+COPY --from=repo containers/images/scrollfiesta /build/scrollfiesta
+COPY --from=villa_src / /src/villa-repo
+RUN git config --global --add safe.directory /src/villa-repo
+
+COPY --from=villa /villa /villa
+COPY --from=villa /villa-toolchain.json /build/villa-toolchain.json
+COPY --from=villa /usr/local/lib /usr/local/lib
+COPY --from=villa /villa-runtime-packages.txt /tmp/villa-runtime-packages.txt
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends $(tr '\n' ' ' < /tmp/villa-runtime-packages.txt) \
+ && ldconfig \
+ && rm -rf /var/lib/apt/lists/* \
+ && if ldd /villa/bin/flatboi | grep -q "not found"; then \
+      echo "flatboi is still unresolved. What it wants and cannot find:" >&2; \
+      ldd /villa/bin/flatboi | grep "not found" >&2; \
+      echo "--- what is in /usr/local/lib:" >&2; ls /usr/local/lib >&2; \
+      echo "--- ldconfig knows about:" >&2; ldconfig -p | grep -c . >&2; \
+      exit 3; \
+    fi
+
+# The lock is the gate between "built from the pinned commit" and "built from
+# whatever happened to be in that directory".
+RUN python3 /build/scrollfiesta/scripts/verify_source_lock.py \
+      --source /src/scrollfiesta \
+      --lock /build/scrollfiesta/locks/source-lock.json
+
+RUN python3 /build/scrollfiesta/scripts/package_villa_runtime.py \
+      --villa-source /src/villa-repo/volume-cartographer \
+      --build-root /villa \
+      --flatboi /villa/bin/flatboi \
+      --obj2tifxyz /villa/bin/vc_obj2tifxyz_legacy \
+      --toolchain-receipt /build/villa-toolchain.json \
+      --source-lock /build/scrollfiesta/locks/source-lock.json \
+      --output /villa-runtime
+
+RUN HELENA_BUILD_JOBS="${BUILD_JOBS}" \
+    bash /build/scrollfiesta/scripts/build_native_bundle.sh \
+      --scrollfiesta-source /src/scrollfiesta \
+      --villa-runtime /villa-runtime \
+      --output /scrollfiesta-runtime \
+      --jobs "${BUILD_JOBS}"
+
+RUN python3 /build/scrollfiesta/scripts/verify_runtime_bundle.py --root /scrollfiesta-runtime
+
+# ------------------------------------------------------------------ runtime --
+FROM ${BASE_IMAGE} AS runtime
+ARG BASE_IMAGE
+ARG SCROLLFIESTA_COMMIT
+ARG VILLA_COMMIT
+ARG BUILD_COMMIT=unknown
+ARG SOURCE_DATE_EPOCH=0
+LABEL org.opencontainers.image.title="helena-scrollfiesta" \
+      org.opencontainers.image.description="ScrollFiesta runtime, built on the gcc-13 toolchain its README requires" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.helena.scrollfiesta.commit="${SCROLLFIESTA_COMMIT}" \
+      org.helena.villa.commit="${VILLA_COMMIT}" \
+      org.helena.redistribution="BLOCKED: triangle-and-andres-license-clearance; internal research only" \
+      org.helena.adoption="COMPARISON_ONLY: FAILED_REFERENCE_CONTROL; surfaces are not catalogued"
+
+ARG DEBIAN_FRONTEND=noninteractive
+COPY --from=build /scrollfiesta-runtime /opt/campaignx/scrollfiesta
+COPY --from=villa /usr/local/lib /usr/local/lib
+COPY --from=build /villa-runtime/VILLA_RUNTIME_MANIFEST.json \
+     /opt/campaignx/scrollfiesta/VILLA_RUNTIME_MANIFEST.json
+
+# The same derived list, so the runtime image carries exactly what the tools
+# load and nothing else.
+COPY --from=villa /villa-runtime-packages.txt /tmp/villa-runtime-packages.txt
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates libtiff6 libgomp1 python3 \
+      $(tr '\n' ' ' < /tmp/villa-runtime-packages.txt) \
+ && ldconfig \
+ && update-ca-certificates \
+ && rm -rf /var/lib/apt/lists/* /tmp/villa-runtime-packages.txt
+
+# The bundle carries flatboi and vc_obj2tifxyz_legacy and they link against
+# Villa's own shared libraries. Checked here so a bundle that cannot start
+# fails the build rather than the run.
+RUN set -eu; \
+    for tool in flatboi vc_obj2tifxyz_legacy; do \
+      if ldd "/opt/campaignx/scrollfiesta/bin/$tool" | grep -q "not found"; then \
+        echo "$tool cannot start in the runtime image" >&2; exit 3; \
+      fi; \
+    done
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=scrollfiesta \
+    SCROLLFIESTA_RUNTIME_ROOT=/opt/campaignx/scrollfiesta \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    PATH=/opt/campaignx/scrollfiesta/bin:${PATH}
+
+WORKDIR /workspace/campaign-x
+CMD ["sh"]

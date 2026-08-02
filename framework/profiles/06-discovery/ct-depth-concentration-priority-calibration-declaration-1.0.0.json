@@ -1,0 +1,90 @@
+{
+  "schema": "campaignx.threshold_calibration_declaration.v1",
+  "declaration_id": "ct-depth-concentration-priority-calibration@1.0.0",
+  "profile_id": "ct-depth-concentration-priority-calibration@1.0.0",
+  "status": "METADATA_ONLY_NO_THRESHOLD_CHANGE",
+  "purpose": "Make machine-readable the calibration that ct-depth-concentration-priority@0.1.0 previously declared only in prose, so a downstream reader cannot mistake a post-hoc six-negative re-cut for a validated threshold.",
+  "bound_profile": {
+    "path": "framework/profiles/06-discovery/ct-depth-concentration-priority-0.1.0.json",
+    "sha256": "d17c68b1c3ead8552d86f6d7da74d27a6ad8027510a4efa496a8cc7c9c0b3a79"
+  },
+  "evidence_bindings": [
+    {
+      "role": "POSITIVE_CONTROL_DECISIONS",
+      "path": "workspace/campaigns/campaign-x-2026/findings/ct-gate-v3-validation/runtime/controls/gate-v3/CT_FIBER_GATE_DECISIONS.json",
+      "sha256": "b8bc3b4ad3f28058b28d508e5b7759f43dc7c96eda8f639172fa605dcdd5cb27",
+      "note": "The 15 source-locked PHerc0139 positive controls and their measured depth_profile_top3_fraction values (0.21499145 to 0.34308127)."
+    },
+    {
+      "role": "POSITIVE_CONTROL_FEATURES",
+      "path": "workspace/campaigns/campaign-x-2026/findings/ct-gate-v3-validation/runtime/controls/features-v3/CT_FIBER_FEATURE_BENCHMARK.json",
+      "sha256": "d77fa9b99f891646475a1e7fb533d036b7c2f5c63c4a361e0d2e64c21930258b"
+    },
+    {
+      "role": "NEGATIVE_NON_TEXT_DETERMINATION",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review-v2/MODEL_VISUAL_ASSESSMENTS.json",
+      "sha256": "2714807dc4c520b3f5472df1ac0eb0b51f9f8c5d3fb781c841a882395006c4a9",
+      "note": "The six components declared non-text before the threshold was chosen. All six carry outcome GEOMETRY_CORRELATED_NO_TEXT_MORPHOLOGY_OBSERVED at confidence MEDIUM."
+    },
+    {
+      "role": "NEGATIVE_COMPONENT_IDENTITY",
+      "path": "workspace/campaigns/campaign-x-2026/findings/first-letters-review-v2/FIRST_LETTERS_REVIEW_QUEUE.json",
+      "sha256": "06d26c5a7c5ce71ef7ceaf822516e794d57020c45f4170f6764d6829831cdfb7",
+      "note": "Fixes which components the six assessments refer to. The profile's own priority queue is deliberately NOT bound here: it is the profile's output and would be circular evidence."
+    },
+    {
+      "role": "PARENT_GATE_THE_THRESHOLD_RECUTS",
+      "path": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+      "sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+    }
+  ],
+  "requirement_calibration": [
+    {
+      "feature": "depth_profile_top3_fraction",
+      "calibration": {
+        "positive_n": 15,
+        "negative_n": 6,
+        "sources": [
+          "PHerc0139-public-positive",
+          "PHerc191-target-review-non-text",
+          "PHerc268-target-review-non-text",
+          "PHerc800-target-review-non-text",
+          "PHerc1203-target-review-non-text",
+          "PHerc1218-target-review-non-text",
+          "PHerc1447-target-review-non-text"
+        ],
+        "independent_validation": false,
+        "selection_is_post_hoc": true,
+        "positive_observed_range": [
+          0.21499145030975342,
+          0.3430812656879425
+        ],
+        "negative_observed_range": [
+          0.12412095069885254,
+          0.16434216499328613
+        ],
+        "declared_threshold": 0.18,
+        "margin_below_lowest_positive": 0.03499145030975342,
+        "margin_above_highest_negative": 0.015657835006713867,
+        "note": "The threshold was chosen after both groups were measured. Six negatives clears the declared minimum_negative_n of 5 by one."
+      }
+    }
+  ],
+  "audit_policy": {
+    "minimum_positive_n": 10,
+    "minimum_negative_n": 5,
+    "low_sample_requirements_are_flagged_not_silently_accepted": true,
+    "threshold_changes_from_this_declaration": false,
+    "frozen_v1_v2_v3_profiles_remain_immutable": true
+  },
+  "known_limitations": [
+    "The threshold was selected after observing both the 15 positives and the 6 negatives; this is post-hoc, not independent validation.",
+    "The six negatives are one component per scroll, not six independent samples of a non-text population.",
+    "All six non-text determinations are MEDIUM confidence and come from MODEL_VISUAL_ASSESSMENTS.json, which is a model self-assessment, not adjudicated human review; the sibling discovery receipt still reports READY_FOR_HUMAN_REVIEW and every queue row is UNREVIEWED.",
+    "PHerc191 also appears among the negative sources of the parent v3 gate row for this same feature, so the two calibrations are not fully independent.",
+    "0.18 is a strictly tighter re-cut of a feature the frozen v3 gate already thresholds at 0.12; all six negatives pass the v3 gate and are separated only by this second cut.",
+    "The bound profile is marked FROZEN_FOR_PROSPECTIVE_PRIORITY_ONLY but its bytes changed twice after that status was set (frozen_at_utc correction, then a profile_id separator change). The threshold value 0.18 never moved; the hash bound here is the current blob.",
+    "The feature hard-codes k=3 in the upstream extractor; k is not a profile parameter and cannot be varied through this profile.",
+    "A failed priority requirement lowers review priority only; it never deletes evidence and is never evidence of absence."
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "kind": "campaignx.ct_surface_localization_gate.v3",
+  "status": "FROZEN_FOR_PROSPECTIVE_SURFACES_AFTER_PHERC268_FULL_BBOX_AUDIT",
+  "frozen_at_utc": "2026-07-22T03:08:52Z",
+  "inherits": {
+    "profile": "ct-fiber-localization-gate-v2-coverage-safe.json",
+    "sha256": "bda2344a484c7775769211a20ea987e8205a9bc6d672f7a10aa33d2012b81865"
+  },
+  "calibration_evidence": {
+    "source_locked_full_positive_controls": [
+      "PHerc0139-public-positive"
+    ],
+    "coverage_diagnostic_controls": [
+      "PHerc0139-public-positive",
+      "PHerc172-public-positive"
+    ],
+    "source_locked_full_positive_control_candidate_count": 15,
+    "coverage_diagnostic_candidate_count": 33,
+    "candidate_bbox_nonzero_fraction_control_min": 1.0,
+    "candidate_bbox_nonzero_fraction_control_max": 1.0,
+    "v2_v3_retention_mismatch_count_on_33_controls": 0,
+    "pherc172_control_role": "COVERAGE_DIAGNOSTIC_ONLY",
+    "pherc268_posthoc_boundary_candidate": {
+      "candidate_id": "HR-PHerc268-14744ec1-caa2-5775-a5cf-e2f69038ce19-C002",
+      "source_bbox_xyxy": [
+        770,
+        803,
+        845,
+        1051
+      ],
+      "candidate_bbox_nonzero_fraction": 0.938602,
+      "visual_assessment": "BOUNDARY_OR_COVERAGE_TERMINATION_ARTIFACT_NOT_PLAUSIBLE_TEXT",
+      "assessment": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC268_14744EC1_C002_VISUAL_ASSESSMENT.json"
+    }
+  },
+  "requirements": [
+    {
+      "feature": "candidate_bbox_nonzero_fraction",
+      "operator": ">=",
+      "threshold": 0.95,
+      "reason": "at least 95% of the full candidate footprint must have central-slice CT support; all 33 control footprints were 100%, while the audited PHerc268 edge artifact was 93.8602%"
+    },
+    {
+      "feature": "central_slice_center_nonzero",
+      "operator": ">=",
+      "threshold": 1.0,
+      "reason": "unchanged from v2: a candidate center on the renderer's zero sentinel has no valid central-slice CT support"
+    },
+    {
+      "feature": "central_slice_nonzero_fraction",
+      "operator": ">=",
+      "threshold": 0.95,
+      "reason": "unchanged from v2: at least 95% of the physical 200 um audit patch must have central-slice support"
+    },
+    {
+      "feature": "central_slice_zero_distance_ratio",
+      "operator": ">=",
+      "threshold": 1.0,
+      "reason": "unchanged from v2: the nearest zero-sentinel pixel must be at least one full audit radius from the candidate center"
+    },
+    {
+      "feature": "depth_profile_peak_count",
+      "operator": "<=",
+      "threshold": 8.0,
+      "reason": "unchanged from v1 and v2: surface-localized controls have 1-7 peaks; known fibrous confounds have 9-17"
+    },
+    {
+      "feature": "depth_profile_top3_fraction",
+      "operator": ">=",
+      "threshold": 0.12,
+      "reason": "unchanged from v1 and v2: controls concentrate axial edge energy in three planes"
+    },
+    {
+      "feature": "depth_profile_entropy",
+      "operator": "<=",
+      "threshold": 0.982,
+      "reason": "unchanged from v1 and v2: controls are axially localized while fibrous confounds are diffuse"
+    },
+    {
+      "feature": "argmax_depth_p90_p10_span",
+      "operator": "<=",
+      "threshold": 30.0,
+      "reason": "unchanged from v1 and v2: control argmax depths span fewer slices than confounds"
+    }
+  ],
+  "decision": {
+    "all_requirements_pass": "CT_CANDIDATE_COVERAGE_SAFE_SURFACE_LOCALIZED_RETAIN_FOR_INK_REVIEW",
+    "any_requirement_fails": "CT_INVALID_OR_DIFFUSE_DOWNRANK_REVIEWABLE_NON_NEGATIVE"
+  },
+  "selection_note": "The full-candidate coverage threshold is post-hoc for the first PHerc268 retained boundary artifact and descriptive controls. It is frozen before use on later surfaces. PHerc0139 supplies 15 source-locked positive candidates; PHerc172 supplies 18 coverage-only diagnostics. This is not independent validation and a downrank is never evidence of scroll-wide absence.",
+  "policy": {
+    "v1_profile_remains_immutable": true,
+    "v2_profile_remains_immutable": true,
+    "never_upgrades_model_output_to_confirmed_ink": true,
+    "never_upgrades_model_output_to_confirmed_letters": true,
+    "a_failed_component_is_not_scroll_wide_absence": true,
+    "changing_any_threshold_requires_a_new_version": true
+  }
+}

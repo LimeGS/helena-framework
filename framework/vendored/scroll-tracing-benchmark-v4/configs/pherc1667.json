@@ -1,0 +1,32 @@
+{
+  "scroll_id": "PHerc1667",
+  "volume_url": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1667/volumes/20251217075048-2.399um-0.2m-78keV-masked.zarr",
+  "vox_um": 2.399,
+  "center": "fit",
+  "band": {
+    "segment": "PHerc1667/segments/20240304141531-w013_20240304141531_flatboi",
+    "path": "data/pherc1667/band_w013_r1400_1600_xyz.npz",
+    "status": "qualifying_segment_found",
+    "theta_span_revolutions": {"min": 5.582, "median": 5.591, "max": 5.620},
+    "recipe": {
+      "source_mesh": "PHerc1667/segments/20240304141531-w013_20240304141531_flatboi/mesh/20240304141531-on-20251217075048-2.399um.tifxyz",
+      "source_mesh_shape_rows_cols": [2080, 3980],
+      "row_start": 1400,
+      "row_end": 1600,
+      "col_start": 0,
+      "col_end": 3980,
+      "build_command": "python3 stb/build_band.py <tifxyz_dir> data/pherc1667/band_w013_r1400_1600_xyz.npz --row-start 1400 --row-end 1600",
+      "notes": "row range chosen inside the verified-clean, high-validity contiguous run rows [1064,2029) of the source mesh (see docs/PHERC1667_SCOUT.md); full column width kept (no wrap-axis cropping)."
+    }
+  },
+  "classes": [-3, -2, -1, 0, 1, 2, 3],
+  "step": 2,
+  "window": 200,
+  "stride": 100,
+  "ref_row": 100,
+  "tune_lo": 199,
+  "tune_hi": 2199,
+  "exclusions": [],
+  "_comment_exclusions": "PHerc0332's ScrollConfig default exclusions (tuning zone + v1 test window) are meaningless for this band's column range; overridden empty since nothing has been tuned against this band yet -- see docs/PHERC1667_SCOUT.md caveats before selecting final windows.",
+  "_comment_not_reverified": "Legacy-compatible window/stride/ref_row are explicit, not silently inherited. They remain provisional until CT Gate C and the V4 physical-scale ablation are frozen. tune_lo/tune_hi follow docs/PHERC1667_INSTANCE.md's 5%-of-width protocol."
+}

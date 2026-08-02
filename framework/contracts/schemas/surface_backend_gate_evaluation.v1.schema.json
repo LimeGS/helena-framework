@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/surface_backend_gate_evaluation.v1.schema.json",
+  "title": "Campaign X fail-closed G2-G5 backend evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "evaluation_id", "comparison_id", "generated_at_utc", "sample_id",
+    "roi_level0_zyx", "surfaces", "thresholds", "gates", "overall_status",
+    "recommendation", "regions", "evidence", "comparison_contract",
+    "physical_mesh_fusion_performed", "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.surface_backend_gate_evaluation.v1"},
+    "evaluation_id": {"type": "string", "pattern": "^EVAL-[A-Za-z0-9][A-Za-z0-9._-]{7,159}$"},
+    "comparison_id": {"type": "string", "pattern": "^CMP-[A-Za-z0-9][A-Za-z0-9._-]{7,159}$"},
+    "generated_at_utc": {"type": "string", "format": "date-time"},
+    "sample_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+    "roi_level0_zyx": {"$ref": "#/$defs/roi"},
+    "surfaces": {
+      "type": "object", "additionalProperties": false, "required": ["vc3d", "scrollfiesta"],
+      "properties": {"vc3d": {"$ref": "#/$defs/surface"}, "scrollfiesta": {"$ref": "#/$defs/surface"}}
+    },
+    "thresholds": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "local_sheet_separation_voxels", "maximum_agreement_distance_voxels",
+        "minimum_normal_dot", "minimum_ct_legible_fraction",
+        "minimum_ct_within_tolerance_fraction", "maximum_degenerate_fraction",
+        "maximum_relative_stretch_regression", "minimum_area_gain_fraction",
+        "minimum_component_reduction_fraction", "maximum_downstream_tile_loss_fraction",
+        "maximum_relative_cost_per_cm2"
+      ],
+      "properties": {
+        "local_sheet_separation_voxels": {"type": "number", "exclusiveMinimum": 0},
+        "maximum_agreement_distance_voxels": {"type": "number", "exclusiveMinimum": 0, "maximum": 2},
+        "minimum_normal_dot": {"type": "number", "minimum": 0.866, "maximum": 1},
+        "minimum_ct_legible_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "minimum_ct_within_tolerance_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "maximum_degenerate_fraction": {"type": "number", "minimum": 0, "maximum": 0.0001},
+        "maximum_relative_stretch_regression": {"type": "number", "minimum": 0, "maximum": 0.05},
+        "minimum_area_gain_fraction": {"type": "number", "minimum": 0.15},
+        "minimum_component_reduction_fraction": {"type": "number", "minimum": 0.30},
+        "maximum_downstream_tile_loss_fraction": {"type": "number", "minimum": 0, "maximum": 0.05},
+        "maximum_relative_cost_per_cm2": {"type": "number", "minimum": 1, "maximum": 2}
+      }
+    },
+    "gates": {
+      "type": "object", "additionalProperties": false, "required": ["G2", "G3", "G4", "G5"],
+      "properties": {
+        "G2": {"$ref": "#/$defs/gate"}, "G3": {"$ref": "#/$defs/gate"},
+        "G4": {"$ref": "#/$defs/gate"}, "G5": {"$ref": "#/$defs/gate"}
+      }
+    },
+    "overall_status": {"$ref": "#/$defs/status"},
+    "recommendation": {"enum": ["PILOT_PASS", "KEEP_EXPERIMENTAL", "REJECT_FOR_TARGET", "BLOCKED_UNMEASURED"]},
+    "regions": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/region"}},
+    "evidence": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/evidence_pair"}},
+    "comparison_contract": {"oneOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]},
+    "physical_mesh_fusion_performed": {"const": false},
+    "ink_used": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "uri": {"type": "string", "format": "uri", "minLength": 3, "maxLength": 2048},
+    "roi": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "integer", "minimum": 0}},
+    "status": {"enum": ["PASS", "FAIL", "UNMEASURED"]},
+    "surface": {
+      "type": "object", "additionalProperties": false,
+      "required": ["surface_id", "backend_profile", "artifact_uri", "artifact_sha256", "receipt_sha256"],
+      "properties": {
+        "surface_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$"},
+        "backend_profile": {"type": "string", "pattern": "^segmentation\\.[a-z0-9][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"},
+        "artifact_uri": {"$ref": "#/$defs/uri"}, "artifact_sha256": {"$ref": "#/$defs/sha256"},
+        "receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "requirement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["metric", "status", "observed", "operator", "threshold", "reason"],
+      "properties": {
+        "metric": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{1,127}$"},
+        "status": {"$ref": "#/$defs/status"},
+        "observed": {"type": ["number", "integer", "boolean", "string", "null"]},
+        "operator": {"enum": ["EQ", "LE", "GE", "OR", "NO_INCREASE", "PRESENT"]},
+        "threshold": {"type": ["number", "integer", "boolean", "string", "null"]},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 1024}
+      }
+    },
+    "gate": {
+      "type": "object", "additionalProperties": false, "required": ["status", "requirements"],
+      "properties": {"status": {"$ref": "#/$defs/status"}, "requirements": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/requirement"}}}
+    },
+    "region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["region_id", "classification", "measurement_status", "area_cm2", "vc3d_component_ids", "scrollfiesta_component_ids", "distance_p95_voxels", "normal_dot_p05", "ct_support", "reasons", "disposition"],
+      "properties": {
+        "region_id": {"type": "string", "pattern": "^REG-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+        "classification": {"enum": ["CONSENSUS", "SCROLLFIESTA_ONLY", "VC3D_ONLY", "DISAGREEMENT"]},
+        "measurement_status": {"$ref": "#/$defs/status"},
+        "area_cm2": {"type": "number", "exclusiveMinimum": 0},
+        "vc3d_component_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "scrollfiesta_component_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "distance_p95_voxels": {"type": ["number", "null"], "minimum": 0},
+        "normal_dot_p05": {"type": ["number", "null"], "minimum": -1, "maximum": 1},
+        "ct_support": {"enum": ["SUPPORTED", "UNVERIFIED", "CONTRADICTED"]},
+        "reasons": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1, "maxLength": 512}},
+        "disposition": {"enum": ["ELIGIBLE_FOR_PROMOTION", "KEEP_PROVISIONAL", "AUDIT_REQUIRED", "REJECTED"]}
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false, "required": ["uri", "sha256", "bytes"],
+      "properties": {"uri": {"$ref": "#/$defs/uri"}, "sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 1}}
+    },
+    "evidence_pair": {
+      "type": "object", "additionalProperties": false, "required": ["panel", "vc3d", "scrollfiesta"],
+      "properties": {
+        "panel": {"enum": ["CT", "MESH", "NORMALS", "SEAMS", "FLATTENING"]},
+        "vc3d": {"oneOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]},
+        "scrollfiesta": {"oneOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]}
+      }
+    }
+  }
+}

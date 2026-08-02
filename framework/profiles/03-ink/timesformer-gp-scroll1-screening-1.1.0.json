@@ -1,0 +1,47 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "timesformer-gp-scroll1-screening@1.1.0",
+  "method_id": "timesformer-gp-scroll1@1.0.0",
+  "checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+  "adapter": "framework/stages/03-ink/scripts/run_ink_timesformer.py",
+  "input_contract": {
+    "modality": "registered surface CT stack",
+    "frames": 26,
+    "tile_size_y_x": [64, 64],
+    "training_pixel_um": 7.91,
+    "training_slice_um": 7.91,
+    "physical_resampling_required": true,
+    "model_family": "timesformer_GP_scroll1",
+    "preprocess_precision": "float32",
+    "preprocess_uint8_quantization_steps": 0,
+    "preprocess_precision_rationale": [
+      "the same checkpoint and the same physical resampling as @1.0.0",
+      "@1.0.0 rounds to uint8 in interpolate_depth and again in resize_stack, so the 1.18x upscale from 9.362 um toward 7.91 um is forced back onto 256 levels twice",
+      "the model input is float32: infer_map applies clamp(0,200)/255, so no uint8 stage is required anywhere in the chain",
+      "@1.1.0 keeps interpolate_depth and resize_stack in float32 and quantizes zero times",
+      "numerically different output; @1.0.0 stays frozen and reproducible and remains the routed lane until a control compares the two"
+    ]
+  },
+  "output_contract": {
+    "maps": ["mean_probability.npy", "stability_std.npy"],
+    "receipt": "INK_SCREENING_RECEIPT.json",
+    "coordinate_space": "normalized flattened surface",
+    "comparability": [
+      "not bit-comparable with timesformer-gp-scroll1-screening@1.0.0 receipts",
+      "a probability map from this profile may not be pooled with a @1.0.0 map in one stability ensemble",
+      "the boundary valid mask widens slightly because bilinear values below 0.5 no longer round to 0"
+    ]
+  },
+  "default_execution": {
+    "depth_centers": [25, 32, 39],
+    "tiling_offsets": [0, 8],
+    "replica_count": 6,
+    "stride": 16,
+    "minimum_valid_ratio": 0.6
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "silence_proves_absence": false
+  }
+}

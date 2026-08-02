@@ -1,0 +1,44 @@
+{
+  "kind": "campaignx.ct_fiber_shadow_router_profile.v4",
+  "profile_id": "ct-fiber-shadow-router-v4-physical@4.0.0",
+  "status": "SHADOW_ONLY_NOT_SCIENTIFICALLY_FROZEN",
+  "inherits_operational_gate": {
+    "profile": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "meaning": "The v3 decision remains immutable and is recorded beside, never replaced by, this shadow route."
+  },
+  "physical_depth_sampling": {
+    "half_window_um": 120.0,
+    "canonical_step_um": 8.0,
+    "top_energy_band_um": 24.0,
+    "central_band_half_width_um": 20.0,
+    "argmax_near_central_um": 20.0,
+    "peak_relative_height": 0.35,
+    "minimum_window_coverage_fraction": 0.95
+  },
+  "routing": {
+    "tier_a": "V3_RETAINED_REVIEW",
+    "tier_b": "SHADOW_REVIEW_NOT_DISCARDED",
+    "tier_c": "EXTEND_OR_RESEGMENT_SURFACE",
+    "coverage_features": [
+      "candidate_bbox_nonzero_fraction",
+      "central_slice_nonzero_fraction",
+      "central_slice_zero_distance_ratio",
+      "central_slice_center_nonzero"
+    ],
+    "review_all_tier_b": true,
+    "never_convert_shadow_route_to_ink_claim": true
+  },
+  "validation_contract": {
+    "minimum_independent_positive_scrolls": 3,
+    "minimum_independent_confound_scrolls": 2,
+    "minimum_positive_recall_per_scroll": 0.95,
+    "threshold_development_groups_must_be_disjoint": true,
+    "current_expected_status": "BLOCKED_INSUFFICIENT_INDEPENDENT_CONTROLS"
+  },
+  "non_claims": [
+    "candidate profile; thresholds are not independently validated",
+    "not a replacement for the frozen v3 operational gate",
+    "not accepted ink, text, letters, or First Letters",
+    "a boundary failure requests more surface support; it is not evidence of absence"
+  ]
+}

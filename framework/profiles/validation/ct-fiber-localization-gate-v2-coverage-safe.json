@@ -1,0 +1,92 @@
+{
+  "kind": "campaignx.ct_surface_localization_gate.v2",
+  "status": "FROZEN_FOR_PROSPECTIVE_SURFACES_AFTER_PHERC211_BOUNDARY_AUDIT",
+  "frozen_at_utc": "2026-07-22T01:46:00Z",
+  "inherits": {
+    "profile": "ct-fiber-localization-gate-v1.json",
+    "sha256": "d0ac3eb2d518ebefc544db069078c08868da902323cbf8cea2e1bfd8e4dd122b"
+  },
+  "calibration_evidence": {
+    "source_locked_full_positive_controls": [
+      "PHerc0139-public-positive"
+    ],
+    "coverage_diagnostic_controls": [
+      "PHerc0139-public-positive",
+      "PHerc172-public-positive"
+    ],
+    "source_locked_full_positive_control_candidate_count": 15,
+    "coverage_diagnostic_candidate_count": 33,
+    "coverage_diagnostic_requirements_passed_count": 33,
+    "coverage_diagnostic_central_slice_nonzero_fraction_min": 1.0,
+    "coverage_diagnostic_zero_distance_ratio_min": 1.04,
+    "additive_v1_v2_retention_mismatch_count_on_identical_current_inputs": 0,
+    "pherc172_full_positive_control_status": "EXCLUDED_AFTER_HISTORICAL_LEXICOGRAPHIC_SLICE_ORDER_DISCOVERY",
+    "pherc172_ordering_note": "The historical benchmark read unpadded 0.tif..32.tif lexicographically, so its recorded middle and last hashes were physical slices 24.tif and 9.tif. Numeric physical ordering is now mandatory. PHerc172 remains a coverage diagnostic because all 18 patches pass the new coverage checks, but it is not source-locked full-positive evidence for the inherited depth gate.",
+    "pherc211_false_positive_candidate_count": 4,
+    "pherc211_false_positive_nonzero_fraction_range": [
+      0.1293,
+      0.6149
+    ],
+    "pherc211_false_positive_zero_distance_ratio_range": [
+      0.0,
+      0.1429
+    ],
+    "assessment": "workspace/campaigns/campaign-x-2026/findings/first-letters-review/PHERC211_69064FF9_VISUAL_ASSESSMENT.json"
+  },
+  "requirements": [
+    {
+      "feature": "central_slice_center_nonzero",
+      "operator": ">=",
+      "threshold": 1.0,
+      "reason": "a candidate center on the renderer's zero sentinel has no valid central-slice CT support"
+    },
+    {
+      "feature": "central_slice_nonzero_fraction",
+      "operator": ">=",
+      "threshold": 0.95,
+      "reason": "at least 95% of the physical 200 um audit patch must have central-slice support; the source-locked PHerc0139 control and all 33 correctly ordered coverage-diagnostic patches were 100%"
+    },
+    {
+      "feature": "central_slice_zero_distance_ratio",
+      "operator": ">=",
+      "threshold": 1.0,
+      "reason": "the nearest zero-sentinel pixel must be at least one full audit radius from the candidate center"
+    },
+    {
+      "feature": "depth_profile_peak_count",
+      "operator": "<=",
+      "threshold": 8.0,
+      "reason": "unchanged from v1: surface-localized controls have 1-7 peaks; known fibrous confounds have 9-17"
+    },
+    {
+      "feature": "depth_profile_top3_fraction",
+      "operator": ">=",
+      "threshold": 0.12,
+      "reason": "unchanged from v1: controls concentrate axial edge energy in three planes"
+    },
+    {
+      "feature": "depth_profile_entropy",
+      "operator": "<=",
+      "threshold": 0.982,
+      "reason": "unchanged from v1: controls are axially localized while fibrous confounds are diffuse"
+    },
+    {
+      "feature": "argmax_depth_p90_p10_span",
+      "operator": "<=",
+      "threshold": 30.0,
+      "reason": "unchanged from v1: control argmax depths span fewer slices than confounds"
+    }
+  ],
+  "decision": {
+    "all_requirements_pass": "CT_COVERAGE_SAFE_SURFACE_LOCALIZED_RETAIN_FOR_INK_REVIEW",
+    "any_requirement_fails": "CT_INVALID_OR_DIFFUSE_DOWNRANK_REVIEWABLE_NON_NEGATIVE"
+  },
+  "selection_note": "Coverage thresholds are post-hoc for the first PHerc211 retained batch and descriptive controls. PHerc0139 supplies 15 source-locked full-positive candidates. PHerc172 supplies coverage-only diagnostics after discovery of a historical lexicographic slice-order bug. The thresholds are frozen before use on later surfaces and must not be described as independent validation.",
+  "policy": {
+    "v1_profile_remains_immutable": true,
+    "never_upgrades_model_output_to_confirmed_ink": true,
+    "never_upgrades_model_output_to_confirmed_letters": true,
+    "a_failed_component_is_not_scroll_wide_absence": true,
+    "changing_any_threshold_requires_a_new_version": true
+  }
+}

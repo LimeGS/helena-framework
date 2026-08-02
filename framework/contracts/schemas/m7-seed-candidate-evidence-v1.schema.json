@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/m7-seed-candidate-evidence-v1.schema.json",
+  "title": "Campaign X local m7 seed-candidate evidence",
+  "type": "object",
+  "required": [
+    "schema",
+    "policy_id",
+    "ink_used",
+    "score_semantics",
+    "non_claim",
+    "window",
+    "point",
+    "threshold_component",
+    "shape_descriptor",
+    "spatial_peak_competition"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.m7_seed_candidate_evidence.v1"},
+    "policy_id": {"const": "m7-local-structure-v1"},
+    "ink_used": {"const": false},
+    "score_semantics": {"const": "normalized_m7_intensity_not_probability"},
+    "non_claim": {
+      "const": "local_m7_structure_only; does_not_establish_ct_material_support,lamina_identity,or_growth_success"
+    },
+    "window": {
+      "type": "object",
+      "required": [
+        "radius_voxels",
+        "bounds_ct_l0_xyz",
+        "shape_zyx",
+        "coverage",
+        "query_faces_truncated"
+      ],
+      "properties": {
+        "radius_voxels": {"type": "integer", "minimum": 4, "maximum": 32},
+        "bounds_ct_l0_xyz": {"$ref": "#/$defs/exclusive_bounds_xyz"},
+        "shape_zyx": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "integer", "minimum": 1},
+            {"type": "integer", "minimum": 1},
+            {"type": "integer", "minimum": 1}
+          ],
+          "items": false
+        },
+        "coverage": {"enum": ["COMPLETE", "QUERY_BOUNDARY_TRUNCATED"]},
+        "query_faces_truncated": {"$ref": "#/$defs/faces"}
+      },
+      "additionalProperties": false
+    },
+    "point": {
+      "type": "object",
+      "required": [
+        "ct_l0_coordinate",
+        "stored_value",
+        "normalized_m7_intensity",
+        "threshold_normalized",
+        "threshold_comparison"
+      ],
+      "properties": {
+        "ct_l0_coordinate": {"$ref": "#/$defs/coordinate"},
+        "stored_value": {"type": "number"},
+        "normalized_m7_intensity": {"type": "number", "minimum": 0, "maximum": 1},
+        "threshold_normalized": {"type": "number", "minimum": 0, "maximum": 1},
+        "threshold_comparison": {"const": "strictly_greater"}
+      },
+      "additionalProperties": false
+    },
+    "threshold_component": {
+      "type": "object",
+      "required": [
+        "connectivity",
+        "positive_component_count",
+        "positive_voxel_count",
+        "seed_component_voxel_count",
+        "seed_component_share_of_positive_voxels",
+        "bounding_box_extent_xyz_voxels",
+        "support_radius_voxels",
+        "touched_window_faces",
+        "observation_state",
+        "nearest_disconnected_positive_distance_voxels"
+      ],
+      "properties": {
+        "connectivity": {"const": 26},
+        "positive_component_count": {"type": "integer", "minimum": 1},
+        "positive_voxel_count": {"type": "integer", "minimum": 1},
+        "seed_component_voxel_count": {"type": "integer", "minimum": 1},
+        "seed_component_share_of_positive_voxels": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        },
+        "bounding_box_extent_xyz_voxels": {"$ref": "#/$defs/positive_extent"},
+        "support_radius_voxels": {"type": "number", "minimum": 0},
+        "touched_window_faces": {"$ref": "#/$defs/faces"},
+        "observation_state": {"enum": ["COMPLETE_WITHIN_WINDOW", "WINDOW_CENSORED"]},
+        "nearest_disconnected_positive_distance_voxels": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "shape_descriptor": {
+      "type": "object",
+      "required": [
+        "method",
+        "point_count",
+        "eigenvalues_descending_voxels_squared",
+        "linearity",
+        "planarity",
+        "scattering",
+        "state"
+      ],
+      "properties": {
+        "method": {"const": "population_covariance_pca_xyz"},
+        "point_count": {"type": "integer", "minimum": 1},
+        "eigenvalues_descending_voxels_squared": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "number", "minimum": 0},
+            {"type": "number", "minimum": 0},
+            {"type": "number", "minimum": 0}
+          ],
+          "items": false
+        },
+        "linearity": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "planarity": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "scattering": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "state": {"enum": ["MEASURED", "DEGENERATE"]}
+      },
+      "additionalProperties": false
+    },
+    "spatial_peak_competition": {
+      "type": "object",
+      "required": [
+        "neighborhood_radius_voxels",
+        "plateau_connectivity",
+        "point_is_local_maximum",
+        "point_is_canonical_plateau_representative",
+        "distinct_peak_count",
+        "competing_peak_count",
+        "nearest_competitor_distance_voxels",
+        "strongest_competitor_normalized_m7_intensity",
+        "point_minus_strongest_competitor_normalized_m7_intensity"
+      ],
+      "properties": {
+        "neighborhood_radius_voxels": {"type": "integer", "minimum": 1, "maximum": 8},
+        "plateau_connectivity": {"const": 26},
+        "point_is_local_maximum": {"type": "boolean"},
+        "point_is_canonical_plateau_representative": {"type": "boolean"},
+        "distinct_peak_count": {"type": "integer", "minimum": 0},
+        "competing_peak_count": {"type": "integer", "minimum": 0},
+        "nearest_competitor_distance_voxels": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "strongest_competitor_normalized_m7_intensity": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "point_minus_strongest_competitor_normalized_m7_intensity": {
+          "type": ["number", "null"],
+          "minimum": -1,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "coordinate": {
+      "type": "object",
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"type": "integer", "minimum": 0},
+        "y": {"type": "integer", "minimum": 0},
+        "z": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "positive_extent": {
+      "type": "object",
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"type": "integer", "minimum": 1},
+        "y": {"type": "integer", "minimum": 1},
+        "z": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "exclusive_axis_bounds": {
+      "type": "object",
+      "required": ["min", "max_exclusive"],
+      "properties": {
+        "min": {"type": "integer", "minimum": 0},
+        "max_exclusive": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    },
+    "exclusive_bounds_xyz": {
+      "type": "object",
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {"$ref": "#/$defs/exclusive_axis_bounds"},
+        "y": {"$ref": "#/$defs/exclusive_axis_bounds"},
+        "z": {"$ref": "#/$defs/exclusive_axis_bounds"}
+      },
+      "additionalProperties": false
+    },
+    "faces": {
+      "type": "array",
+      "items": {"enum": ["x_min", "x_max", "y_min", "y_max", "z_min", "z_max"]},
+      "uniqueItems": true,
+      "maxItems": 6
+    }
+  },
+  "additionalProperties": false
+}

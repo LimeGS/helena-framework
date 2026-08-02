@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-proposal-v1.schema.json",
+  "title": "Campaign X LLM segmentation proposal",
+  "type": "object",
+  "required": ["schema", "task_id", "attempt_id", "selected_seed", "profile_id", "parameters", "hypothesis", "alternatives_rejected", "ink_used"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_proposal.v1"},
+    "task_id": {"type": "string", "format": "uuid"},
+    "attempt_id": {"type": "string", "format": "uuid"},
+    "selected_seed": {
+      "type": "object", "required": ["candidate_id", "x", "y", "z"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}
+      }, "additionalProperties": false
+    },
+    "profile_id": {"type": "string", "minLength": 1},
+    "parameters": {"type": "object"},
+    "hypothesis": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "alternatives_rejected": {"type": "array", "items": {"type": "object"}},
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": false
+}

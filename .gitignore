@@ -1,0 +1,58 @@
+# What never belongs in this repository.
+#
+# It used to be fifty-two rules naming individual files under a phase1..phase4
+# layout that no longer exists -- `phase3/fast_ab_existing_surfaces/R61_AB_V1/
+# fits-full-range/` and its like. None of those paths are here any more, so none
+# of those rules protected anything; they were a record of a directory structure
+# rather than a list of what to keep out. What is left is what is still true.
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+.coverage
+.coverage.*
+
+# --- Node and the frontend build --------------------------------------------
+node_modules/
+panel/web/dist/
+# TypeScript's incremental build cache. It was tracked, so every build produced
+# a diff in a file nobody reads and every branch produced a conflict in it.
+*.tsbuildinfo
+
+# --- Editors and operating systems ------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# --- Credentials --------------------------------------------------------------
+# Real env files never; the .example ones always, because they are the
+# documentation of what a deployment needs.
+.env
+.env.*
+*.env
+!*.env.example
+!.env.example
+
+# --- State a deployment writes ------------------------------------------------
+# Not source. These are what a running panel accumulates, and a commit that
+# carries them makes one operator's deployment everybody else's starting state.
+panel/config-versions/
+panel/settings.local.json
+panel/modules.json
+panel/audit/
+
+# --- Data ---------------------------------------------------------------------
+# Surfaces, runs and volumes. Gigabytes, reproducible from the pipeline, and
+# belonging to a deployment rather than to the code. workspace/catalog is
+# deliberately tracked: it is the catalogue, not the data it describes.
+workspace/surfaces/
+workspace/campaigns/
+workspace/archive/
+vendor/
+.local/

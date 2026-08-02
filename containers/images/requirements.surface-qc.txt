@@ -1,0 +1,36 @@
+# Additive controller/analysis dependencies. PyTorch 2.5.1+cu124, NumPy,
+# Pillow, TimeSformer, einops and safetensors come byte-for-byte from the
+# frozen helena-ink parent image.
+#
+# Why this file is NOT installed with `pip install --require-hashes` (FIX-16.3)
+# ---------------------------------------------------------------------------
+# `--require-hashes` is all-or-nothing: pip refuses the install unless *every*
+# distribution in the resolved graph — direct and transitive — is pinned to an
+# exact version AND carries a `--hash=sha256:...`. This file lists direct
+# requirements only, and its transitive closure is large and platform-dependent
+# (psycopg[binary] ships per-platform wheels; scipy, zarr and imagecodecs each
+# pull further wheels whose selection depends on the interpreter and libc of
+# the parent image). Turning the flag on against this file fails the build
+# immediately; it does not make the build stricter.
+#
+# The fix is a generated, fully-resolved lock, which must be produced against
+# the exact parent image and requires network access to an index, so it cannot
+# be created from a checkout alone:
+#
+#   docker run --rm -v "$PWD:/w" -w /w "$INK_IMAGE" sh -c \
+#     'python -m pip install pip-tools && \
+#      pip-compile --generate-hashes --allow-unsafe \
+#        --output-file requirements.surface-qc.lock requirements.surface-qc.txt'
+#
+# Once `requirements.surface-qc.lock` exists, whitelist it in .dockerignore,
+# COPY it in Containerfile.surface-qc and install with
+# `pip install --require-hashes --no-deps -r ...lock`. Until then the integrity
+# guarantee is the digest-pinned parent image plus the exact `==` pins below,
+# which fixes the versions but not the artifact bytes.
+boto3==1.43.52
+psycopg[binary]==3.2.9
+psycopg2-binary==2.9.10
+scipy==1.14.1
+tifffile==2026.3.3
+zarr==3.1.6
+imagecodecs==2026.1.14
