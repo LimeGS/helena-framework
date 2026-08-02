@@ -1,0 +1,22 @@
+fastapi==0.141.1
+uvicorn[standard]==0.34.0
+jinja2==3.1.6
+starlette==1.3.1
+numpy>=1.26
+pillow>=10.0
+psycopg[binary]==3.2.3
+pydantic>=2.9
+scipy>=1.11
+psycopg2-binary==2.9.12  # the fleet bootstrap the panel shells out to imports it
+# CT slice previews read the published OME-Zarr directly, reusing the fleet's own
+# open_prediction() rather than a second reader. fsspec and aiohttp are what zarr
+# uses to fetch chunks over https; without them it can only open local paths.
+zarr>=3.0
+fsspec>=2024.6
+aiohttp>=3.9
+# The dense surface overlay reads the TIFXYZ itself -- x.tif, y.tif and z.tif of
+# CT coordinates per pixel, which is the surface rather than a 256-point sample of
+# it. s3fs rather than boto3 because fsspec is already here for zarr, so one open()
+# handles s3:// and local paths alike.
+tifffile>=2024.1
+s3fs>=2024.6

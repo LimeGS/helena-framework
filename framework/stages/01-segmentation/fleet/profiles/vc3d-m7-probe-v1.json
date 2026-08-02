@@ -1,0 +1,38 @@
+{
+  "schema": "campaignx.segment_fleet_profile.v1",
+  "profile_id": "vc3d-m7-probe-v1",
+  "description": "Noncanonical, ink-blind VC3D micro-growth used only to discriminate frozen seed candidates before a canonical grow.",
+  "mode": "seed",
+  "parameters": {
+    "generations": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 20,
+      "default": 12
+    },
+    "step_size": {
+      "type": "integer",
+      "minimum": 8,
+      "maximum": 15,
+      "default": 12
+    },
+    "min_area_cm": {
+      "type": "number",
+      "const": 0.0,
+      "default": 0.0
+    },
+    "use_cuda": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    }
+  },
+  "maximum_top_k": 3,
+  "default_top_k": 2,
+  "noncanonical": true,
+  "ink_used": false,
+  "non_claims": [
+    "a successful micro-growth is not a canonical surface",
+    "a geometry-certified micro-growth is not proof that it follows the correct physical lamina"
+  ]
+}

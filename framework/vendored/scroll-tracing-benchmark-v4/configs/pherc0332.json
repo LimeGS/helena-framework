@@ -1,0 +1,13 @@
+{
+  "scroll_id": "PHerc0332",
+  "volume_url": "https://dl.ash2txt.org/full-scrolls/Scroll3/PHerc332.volpkg/volumes_zarr_standardized/53keV_7.91um_Scroll3.zarr",
+  "vox_um": 7.91,
+  "train_um": 4.8,
+  "center": [1809.26609333, 1732.01937758],
+  "band": {
+    "segment": "r1145_200",
+    "path": "fixtures/band_r1145_200_xyz.npz"
+  },
+  "classes": [-3, -2, -1, 0, 1, 2, 3],
+  "step": 2
+}

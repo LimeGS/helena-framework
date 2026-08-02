@@ -1,0 +1,31 @@
+{
+  "component": "scroll-streaming-tools",
+  "file_count": 12,
+  "files": {
+    "README.md": "7d48270e29a77f09e610a747a6c6f85ef2d97b0891d30d8bd3f2ee164faca405",
+    "adapters/infer_dino3d.py": "bc6ea7c48549ba163ef183e42d79150e36af2a4f9f3d7b8c652caba4cf06d6a6",
+    "adapters/infer_resnet3d_1667.py": "6dd6e7bdeea889cef394ff827290c86c906014285a945a77e68fcf379ced5ad2",
+    "adapters/infer_timesformer.py": "c64f7eb22e18423cf02cfb0d3b65b328178d5790fefb486d764e2c02fed34a51",
+    "adapters/sweep_dino3d.py": "6857ad531be964b1634c162e7fc9c1c580b81fcf6e5e4626e08598adf2026a1e",
+    "label_transport.py": "89cd86d034f1540c4f57444b26b1c40d5d42135349c1c98adc7506dc45d144a4",
+    "render_scroll2.py": "b9f1a8116485f14bc554dcf01847342aa494efbb2f2cee75c4459e354ad3a081",
+    "render_scroll3.py": "6122e0594fed036bce8c8361fcc284e096515fcf1b8531325ce361ea6edaa9ea",
+    "requirements.txt": "134151a6d08757062f92a62f9ca8ac1333b4f880504e5b1d0624231cfcb5d0c6",
+    "tests/test_tools.py": "3ebbd4a594ab704864127b0fdaf812a77351e2b4ca4bb47c0e4d3d4fffb4bad6",
+    "wedge_extract.py": "6b385276198c88cef3379e771411c30466ee360161b8b5c01fc26b95be1f275d",
+    "winding_tracer.py": "fff41cbc8b309759aeb2ec7654b817bffb17537d3818e50f11ac0b3f6f8bd62f"
+  },
+  "phases": [
+    "P0",
+    "P1",
+    "P4",
+    "P5"
+  ],
+  "policy": "code only; plates, indices, reviews, checkpoints and fixtures are findings and stay at the source",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": "2c219df966e4e4a4b2a38ef96c94d0cae7adadd3",
+  "source_path": "release/scroll-streaming-tools",
+  "source_remote": null,
+  "unavailable_dataless": [],
+  "vendored_at_utc": "2026-07-25T17:51:04Z"
+}

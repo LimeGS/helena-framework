@@ -1,0 +1,31 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -361,5 +361,5 @@ endif()
+ # ---- Dependencies -----------------------------------------------------------
+-if(VC_BUILD_UI_TRACER OR VC_BUILD_APPS)
++if(VC_BUILD_UI_TRACER OR VC_BUILD_APPS OR VC_BUILD_MCP_SERVER)
+     find_package(Qt6 QUIET REQUIRED COMPONENTS Widgets Gui Core Network Concurrent OpenGLWidgets)
+     set(CMAKE_AUTOMOC ON)
+     set(CMAKE_AUTORCC ON)
+@@ -534,7 +534,20 @@
+ 
+ add_subdirectory(utils)
+ add_subdirectory(core)
+-add_subdirectory(apps)
++
++# The MCP service uses Qt Core and the image/volume libraries already found
++# above, but does not require the VC3D GUI, the command-line application
++# bundle, or flatboi/PaStiX.  Keeping this path explicit makes a headless
++# worker build small enough for an ephemeral GPU host.
++if(VC_BUILD_MCP_SERVER AND NOT VC_BUILD_APPS)
++    if(NOT DEFINED VC_MCP_CONTAINER_DIGEST)
++        set(VC_MCP_CONTAINER_DIGEST "unverified" CACHE STRING
++            "Pinned VC worker OCI digest advertised by the MCP server")
++    endif()
++    add_subdirectory(apps/VC3D/mcp)
++else()
++    add_subdirectory(apps)
++endif()
+ if(VC_BUILD_PYTHON)
+     add_subdirectory(python)
+ endif()

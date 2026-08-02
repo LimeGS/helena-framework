@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-locked-plan-v2.schema.json",
+  "title": "Campaign X locked adaptive segmentation plan v2",
+  "type": "object",
+  "required": ["schema", "status", "locked_at_utc", "task_id", "attempt_id", "source_snapshot_id", "sample_id", "cell", "source", "selected_seed", "profile_id", "parameters", "proposal_sha256", "catalog_snapshot_sha256", "hypothesis", "regional_attempt_history_sha256", "history_considered", "parameter_rationale", "variation_summary", "proposed_recipe_sha256", "ink_used", "non_claims"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_locked_plan.v2"},
+    "status": {"const": "LOCKED_READY"},
+    "locked_at_utc": {"type": "string", "minLength": 1},
+    "task_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "source_snapshot_id": {"type": "string", "minLength": 1},
+    "sample_id": {"type": "string", "minLength": 1},
+    "cell": {"type": "object"},
+    "source": {"type": "object"},
+    "selected_seed": {"type": "object"},
+    "profile_id": {"type": "string", "minLength": 1},
+    "parameters": {"type": "object"},
+    "benchmark_execution": {
+      "$ref": "seed-probe-benchmark-execution-v1.schema.json"
+    },
+    "parameter_envelope_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "resume_from": {"type": "string", "minLength": 1},
+    "resume_artifact": {"type": "object"},
+    "corrections": {"type": "string", "minLength": 1},
+    "seed_probe_decision": {
+      "$ref": "seed-probe-decision-v1.schema.json"
+    },
+    "seed_probe_decision_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "proposal_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "catalog_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "hypothesis": {"type": "string", "minLength": 1},
+    "regional_attempt_history_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "history_considered": {"type": "array", "items": {"type": "string"}},
+    "parameter_rationale": {"type": "object"},
+    "variation_summary": {"type": "string", "minLength": 1},
+    "proposed_recipe_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ink_used": {"const": false},
+    "non_claims": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,26 @@
+--- a/src/mcp/handler.cpp
++++ b/src/mcp/handler.cpp
+@@ -204,5 +204,5 @@ static std::optional<fastmcpp::Json> extract_request_meta(const fastmcpp::Json& params)
+ {
+     if (params.contains("_meta") && params["_meta"].is_object())
+-        return params["_meta"];
++        return params["_meta"].template get<fastmcpp::Json>();
+     return std::nullopt;
+ }
+--- a/src/util/json_schema.cpp
++++ b/src/util/json_schema.cpp
+@@ -123,11 +123,11 @@ static std::optional<Json> resolve_local_ref(const Json& root, const std::string& ref)
+     std::string pointer = ref.substr(1);
+     if (pointer.empty())
+-        return root;
++        return root.template get<Json>();
+ 
+     try
+     {
+         nlohmann::json::json_pointer json_ptr(pointer);
+-        return root.at(json_ptr);
++        return root.at(json_ptr).template get<Json>();
+     }
+     catch (...)
+     {
+ }

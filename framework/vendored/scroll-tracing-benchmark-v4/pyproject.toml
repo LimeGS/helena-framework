@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scroll-tracing-benchmark"
+version = "4.0.0"
+description = "Leakage-aware evaluation for Herculaneum scroll tracing"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+  "numpy>=2.2,<3",
+  "scipy>=1.16,<2",
+  "tifffile>=2026.3",
+  "Pillow>=12.2",
+]
+
+[project.optional-dependencies]
+mesh = ["trimesh>=4.12,<5", "rtree>=1.4,<2"]
+network = ["zarr>=3.1,<4", "fsspec>=2025.5", "s3fs>=2025.5"]
+test = ["pytest>=8.4,<10"]
+all = [
+  "trimesh>=4.12,<5", "rtree>=1.4,<2",
+  "zarr>=3.1,<4", "fsspec>=2025.5", "s3fs>=2025.5",
+  "pytest>=8.4,<10",
+]
+
+[project.scripts]
+stb = "stb.cli:main"
+
+[tool.setuptools]
+packages = ["stb", "adapters"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: full PHerc0332 band regression"]

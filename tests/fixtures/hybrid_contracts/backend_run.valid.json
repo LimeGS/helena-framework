@@ -1,0 +1,31 @@
+{
+  "schema": "campaignx.segmentation_backend_run.v1",
+  "run_id": "RUN-scrollfiesta-fixture-a01",
+  "status": "SUCCEEDED",
+  "started_at_utc": "2026-07-22T12:00:00Z",
+  "finished_at_utc": "2026-07-22T12:01:00Z",
+  "campaignx_git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "backend": {
+    "family": "scrollfiesta",
+    "profile": "segmentation.scrollfiesta-m7-mesh@0.1.0",
+    "repository": "https://github.com/Hob3rMallow/scrollfiesta_public",
+    "git_commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+    "auxiliary_tools": [{"name": "volume-cartographer", "repository": "https://github.com/ScrollPrize/villa", "git_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}]
+  },
+  "runtime": {"kind": "OCI_IMAGE", "oci_image_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "platform": "linux/amd64"},
+  "command": {"argv": ["scrollunwrap", "run"], "argv_sha256": "7290010d069c29528e87a7eb0fcca89c50caf7c577fef5104736034fba43a469", "working_directory": "/work/repo"},
+  "environment_non_sensitive": [{"name": "OMP_NUM_THREADS", "value": "8"}],
+  "resources": {"cpu_threads": 8, "peak_ram_bytes": 1024, "gpu_devices": [], "elapsed_seconds": 60, "scratch_bytes": 2048},
+  "inputs": {
+    "sample_id": "PHerc826",
+    "ct": {"uri": "s3://helena-fixture/ct.zarr", "sha256_or_etag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+    "surface_prediction": {"uri": "s3://helena-fixture/m7.zarr", "sha256_or_etag": "etag:fixture-m7-v1"},
+    "roi_level0_zyx": [10, 20, 30, 74, 84, 94],
+    "coordinate_order": "ZYX"
+  },
+  "parameters": [{"name": "iterations", "value_json": "20", "value_sha256": "f5ca38f748a1d6eaf726b8a42fb575c3c71f1864a8143301782de13da2d9202b"}],
+  "durable_outputs": [{"role": "TIFXYZ", "uri": "s3://helena-fixture/surface/tifxyz.manifest.json", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "bytes": 128}],
+  "surface_artifact": {"surface_id": "SURF-PHerc826-aaaaaaaaaaaa", "uri": "s3://helena-fixture/surface/SURFACE_ARTIFACT.json", "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},
+  "error": null,
+  "ink_used": false
+}

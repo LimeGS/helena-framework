@@ -1,0 +1,35 @@
+{
+  "schema": "campaignx.surface_backend_comparison.v1",
+  "comparison_id": "CMP-PHerc826-fixture-a01",
+  "generated_at_utc": "2026-07-22T12:05:00Z",
+  "sample_id": "PHerc826",
+  "roi_level0_zyx": [10, 20, 30, 74, 84, 94],
+  "surfaces": {
+    "vc3d": {"surface_id": "SURF-PHerc826-vc3d00000001", "backend_profile": "segmentation.vc3d-m7-grow@1.0.0", "artifact_uri": "s3://helena-fixture/vc3d/SURFACE_ARTIFACT.json", "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+    "scrollfiesta": {"surface_id": "SURF-PHerc826-scroll000001", "backend_profile": "segmentation.scrollfiesta-m7-mesh@0.1.0", "artifact_uri": "s3://helena-fixture/scroll/SURFACE_ARTIFACT.json", "artifact_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "receipt_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}
+  },
+  "thresholds": {"local_sheet_separation_voxels": 3, "maximum_agreement_distance_voxels": 1.5, "minimum_normal_dot": 0.866, "ct_support_required": true},
+  "aggregate_metrics": {
+    "common_area_cm2": 1.0,
+    "scrollfiesta_only_area_cm2": 0.25,
+    "vc3d_only_area_cm2": 0,
+    "disagreement_area_cm2": 0,
+    "bidirectional_distance_voxels": {"p50": 0.2, "p95": 0.7, "p99": 1.1},
+    "normal_dot_p50": 0.98,
+    "normal_dot_p05": 0.91,
+    "ct_supported_fraction": 0.98,
+    "continuity_supported": true
+  },
+  "regions": [
+    {"region_id": "REG-consensus", "classification": "CONSENSUS", "area_cm2": 1.0, "vc3d_component_ids": ["v1"], "scrollfiesta_component_ids": ["s1"], "distance_p95_voxels": 0.7, "normal_dot_p05": 0.91, "ct_support": "SUPPORTED", "reasons": ["position, normals, and CT agree"], "disposition": "ELIGIBLE_FOR_PROMOTION"},
+    {"region_id": "REG-scroll-only", "classification": "SCROLLFIESTA_ONLY", "area_cm2": 0.25, "vc3d_component_ids": [], "scrollfiesta_component_ids": ["s2"], "distance_p95_voxels": null, "normal_dot_p05": null, "ct_support": "SUPPORTED", "reasons": ["VC3D has no coverage"], "disposition": "KEEP_PROVISIONAL"}
+  ],
+  "summary": {
+    "area_by_class_cm2": {"CONSENSUS": 1.0, "SCROLLFIESTA_ONLY": 0.25, "VC3D_ONLY": 0, "DISAGREEMENT": 0},
+    "region_count_by_class": {"CONSENSUS": 1, "SCROLLFIESTA_ONLY": 1, "VC3D_ONLY": 0, "DISAGREEMENT": 0}
+  },
+  "decision": "CONSENSUS_AVAILABLE",
+  "physical_mesh_fusion_performed": false,
+  "evidence": [{"role": "DISTANCE_MAP", "uri": "s3://helena-fixture/comparison/distance.png", "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bytes": 128}],
+  "ink_used": false
+}

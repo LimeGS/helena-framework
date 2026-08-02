@@ -1,0 +1,9 @@
+diff --git a/src/api/scrollfiesta_api.c b/src/api/scrollfiesta_api.c
+--- a/src/api/scrollfiesta_api.c
++++ b/src/api/scrollfiesta_api.c
+@@ -9,4 +9,6 @@
+  * complete. No longjmp ever crosses the API boundary.
+  */
++#include <stdlib.h>
++
+ #include "sf_internal.h"

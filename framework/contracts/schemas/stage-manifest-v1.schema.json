@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "campaign-x/stage-manifest-v1",
+  "title": "Campaign X immutable stage manifest v1",
+  "type": "object",
+  "required": ["kind", "run_id", "step", "source", "image", "inputs"],
+  "properties": {
+    "kind": {"const": "campaign_x_container_stage_manifest_v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "step": {"enum": ["vc3d-grow", "scrollfiesta-mesh", "surface-compare", "topology-check", "flattening", "ink-inference", "qc", "high-recall"]},
+    "source": {"type": "object", "required": ["git_commit"], "properties": {"git_commit": {"type": "string"}}},
+    "image": {"type": "object", "required": ["reference"], "properties": {"reference": {"type": "string", "pattern": "@sha256:"}}},
+    "inputs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}},
+    "models": {"type": "array", "items": {"type": "object", "required": ["id", "path", "sha256"], "properties": {"id": {"type": "string"}, "path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}},
+    "cleanup": {"type": "object"}
+  },
+  "additionalProperties": true
+}

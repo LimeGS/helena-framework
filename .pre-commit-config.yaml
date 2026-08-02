@@ -1,0 +1,52 @@
+# Helena Framework pre-commit configuration.
+#
+# The business-logic audit (framework/audits/audit_business_logic.py) is the
+# only mechanism in this repository that checks scientific policy and
+# provenance invariants. A source checkout intentionally excludes the external
+# campaign evidence release, so this hook runs the explicit repository-only
+# scope. PASS, PARTIAL and SKIP are reported separately; the default full audit
+# remains fail-closed unless the evidence is available.
+#
+# Install with:
+#   python3 -m pip install pre-commit && pre-commit install
+#
+# Note: `pre-commit` does not fetch anything for these hooks; both run the local
+# interpreter against the working tree.
+
+fail_fast: false
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: business-logic-audit
+        name: business-logic audit (repository-only)
+        entry: python3 framework/audits/audit_business_logic.py --repository-only
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+        description: >-
+          Fails the commit when a source-held scientific-policy or provenance
+          invariant regresses. External-evidence checks are explicitly PARTIAL
+          or SKIP, never represented as fully audited.
+
+      - id: framework-layout
+        name: framework layout test
+        entry: python3 -m pytest -q tests/test_framework_layout.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+        description: Fast structural check that the stage layout is intact.
+
+      - id: pytest-full
+        name: full test suite
+        entry: python3 -m pytest -q
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+        description: >-
+          The full suite is slow enough to belong on pre-push rather than
+          pre-commit. Enable with `pre-commit install --hook-type pre-push`.

@@ -1,0 +1,91 @@
+{
+  "schema": "campaignx.vc3d_tifxyz_merge_profile.v1",
+  "profile_id": "vc3d-tifxyz-merge@1.0.0",
+  "lane": "vc3d-tifxyz-merge",
+  "source": {
+    "repository": "https://github.com/ScrollPrize/villa",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "tree": "9116ebcd63f58cb723de9a028b657420235ea480",
+    "corresponding_source": "https://github.com/ScrollPrize/villa/tree/05dcf0349356bc833670d61e5eca00be58376e35/volume-cartographer",
+    "local_checkout": "vendor/villa",
+    "license": "GPL-3.0-or-later",
+    "license_path": "framework/licenses/volume-cartographer/LICENSE",
+    "notice_path": "framework/licenses/volume-cartographer/NOTICE"
+  },
+  "runtime": {
+    "villa_image": "localhost:5000/helena/helena-villa@sha256:ec45a3631d63f5bcc27b2101c58b2567748a3aacf635cbfd7037b699d3279d30",
+    "toolchain_receipt": "/opt/campaignx/vc3d/VILLA_TOOLCHAIN.json",
+    "binaries": {
+      "vc_merge_tifxyz": {
+        "path": "/opt/campaignx/vc3d/bin/vc_merge_tifxyz",
+        "sha256": "4ecbb071f3d532b5ccbd31ea11b537aa6379555d8947c4ec95f93c9e0f7d719f"
+      },
+      "vc_obj2tifxyz_legacy": {
+        "path": "/opt/campaignx/vc3d/bin/vc_obj2tifxyz_legacy",
+        "sha256": "7e928fa2af0f41be4f4fa8386c50d65a1a98b3031bdf6636b078bfe1f56995bf"
+      },
+      "vc_flatten": {
+        "path": "/opt/campaignx/vc3d/bin/vc_flatten",
+        "sha256": "eaac4029b90434391251a73f4f8af5549e098473452227b5433f1c475ed8c30f"
+      },
+      "vc_render_tifxyz": {
+        "path": "/opt/campaignx/vc3d/bin/vc_render_tifxyz",
+        "sha256": "4db1e249e9549af79b178bb60691ac7236ced586172f25b85b8c3e865d3eec76"
+      }
+    }
+  },
+  "parameters": {
+    "ransac_seed": 1729,
+    "anchor_cap": 2000,
+    "strip_cols": 0,
+    "minimum_parent_count": 2,
+    "maximum_parent_count": 64
+  },
+  "compatibility_gate": {
+    "same_sample": true,
+    "same_source_snapshot": true,
+    "same_ct_uri": true,
+    "same_ct_sha256_when_known": true,
+    "same_coordinate_frame": true,
+    "same_voxel_size_um": true,
+    "required_geometry_qc_state": "GEOMETRY_CERTIFIED"
+  },
+  "physical_qc": {
+    "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+    "initial_state": "PENDING"
+  },
+  "seam_gate": {
+    "minimum_anchor_count_per_edge": 3,
+    "minimum_ransac_inliers_per_edge": 3,
+    "minimum_inlier_fraction_per_edge": 0.25,
+    "maximum_ransac_sigma_in_voxels": 10.0,
+    "require_real_overlap_on_both_parents": true,
+    "require_all_declared_edges": true,
+    "require_connected_layout": true
+  },
+  "geometry_gate": {
+    "required_state": "GEOMETRY_CERTIFIED",
+    "implementation": "framework/stages/04-validation/scripts/helena_tifxyz_geometry_gate.py"
+  },
+  "outputs": {
+    "required_tifxyz": ["x.tif", "y.tif", "z.tif", "meta.json"],
+    "required_evidence": [
+      "combined.obj",
+      "vc_merge_tifxyz_summary.json",
+      "assembly_manifest.json",
+      "merge.json",
+      "stdout.log",
+      "stderr.log",
+      "SEAM_QC.json",
+      "GEOMETRY_CERTIFICATION.json",
+      "MERGE_RECEIPT.json",
+      "VOLUME_CARTOGRAPHER_LICENSE.txt",
+      "VOLUME_CARTOGRAPHER_NOTICE.txt",
+      "CORRESPONDING_SOURCE.json"
+    ]
+  },
+  "non_claims": [
+    "A successful merge is a geometry result, not an ink or reading claim.",
+    "The wrapper packages and gates upstream Volume Cartographer; it implements no stitching algorithm."
+  ]
+}

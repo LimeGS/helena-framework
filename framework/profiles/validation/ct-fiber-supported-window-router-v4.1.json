@@ -1,0 +1,56 @@
+{
+  "kind": "campaignx.ct_fiber_supported_window_router_profile.v4_1",
+  "profile_id": "ct-fiber-supported-window-router@4.1.0",
+  "status": "PROSPECTIVE_VALIDATION_CANDIDATE",
+  "supersedes_for_new_evaluations_only": "ct-fiber-shadow-router-v4-physical@4.0.0",
+  "inherits_operational_gate": {
+    "profile": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "meaning": "The historical v3 decision is preserved as a priority score. A v3 failure is never converted into absence."
+  },
+  "physical_depth_sampling": {
+    "window_policy": "ADAPT_TO_AVAILABLE_SYMMETRIC_SUPPORT",
+    "half_window_um": 120.0,
+    "minimum_supported_half_window_um": 64.0,
+    "canonical_step_um": 8.0,
+    "top_energy_band_um": 24.0,
+    "central_band_half_width_um": 20.0,
+    "argmax_near_central_um": 20.0,
+    "peak_relative_height": 0.35,
+    "minimum_window_coverage_fraction": 0.95
+  },
+  "routing": {
+    "tier_a": "V3_RETAINED_REVIEW",
+    "tier_b": "SUPPORTED_WINDOW_REVIEW_NOT_DISCARDED",
+    "tier_c": "EXTEND_OR_RESEGMENT_SURFACE",
+    "coverage_features": [
+      "candidate_bbox_nonzero_fraction",
+      "central_slice_nonzero_fraction",
+      "central_slice_center_nonzero"
+    ],
+    "diagnostic_not_coverage_features": [
+      "central_slice_zero_distance_ratio"
+    ],
+    "review_all_tier_b": true,
+    "never_convert_shadow_route_to_ink_claim": true
+  },
+  "rationale": [
+    "Public official surface CT commonly contains 65 planes, about 156 um at 2.4 um/voxel.",
+    "Requiring a fixed 240 um window sent every valid official control to Tier C even when all available planes were present.",
+    "The supported-window policy measures on the largest symmetric physical window present in the source, never below 64 um.",
+    "central_slice_zero_distance_ratio is a localization diagnostic, not proof that CT bytes or surface support are missing."
+  ],
+  "validation_contract": {
+    "benchmark": "MULTISCROLL_TRANSFER_V2",
+    "minimum_independent_positive_scrolls": 3,
+    "minimum_independent_confound_scrolls": 2,
+    "minimum_positive_recall_per_scroll": 0.95,
+    "controls_must_be_spatially_disjoint_from_v1": true,
+    "threshold_changes_after_v2_freeze_prohibited": true
+  },
+  "non_claims": [
+    "not accepted ink, text, letters, or First Letters",
+    "Tier B is a human-review queue, not a positive prediction",
+    "Tier C requests more support and is not evidence of absence",
+    "V1 remains an immutable terminal failed evaluation"
+  ]
+}

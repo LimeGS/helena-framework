@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-artifact-set-v1.schema.json",
+  "title": "Campaign X noncanonical seed probe artifact set v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "probe_run_id",
+    "probe_trial_id",
+    "locked_plan_sha256",
+    "files",
+    "artifact_sha256",
+    "noncanonical",
+    "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_artifact_set.v1"},
+    "probe_run_id": {"type": "string", "minLength": 1},
+    "probe_trial_id": {"type": "string", "minLength": 1},
+    "locked_plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "files": {
+      "type": "object",
+      "required": ["x.tif", "y.tif", "z.tif", "generations.tif", "meta.json"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sha256", "size_bytes"],
+        "properties": {
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size_bytes": {"type": "integer", "minimum": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "noncanonical": {"const": true},
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": false
+}

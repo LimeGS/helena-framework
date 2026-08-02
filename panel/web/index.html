@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helena Framework</title>
+
+    <!-- The identity kit's own exports. The SVG is what a modern browser takes;
+         the ICO is what everything else falls back to, and the 180 is what iOS
+         puts on a home screen. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Obsidian in dark, Parchment in light: the browser chrome matches the
+         page instead of framing it in whatever the platform default is. The
+         theme is a stored choice rather than only the system's, so the value
+         is rewritten by src/theme.ts instead of switching on a media query. -->
+    <meta name="theme-color" content="#F7F4ED" />
+    <meta name="description"
+          content="Helena Framework — from a CT scan of a rolled manuscript to a readable page, one checkable phase at a time." />
+
+    <!-- Resolved here, before anything paints: a stored "dark" that is applied
+         only once React has mounted is a white flash on every load. Kept in
+         step with src/theme.ts by hand -- it cannot import from the bundle it
+         has to run ahead of. -->
+    <script>
+      (function () {
+        var stored;
+        try { stored = localStorage.getItem("helena-theme"); } catch (e) { /* private mode */ }
+        var dark = stored === "dark" ||
+          (stored !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        if (dark) {
+          document.querySelector('meta[name="theme-color"]').content = "#23242B";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

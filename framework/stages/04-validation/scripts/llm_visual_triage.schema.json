@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["assessments"],
+  "properties": {
+    "assessments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seed_id", "outcome", "confidence", "tile_ids_reviewed", "evidence_citations", "rationale"],
+        "properties": {
+          "seed_id": {"type": "string"},
+          "outcome": {"type": "string", "enum": ["NO_LOCAL_ALERT_OBSERVED", "CT_INSUFFICIENT", "NEEDS_HUMAN_REVIEW"]},
+          "confidence": {"type": "string", "enum": ["LOW", "MEDIUM"]},
+          "tile_ids_reviewed": {"type": "array", "items": {"type": "string"}},
+          "evidence_citations": {"type": "array", "items": {"type": "string"}},
+          "rationale": {"type": "string"}
+        }
+      }
+    }
+  }
+}

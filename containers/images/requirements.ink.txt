@@ -1,0 +1,14 @@
+# Versions observed in the frozen, working RTX 3090 QC runtime on 2026-07-22.
+# PyTorch/CUDA are supplied by the digest-pinned base image.
+#
+# Not installed with `pip install --require-hashes`: the flag requires the full
+# transitive closure to be version- and hash-pinned, and this file lists direct
+# requirements only. See the long note at the top of requirements.surface-qc.txt
+# for the reason and for the `pip-compile --generate-hashes` recipe that would
+# make the flag usable. Generating that lock needs an index, so it cannot be
+# done from a checkout alone.
+numpy==2.1.2
+Pillow==12.3.0
+timesformer-pytorch==0.4.1
+einops==0.8.2
+safetensors==0.8.0

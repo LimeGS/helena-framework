@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/surface_artifact.v2.schema.json",
+  "title": "Campaign X backend-neutral surface artifact v2",
+  "description": "Content-addressed TIFXYZ surface with immutable source, coordinate-transform, and geometry provenance. It is not an ink or text decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "surface_id",
+    "created_at_utc",
+    "backend_family",
+    "backend_profile",
+    "sample_id",
+    "source",
+    "roi_level0_zyx",
+    "coordinate_transform",
+    "artifacts",
+    "metrics",
+    "validation_state",
+    "receipt_uri",
+    "receipt_sha256",
+    "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.surface_artifact.v2"},
+    "surface_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$"},
+    "created_at_utc": {"type": "string", "format": "date-time"},
+    "backend_family": {"enum": ["vc3d", "scrollfiesta"]},
+    "backend_profile": {"$ref": "#/$defs/backend_profile"},
+    "sample_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+    "source": {"$ref": "#/$defs/source"},
+    "roi_level0_zyx": {"$ref": "#/$defs/roi_level0_zyx"},
+    "coordinate_transform": {"$ref": "#/$defs/coordinate_transform"},
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tifxyz", "source_mesh_obj", "canonical_mesh_obj"],
+      "properties": {
+        "tifxyz": {"$ref": "#/$defs/artifact"},
+        "source_mesh_obj": {"oneOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]},
+        "canonical_mesh_obj": {"oneOf": [{"$ref": "#/$defs/artifact"}, {"type": "null"}]}
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "area_cm2",
+        "component_count",
+        "vertex_count",
+        "triangle_count",
+        "invalid_coordinate_count",
+        "non_manifold_edge_count",
+        "self_intersection_count",
+        "inconsistent_winding_edge_count",
+        "degenerate_triangle_fraction",
+        "orientable"
+      ],
+      "properties": {
+        "area_cm2": {"type": "number", "exclusiveMinimum": 0},
+        "component_count": {"type": "integer", "minimum": 1},
+        "vertex_count": {"type": "integer", "minimum": 3},
+        "triangle_count": {"type": "integer", "minimum": 1},
+        "invalid_coordinate_count": {"type": "integer", "minimum": 0},
+        "non_manifold_edge_count": {"type": "integer", "minimum": 0},
+        "self_intersection_count": {"$ref": "#/$defs/measured_defect_count"},
+        "inconsistent_winding_edge_count": {"type": "integer", "minimum": 0},
+        "degenerate_triangle_fraction": {"type": "number", "minimum": 0, "maximum": 1},
+        "orientable": {"type": "boolean"},
+        "uv_flipped_triangle_count": {"type": "integer", "minimum": 0},
+        "uv_degenerate_triangle_count": {"type": "integer", "minimum": 0},
+        "stretch_p50": {"$ref": "#/$defs/stretch"},
+        "stretch_p95": {"$ref": "#/$defs/stretch"},
+        "stretch_max": {"$ref": "#/$defs/stretch"}
+      }
+    },
+    "validation_state": {"enum": ["PROVISIONAL", "GEOMETRY_VALIDATED", "DISAGREEMENT", "REJECTED"]},
+    "receipt_uri": {"$ref": "#/$defs/uri"},
+    "receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "ink_used": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "measured_defect_count": {
+      "description": "A real measured count, or UNMEASURED when no producer supplied one. UNMEASURED never satisfies GEOMETRY_VALIDATED.",
+      "oneOf": [
+        {"type": "integer", "minimum": 0},
+        {"const": "UNMEASURED"}
+      ]
+    },
+    "stretch": {
+      "description": "Quasi-isometric UV->3D distortion max(s1, 1/s2) after area normalization; 1.0 is a perfectly isometric flattening.",
+      "type": "number",
+      "minimum": 1
+    },
+    "content_lock": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{64}|sha256:[a-f0-9]{64}|etag:[A-Za-z0-9._\\\"':+/-]{1,256})$"
+    },
+    "uri": {"type": "string", "format": "uri", "minLength": 3, "maxLength": 2048},
+    "backend_profile": {
+      "type": "string",
+      "pattern": "^segmentation\\.[a-z0-9][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ct_uri",
+        "ct_sha256_or_etag",
+        "surface_prediction_uri",
+        "surface_prediction_sha256_or_etag",
+        "level",
+        "voxel_size_um",
+        "handedness"
+      ],
+      "properties": {
+        "ct_uri": {"$ref": "#/$defs/uri"},
+        "ct_sha256_or_etag": {"$ref": "#/$defs/content_lock"},
+        "surface_prediction_uri": {"$ref": "#/$defs/uri"},
+        "surface_prediction_sha256_or_etag": {"$ref": "#/$defs/content_lock"},
+        "level": {"type": "integer", "minimum": 0},
+        "voxel_size_um": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {"type": "number", "exclusiveMinimum": 0},
+            {"type": "number", "exclusiveMinimum": 0},
+            {"type": "number", "exclusiveMinimum": 0}
+          ],
+          "items": false
+        },
+        "handedness": {"enum": ["LEFT_HANDED", "RIGHT_HANDED"]}
+      }
+    },
+    "roi_level0_zyx": {
+      "description": "[z0, y0, x0, z1, y1, x1], with positive extents checked semantically.",
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "coordinate_transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_order", "canonical_order", "winding_flipped", "matrix"],
+      "properties": {
+        "source_order": {"enum": ["XYZ", "ZYX"]},
+        "canonical_order": {"const": "XYZ"},
+        "winding_flipped": {"type": "boolean"},
+        "matrix": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {"type": "number"}
+          }
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "sha256", "bytes"],
+      "properties": {
+        "uri": {"$ref": "#/$defs/uri"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

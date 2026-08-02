@@ -1,0 +1,28 @@
+# The build context is this directory, but keep it deliberately sterile.
+# Helena Framework code, CT, model checkpoints, results, credentials and caches are
+# always mounted at runtime; none may be copied into an image.
+#
+# Every Containerfile, and every file a Containerfile COPYs, must be whitelisted
+# below. `campaignx-surface-qc:0.1.1` ran QC in production while
+# Containerfile.surface-qc and requirements.surface-qc.txt (COPYed at
+# Containerfile.surface-qc:25) were both excluded by the `*` rule, which made
+# that image unbuildable from this repository. See FIX-16.
+#
+# Do not whitelist a path that does not exist in this directory: compose.yaml,
+# README.md and runtime-contracts.md were listed here and never existed, which
+# made the whitelist read as a contract it was not enforcing.
+*
+!Containerfile.vc3d
+!Containerfile.panel
+!Containerfile.ink
+!requirements.ink.txt
+!Containerfile.ink-worker
+!requirements.ink-worker.txt
+!Containerfile.surface-qc
+!requirements.surface-qc.txt
+!Containerfile.qc
+!Containerfile.orchestrator
+!Containerfile.scrollfiesta
+!Makefile
+!base-images.env.example
+!.dockerignore

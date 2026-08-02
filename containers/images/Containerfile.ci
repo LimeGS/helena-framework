@@ -1,0 +1,50 @@
+# The dependencies the test suite needs, installed once instead of every push.
+#
+# 44% of a pipeline was `apt-get` and `pip install` -- 124 seconds of the unit
+# job's 284, spent fetching the same wheels every time. Measured, not guessed:
+# apt 13s, pip 111s, the tests themselves 95s.
+#
+# The obvious alternative was GitLab's pip cache. It is worse: warming it saves
+# 38 seconds and the cache is 2.7 GB, so the runner would spend longer moving it
+# than it saves.
+#
+# This image is rebuilt on every pipeline and that is fine -- Docker's layer
+# cache makes it a no-op unless one of the requirements files actually changed,
+# because they are the only thing COPYied before the install. It is built on the
+# runner's own daemon and never pushed: the job that uses it runs on that same
+# machine, so a registry round-trip for three gigabytes would undo the saving.
+#
+# The runner needs pull_policy = ["always", "if-not-present"] for that to work.
+# A runner pulls every job image by default, so it refused this one -- "pull
+# access denied for helena-ci" -- with the image sitting on the same daemon.
+ARG BASE_IMAGE=python:3.11-slim
+FROM ${BASE_IMAGE}
+
+ARG BUILD_COMMIT=unknown
+LABEL org.opencontainers.image.title="helena-ci" \
+      org.opencontainers.image.description="Test dependencies for the pipeline" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# git, because the suite reads its own history; libgl and libglib because
+# opencv links against them and imports fail without them in a way that reads
+# as a broken test rather than a missing system library.
+RUN apt-get update -qq \
+ && apt-get install -qq -y --no-install-recommends \
+      git libgl1 libglib2.0-0 \
+ && rm -rf /var/lib/apt/lists/*
+
+# Only the requirements, so the layer below is reused until one of them changes.
+# Copying the repository here instead would rebuild the whole install on every
+# commit, which is the thing this image exists to avoid.
+COPY panel/requirements.txt /tmp/requirements.panel.txt
+COPY tests/requirements.txt /tmp/requirements.tests.txt
+RUN pip install --no-cache-dir \
+      -r /tmp/requirements.panel.txt -r /tmp/requirements.tests.txt \
+ && rm -f /tmp/requirements.*.txt
+
+# Proof at build time rather than a surprise in the first job that needs one.
+RUN python -c "import fastapi, numpy, psycopg2, pytest, torch, yaml; print(torch.__version__)"

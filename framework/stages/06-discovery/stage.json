@@ -1,0 +1,8 @@
+{
+  "stage_id": "06-discovery",
+  "purpose": "Validated evidence is ranked into a private, traceable review queue for potential text.",
+  "inputs": ["validation_evidence", "reconstruction_context", "discovery_profile"],
+  "outputs": ["candidate_queue", "review_assets", "discovery_receipt"],
+  "image": "helena-qc",
+  "acceptance_boundary": "Ranking never establishes text identity or a First Letters claim by itself."
+}

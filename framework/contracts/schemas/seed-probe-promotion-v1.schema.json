@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-promotion-v1.schema.json",
+  "title": "Campaign X seed probe promotion v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "probe_run_id",
+    "decision_id",
+    "decision_sha256",
+    "winner_trial_id",
+    "winner_probe_artifact_set_id",
+    "continuation_task_id",
+    "continuation_attempt_id",
+    "continuation_contract",
+    "continuation_contract_sha256",
+    "continuation_locked_plan_sha256",
+    "state",
+    "ink_used",
+    "non_claim"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_promotion.v1"},
+    "probe_run_id": {"type": "string", "minLength": 1},
+    "decision_id": {"type": "string", "minLength": 1},
+    "decision_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "winner_trial_id": {"type": "string", "minLength": 1},
+    "winner_probe_artifact_set_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "continuation_task_id": {"type": "string", "minLength": 1},
+    "continuation_attempt_id": {"type": "string", "minLength": 1},
+    "continuation_contract": {
+      "type": "object",
+      "required": [
+        "schema",
+        "continuation_task_id",
+        "source_snapshot_id",
+        "probe_run_id",
+        "decision_id",
+        "decision_sha256",
+        "winner_trial_id",
+        "winner_probe_artifact_set_id",
+        "winner_seed",
+        "resume_artifact",
+        "full_growth_profile_id",
+        "topology_parameters",
+        "ink_used"
+      ],
+      "properties": {
+        "schema": {
+          "const": "campaignx.seed_probe_continuation_contract.v1"
+        },
+        "continuation_task_id": {"type": "string", "minLength": 1},
+        "source_snapshot_id": {"type": "string", "minLength": 1},
+        "probe_run_id": {"type": "string", "minLength": 1},
+        "decision_id": {"type": "string", "minLength": 1},
+        "decision_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "winner_trial_id": {"type": "string", "minLength": 1},
+        "winner_probe_artifact_set_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "winner_seed": {
+          "type": "object",
+          "required": ["candidate_id", "x", "y", "z"],
+          "properties": {
+            "candidate_id": {"type": "string", "minLength": 1},
+            "x": {"type": "number"},
+            "y": {"type": "number"},
+            "z": {"type": "number"}
+          },
+          "additionalProperties": false
+        },
+        "resume_artifact": {
+          "type": "object",
+          "required": [
+            "probe_run_id",
+            "probe_trial_id",
+            "probe_artifact_set_id",
+            "artifact_uri",
+            "manifest_sha256",
+            "reached_generations",
+            "noncanonical"
+          ],
+          "properties": {
+            "probe_run_id": {"type": "string", "minLength": 1},
+            "probe_trial_id": {"type": "string", "minLength": 1},
+            "probe_artifact_set_id": {"type": "string", "minLength": 1},
+            "artifact_uri": {"type": "string", "minLength": 1},
+            "manifest_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "reached_generations": {"type": "integer", "minimum": 1},
+            "noncanonical": {"const": true}
+          },
+          "additionalProperties": false
+        },
+        "full_growth_profile_id": {"type": "string", "minLength": 1},
+        "topology_parameters": {
+          "type": "object",
+          "required": ["step_size", "min_area_cm", "use_cuda"],
+          "properties": {
+            "step_size": {"type": "integer"},
+            "min_area_cm": {"type": "number"},
+            "use_cuda": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "ink_used": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "continuation_contract_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "continuation_locked_plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "state": {
+      "enum": ["CONTINUING", "PROMOTED", "FAILED"]
+    },
+    "canonical_artifact_set_id": {"type": "string", "minLength": 1},
+    "surface_id": {"type": "string", "minLength": 1},
+    "final_status": {"type": "string", "minLength": 1},
+    "ink_used": {"const": false},
+    "non_claim": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": false
+}

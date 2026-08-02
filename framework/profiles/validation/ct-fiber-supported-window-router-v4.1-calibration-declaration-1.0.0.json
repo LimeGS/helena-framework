@@ -1,0 +1,182 @@
+{
+  "audit_policy": {
+    "frozen_v1_v2_v3_profiles_remain_immutable": true,
+    "low_sample_requirements_are_flagged_not_silently_accepted": true,
+    "minimum_negative_n": 5,
+    "minimum_positive_n": 10,
+    "threshold_changes_from_this_declaration": false
+  },
+  "bound_profile": {
+    "path": "framework/profiles/validation/ct-fiber-supported-window-router-v4.1.json",
+    "sha256": "8c5d50a61ed7eea1f045ab30d439206be135651f17c0f9386d9c054e5f9f55eb"
+  },
+  "declaration_id": "ct-fiber-supported-window-router-v4.1-calibration@1.0.0",
+  "evidence_bindings": [
+    {
+      "note": "The predecessor v4.0 profile applied a fixed 120 um half-window to 300 controls and measured physical_window_coverage_fraction 0.6 on every one, routing 300/300 to Tier C and failing transfer on all three scrolls.",
+      "path": "workspace/campaigns/campaign-x-2026/findings/multiscroll-transfer-v1/execution-v1/one-shot/MULTISCROLL_TRANSFER_V1_RESULT.json",
+      "role": "V1_FALSIFICATION_OF_THE_FIXED_120UM_WINDOW",
+      "sha256": "ccb9ed92f6a47c5fe558e1796a00f665299fc706eda43eac2cd2bfdf5838c246"
+    },
+    {
+      "path": "workspace/campaigns/campaign-x-2026/findings/multiscroll-transfer-v2/one-shot/EVALUATION_MANIFEST.json",
+      "role": "V2_EVALUATION_MANIFEST_BINDING_THE_EVALUATED_BYTES",
+      "sha256": "f728dfe95e6c37bd0635e645d0fdef03ddec86d82c5b9c7cb19d920cccbe48fd"
+    },
+    {
+      "path": "workspace/campaigns/campaign-x-2026/findings/multiscroll-transfer-v2/BENCHMARK_EXECUTION_STATUS.json",
+      "role": "V2_BENCHMARK_STATUS",
+      "sha256": "441df2812d4c1973b96ae3246ad0af6a45bdb497d0f6b240ba2588d356bcc2aa"
+    },
+    {
+      "note": "All 300 controls: physical_window_half_width_um = 72.0, physical_window_coverage_fraction = 1.0, physical_feature_status = PHYSICAL_WINDOW_COMPLETE, shadow_tier = TIER_B_SHADOW_REVIEW. Every window parameter took one constant value across the entire benchmark.",
+      "path": "workspace/campaigns/campaign-x-2026/findings/multiscroll-transfer-v2/one-shot/V4_ROUTES.json",
+      "role": "V2_PER_CONTROL_WINDOW_MEASUREMENTS",
+      "sha256": "0636c5d7e893fe3a079fa12ca98b8a1a1576b9e3a069d0355aa14bcc909dcbcf"
+    },
+    {
+      "path": "workspace/campaigns/campaign-x-2026/findings/multiscroll-transfer-v3/v41-one-shot/EXECUTION_RECEIPT.json",
+      "role": "V3_REPLICATION_RECEIPT",
+      "sha256": "ea350339d58aa1cc56da8fcbcfbf1a0f2174e943a464e71b7e5453cdc15fc740"
+    },
+    {
+      "note": "The four-group 33-positive / 26-confound benchmark that peak_relative_height feeds. It calibrates the downstream peak-count threshold, never the 0.35 detector constant itself.",
+      "path": "workspace/archive/campaign-x-2026/legacy-phases/phase4/ct_fiber_benchmark_v1/features_v1/CT_FIBER_FEATURE_BENCHMARK.json",
+      "role": "PEAK_DETECTOR_DEVELOPMENT_BENCHMARK",
+      "sha256": "58c6d4ec17b937667f59ff293c0ef5db5871bc1ad9480c57a5205dbe57b9e06a"
+    },
+    {
+      "note": "The only measured 0.95 in the lineage, and it is a different quantity: in-plane candidate_bbox_nonzero_fraction, 33 controls at 1.0 against a single negative at 0.938602.",
+      "path": "workspace/campaigns/campaign-x-2026/findings/ct-gate-v3-validation/V3_VALIDATION_RECEIPT.json",
+      "role": "IN_PLANE_0.95_CALIBRATION_THE_WINDOW_0.95_IS_ANALOGISED_FROM",
+      "sha256": "319b7ac8299a710bb83c9552b9346c9d89a456655f36014285839ec588d4d2fd"
+    }
+  ],
+  "known_limitations": [
+    "Every one of the eight physical-window parameters has positive_n = 0 and negative_n = 0: not one was selected by measuring controls on both sides of it.",
+    "MULTISCROLL_TRANSFER_V2 passed on 300 controls across three independent scrolls, but all 300 controls, positives and hard confounds alike, landed in the same Tier B. No control's routing was ever decided by crossing any window parameter, so the benchmark validated preservation and recall, not these thresholds.",
+    "Every window parameter took a single constant value across all 300 controls, so the benchmark contains no variance in any of them.",
+    "The passing benchmark reports zero review-workload reduction; the profile's own promotion receipt records this as a known limitation.",
+    "RESOLVED 2026-07-25: the adaptive window policy was read only by the benchmark executor, while the production feature extractor read half_window_um directly and honoured neither window_policy nor minimum_supported_half_window_um. Both consumers now resolve through the single shared resolve_half_window_um() in extract_ct_fiber_features_physical.py, pinned by tests/test_physical_window_policy_agreement.py, which also forbids a direct half_window_um read in either consumer. No declared value changed. The divergence produced no wrong historical number: at 9.362 um a 65-slice stack carries about 295 um of symmetric support, so the policy does not bind and production's 120.0 is what the policy yields anyway; the benchmark's 72.0 is reproduced exactly by the shared resolver. The defect was latent \u2014 production would have over-reached silently on any stack with less than the declared support, which is the v4.0 failure mode v4.1 exists to prevent.",
+    "This declaration changes no parameter and does not weaken any threshold; it records that the operational default router's window numbers rest on instrument priors rather than measured calibration.",
+    "Still open: the benchmark therefore exercised the policy only in its binding regime (72.0 on all 300 controls at 2.4 um) and production only in its non-binding regime (120.0 at 9.362 um). No single benchmark has yet exercised both, so agreement between the paths is now structural but still not measured against a control that crosses the clamp."
+  ],
+  "profile_id": "ct-fiber-supported-window-router-v4.1-calibration@1.0.0",
+  "purpose": "Declare the calibration sample behind every physical-window parameter of the operational default router. The profile carries a file-level rationale explaining the window policy but no per-parameter evidence, so the numbers 120, 64, 0.35 and 0.95 read downstream as though they were measured. They were not.",
+  "requirement_calibration": [
+    {
+      "calibration": {
+        "declared_value": 120.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Inherited unchanged from the v4.0 shadow profile, which self-describes as an engineering normalization contract and not a validated threshold. No candidate was measured to choose 120. Under v4.1 it acts only as a ceiling and was clamped to 72.0 in all 300 controls, so 120 was never the operative value in any v4.1 evaluation. Applied as a hard requirement in transfer V1 it produced coverage 0.6 on 300/300 controls and failed.",
+        "observed_value_in_every_benchmark_control": 72.0,
+        "positive_n": 0,
+        "sources": [
+          "v4.0-shadow-engineering-normalization-contract"
+        ]
+      },
+      "feature": "physical_depth_sampling.half_window_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 64.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "A grid-derived floor of eight canonical 8 um steps, introduced by v4.1. It has never been the binding constraint in any recorded run: every measured control resolved to 72.0 um, one canonical step above it. Zero controls have ever been observed below this floor, so no measurement distinguishes 64 from any other value at or below 72.",
+        "observed_value_in_every_benchmark_control": 72.0,
+        "positive_n": 0,
+        "sources": [
+          "canonical-step-grid-derivation"
+        ]
+      },
+      "feature": "physical_depth_sampling.minimum_supported_half_window_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 8.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "A resampling grid constant inherited from v4.0, not a decision threshold selected against controls. Observed as 8.0 in all 300 controls because it is the value the extractor was given.",
+        "positive_n": 0,
+        "sources": [
+          "instrument-resolution-prior"
+        ]
+      },
+      "feature": "physical_depth_sampling.canonical_step_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 24.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Three canonical steps. Inherited from v4.0 with no per-parameter evidence; no sweep and no control ever measured at an alternative value.",
+        "positive_n": 0,
+        "sources": [
+          "v4.0-shadow-engineering-normalization-contract"
+        ]
+      },
+      "feature": "physical_depth_sampling.top_energy_band_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 20.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Inherited from v4.0 with no per-parameter evidence; no sweep and no control ever measured at an alternative value.",
+        "positive_n": 0,
+        "sources": [
+          "v4.0-shadow-engineering-normalization-contract"
+        ]
+      },
+      "feature": "physical_depth_sampling.central_band_half_width_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 20.0,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Inherited from v4.0 with no per-parameter evidence; no sweep and no control ever measured at an alternative value.",
+        "positive_n": 0,
+        "sources": [
+          "v4.0-shadow-engineering-normalization-contract"
+        ]
+      },
+      "feature": "physical_depth_sampling.argmax_near_central_um"
+    },
+    {
+      "calibration": {
+        "declared_value": 0.35,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Originates as a bare literal in the v3 feature extractor's local peak detector and was lifted verbatim into the physical extractor and both v4 profiles. The 33-positive / 26-confound development benchmark was measured THROUGH this detector, which calibrates the downstream depth_profile_peak_count threshold, not the 0.35 constant. No control has ever been measured at any other value of 0.35, so its calibration sample is zero on both sides.",
+        "observed_through_it_negative_n": 26,
+        "observed_through_it_positive_n": 33,
+        "positive_n": 0,
+        "sources": [
+          "hardcoded-extractor-constant"
+        ]
+      },
+      "feature": "physical_depth_sampling.peak_relative_height"
+    },
+    {
+      "calibration": {
+        "declared_value": 0.95,
+        "independent_validation": false,
+        "negative_n": 0,
+        "note": "Carried over by numeric analogy from the v3 in-plane coverage threshold, which measures a different quantity on a different axis. Across every recorded evaluation, 600 controls measured exactly 1.0 and 300 measured exactly 0.6. Not one measurement in the entire corpus falls in the open interval (0.6, 1.0), so no observation distinguishes 0.95 from any other cut in that interval. The direction of the rule is evidenced; the value is not.",
+        "observed_values_across_900_measurements": [
+          0.6,
+          1.0
+        ],
+        "positive_n": 0,
+        "sources": [
+          "numeric-analogy-to-v3-in-plane-coverage"
+        ]
+      },
+      "feature": "physical_depth_sampling.minimum_window_coverage_fraction"
+    }
+  ],
+  "schema": "campaignx.threshold_calibration_declaration.v1",
+  "status": "METADATA_ONLY_NO_THRESHOLD_CHANGE"
+}

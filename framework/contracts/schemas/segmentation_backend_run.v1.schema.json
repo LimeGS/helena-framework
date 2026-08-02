@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation_backend_run.v1.schema.json",
+  "title": "Campaign X immutable segmentation backend run receipt v1",
+  "description": "Fail-closed run receipt for VC3D or ScrollFiesta. Success and failure receipts are both durable; it is not a scientific acceptance decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "status",
+    "started_at_utc",
+    "finished_at_utc",
+    "campaignx_git_commit",
+    "backend",
+    "runtime",
+    "command",
+    "environment_non_sensitive",
+    "resources",
+    "inputs",
+    "parameters",
+    "durable_outputs",
+    "surface_artifact",
+    "error",
+    "ink_used"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_backend_run.v1"},
+    "run_id": {"type": "string", "pattern": "^RUN-[A-Za-z0-9][A-Za-z0-9._-]{7,159}$"},
+    "status": {"enum": ["SUCCEEDED", "FAILED", "PRECONDITION_FAILED", "TIMED_OUT", "CANCELLED"]},
+    "started_at_utc": {"type": "string", "format": "date-time"},
+    "finished_at_utc": {"type": "string", "format": "date-time"},
+    "campaignx_git_commit": {"$ref": "#/$defs/git_commit"},
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "profile", "repository", "git_commit", "auxiliary_tools"],
+      "properties": {
+        "family": {"enum": ["vc3d", "scrollfiesta"]},
+        "profile": {"$ref": "#/$defs/backend_profile"},
+        "repository": {"$ref": "#/$defs/uri"},
+        "git_commit": {"$ref": "#/$defs/git_commit"},
+        "auxiliary_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "repository", "git_commit"],
+            "properties": {
+              "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+              "repository": {"$ref": "#/$defs/uri"},
+              "git_commit": {"$ref": "#/$defs/git_commit"}
+            }
+          }
+        }
+      }
+    },
+    "runtime": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "oci_image_digest", "platform"],
+          "properties": {
+            "kind": {"const": "OCI_IMAGE"},
+            "oci_image_digest": {"$ref": "#/$defs/oci_digest"},
+            "platform": {"enum": ["linux/amd64", "linux/arm64"]}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "bundle_uri", "bundle_sha256", "platform"],
+          "properties": {
+            "kind": {"const": "NATIVE_BUNDLE"},
+            "bundle_uri": {"$ref": "#/$defs/uri"},
+            "bundle_sha256": {"$ref": "#/$defs/sha256"},
+            "platform": {"enum": ["linux/amd64", "linux/arm64", "darwin/arm64"]}
+          }
+        }
+      ]
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["argv", "argv_sha256", "working_directory"],
+      "properties": {
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string", "maxLength": 4096}},
+        "argv_sha256": {"$ref": "#/$defs/sha256"},
+        "working_directory": {"type": "string", "pattern": "^/", "maxLength": 1024}
+      }
+    },
+    "environment_non_sensitive": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+          "value": {"type": "string", "maxLength": 4096}
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_threads", "peak_ram_bytes", "gpu_devices", "elapsed_seconds", "scratch_bytes"],
+      "properties": {
+        "cpu_threads": {"type": "integer", "minimum": 1},
+        "peak_ram_bytes": {"type": "integer", "minimum": 0},
+        "gpu_devices": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "elapsed_seconds": {"type": "number", "minimum": 0},
+        "scratch_bytes": {"type": "integer", "minimum": 0}
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sample_id", "ct", "surface_prediction", "roi_level0_zyx", "coordinate_order"],
+      "properties": {
+        "sample_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{1,63}$"},
+        "ct": {"$ref": "#/$defs/input_artifact"},
+        "surface_prediction": {"$ref": "#/$defs/input_artifact"},
+        "roi_level0_zyx": {"$ref": "#/$defs/roi_level0_zyx"},
+        "coordinate_order": {"const": "ZYX"}
+      }
+    },
+    "parameters": {
+      "description": "Canonical parameter records. value_json is canonical JSON and its hash prevents silent reinterpretation.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value_json", "value_sha256"],
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]{0,127}$"},
+          "value_json": {"type": "string", "minLength": 1, "maxLength": 16384},
+          "value_sha256": {"$ref": "#/$defs/sha256"}
+        }
+      }
+    },
+    "durable_outputs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/output_artifact"}
+    },
+    "surface_artifact": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["surface_id", "uri", "sha256"],
+          "properties": {
+            "surface_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{7,159}$"},
+            "uri": {"$ref": "#/$defs/uri"},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["class", "message", "log_uri", "log_sha256"],
+          "properties": {
+            "class": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"},
+            "message": {"type": "string", "minLength": 1, "maxLength": 4096},
+            "log_uri": {"$ref": "#/$defs/uri"},
+            "log_sha256": {"$ref": "#/$defs/sha256"}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "ink_used": {"const": false}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "oci_digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "uri": {"type": "string", "format": "uri", "minLength": 3, "maxLength": 2048},
+    "content_lock": {
+      "type": "string",
+      "pattern": "^(?:[a-f0-9]{64}|sha256:[a-f0-9]{64}|etag:[A-Za-z0-9._\\\"':+/-]{1,256})$"
+    },
+    "backend_profile": {
+      "type": "string",
+      "pattern": "^segmentation\\.[a-z0-9][a-z0-9-]*@[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "roi_level0_zyx": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {"type": "integer", "minimum": 0}
+    },
+    "input_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "sha256_or_etag"],
+      "properties": {
+        "uri": {"$ref": "#/$defs/uri"},
+        "sha256_or_etag": {"$ref": "#/$defs/content_lock"}
+      }
+    },
+    "output_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "uri", "sha256", "bytes"],
+      "properties": {
+        "role": {"enum": ["SOURCE_MESH_OBJ", "WELDED_SOURCE_MESH_OBJ", "CANONICAL_MESH_OBJ", "TIFXYZ", "WELD_REPORT", "TOPOLOGY_REPORT", "COMPONENT_SELECTION_REPORT", "UV_INITIALIZATION_REPORT", "UV_DISTORTION_REPORT", "LOG", "RECEIPT"]},
+        "uri": {"$ref": "#/$defs/uri"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

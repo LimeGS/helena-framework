@@ -1,0 +1,24 @@
+# Scroll Tracing Benchmark v3 -- runtime + test dependencies.
+#
+# opencv-python (cv2) is an OPTIONAL faster TIFF/PNG path used by
+# reference_src/benchmark_core.py and adapters/tifxyz_tracer.py when
+# present; both fall back to tifffile + Pillow when it isn't installed,
+# which is the path this repo's own dev environment and CI exercise, so
+# it is intentionally not pinned here.
+numpy>=2.2
+scipy>=1.16
+tifffile>=2026.3
+Pillow>=12.2
+pytest>=8.4
+
+# adapters/mesh_adapter.py: geometric ray-cast adapter.
+trimesh>=4.12
+# trimesh's default RayMeshIntersector needs an r-tree spatial index for
+# its broad-phase triangle lookup.
+rtree>=1.4
+
+# Network/CT workflows (PHerc1667 tuning and Gate C). Kept here as well as
+# the `network` pyproject extra so the documented requirements install is complete.
+zarr>=3.1,<4
+fsspec>=2025.5
+s3fs>=2025.5

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-task-v1.schema.json",
+  "title": "Campaign X segmentation fleet task",
+  "type": "object",
+  "required": ["schema", "task_id", "source_snapshot_id", "cell_id", "bounds_xyz", "center_xyz", "parameter_envelope", "catalog_snapshot_sha256", "ink_used"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_task.v1"},
+    "task_id": {"type": "string", "format": "uuid"},
+    "source_snapshot_id": {"type": "string", "format": "uuid"},
+    "cell_id": {"type": "string", "minLength": 1},
+    "bounds_xyz": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "number"}}
+    },
+    "center_xyz": {
+      "type": "object", "required": ["x", "y", "z"],
+      "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "z": {"type": "integer"}},
+      "additionalProperties": false
+    },
+    "parameter_envelope": {"type": "object"},
+    "benchmark_execution": {
+      "$ref": "seed-probe-benchmark-execution-v1.schema.json"
+    },
+    "catalog_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": true
+}

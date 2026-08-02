@@ -1,0 +1,66 @@
+{
+  "schema": "campaignx.scientific_profile.v1",
+  "profile_id": "segmentation.hybrid-scrollfiesta-vc3d@0.1.2",
+  "status": "EXPERIMENTAL_LOCKED",
+  "lanes": {
+    "vc3d": "segmentation.vc3d-m7-grow@1.0.0",
+    "scrollfiesta": "segmentation.scrollfiesta-m7-mesh@0.1.2"
+  },
+  "comparison": {
+    "same_source_and_roi_required": true,
+    "maximum_distance_voxels": {
+      "rule": "min(2.0, 0.5 * local_sheet_separation_voxels)",
+      "fail_if_local_separation_unavailable": true
+    },
+    "minimum_normal_dot": 0.8660254037844386,
+    "require_compatible_ct_support": true,
+    "classes": [
+      "CONSENSUS",
+      "SCROLLFIESTA_ONLY",
+      "VC3D_ONLY",
+      "DISAGREEMENT"
+    ]
+  },
+  "hard_gates": {
+    "non_manifold_edges": 0,
+    "self_intersections": 0,
+    "invalid_coordinates": 0,
+    "inconsistent_winding_edges": 0,
+    "uv_flipped_triangles": 0,
+    "maximum_degenerate_triangle_fraction": 0.0001,
+    "maximum_orientation_quarantine_fraction": 0.0001,
+    "minimum_ct_legible_area_fraction": 0.95,
+    "minimum_supported_area_within_tolerance_fraction": 0.98,
+    "maximum_confirmed_sheet_bridges": 0,
+    "maximum_confirmed_sheet_switches": 0,
+    "maximum_relative_stretch_p95_regression": 0.05
+  },
+  "orientation_cleanup": {
+    "policy": "GREEDY_MIN_CONFLICT_FACE_QUARANTINE_THEN_XOR_ORIENTATION_V1",
+    "vertices_may_move": false,
+    "retained_triangle_connectivity_may_change": false,
+    "all_removed_original_face_indices_must_be_recorded": true,
+    "ct_and_self_intersection_gates_remain_mandatory": true
+  },
+  "flattening_initialization": {
+    "topological_disk": "UNIFORM_TUTTE_BOUNDARY_CIRCLE_ARCLENGTH_V1",
+    "multiple_boundary_loops": "PCA_TOP_TWO_EIGENVECTORS_WITH_DETERMINISTIC_SIGNS",
+    "g4_remains_mandatory": true
+  },
+  "adoption_gate": {
+    "minimum_useful_area_gain_fraction_pherc826": 0.15,
+    "alternative_minimum_component_reduction_fraction": 0.30,
+    "maximum_downstream_usable_tile_loss_fraction": 0.05,
+    "maximum_cost_per_usable_cm2_ratio": 2.0,
+    "required_samples": [
+      "PHerc0139",
+      "PHerc826"
+    ]
+  },
+  "fusion_policy": {
+    "physical_mesh_fusion_performed": false,
+    "store_each_backend_separately": true,
+    "vc3d_rescue_only_after_gap_detection": true,
+    "backend_default_until_adoption": "vc3d"
+  }
+}

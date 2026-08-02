@@ -1,0 +1,28 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-segment-fleet-staging",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "segment-fleet-v1/staging/"
+      },
+      "Expiration": {
+        "Days": 14
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 14
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    }
+  ],
+  "_status": "NOT_APPLIED_BY_ANY_CODE_IN_THIS_REPOSITORY",
+  "_before_applying": [
+    "No code, script or receipt in this repository applies this configuration; a repo-wide grep finds no consumer. It is a declaration of intent, so it cannot be assumed to be protecting or deleting anything today.",
+    "The 14-day expiry targets segment-fleet-v1/staging/, which is where finalizer.finalize_surface writes before promoting. It calls store.add_artifact_set with staged['staging_uri'] and only then calls artifact_store.promote, so between those two calls the artifact_sets row is the sole reference to an object under an expiring prefix.",
+    "The obvious remedy -- promote before registering -- is WRONG, and this was verified against the real PostgreSQL control plane rather than reasoned about: add_artifact_set is also the lease gate. It rejects a stale lease token and transitions the task to UPLOADED. Promoting first would publish an artifact grown under a lease another worker had already taken over, which is a worse failure than the expiry. The current order is correct.",
+    "Residual exposure is therefore bounded and was measured, not estimated: a worker interrupted in that window loses one grow attempt, recoverable by retry. No surface row is created because nothing is promoted, so no scientific evidence is lost. tests/test_fleet_postgres_contention.py pins all three properties and passes 3/3 against a real control plane.",
+    "If the exposure is still judged unacceptable, the correct remedy is to lengthen this expiry beyond the maximum plausible finalization window, or to exclude staging objects referenced by a non-terminal attempt row. It is not a reordering of the state machine."
+  ]
+}

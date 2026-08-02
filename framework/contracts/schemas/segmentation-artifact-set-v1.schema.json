@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-artifact-set-v1.schema.json",
+  "title": "Campaign X segmentation artifact set",
+  "type": "object",
+  "required": ["schema", "task_id", "attempt_id", "locked_plan_sha256", "files", "artifact_sha256", "bbox_xyz", "sample_points", "ink_used"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_artifact_set.v1"},
+    "task_id": {"type": "string", "format": "uuid"},
+    "attempt_id": {"type": "string", "format": "uuid"},
+    "locked_plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "files": {"type": "object", "required": ["x.tif", "y.tif", "z.tif", "meta.json"]},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "bbox_xyz": {"type": "array"},
+    "sample_points": {"type": "array"},
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": true
+}

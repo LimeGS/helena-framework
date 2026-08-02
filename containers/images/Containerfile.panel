@@ -1,0 +1,94 @@
+# syntax=docker/dockerfile:1.7
+# The control panel, as an image rather than a virtualenv somebody made on a
+# host.
+#
+# It ran from /srv/helena/framework/panel/.venv with dependencies installed by
+# hand -- which is why psycopg2 was missing the day the fleet bootstrap needed
+# it, and why boto3 and tifffile were missing the day P2 did. A machine that has
+# to be prepared before it can run the panel is a machine that can be prepared
+# wrongly.
+#
+# The code is copied in, not mounted. An image that needs a checkout beside it
+# is two things to distribute and two things to keep in step.
+# The frontend, built here rather than on whoever's laptop.
+#
+# panel/web/dist is gitignored, so a fresh clone had no dist to COPY and the
+# build died on a missing file -- which meant the image could only be built on a
+# machine that already had node and had remembered to run npm. An image that
+# cannot be built from a clean checkout is not distributable.
+# Both declared before the first FROM. An ARG after one belongs to that build
+# stage rather than to the file, so BASE_IMAGE declared below the node stage was
+# out of scope by the time the second FROM read it, and the build died on
+# "base name should not be blank" -- the same error this default exists to stop.
+ARG NODE_IMAGE=node:22.23.1-alpine3.23
+ARG BASE_IMAGE=python:3.11-slim
+
+FROM ${NODE_IMAGE} AS web
+# The repository's own layout, not a bare /web. The frontend imports the phase
+# contract by relative path out of panel/web and into framework/contracts --
+# `tsc -b` type-checks that import during the build -- so a stage holding only
+# panel/web fails on a module that is right there in the checkout.
+WORKDIR /src/panel/web
+COPY panel/web/package.json panel/web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY framework/contracts /src/framework/contracts
+COPY panel/web ./
+RUN npm run build
+
+# python:3.11-slim by default, so `docker build` with no arguments works. The
+# deployments that pin a digest still pass BASE_IMAGE. Re-declared with no value
+# to bring the global into this stage's scope.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BUILD_COMMIT=unknown
+ARG FRAMEWORK_VERSION=0.2.0
+LABEL org.opencontainers.image.title="helena-panel" \
+      org.opencontainers.image.description="Helena Framework control panel" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=panel \
+    CX_REPO=/workspace/campaign-x \
+    # Everything the panel writes lives under one mount, so a deployment has
+    # exactly one directory to persist and back up.
+    CX_AUTH=/state/auth \
+    CX_OVERRIDES=/state/settings.local.json \
+    CX_CONFIG_VERSIONS=/state/config-versions \
+    CX_CACHE=/state/cache \
+    CX_AUDIT=/state/audit
+WORKDIR /workspace/campaign-x
+
+# ssh, because the Hosts page asks each machine what images it carries rather
+# than trusting the record. Read-only, and the key arrives as a mount.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssh-client ca-certificates openssl \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY panel/requirements.txt /opt/campaignx/requirements.panel.txt
+RUN python3 -m pip install --no-cache-dir -r /opt/campaignx/requirements.panel.txt
+
+# The contracts, profiles and registries the panel reads, the frozen catalog,
+# the fleet code it imports the job store from, and the built frontend. Not the
+# whole repository: a panel image has no use for vendored renderers or 24 GiB of
+# somebody else's runtime.
+COPY framework /workspace/campaign-x/framework
+COPY scripts /workspace/campaign-x/scripts
+# The frozen catalog: scroll identities, declared scales and coordinate
+# contracts. Every entry is a regular file. A symlink here would be copied as a
+# symlink and resolve to nothing inside the image, leaving the panel with no
+# catalog to translate scroll names against.
+COPY workspace/catalog /workspace/campaign-x/workspace/catalog
+COPY panel/app.py /workspace/campaign-x/panel/app.py
+COPY panel/static /workspace/campaign-x/panel/static
+COPY --from=web /src/panel/web/dist /workspace/campaign-x/panel/web/dist
+
+EXPOSE 8800
+# TLS by default, self-signed on first boot into /state/tls. The panel takes a
+# password and hands back a bearer cookie; neither belongs on the wire in clear.
+COPY containers/images/start_panel.sh /usr/local/bin/start-panel
+RUN chmod +x /usr/local/bin/start-panel
+CMD ["/usr/local/bin/start-panel"]

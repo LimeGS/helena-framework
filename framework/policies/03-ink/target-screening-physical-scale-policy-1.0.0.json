@@ -1,0 +1,81 @@
+{
+  "schema": "campaignx.ink_target_screening_scale_policy.v1",
+  "profile_id": "target-screening-physical-scale-policy@1.0.0",
+  "policy_order": [
+    "physical_scale_compatibility",
+    "modality_and_input_contract",
+    "contamination_exclusion",
+    "adapter_and_checkpoint_availability",
+    "compatible_positive_control",
+    "ensemble_diversity"
+  ],
+  "target_source_voxel_um": [
+    8.64,
+    9.362
+  ],
+  "admissible_source_to_training_linear_factor": {
+    "minimum": 0.8,
+    "maximum": 1.25,
+    "interpretation": "screening eligibility only; interpolation cannot recreate missing physical texture"
+  },
+  "target_screening_candidates": [
+    {
+      "method_id": "timesformer-gp-scroll1@1.0.0",
+      "training_voxel_um": 7.91,
+      "source_to_training_factor": [
+        1.0923,
+        1.1836
+      ],
+      "status": "CONTROL_DEMONSTRATED"
+    },
+    {
+      "method_id": "timesformer-large-scroll1-01122024@1.0.0",
+      "training_voxel_um": 7.91,
+      "source_to_training_factor": [
+        1.0923,
+        1.1836
+      ],
+      "status": "T0_CONTROL_REQUIRED"
+    },
+    {
+      "method_id": "timesformer-scroll5-pherc172@1.0.0",
+      "training_voxel_um": 7.91,
+      "source_to_training_factor": [
+        1.0923,
+        1.1836
+      ],
+      "status": "KNOWN_CONTROL_FAILURE_RECORD_ONLY"
+    }
+  ],
+  "public_development_only": [
+    {
+      "method_id": "ink-3d-dino-guided@1.0.0",
+      "training_voxel_um": 2.4,
+      "target_linear_factor": [
+        3.6,
+        3.9008
+      ]
+    },
+    {
+      "method_family": "canonical-2um",
+      "training_voxel_um": 2.0,
+      "target_linear_factor": [
+        4.32,
+        4.681
+      ]
+    },
+    {
+      "method_family": "fiber-ink-4class",
+      "training_voxel_um": 2.4,
+      "target_linear_factor": [
+        3.6,
+        3.9008
+      ]
+    }
+  ],
+  "explicit_non_claims": [
+    "physical resampling does not restore information absent from the source scan",
+    "development-only lanes are not target absence classifiers",
+    "scale compatibility does not replace a positive transfer control"
+  ]
+}

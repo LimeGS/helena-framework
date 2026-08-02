@@ -1,0 +1,7 @@
+{
+  "contract": "All Phase 1 MCP inputs are native L0 integer CT coordinates in xyz order.",
+  "scale": "No coordinate scaling is permitted in Phase 1; prediction_uri is always its matching L0 surface Zarr.",
+  "schema_version": 1,
+  "storage": "OME-Zarr arrays are indexed z,y,x. Convert a storage index [z,y,x] to MCP point {x,y,z}.",
+  "units": "Coordinates are voxels. Physical distances use the per-volume voxel_size_um from eligible_volumes.json."
+}

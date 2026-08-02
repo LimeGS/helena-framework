@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-decision-v1.schema.json",
+  "title": "Campaign X deterministic seed probe decision v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "probe_run_id",
+    "policy_id",
+    "policy_sha256",
+    "evidence_set_sha256",
+    "action",
+    "winner_trial_id",
+    "reason",
+    "trial_outcomes",
+    "ink_used",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_decision.v1"},
+    "probe_run_id": {"type": "string", "minLength": 1},
+    "policy_id": {"const": "unique-geometry-certified-v1"},
+    "policy_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "evidence_set_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "action": {
+      "enum": ["CONTINUE_WINNER", "HUMAN_REVIEW", "REJECT_ALL"]
+    },
+    "winner_trial_id": {"type": ["string", "null"]},
+    "reason": {"type": "string", "minLength": 1},
+    "trial_outcomes": {"type": "array", "minItems": 1, "maxItems": 3},
+    "ink_used": {"const": false},
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

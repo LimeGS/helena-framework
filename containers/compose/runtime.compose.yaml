@@ -1,0 +1,101 @@
+# Helena Framework container topology.  This file intentionally has no build contexts:
+# images are supplied by digest through containers/.env.example or the environment.
+# Every run must use a new, empty ${HELENA_RUN_OUTPUT} directory.
+name: campaign-x
+
+x-common: &common
+  init: true
+  read_only: true
+  cap_drop: ["ALL"]
+  security_opt:
+    - no-new-privileges:true
+  network_mode: "none"
+  pids_limit: 1024
+  user: "${HELENA_CONTAINER_UID:-1000}:${HELENA_CONTAINER_GID:-1000}"
+  working_dir: /work/repo
+  volumes:
+    - type: bind
+      source: ${HELENA_REPO_ROOT:?Set HELENA_REPO_ROOT to the Helena Framework repository}
+      target: /work/repo
+      read_only: true
+    - type: bind
+      source: ${HELENA_INPUT_ROOT:?Set HELENA_INPUT_ROOT to an immutable input snapshot}
+      target: /inputs
+      read_only: true
+    - type: bind
+      source: ${HELENA_MODEL_ROOT:?Set HELENA_MODEL_ROOT to a read-only model snapshot}
+      target: /models
+      read_only: true
+    - type: bind
+      source: ${HELENA_RUN_OUTPUT:?Set HELENA_RUN_OUTPUT to a new empty run directory}
+      target: /outputs
+      read_only: false
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=${HELENA_TMPFS_SIZE:-8g}
+
+x-gpu: &gpu
+  <<: *common
+  gpus: all
+  environment:
+    NVIDIA_VISIBLE_DEVICES: ${NVIDIA_VISIBLE_DEVICES:-all}
+    NVIDIA_DRIVER_CAPABILITIES: ${NVIDIA_DRIVER_CAPABILITIES:-compute,utility}
+
+services:
+  orchestrator:
+    <<: *common
+    profiles: ["cpu"]
+    image: ${HELENA_ORCHESTRATOR_IMAGE:?Pin HELENA_ORCHESTRATOR_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--help"]
+
+  vc3d:
+    <<: *gpu
+    profiles: ["gpu"]
+    image: ${HELENA_VC3D_IMAGE:?Pin HELENA_VC3D_IMAGE by digest}
+    environment:
+      HELENA_IMAGE_REF: ${HELENA_VC3D_IMAGE:?Pin HELENA_VC3D_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--step", "vc3d-grow", "--manifest", "/inputs/stage-manifest.json", "--output", "/outputs", "--dry-run"]
+
+  scrollfiesta:
+    <<: *common
+    profiles: ["cpu"]
+    image: ${HELENA_SCROLLFIESTA_IMAGE:?Pin HELENA_SCROLLFIESTA_IMAGE by digest}
+    # Public OME-Zarr streaming requires outbound HTTPS. No credential is
+    # embedded or declared here; authenticated sources require a separate,
+    # short-lived read-only mount supplied by site operations.
+    network_mode: "${HELENA_SCROLLFIESTA_NETWORK_MODE:-bridge}"
+    environment:
+      HELENA_IMAGE_REF: ${HELENA_SCROLLFIESTA_IMAGE:?Pin HELENA_SCROLLFIESTA_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--step", "scrollfiesta-mesh", "--manifest", "/inputs/stage-manifest.json", "--output", "/outputs", "--dry-run"]
+
+  ink:
+    <<: *gpu
+    profiles: ["gpu"]
+    image: ${HELENA_INK_IMAGE:?Pin HELENA_INK_IMAGE by digest}
+    environment:
+      HELENA_IMAGE_REF: ${HELENA_INK_IMAGE:?Pin HELENA_INK_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--step", "ink-inference", "--manifest", "/inputs/stage-manifest.json", "--output", "/outputs", "--dry-run"]
+
+  qc:
+    <<: *common
+    profiles: ["cpu"]
+    image: ${HELENA_QC_IMAGE:?Pin HELENA_QC_IMAGE by digest}
+    environment:
+      HELENA_IMAGE_REF: ${HELENA_QC_IMAGE:?Pin HELENA_QC_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--step", "qc", "--manifest", "/inputs/stage-manifest.json", "--output", "/outputs", "--dry-run"]
+
+  high-recall:
+    <<: *common
+    profiles: ["cpu"]
+    image: ${HELENA_QC_IMAGE:?Pin HELENA_QC_IMAGE by digest}
+    environment:
+      HELENA_IMAGE_REF: ${HELENA_QC_IMAGE:?Pin HELENA_QC_IMAGE by digest}
+    command: ["python3", "scripts/container/run_contract_step.py", "--step", "high-recall", "--manifest", "/inputs/stage-manifest.json", "--output", "/outputs", "--dry-run"]
+
+  viewer:
+    <<: *common
+    profiles: ["viewer"]
+    image: ${HELENA_QC_IMAGE:?Pin HELENA_QC_IMAGE by digest}
+    network_mode: "bridge"
+    ports:
+      - "${HELENA_VIEWER_BIND:-127.0.0.1}:${HELENA_VIEWER_PORT:-8780}:8780"
+    command: ["python3", "-m", "http.server", "8780", "--directory", "/outputs"]

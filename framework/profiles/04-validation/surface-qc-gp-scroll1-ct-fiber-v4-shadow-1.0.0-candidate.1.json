@@ -1,0 +1,58 @@
+{
+  "schema": "campaignx.surface_qc_profile.v1",
+  "profile_id": "surface-qc-gp-scroll1-ct-fiber-v4-shadow@1.0.0",
+  "ink_lane": {
+    "profile": "framework/profiles/03-ink/timesformer-gp-scroll1-screening-1.0.0.json",
+    "profile_sha256": "189bbdf8dc32de8b552c09c1137dd9daea96807624cfcf671a824ebbf20dd6db",
+    "method_id": "timesformer-gp-scroll1@1.0.0",
+    "model_family": "timesformer_GP_scroll1",
+    "checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488"
+  },
+  "render": {
+    "flatten": "ABF++",
+    "flatten_iterations": 10,
+    "flatten_downsample": 2,
+    "slice_count": 65,
+    "slice_step": 1
+  },
+  "screening": {
+    "label": "robust_gp_scroll1_flatten_ds2_v1",
+    "depth_centers": [
+      25,
+      32,
+      39
+    ],
+    "tiling_offsets": [
+      0,
+      8
+    ],
+    "frames": 26,
+    "training_pixel_um": 7.91,
+    "training_slice_um": 7.91,
+    "tile_size": 64,
+    "stride": 16,
+    "minimum_valid_ratio": 0.6,
+    "replica_count": 6
+  },
+  "ct_fiber_gate": {
+    "profile": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+    "profile_sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+  },
+  "ct_fiber_shadow_router": {
+    "profile": "framework/profiles/validation/ct-fiber-shadow-router-v4-physical.json",
+    "profile_sha256": "f800ef5907ad6f0bc1ac39b814ed2ecfd043a96767de1257f6119438fa708f21"
+  },
+  "execution": {
+    "adapter": "framework/stages/04-validation/scripts/campaignx_surface_qc_adapter.py",
+    "adapter_sha256_recorded_at_runtime": true,
+    "checkpoint_path_is_runtime_input_only": true,
+    "checkpoint_identity_is_profile_authoritative": true
+  },
+  "safety": {
+    "screening_only": true,
+    "no_automatic_ink_acceptance": true,
+    "no_automatic_letter_acceptance": true,
+    "silence_proves_absence": false,
+    "retained_means_human_review_only": true
+  }
+}

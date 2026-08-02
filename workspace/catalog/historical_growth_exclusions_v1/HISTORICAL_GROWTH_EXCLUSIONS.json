@@ -1,0 +1,4402 @@
+{
+  "complete_source_count": 73,
+  "coverage_exclusion_count": 146,
+  "coverage_exclusion_snapshot_sha256": "6ee465687fa3717636f2faba8f469d77f440e9a45857c5862ee1e6b6fc1d4f1f",
+  "coverage_exclusions": [
+    {
+      "area_cm2": 1.5840398006385288,
+      "bbox_l0_xyz": [
+        [
+          3026.317138671875,
+          2177.2666015625,
+          1835.5665283203125
+        ],
+        [
+          4331.43896484375,
+          3544.76025390625,
+          2496.104248046875
+        ]
+      ],
+      "meta_sha256": "cb144de445c3b5fe92588d31c93edd667cbf6ec001e3bc1c1261805a21e3390d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1203/PHerc1203-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "5eecda913e117baeffdfc0010307a103eea312ff7c6953a5d051ba86b6000ba6",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g01-inner",
+      "seed_xyz_l0": [
+        3673.0,
+        2860.0,
+        2308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1203/PHerc1203-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842633798889862,
+      "bbox_l0_xyz": [
+        [
+          3838.563720703125,
+          4683.17431640625,
+          1540.9788818359375
+        ],
+        [
+          5176.154296875,
+          6014.14111328125,
+          2393.990234375
+        ]
+      ],
+      "meta_sha256": "09de1b66ea802d9495a3a394cc8b0b8061e1b45c7965f595687d70d0c092f3f2",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1203/PHerc1203-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "cabaa186e4aeb44609a2b134fa8cb1c39705ce5da4529144ffc7685becf66388",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g01-outer",
+      "seed_xyz_l0": [
+        4508.0,
+        5349.0,
+        2308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1203/PHerc1203-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841197201608035,
+      "bbox_l0_xyz": [
+        [
+          2860.075439453125,
+          3222.646728515625,
+          4570.31982421875
+        ],
+        [
+          4189.2041015625,
+          4598.08544921875,
+          5301.54296875
+        ]
+      ],
+      "meta_sha256": "bdcd2a0c5104347dd1f2ca8cdfe67c4599615f3fac417e85bdb1a6015ed7de44",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1203/PHerc1203-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c0cfbeb4a40a6162de94fde1198d0807720290a5e1981bb63d639de0ba3f3b0a",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g02-inner",
+      "seed_xyz_l0": [
+        3520.0,
+        3919.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1203/PHerc1203-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584224834472318,
+      "bbox_l0_xyz": [
+        [
+          3764.24267578125,
+          1696.6036376953125,
+          4391.5576171875
+        ],
+        [
+          5086.404296875,
+          3082.69921875,
+          5187.3916015625
+        ]
+      ],
+      "meta_sha256": "c485a9eb835794f4763cf0b37fbff92d5899a0e4e2ae5f1f1d7ad83d6d93aa08",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1203/PHerc1203-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "04f63c2d75cd8fb26157f0d739d101e4d97293e53a092c3368f100135d8b9a5d",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g02-middle",
+      "seed_xyz_l0": [
+        4440.0,
+        2387.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1203/PHerc1203-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842434898850324,
+      "bbox_l0_xyz": [
+        [
+          537.0285034179688,
+          1995.4351806640625,
+          4240.7685546875
+        ],
+        [
+          1816.732666015625,
+          3338.23193359375,
+          5258.46630859375
+        ]
+      ],
+      "meta_sha256": "96480cf552a442dbfbc923b5e01f34ae7a439801ab42328840955c9272014c60",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1203/PHerc1203-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "07e9364e844e3d083e06069ee3be3696f2c6f0edbf3a30a54014f5b7675ab6ed",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g02-outer",
+      "seed_xyz_l0": [
+        1170.0,
+        2666.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1203/PHerc1203-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841047206140304,
+      "bbox_l0_xyz": [
+        [
+          2317.15771484375,
+          2351.85205078125,
+          6669.03173828125
+        ],
+        [
+          3601.364501953125,
+          3775.5,
+          7565.4794921875
+        ]
+      ],
+      "meta_sha256": "75cd6912ccede690ec6575c44f52f30ff4dc32d02320c29127912b2e20a5b31e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1203/PHerc1203-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "73fafaafd68c12aebb83ef685ec29c29b8be917ef95489fde32d4e99373bc3ae",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g03-inner",
+      "seed_xyz_l0": [
+        2950.0,
+        3028.0,
+        7052.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1203/PHerc1203-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584251525587526,
+      "bbox_l0_xyz": [
+        [
+          2588.816650390625,
+          4114.64892578125,
+          6933.8359375
+        ],
+        [
+          3916.12646484375,
+          5467.75,
+          7639.6904296875
+        ]
+      ],
+      "meta_sha256": "bba3e9298ce3971bd724adf4c3978f0c4b3d77e09f14d7375f403bb9e4d8acb9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1203/PHerc1203-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "314a6ef47846e2ff4b26147353a90d747e0d76dff8db8fa27045749962c7399f",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g03-middle",
+      "seed_xyz_l0": [
+        3249.0,
+        4790.0,
+        7052.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1203/PHerc1203-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584084526335277,
+      "bbox_l0_xyz": [
+        [
+          4771.4033203125,
+          1830.5819091796875,
+          6889.61279296875
+        ],
+        [
+          6091.56982421875,
+          3169.51220703125,
+          7236.99365234375
+        ]
+      ],
+      "meta_sha256": "82ab0490fa6feb3598e884189bf08521294acd65e7f4aad1020e2266c21b896f",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc1203/PHerc1203-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0c0629906fce22b79913ffcc779fe2707ed2b27d3ba6f32440a8f1555ce3c7b5",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g03-outer",
+      "seed_xyz_l0": [
+        5442.0,
+        2496.0,
+        7104.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc1203/PHerc1203-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843528246510505,
+      "bbox_l0_xyz": [
+        [
+          3259.68115234375,
+          2611.177978515625,
+          9215.583984375
+        ],
+        [
+          4602.1123046875,
+          3969.501708984375,
+          9810.279296875
+        ]
+      ],
+      "meta_sha256": "f41019dbc3d057a8eb44a598aad1bc7cfa7ae4c250ab6b8ddad6193d9fe38b17",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1203/PHerc1203-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a593e49d8c0f7db30339b75d1e4b44aba0a98dbe3a0a566a421a7100532df925",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g04-inner",
+      "seed_xyz_l0": [
+        3928.0,
+        3283.0,
+        9424.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1203/PHerc1203-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5838851509972158,
+      "bbox_l0_xyz": [
+        [
+          1872.35009765625,
+          1604.3642578125,
+          8965.8544921875
+        ],
+        [
+          3210.0576171875,
+          2930.9521484375,
+          9446.7412109375
+        ]
+      ],
+      "meta_sha256": "5cb488747d21ebc8eca5f7289d1eedbb0e22f5927d0a83649cae93045e9e6d87",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1203/PHerc1203-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "eab8499bbb36774ea0cb14bb70f5afe0978aeb5431fd24d5f914636b5683b4c2",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g04-middle",
+      "seed_xyz_l0": [
+        2540.0,
+        2268.0,
+        9424.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1203/PHerc1203-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5844028968898924,
+      "bbox_l0_xyz": [
+        [
+          1801.43505859375,
+          4822.28857421875,
+          8851.4375
+        ],
+        [
+          3159.81689453125,
+          6156.8505859375,
+          9459.931640625
+        ]
+      ],
+      "meta_sha256": "a69a9a9f015ef70e8cd31b2198703bc01f04746450c0d961e82f16d34539d7a9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc1203/PHerc1203-g04-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "958c0c4e4feb8a02b58c441afec2797fe3d3c3b5ca00d120efc5905cddfc2b10",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g04-outer",
+      "seed_xyz_l0": [
+        2477.0,
+        5482.0,
+        9424.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc1203/PHerc1203-g04-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584002850991131,
+      "bbox_l0_xyz": [
+        [
+          4101.841796875,
+          2947.606689453125,
+          11475.8828125
+        ],
+        [
+          5484.41015625,
+          4235.791015625,
+          12304.9111328125
+        ]
+      ],
+      "meta_sha256": "965ba2666d6fba317b486a8a649edb3a8dde1d61eb273f323eab164676e6bfb3",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1203/PHerc1203-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "fa15311f643e6e4a5842fd5bd9cb322b6bd9f301ac21692fe7a0e1b8793cae86",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g05-middle",
+      "seed_xyz_l0": [
+        4790.0,
+        3608.0,
+        11796.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1203/PHerc1203-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5838878072671183,
+      "bbox_l0_xyz": [
+        [
+          4740.587890625,
+          3828.47216796875,
+          13581.791015625
+        ],
+        [
+          6107.634765625,
+          5101.0771484375,
+          14505.158203125
+        ]
+      ],
+      "meta_sha256": "ec5702b405f51a173d3908f33f00be6a5ab407397c643281a765a62990d694cd",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1203/PHerc1203-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4aa2ae1ddba3b66300664f5023077d0617e374bd7f6f33538b4ca14a9e58213d",
+      "sample_id": "PHerc1203",
+      "seed_id": "PHerc1203-g06-outer",
+      "seed_xyz_l0": [
+        5397.0,
+        4421.0,
+        14214.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1203/PHerc1203-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349229441060065,
+      "bbox_l0_xyz": [
+        [
+          3394.9931640625,
+          2514.11083984375,
+          2314.88671875
+        ],
+        [
+          4726.763671875,
+          3845.472900390625,
+          3654.209228515625
+        ]
+      ],
+      "meta_sha256": "65d128030339385edc6bc93810ba377c95639c5946bfcf0c8292583aa7072f67",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1218/PHerc1218-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "fbe253048c2abcae553101336f00bce412c93316c28473781b856d4dfb31bd5b",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g01-inner",
+      "seed_xyz_l0": [
+        4060.0,
+        3180.0,
+        2842.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1218/PHerc1218-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493548360263279,
+      "bbox_l0_xyz": [
+        [
+          1459.70458984375,
+          3061.53466796875,
+          2144.6875
+        ],
+        [
+          2825.18798828125,
+          4355.99951171875,
+          3078.235107421875
+        ]
+      ],
+      "meta_sha256": "3dce329dce433a34e9af15fc0531fd0ab3b210b5d8307df21d412bf86f58f8a0",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc1218/PHerc1218-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a611cab66d9c549bcff0a7e7f398b484068a14ec9f0aa23f64350f09987348e7",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g01-middle",
+      "seed_xyz_l0": [
+        2140.0,
+        3732.0,
+        2842.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc1218/PHerc1218-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493393793213553,
+      "bbox_l0_xyz": [
+        [
+          3334.9150390625,
+          3671.103271484375,
+          5567.47998046875
+        ],
+        [
+          4615.11083984375,
+          5053.8623046875,
+          6161.8544921875
+        ]
+      ],
+      "meta_sha256": "0c86008ee1cf4379c9bd8f09d179a287013b23c5f876ea2e008da10b0dba5e00",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1218/PHerc1218-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "9702a4a79683b77929274a7a23e672e908bbfe1b0f5430293d8d7465b031675d",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g02-inner",
+      "seed_xyz_l0": [
+        3945.0,
+        4355.0,
+        5748.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1218/PHerc1218-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492184915568461,
+      "bbox_l0_xyz": [
+        [
+          4236.251953125,
+          2056.90283203125,
+          5519.3623046875
+        ],
+        [
+          5584.6845703125,
+          3396.645751953125,
+          6223.9482421875
+        ]
+      ],
+      "meta_sha256": "c9791cc50a7f7027f73dfd312833e2639c4ed4399377f4e33b772dfffff62bdd",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1218/PHerc1218-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4f59a468130dcaf68bf41d20f350af33b09c1384d792841bcbc62fe86617bb55",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g02-middle",
+      "seed_xyz_l0": [
+        4908.0,
+        2722.0,
+        5748.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1218/PHerc1218-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491444511230237,
+      "bbox_l0_xyz": [
+        [
+          745.80810546875,
+          2373.021728515625,
+          5331.93994140625
+        ],
+        [
+          2095.54052734375,
+          3675.740966796875,
+          5970.2138671875
+        ]
+      ],
+      "meta_sha256": "f4e440ee3bd5b7abf13ee66d5a41574c67c43c8967cdb6bdd029a41248ab42e0",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1218/PHerc1218-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4eb9ae4a932fab1f77df7bb2404c1f9cb5c6c57c36529a062d6a5d5ceed0fcb9",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g02-outer",
+      "seed_xyz_l0": [
+        1417.0,
+        3017.0,
+        5748.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1218/PHerc1218-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491354048939936,
+      "bbox_l0_xyz": [
+        [
+          2577.452880859375,
+          2702.521728515625,
+          8434.3837890625
+        ],
+        [
+          3881.96044921875,
+          4037.49755859375,
+          9102.833984375
+        ]
+      ],
+      "meta_sha256": "b0a1d01b1bb5b0a43065151074666880229dca8598a5efbeb44a477272e03e97",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1218/PHerc1218-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a118e3c860372ea9aa8e35ccbf71aeb591f46e117749b42a7f01dbe417d2c027",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g03-inner",
+      "seed_xyz_l0": [
+        3221.0,
+        3366.0,
+        8653.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1218/PHerc1218-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493969115245588,
+      "bbox_l0_xyz": [
+        [
+          2962.08349609375,
+          4653.96044921875,
+          8552.80859375
+        ],
+        [
+          4302.96533203125,
+          5990.376953125,
+          9383.2236328125
+        ]
+      ],
+      "meta_sha256": "bb20b071ce0fe6b33df91c58cbbe633b4ccd66fc68bea3ed56cf2977817952cd",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1218/PHerc1218-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "3762d7f58411220316af17c1b3a9a034d0d298a7cd14bcc9f915fed017a5be71",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g03-middle",
+      "seed_xyz_l0": [
+        3630.0,
+        5320.0,
+        8653.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1218/PHerc1218-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349229356542852,
+      "bbox_l0_xyz": [
+        [
+          3754.126708984375,
+          2964.88623046875,
+          11223.845703125
+        ],
+        [
+          5080.39453125,
+          4277.8681640625,
+          12195.2919921875
+        ]
+      ],
+      "meta_sha256": "e89ff38924433503f7e46fd1a90bfdf0366fa6835a62d0ea4d428441996dba70",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1218/PHerc1218-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a62f42f6aee8575a5d427582298cffa66e29372f96b975296879cab2d1c0feea",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g04-inner",
+      "seed_xyz_l0": [
+        4429.0,
+        3649.0,
+        11559.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1218/PHerc1218-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349088214998673,
+      "bbox_l0_xyz": [
+        [
+          4635.46533203125,
+          3342.289794921875,
+          14101.84375
+        ],
+        [
+          5960.7958984375,
+          4675.08447265625,
+          14618.8955078125
+        ]
+      ],
+      "meta_sha256": "12336e2329e6668abab0bc0865bbafc2a07095b28a056d9d3578b5f96a51fc98",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1218/PHerc1218-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "da854d79e2d07544f1d747b0d004b89db35df47577425aeb448ec002b41e1f97",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g05-middle",
+      "seed_xyz_l0": [
+        5302.0,
+        4010.0,
+        14465.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1218/PHerc1218-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493506690455574,
+      "bbox_l0_xyz": [
+        [
+          1746.61083984375,
+          3909.46533203125,
+          17140.08984375
+        ],
+        [
+          3049.4453125,
+          5280.734375,
+          18090.357421875
+        ]
+      ],
+      "meta_sha256": "2d5d993777cf68b1edb37993e0e60dea6ef70a55a48fc7e631c4210cda5f1424",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1218/PHerc1218-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "beff228356451bc30709bac2ce2fc9d61add8113f1728679bfe53f1e19a332a3",
+      "sample_id": "PHerc1218",
+      "seed_id": "PHerc1218-g06-middle",
+      "seed_xyz_l0": [
+        2387.0,
+        4588.0,
+        17370.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1218/PHerc1218-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841605156582568,
+      "bbox_l0_xyz": [
+        [
+          3842.8515625,
+          2827.16845703125,
+          2354.613037109375
+        ],
+        [
+          5138.1689453125,
+          4218.1875,
+          3092.513671875
+        ]
+      ],
+      "meta_sha256": "1897e82fc75e31c268f6fc98a2f86b9d19810db43fb90c09f957337838eead7d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc125/PHerc125-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "02c6b97148fff132f7b973dc016260d3bbe6a7bc5224b7ae6193d580b7b37b5d",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g01-inner",
+      "seed_xyz_l0": [
+        4484.0,
+        3519.0,
+        2541.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc125/PHerc125-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841156787308248,
+      "bbox_l0_xyz": [
+        [
+          1856.3958740234375,
+          3461.015380859375,
+          2320.929443359375
+        ],
+        [
+          3182.8544921875,
+          4808.46728515625,
+          2937.06396484375
+        ]
+      ],
+      "meta_sha256": "ebd3ce1aae5b18827a94843b838d199ec05a036414749c0f192eb8b83ce71aa8",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc125/PHerc125-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "73958a14b1cf3b4680a85fc7230988d125dfabd765abe1ac55a8ea6caa5f3808",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g01-middle",
+      "seed_xyz_l0": [
+        2496.0,
+        4129.0,
+        2553.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc125/PHerc125-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842111182924572,
+      "bbox_l0_xyz": [
+        [
+          3618.135498046875,
+          4198.86767578125,
+          4620.619140625
+        ],
+        [
+          4953.6630859375,
+          5493.05908203125,
+          5449.861328125
+        ]
+      ],
+      "meta_sha256": "d04f360b64d3caff2e522d5827ee0c16ec588cd860985363fe7deb68c71a1045",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc125/PHerc125-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4cd1c25152628c6b2d0ae39fa9636dd7d6fc75b69187fc23e2b3cd65fb7f554f",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g02-inner",
+      "seed_xyz_l0": [
+        4284.0,
+        4817.0,
+        5146.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc125/PHerc125-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841504015279704,
+      "bbox_l0_xyz": [
+        [
+          4772.72314453125,
+          2233.6162109375,
+          4595.79296875
+        ],
+        [
+          6070.5478515625,
+          3657.986083984375,
+          5302.36376953125
+        ]
+      ],
+      "meta_sha256": "de1201176d4cf6b04a3887a49e9e071e171a09f0475dc39351cd70a3b96dd429",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc125/PHerc125-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a9eea6cabf699c1cf052480c57a4fc5de8489a8c7265c5463caa9e919fc02b12",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g02-middle",
+      "seed_xyz_l0": [
+        5442.0,
+        2939.0,
+        5146.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc125/PHerc125-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841542129539967,
+      "bbox_l0_xyz": [
+        [
+          783.9530029296875,
+          2615.990478515625,
+          4394.02880859375
+        ],
+        [
+          2113.479248046875,
+          3959.77392578125,
+          5259.0390625
+        ]
+      ],
+      "meta_sha256": "ccb9cc849c8df9cf2e179ec9c0efada7c69d642ab14cffe8095962699acfef33",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc125/PHerc125-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c60e2c5f223d58607448e73b9676cdc36916a2fe51550e8f102e1e5f5d2b612b",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g02-outer",
+      "seed_xyz_l0": [
+        1442.0,
+        3281.0,
+        5146.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc125/PHerc125-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841695901289132,
+      "bbox_l0_xyz": [
+        [
+          2958.566650390625,
+          3070.49951171875,
+          7627.091796875
+        ],
+        [
+          4302.03271484375,
+          4404.072265625,
+          7986.1484375
+        ]
+      ],
+      "meta_sha256": "c762fa6f5f0d6a652cd2ff5eecfd9b06db98692d21e1d3705422349ec96dc6c1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc125/PHerc125-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "82cb66d1d05171672220ed33535b481076af395f96fcbd23e36ce4c97b52b65a",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g03-inner",
+      "seed_xyz_l0": [
+        3629.0,
+        3728.0,
+        7751.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc125/PHerc125-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839373431195087,
+      "bbox_l0_xyz": [
+        [
+          6134.87939453125,
+          2290.562744140625,
+          7663.96923828125
+        ],
+        [
+          7441.78173828125,
+          3613.654052734375,
+          8305.2900390625
+        ]
+      ],
+      "meta_sha256": "e89bd0e8d2028d769649f694275c6820e8d43e086564901058ff352f334ed809",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc125/PHerc125-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "f39079e07d2e92700781770350b769f79be9a8506128d1e1a15f730373c7a770",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g03-outer",
+      "seed_xyz_l0": [
+        6739.0,
+        2959.0,
+        7751.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc125/PHerc125-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842507298457824,
+      "bbox_l0_xyz": [
+        [
+          4170.625,
+          3385.091796875,
+          10128.98046875
+        ],
+        [
+          5507.20654296875,
+          4689.33544921875,
+          11157.544921875
+        ]
+      ],
+      "meta_sha256": "85c29f2aac365330f37ccfff7bfb2c611ea30e2bcb2aa097e51e974d7b32ea61",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc125/PHerc125-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "b786fb54eb5647e0d6456a2cba72459625f4d31fcaeaae2672f0e6a1d0ba279e",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g04-inner",
+      "seed_xyz_l0": [
+        4840.0,
+        4037.0,
+        10356.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc125/PHerc125-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841651138285702,
+      "bbox_l0_xyz": [
+        [
+          2393.53955078125,
+          2103.764404296875,
+          9582.103515625
+        ],
+        [
+          3724.125244140625,
+          3410.106689453125,
+          10778.1923828125
+        ]
+      ],
+      "meta_sha256": "8fd120b60ae4ea0d705ba3059cb84a5e22e3775ecb6c7cae85f30149b4b11eae",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc125/PHerc125-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "e5cd3a490a2bf0b98490909a6a135b51ced7329929d0535f385b2a3b9a714016",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g04-middle",
+      "seed_xyz_l0": [
+        3057.0,
+        2752.0,
+        10356.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc125/PHerc125-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841879036962196,
+      "bbox_l0_xyz": [
+        [
+          5215.12939453125,
+          3767.6640625,
+          12723.796875
+        ],
+        [
+          6540.07861328125,
+          5102.978515625,
+          13153.2138671875
+        ]
+      ],
+      "meta_sha256": "7b98836190968f132167b2310a53564f28db1836b9708f057f73e5bf7ff5e4fb",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc125/PHerc125-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "1f4e03d883398175f2870e059e8a363e1611814045bba179c2e4b39779e692c8",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g05-middle",
+      "seed_xyz_l0": [
+        5863.0,
+        4436.0,
+        12960.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc125/PHerc125-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842248097970575,
+      "bbox_l0_xyz": [
+        [
+          1998.9798583984375,
+          4398.17626953125,
+          15256.6416015625
+        ],
+        [
+          3308.748046875,
+          5758.16357421875,
+          16409.408203125
+        ]
+      ],
+      "meta_sha256": "9e67f794e23a3f879e183484bdaab5b0b614b195f23cc9232b3383c92d770bf3",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc125/PHerc125-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0f5aa9e66fa0710317332e89d60fc6ce993895e3c55c4219197bcc887fce3bd1",
+      "sample_id": "PHerc125",
+      "seed_id": "PHerc125-g06-middle",
+      "seed_xyz_l0": [
+        2648.0,
+        5074.0,
+        15565.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc125/PHerc125-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349361608385614,
+      "bbox_l0_xyz": [
+        [
+          3839.452392578125,
+          2834.635498046875,
+          2685.18798828125
+        ],
+        [
+          5177.23779296875,
+          4168.76904296875,
+          3274.320068359375
+        ]
+      ],
+      "meta_sha256": "e9a88acc672f34be96b373566202b45c5bb9cb3ac075afef465c0270d1d48654",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1447/PHerc1447-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "df9a324bcb1fce818ba31785192310ae1e96d8beed60798c209206308f125929",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g01-inner",
+      "seed_xyz_l0": [
+        4507.0,
+        3500.0,
+        3062.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1447/PHerc1447-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349189526677837,
+      "bbox_l0_xyz": [
+        [
+          4876.1884765625,
+          5757.57763671875,
+          2336.783447265625
+        ],
+        [
+          6194.201171875,
+          7206.08447265625,
+          3451.500732421875
+        ]
+      ],
+      "meta_sha256": "8da907dae0537fae0f2844fc03e9be1cc0071276782436d7918f4dd6ded430d9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1447/PHerc1447-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4ba57e46a346cf76e0614e160fb790a2439fd28bb0b5e9ee3a38a2fa1ff288eb",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g01-outer",
+      "seed_xyz_l0": [
+        5511.0,
+        6535.0,
+        2973.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1447/PHerc1447-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492897055879518,
+      "bbox_l0_xyz": [
+        [
+          3596.93603515625,
+          4120.13818359375,
+          5211.873046875
+        ],
+        [
+          4927.68212890625,
+          5465.84375,
+          6134.35400390625
+        ]
+      ],
+      "meta_sha256": "ad593ec5c265b17995efa4b512cbfe32d50260129f95fa7c535c69245b634201",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1447/PHerc1447-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "97370267bf6fb0e709698682e7fa6cce3412a961a0187138207bc02f890fb340",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g02-inner",
+      "seed_xyz_l0": [
+        4259.0,
+        4792.0,
+        6010.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1447/PHerc1447-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3494235279985494,
+      "bbox_l0_xyz": [
+        [
+          804.8779907226562,
+          2571.174072265625,
+          5777.01904296875
+        ],
+        [
+          2133.365478515625,
+          3963.910888671875,
+          6163.587890625
+        ]
+      ],
+      "meta_sha256": "b67284df58cda5cf541850046f78c9f6cd03c92023d2316f5424fd101ff6b3c9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1447/PHerc1447-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "9465ecb1f6612f1d98819f95dba176a300a70c073e866057ae94f9af88435349",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g02-outer",
+      "seed_xyz_l0": [
+        1444.0,
+        3264.0,
+        6010.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1447/PHerc1447-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490640992978713,
+      "bbox_l0_xyz": [
+        [
+          2876.625732421875,
+          3032.700927734375,
+          8817.4423828125
+        ],
+        [
+          4183.3740234375,
+          4382.86962890625,
+          9224.7548828125
+        ]
+      ],
+      "meta_sha256": "f87a0531ad6746d230b83da99fecb1087936fba8807641968df341f097abc878",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1447/PHerc1447-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0ece71f09ee9eaf3e10b5d58fe36c88bbc6fc938eb25e58716d1798844637e4f",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g03-inner",
+      "seed_xyz_l0": [
+        3533.0,
+        3705.0,
+        9047.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1447/PHerc1447-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491207909817824,
+      "bbox_l0_xyz": [
+        [
+          3392.822021484375,
+          5194.2802734375,
+          8763.1015625
+        ],
+        [
+          4699.22265625,
+          6540.29638671875,
+          9575.029296875
+        ]
+      ],
+      "meta_sha256": "f790742a948dd5c625931fde03cb5264c70f807ff5f8cd1f8e9370d0c249fec6",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1447/PHerc1447-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "079de45b8ec977af4427e601760a738b795975e1a91f7076c7f75bdfc5fde7f6",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g03-middle",
+      "seed_xyz_l0": [
+        4032.0,
+        5852.0,
+        9047.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc1447/PHerc1447-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493214542709229,
+      "bbox_l0_xyz": [
+        [
+          4164.13232421875,
+          3362.198486328125,
+          11921.03125
+        ],
+        [
+          5490.5498046875,
+          4692.9794921875,
+          12197.7138671875
+        ]
+      ],
+      "meta_sha256": "5160796239104fd0c303ea254d0555c12cd5bc04d6917c7def88675f92460e09",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1447/PHerc1447-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "fcee8ff96c9f9691c2922b8f9444c7765ccded7bb9ccd295f31bb6914115f5ca",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g04-inner",
+      "seed_xyz_l0": [
+        4826.0,
+        4016.0,
+        12084.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1447/PHerc1447-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492500163840186,
+      "bbox_l0_xyz": [
+        [
+          2515.74072265625,
+          2053.619140625,
+          11900.728515625
+        ],
+        [
+          3809.9638671875,
+          3400.50927734375,
+          12813.77734375
+        ]
+      ],
+      "meta_sha256": "920f3e31b9e83fe4959515ba9c1c7e25837df6313f09e7e49dd2d116aaf2433b",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1447/PHerc1447-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "87ef45cff0daeb741697ab4509e9b63e71f124d2d2d13b26804d5d2bd1619664",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g04-middle",
+      "seed_xyz_l0": [
+        3164.0,
+        2727.0,
+        12084.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1447/PHerc1447-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492280665095042,
+      "bbox_l0_xyz": [
+        [
+          2512.652099609375,
+          852.7957763671875,
+          14425.6767578125
+        ],
+        [
+          3814.8603515625,
+          2227.64599609375,
+          15357.5185546875
+        ]
+      ],
+      "meta_sha256": "121ba9a4644b2627fede429fd3aa1832f96b0c1d8d89328eafa360a5264b16e1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1447/PHerc1447-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c91e6097319d77261099ea8e02043c60fe463a486515fbd8907595494737d1a0",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g05-outer",
+      "seed_xyz_l0": [
+        3150.0,
+        1536.0,
+        15121.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1447/PHerc1447-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493308501354084,
+      "bbox_l0_xyz": [
+        [
+          1997.5953369140625,
+          4358.1708984375,
+          17949.431640625
+        ],
+        [
+          3312.692138671875,
+          5746.33056640625,
+          19001.341796875
+        ]
+      ],
+      "meta_sha256": "693651efbd672ee78c85096e4b083404b5cbfa497a6ce7778156b20655cfdf92",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1447/PHerc1447-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7c4885d46760609441d6b662db5ff61a05fdfc46c1d0d0df2c40eb8ff0ac22d1",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g06-middle",
+      "seed_xyz_l0": [
+        2638.0,
+        5047.0,
+        18158.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1447/PHerc1447-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490888030291452,
+      "bbox_l0_xyz": [
+        [
+          809.5660400390625,
+          4181.6630859375,
+          20790.23828125
+        ],
+        [
+          2113.4599609375,
+          5506.90966796875,
+          21753.025390625
+        ]
+      ],
+      "meta_sha256": "d8540f196d66f313b2a778476e5ea9d823f7aa6c647a7c1466879e2a4e9fb575",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/campaigns/campaign-x-2026/runs/v20-pherc1447-geometry-recovery/runtime/PHerc1447/PHerc1447-g07-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "2a784bf08d98c3dc8282fe8bc9ab9867c0d6dc587c61b0643a9e7ff95e217201",
+      "sample_id": "PHerc1447",
+      "seed_id": "PHerc1447-g07-outer",
+      "seed_xyz_l0": [
+        1417.0,
+        4830.0,
+        21195.0
+      ],
+      "surface_meta": "workspace/campaigns/campaign-x-2026/runs/v20-pherc1447-geometry-recovery/runtime/PHerc1447/PHerc1447-g07-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843429209478015,
+      "bbox_l0_xyz": [
+        [
+          3404.95947265625,
+          2509.456298828125,
+          2345.567138671875
+        ],
+        [
+          4755.81689453125,
+          3842.20361328125,
+          3112.453125
+        ]
+      ],
+      "meta_sha256": "4a976cbc40837a8c80dc3f2c74de0beb4eaf4dba45d0735afd4c416932d16092",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1545/PHerc1545-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "096b80dc2d9c6d8e8d00f0e73df27d19e69dcd0ebbc30b67bafe8bb18e1771c8",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g01-inner",
+      "seed_xyz_l0": [
+        4086.0,
+        3143.0,
+        2556.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc1545/PHerc1545-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584294194569737,
+      "bbox_l0_xyz": [
+        [
+          4331.12451171875,
+          5163.1533203125,
+          1844.6826171875
+        ],
+        [
+          5604.4599609375,
+          6591.1572265625,
+          2941.617919921875
+        ]
+      ],
+      "meta_sha256": "03b7b3be1325a369d8b2eaefade985e2988a8122108181a35083581e63221b2e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1545/PHerc1545-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c04a982649f0fdce8e92a0f99f889278c7f224817a7d30cffd62c8b48da15bb2",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g01-outer",
+      "seed_xyz_l0": [
+        4950.0,
+        5873.0,
+        2556.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc1545/PHerc1545-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839466717386272,
+      "bbox_l0_xyz": [
+        [
+          3188.57763671875,
+          3629.305908203125,
+          4689.71923828125
+        ],
+        [
+          4429.1767578125,
+          5003.74951171875,
+          5498.2578125
+        ]
+      ],
+      "meta_sha256": "ebd91da566c8f48b731568f438fafd586ea192ace25d0caa08b0189d4b08f078",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1545/PHerc1545-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c543061f97a952dfee6cde56a94f03683a49481f3759232e889e958e950fec22",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g02-inner",
+      "seed_xyz_l0": [
+        3836.0,
+        4305.0,
+        5176.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc1545/PHerc1545-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840482047098214,
+      "bbox_l0_xyz": [
+        [
+          4222.09912109375,
+          1970.4561767578125,
+          4437.3369140625
+        ],
+        [
+          5528.4501953125,
+          3320.628662109375,
+          5477.875
+        ]
+      ],
+      "meta_sha256": "bec1b7c7d6fa2723a06208e0628f82f23456a0e68ef985249ed37442821f5645",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1545/PHerc1545-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7f8d385230e50ecbb5d53561ab7ffa240538915c28222230c5e249fa41b68f36",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g02-middle",
+      "seed_xyz_l0": [
+        4860.0,
+        2624.0,
+        5176.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc1545/PHerc1545-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840081707109357,
+      "bbox_l0_xyz": [
+        [
+          695.9471435546875,
+          2257.600830078125,
+          4981.02392578125
+        ],
+        [
+          2019.873779296875,
+          3596.570556640625,
+          5428.46630859375
+        ]
+      ],
+      "meta_sha256": "1856d7029ae0d961b3670140123ce43b7caec3a947feeb57fbef23646ff94e71",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1545/PHerc1545-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "b3039736fe0e965e1543eeec9d1825b7c4833689fd7159454e91073498c47628",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g02-outer",
+      "seed_xyz_l0": [
+        1365.0,
+        2930.0,
+        5176.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc1545/PHerc1545-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841233846769391,
+      "bbox_l0_xyz": [
+        [
+          2518.4619140625,
+          2663.986572265625,
+          7503.740234375
+        ],
+        [
+          3852.642578125,
+          3992.003173828125,
+          8078.82421875
+        ]
+      ],
+      "meta_sha256": "a7216af518be5bd08a760bd263bcb2b10840c1c8ba75c77717466e9636371267",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1545/PHerc1545-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "869c16cacb51027dc09c26a94cd3137048eef55bdbf99e28842d964a380e0216",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g03-inner",
+      "seed_xyz_l0": [
+        3193.0,
+        3327.0,
+        7796.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc1545/PHerc1545-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584362971562497,
+      "bbox_l0_xyz": [
+        [
+          5312.22607421875,
+          2018.5059814453125,
+          7705.7783203125
+        ],
+        [
+          6639.20654296875,
+          3358.651123046875,
+          8503.5419921875
+        ]
+      ],
+      "meta_sha256": "bd35a484d48ea3aa120f1332e9d304624fd577109139010cf04fff24a37588b8",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc1545/PHerc1545-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "ddaec661e4e50b6d0b0b83f9c363c7cf37d141a5fc8ffb73d5ff8ff379b35bd5",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g03-outer",
+      "seed_xyz_l0": [
+        5975.0,
+        2688.0,
+        7796.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc1545/PHerc1545-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840752952626587,
+      "bbox_l0_xyz": [
+        [
+          3651.457763671875,
+          2940.01953125,
+          10271.111328125
+        ],
+        [
+          4989.01025390625,
+          4283.66162109375,
+          10496.3994140625
+        ]
+      ],
+      "meta_sha256": "c18a18354e86b222767f1069829b7375b33223152db218eb2cf92b317d1870a8",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1545/PHerc1545-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "67273466ac45e0888c2df84032774ef37e80e16ae6983c434ad0f45c9c26f6ff",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g04-inner",
+      "seed_xyz_l0": [
+        4314.0,
+        3607.0,
+        10416.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc1545/PHerc1545-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.58419653963697,
+      "bbox_l0_xyz": [
+        [
+          2061.54345703125,
+          1791.99462890625,
+          10305.736328125
+        ],
+        [
+          3441.005126953125,
+          3110.826171875,
+          11155.337890625
+        ]
+      ],
+      "meta_sha256": "56ad5aef8317b60a82c46fb260b7bc7d504a836de55280f24dd73b899754d9ce",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1545/PHerc1545-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "871aaf516f6ec5d3b87cff0f4faec52e37f6aa1843ca41163ee8cce0e25728fe",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g04-middle",
+      "seed_xyz_l0": [
+        2750.0,
+        2438.0,
+        10416.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc1545/PHerc1545-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5835727772874848,
+      "bbox_l0_xyz": [
+        [
+          4603.5859375,
+          3321.87939453125,
+          12350.0146484375
+        ],
+        [
+          5896.42041015625,
+          4655.93115234375,
+          13284.0625
+        ]
+      ],
+      "meta_sha256": "812e357c46272c17791374b6e6b600a90fed1684f890ad556132a04014fa0fec",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1545/PHerc1545-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "99b5da564c6bbcabe0a2604d0a3aae7478a360e4d34dd6d92d14c9d3723ce2ae",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g05-middle",
+      "seed_xyz_l0": [
+        5241.0,
+        3964.0,
+        13036.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc1545/PHerc1545-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841784064280373,
+      "bbox_l0_xyz": [
+        [
+          5266.76904296875,
+          4193.48876953125,
+          15471.3125
+        ],
+        [
+          6601.0791015625,
+          5531.69970703125,
+          15738.3603515625
+        ]
+      ],
+      "meta_sha256": "0418a76c0195f4740c3af345a402843258f75e58987d12b074efdb85a68022ef",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1545/PHerc1545-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "531375d438749f0d0643613cc8208daa350a930838898ca1c9b32b57876847d9",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g06-outer",
+      "seed_xyz_l0": [
+        5931.0,
+        4855.0,
+        15656.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc1545/PHerc1545-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841026674388379,
+      "bbox_l0_xyz": [
+        [
+          611.50048828125,
+          3771.518798828125,
+          18250.68359375
+        ],
+        [
+          1938.9833984375,
+          5126.939453125,
+          18783.078125
+        ]
+      ],
+      "meta_sha256": "c347daa8a2882136aac05999a539f88eeff398cb5056066509e1d6f44c8f36ef",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v18/runtime/PHerc1545/PHerc1545-g07-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "f15f10b2ab0e2a3cec0cc62e74faa1fdecd8018bcd5376b810057819a19ec469",
+      "sample_id": "PHerc1545",
+      "seed_id": "PHerc1545-g07-outer",
+      "seed_xyz_l0": [
+        1275.0,
+        4449.0,
+        18276.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v18/runtime/PHerc1545/PHerc1545-g07-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584032111073559,
+      "bbox_l0_xyz": [
+        [
+          3820.7685546875,
+          2891.810791015625,
+          2130.47705078125
+        ],
+        [
+          5152.46484375,
+          4199.16845703125,
+          2880.8681640625
+        ]
+      ],
+      "meta_sha256": "34646abbc93248c4d4cbbe9da73289134eff987b65a2043e7f445f567bbfbcdb",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc191/PHerc191-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "6c56b6ee550ce98d8f64671ea0ffc25d865b295c8f6af8ffc1291cb8439358bd",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g01-inner",
+      "seed_xyz_l0": [
+        4481.0,
+        3519.0,
+        2308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc191/PHerc191-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843159849594302,
+      "bbox_l0_xyz": [
+        [
+          4867.16845703125,
+          5959.67724609375,
+          1646.7393798828125
+        ],
+        [
+          6223.24267578125,
+          7205.82373046875,
+          2578.91259765625
+        ]
+      ],
+      "meta_sha256": "d4d9f0180095c7a566770992a37111e00c591c5125c4122d30fcdd1e2c7d334e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc191/PHerc191-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "029562ac91042f2b823d12b7f3c93a2565fa9f294bbd13fd32e7c43ba8435399",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g01-outer",
+      "seed_xyz_l0": [
+        5541.0,
+        6569.0,
+        2308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc191/PHerc191-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841120879900914,
+      "bbox_l0_xyz": [
+        [
+          3496.228271484375,
+          4190.03173828125,
+          4202.42431640625
+        ],
+        [
+          5142.4384765625,
+          5515.17626953125,
+          5119.12548828125
+        ]
+      ],
+      "meta_sha256": "de87f695a60ad552c3f3775193c1a315bc0358afd13e33fff83f11511c44b5f7",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc191/PHerc191-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "3850658d6365b25e51dba8268cbb7eab18ef9c1b7d272a8d373f1fc333acedf7",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g02-inner",
+      "seed_xyz_l0": [
+        4325.0,
+        4817.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc191/PHerc191-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841046148002438,
+      "bbox_l0_xyz": [
+        [
+          4801.80322265625,
+          2272.114990234375,
+          4352.57666015625
+        ],
+        [
+          6113.5927734375,
+          3632.387451171875,
+          4943.0078125
+        ]
+      ],
+      "meta_sha256": "991e581ac328566fd82d4e5b1126f3b3ad2ec22fe1399f1783c3ca3e909f982c",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc191/PHerc191-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "6c91ea9df41fc4ed2fd9b2e658db274d058dea0ef2b709ba527c740930dd2206",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g02-middle",
+      "seed_xyz_l0": [
+        5428.0,
+        2939.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc191/PHerc191-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841161993104067,
+      "bbox_l0_xyz": [
+        [
+          916.3305053710938,
+          2572.733154296875,
+          4329.38330078125
+        ],
+        [
+          2168.1005859375,
+          3980.538818359375,
+          5401.00732421875
+        ]
+      ],
+      "meta_sha256": "f1c6dbcfacc930f07bb95efe1a72775d29269f8fe8a44ee731a81aee90058e8d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc191/PHerc191-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "61f3d71651108ed2583090df6369bb31c500016fa4846275f8fbaa5bd82d97b9",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g02-outer",
+      "seed_xyz_l0": [
+        1536.0,
+        3281.0,
+        4680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc191/PHerc191-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843565580293855,
+      "bbox_l0_xyz": [
+        [
+          2925.552734375,
+          3053.1611328125,
+          6884.142578125
+        ],
+        [
+          4245.64990234375,
+          4395.73681640625,
+          7505.04296875
+        ]
+      ],
+      "meta_sha256": "1dea3d532183cd42c63788ca9f99476cc0bad8babf66470afbe636fdf19ee5d3",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc191/PHerc191-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7cbeb65b798c8b12b166a3dceffd8f2261410b19d606ea21d96cd3a565466c67",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g03-inner",
+      "seed_xyz_l0": [
+        3572.0,
+        3725.0,
+        7052.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc191/PHerc191-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584182965997016,
+      "bbox_l0_xyz": [
+        [
+          3256.023681640625,
+          5146.4580078125,
+          6653.85595703125
+        ],
+        [
+          4652.642578125,
+          6494.1181640625,
+          7400.41455078125
+        ]
+      ],
+      "meta_sha256": "467670cd93249781300a942f13ba7eb0f70b221f112ef670dadb6bc19fe2e255",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc191/PHerc191-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "33528b4c5f7adb57f6440d2ba10395d2cd3c59bd2d2f5979c2a7fb1e796323d3",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g03-middle",
+      "seed_xyz_l0": [
+        3976.0,
+        5884.0,
+        7052.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc191/PHerc191-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840179849515492,
+      "bbox_l0_xyz": [
+        [
+          6051.8720703125,
+          2397.88818359375,
+          6900.12158203125
+        ],
+        [
+          7419.17822265625,
+          3715.33203125,
+          7454.78955078125
+        ]
+      ],
+      "meta_sha256": "8bd328e91793ee6472a4f9db3de6faccbca2cac01984b058b0b0dcefeae806b6",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc191/PHerc191-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0117e115a7c8d0345ce23db28540dc9916317c375d6bb1dcfce310bf4d61143f",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g03-outer",
+      "seed_xyz_l0": [
+        6733.0,
+        3057.0,
+        7098.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc191/PHerc191-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841879381950632,
+      "bbox_l0_xyz": [
+        [
+          4200.49169921875,
+          3357.13525390625,
+          9057.494140625
+        ],
+        [
+          5500.7421875,
+          4733.49853515625,
+          9716.4677734375
+        ]
+      ],
+      "meta_sha256": "9f553098d494b65b6faeaacaf63c2bcf4c52ba0c5993d3b151288d0929e6c7a1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc191/PHerc191-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "80cc5ef7eaa9237aab2bbeaadbb0b40a5a479e1337fe882701804d4153b92b9b",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g04-inner",
+      "seed_xyz_l0": [
+        4844.0,
+        4037.0,
+        9424.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc191/PHerc191-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5837804155874151,
+      "bbox_l0_xyz": [
+        [
+          2405.4248046875,
+          2078.06591796875,
+          9133.6376953125
+        ],
+        [
+          3728.580810546875,
+          3399.261474609375,
+          9709.671875
+        ]
+      ],
+      "meta_sha256": "f04ca25a255a3ae8a912bcefdf52e1fce6fac494985fbc0e0a4d9340e72a3e78",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc191/PHerc191-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a15af02a4fe950a72bd84a1ef077f8d6d79f4ee3bae33f763886147e314878a0",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g04-middle",
+      "seed_xyz_l0": [
+        3058.0,
+        2731.0,
+        9424.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc191/PHerc191-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584035762167126,
+      "bbox_l0_xyz": [
+        [
+          2506.9814453125,
+          816.58154296875,
+          11212.591796875
+        ],
+        [
+          3821.85302734375,
+          2125.515625,
+          12136.5673828125
+        ]
+      ],
+      "meta_sha256": "8f7b83535c715131b9a809d4bdd0afb572c7af0afd9d2935abaf1b8c4b2ec138",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc191/PHerc191-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "aaeceaa9595184d69bec8882bd8d8a93ac62d17291863730c190a0c08b235c90",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g05-outer",
+      "seed_xyz_l0": [
+        3167.0,
+        1480.0,
+        11796.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc191/PHerc191-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839653536497798,
+      "bbox_l0_xyz": [
+        [
+          5950.052734375,
+          4756.26513671875,
+          13644.3203125
+        ],
+        [
+          7261.72900390625,
+          6065.96630859375,
+          14851.6201171875
+        ]
+      ],
+      "meta_sha256": "b4d8bb86ef8d71ab62c10b55f3998ec5f4c9344baa79d3a55a2c47e2369d7227",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc191/PHerc191-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c0c56ade7b288c0605fc4ab142331457cdfc0e74fe9a42e72e541122c6fe5f32",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g06-outer",
+      "seed_xyz_l0": [
+        6628.0,
+        5432.0,
+        14168.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc191/PHerc191-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839464669619145,
+      "bbox_l0_xyz": [
+        [
+          775.3495483398438,
+          4171.63330078125,
+          16056.1923828125
+        ],
+        [
+          2055.194091796875,
+          5562.63232421875,
+          16911.693359375
+        ]
+      ],
+      "meta_sha256": "e3ae01928ae2d537e05028ae9187526d94d412208865a89cb5dbf45d31bac5a1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/campaigns/campaign-x-2026/runs/v21-pherc191-geometry-recovery/runtime/PHerc191/PHerc191-g07-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c6c8b629334382fe34fc74fd364ba1be9a3d1e84f6e74dd7333ff6094908521f",
+      "sample_id": "PHerc191",
+      "seed_id": "PHerc191-g07-outer",
+      "seed_xyz_l0": [
+        1406.0,
+        4856.0,
+        16540.0
+      ],
+      "surface_meta": "workspace/campaigns/campaign-x-2026/runs/v21-pherc191-geometry-recovery/runtime/PHerc191/PHerc191-g07-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840053480940308,
+      "bbox_l0_xyz": [
+        [
+          3591.031005859375,
+          2662.212890625,
+          2301.234130859375
+        ],
+        [
+          4919.60205078125,
+          4009.1728515625,
+          2507.805908203125
+        ]
+      ],
+      "meta_sha256": "62f4f2b3b8eb3e673db1b0688b8f0f9edd25a8a5b8bc41c786bea0335c1c6aa2",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc211/PHerc211-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "fd93513dd1124f276356d09ab0e657fcdf1a81d8c38a4aa051d16da99f1f46ef",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g01-inner",
+      "seed_xyz_l0": [
+        4249.0,
+        3332.0,
+        2363.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc211/PHerc211-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840709167715596,
+      "bbox_l0_xyz": [
+        [
+          4619.50537109375,
+          5610.23388671875,
+          2191.72607421875
+        ],
+        [
+          5945.60546875,
+          6961.91357421875,
+          2643.413330078125
+        ]
+      ],
+      "meta_sha256": "b6358a462f9c4cc55693b3dc18c99c9c5912624bc5443ddfb50e913810cae74e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc211/PHerc211-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "d8ca023c14931620782f34089c34721cea29f1ea673e67c83735ec3a1fc62fcc",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g01-outer",
+      "seed_xyz_l0": [
+        5273.0,
+        6284.0,
+        2363.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc211/PHerc211-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584133723459635,
+      "bbox_l0_xyz": [
+        [
+          3428.298583984375,
+          3903.11181640625,
+          4706.03369140625
+        ],
+        [
+          4772.8466796875,
+          5229.3681640625,
+          5043.80517578125
+        ]
+      ],
+      "meta_sha256": "e92d1abd4d0c26847b7ff6b1cb06d67820b77431e8d23a8c37bc7681c4434c2d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc211/PHerc211-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "dbad2afd37a961bc2da05b99d5f391438d97c48e7f109ecae13b38443bdde336",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g02-inner",
+      "seed_xyz_l0": [
+        4099.0,
+        4562.0,
+        4790.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc211/PHerc211-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842342273886447,
+      "bbox_l0_xyz": [
+        [
+          4519.5556640625,
+          2251.717529296875,
+          4333.3349609375
+        ],
+        [
+          5810.06201171875,
+          3554.34326171875,
+          5163.6572265625
+        ]
+      ],
+      "meta_sha256": "b8b90a058ee2a6f3ac3eda56ca38f3b2944994b69abd1602ce525f8d6d500176",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc211/PHerc211-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "e17d14089ff62f7bafade54720bb9f1d048d9a5b564f98dfe0c1a00d67c1fd9a",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g02-middle",
+      "seed_xyz_l0": [
+        5150.0,
+        2896.0,
+        4792.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc211/PHerc211-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584203800098449,
+      "bbox_l0_xyz": [
+        [
+          2765.466064453125,
+          2850.9765625,
+          6891.232421875
+        ],
+        [
+          4097.8203125,
+          4212.794921875,
+          7358.291015625
+        ]
+      ],
+      "meta_sha256": "0faeb6a38efc9c6d5d5d0f7907a0b797e162d7a45d0c40c717db9c5f8b96f766",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc211/PHerc211-g03-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "bdca7a69338caa2e7262fdfc309292c1607ee71e70e0c76f1500fcf86699132f",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g03-inner",
+      "seed_xyz_l0": [
+        3413.0,
+        3527.0,
+        7217.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v10/runtime/surfaces/PHerc211/PHerc211-g03-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840175536037613,
+      "bbox_l0_xyz": [
+        [
+          3837.22900390625,
+          3250.539794921875,
+          9522.55078125
+        ],
+        [
+          5255.22314453125,
+          4520.70166015625,
+          10200.3212890625
+        ]
+      ],
+      "meta_sha256": "0f75e44dd04e0d210c7b19b0f4376886fe9fc3a8036d0c285e312d773a1c6011",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc211/PHerc211-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "9024450c4ab78cafcef5b85bd7cc80e7b636757c2987b69edfa8aaa6160970c6",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g04-inner",
+      "seed_xyz_l0": [
+        4572.0,
+        3823.0,
+        9644.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc211/PHerc211-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840450908270756,
+      "bbox_l0_xyz": [
+        [
+          2272.14404296875,
+          1870.406494140625,
+          9500.5107421875
+        ],
+        [
+          3587.3466796875,
+          3273.83203125,
+          10075.9580078125
+        ]
+      ],
+      "meta_sha256": "3ad3e4f0a25afff64a62140f7e4ac030dc355de91f7cbfb1ed3cb1963f92bd7a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc211/PHerc211-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "55763a0d6bfed3bf8667890e9c878c9289c4fd11f2e11ad2c96452e730146d29",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g04-middle",
+      "seed_xyz_l0": [
+        2901.0,
+        2585.0,
+        9644.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc211/PHerc211-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840278089931845,
+      "bbox_l0_xyz": [
+        [
+          2340.04052734375,
+          737.9873046875,
+          11607.482421875
+        ],
+        [
+          3706.461669921875,
+          2067.16845703125,
+          12102.4404296875
+        ]
+      ],
+      "meta_sha256": "177e9f7e545912f7a8d0c12d2c329fd799cdec26fbec641300b602a1230b75c8",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc211/PHerc211-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "f11089ee91c511990ba8d1362cb9990cd4627621566ce6785ef90248523b3e27",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g05-outer",
+      "seed_xyz_l0": [
+        3015.0,
+        1400.0,
+        12070.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc211/PHerc211-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841531378448312,
+      "bbox_l0_xyz": [
+        [
+          1853.8052978515625,
+          4124.04248046875,
+          14331.3681640625
+        ],
+        [
+          3175.893798828125,
+          5496.98046875,
+          14749.0732421875
+        ]
+      ],
+      "meta_sha256": "3bf03e51025c0678d4fc046d7f71012de5196e5c8549f2db188cc87d144935ae",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc211/PHerc211-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7e5875cf19f9d667fb45b21a841830e366ed728a2b74f9a3a1989fe3296f14ac",
+      "sample_id": "PHerc211",
+      "seed_id": "PHerc211-g06-middle",
+      "seed_xyz_l0": [
+        2502.0,
+        4806.0,
+        14497.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc211/PHerc211-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843307686622137,
+      "bbox_l0_xyz": [
+        [
+          3822.746337890625,
+          2846.846923828125,
+          2033.3165283203125
+        ],
+        [
+          5152.4072265625,
+          4195.111328125,
+          2377.2080078125
+        ]
+      ],
+      "meta_sha256": "dcbd321b981e607b4aead7fec61c5223918abda8a68d78543e7bb7da37286d14",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc257/PHerc257-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "eeba2b8235b462053c47c72d94bc2968c76ce209ff8695ad5c0ff75c4d6782ad",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g01-inner",
+      "seed_xyz_l0": [
+        4482.0,
+        3520.0,
+        2304.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc257/PHerc257-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.58412608937535,
+      "bbox_l0_xyz": [
+        [
+          4861.6015625,
+          5962.626953125,
+          1814.4453125
+        ],
+        [
+          6222.646484375,
+          7190.3857421875,
+          2576.843017578125
+        ]
+      ],
+      "meta_sha256": "b603836c6508453e513d5070367cd36ca6ba7131a51966429ec9b536820a932d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v1/runtime/surfaces/PHerc257/PHerc257-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0c0698e0854d94853a7e84ce25699a8beacf32debd556a85471caa9ebb7a971b",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g01-outer",
+      "seed_xyz_l0": [
+        5539.0,
+        6571.0,
+        2295.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v1/runtime/surfaces/PHerc257/PHerc257-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842301183927534,
+      "bbox_l0_xyz": [
+        [
+          3606.436279296875,
+          4161.201171875,
+          4313.38916015625
+        ],
+        [
+          4958.638671875,
+          5485.03369140625,
+          4728.77734375
+        ]
+      ],
+      "meta_sha256": "ff00607dd1cc8776ca55a8800433c9f692993901a2202d4c96a31c0b45a23408",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc257/PHerc257-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "c2e14e0235b965c38b02715c5be3a0ede5af3a2e9098415261da8678b99e92b0",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g02-inner",
+      "seed_xyz_l0": [
+        4282.0,
+        4818.0,
+        4654.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc257/PHerc257-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584204574396806,
+      "bbox_l0_xyz": [
+        [
+          4890.00732421875,
+          2273.13671875,
+          4144.83837890625
+        ],
+        [
+          6211.685546875,
+          3632.3095703125,
+          4803.900390625
+        ]
+      ],
+      "meta_sha256": "421e85b7768ce437f938171e66c39605d8f659b152ac43219f626c36f8224064",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc257/PHerc257-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "371f4dfd8dc67a9f0f3209c7ca34240d9a51feaacafd78a7ef12f07f864d97ce",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g02-middle",
+      "seed_xyz_l0": [
+        5529.0,
+        2940.0,
+        4654.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc257/PHerc257-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842298526653842,
+      "bbox_l0_xyz": [
+        [
+          3352.76318359375,
+          5222.36572265625,
+          6521.51806640625
+        ],
+        [
+          4677.29541015625,
+          6565.388671875,
+          7277.412109375
+        ]
+      ],
+      "meta_sha256": "12207c6d662e2c6dc4ecb8d0e245665f0b7834821cd0c9a3da50d4c4eb9ece5f",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc257/PHerc257-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "ae2ac92aab27d41ef56622e7778bcb165d67e0f150ed655db86cef1a6c72d24f",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g03-middle",
+      "seed_xyz_l0": [
+        4006.0,
+        5885.0,
+        7013.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc257/PHerc257-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840285160589007,
+      "bbox_l0_xyz": [
+        [
+          4204.44580078125,
+          3402.974365234375,
+          8929.79296875
+        ],
+        [
+          5510.12744140625,
+          4684.09326171875,
+          10003.4951171875
+        ]
+      ],
+      "meta_sha256": "f871f15439d2f107a6740333235a68bd66b0002b15515c4ef4de03446dedf554",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc257/PHerc257-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "eeeaa1d059a6d4e7c50987ae0a41059968719f2472aec55d8656807db2d0643b",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g04-inner",
+      "seed_xyz_l0": [
+        4832.0,
+        4038.0,
+        9372.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc257/PHerc257-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841410529428346,
+      "bbox_l0_xyz": [
+        [
+          2236.197998046875,
+          2004.431396484375,
+          9074.30078125
+        ],
+        [
+          3886.451171875,
+          3457.815185546875,
+          9816.5810546875
+        ]
+      ],
+      "meta_sha256": "17fd68025b1e86a198b9859c9582c311eeb087f0e0ec24ce460ba31a3d1888eb",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc257/PHerc257-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7ce8aff4a150c1b2bfa901a8311a3d74ff1f0f1994752850ad7bf28898ed83ce",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g04-middle",
+      "seed_xyz_l0": [
+        3064.0,
+        2732.0,
+        9372.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc257/PHerc257-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841187839413085,
+      "bbox_l0_xyz": [
+        [
+          2438.974853515625,
+          6089.01220703125,
+          8802.2548828125
+        ],
+        [
+          3762.28369140625,
+          7389.60107421875,
+          9694.67578125
+        ]
+      ],
+      "meta_sha256": "f0d3e9ff1194bae03d8480eafa50ee469f9c99f0ec880aef0c6ed7ff1be7f98a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc257/PHerc257-g04-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "32946927bf0aafe13bccec678ff487231a14b3160d26e54d0e55f8eeae7cdc40",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g04-outer",
+      "seed_xyz_l0": [
+        3072.0,
+        6733.0,
+        9372.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc257/PHerc257-g04-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841883728399517,
+      "bbox_l0_xyz": [
+        [
+          2585.9853515625,
+          792.19921875,
+          11071.220703125
+        ],
+        [
+          3883.998779296875,
+          2183.736572265625,
+          12037.294921875
+        ]
+      ],
+      "meta_sha256": "8d26a91948cb01aa7c53427d13d6a83e01acf7fc3c161550e879f8557eae8fea",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc257/PHerc257-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "887c3501d21fc1ea9585a74affc7fba8678678b640fcf7c093ebcf7586fc28d2",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g05-outer",
+      "seed_xyz_l0": [
+        3167.0,
+        1481.0,
+        11783.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc257/PHerc257-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841380722839349,
+      "bbox_l0_xyz": [
+        [
+          5971.26025390625,
+          4768.4921875,
+          14099.4521484375
+        ],
+        [
+          7300.74609375,
+          6100.61083984375,
+          14526.6025390625
+        ]
+      ],
+      "meta_sha256": "be85d30028af7531c550374baf827bf5aa1cfe724b49e806e31bccef9796022c",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc257/PHerc257-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "3e6d29647dee476a86170c93dcf72a961deb5fef0aa9851a30beb88571e17867",
+      "sample_id": "PHerc257",
+      "seed_id": "PHerc257-g06-outer",
+      "seed_xyz_l0": [
+        6629.0,
+        5433.0,
+        14208.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc257/PHerc257-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490855055428106,
+      "bbox_l0_xyz": [
+        [
+          5860.833984375,
+          4452.96484375,
+          1466.5247802734375
+        ],
+        [
+          7180.89453125,
+          5799.11328125,
+          2003.1868896484375
+        ]
+      ],
+      "meta_sha256": "f860c733e2b736ac95fa2db1bb9306a2eb1c68253188eace01d7f35125250a6a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc268/PHerc268-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "f176ae363d40374fd208b17a2cd831490c85b98a8383d719f4d59d56ff2dca6f",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g01-inner",
+      "seed_xyz_l0": [
+        6518.0,
+        5124.0,
+        1790.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc268/PHerc268-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492362431313827,
+      "bbox_l0_xyz": [
+        [
+          2819.862548828125,
+          5344.9033203125,
+          1479.5028076171875
+        ],
+        [
+          4162.9091796875,
+          6690.88623046875,
+          2073.6484375
+        ]
+      ],
+      "meta_sha256": "630b7c5d31bc1d90117f4ee5b8f23573100fc9b09b243a99e311f6a194c2dbe4",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc268/PHerc268-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "9e0a1cf32bec1837b1145c302888072860c3baec1bc4b93b0b8528c75d55375a",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g01-middle",
+      "seed_xyz_l0": [
+        3478.0,
+        6012.0,
+        1901.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc268/PHerc268-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493389737845556,
+      "bbox_l0_xyz": [
+        [
+          5565.685546875,
+          6392.45751953125,
+          3109.0087890625
+        ],
+        [
+          6919.0537109375,
+          7657.33251953125,
+          3924.177490234375
+        ]
+      ],
+      "meta_sha256": "0d0f72466623768485ffd0c1afa208d1e0c6f27865e3f7880244cddccf7c4c4a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc268/PHerc268-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "ee954dab7aa6397fed1a8b8fb75031be81f6a9166f13e151026cfc96ca5012d4",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g02-inner",
+      "seed_xyz_l0": [
+        6229.0,
+        7004.0,
+        3644.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc268/PHerc268-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490498336441628,
+      "bbox_l0_xyz": [
+        [
+          7244.69140625,
+          3617.52490234375,
+          3615.170166015625
+        ],
+        [
+          8579.248046875,
+          4954.267578125,
+          4151.2861328125
+        ]
+      ],
+      "meta_sha256": "c590179148d0f6ba86d5a1747d1c6ee040dd565be765802f6f1114e0f80d2201",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc268/PHerc268-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "7414e9b810a694477f374ae53e447322d486264bfb5a5281ab8847a7e506d07e",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g02-middle",
+      "seed_xyz_l0": [
+        7910.0,
+        4285.0,
+        3644.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc268/PHerc268-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3494529229064194,
+      "bbox_l0_xyz": [
+        [
+          1476.5372314453125,
+          4084.00830078125,
+          3613.13232421875
+        ],
+        [
+          2791.993896484375,
+          5480.859375,
+          4064.47314453125
+        ]
+      ],
+      "meta_sha256": "67bf338e22eb027e0c7848149164ea37907c153d81cdf176375fbcb59d3b23e1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc268/PHerc268-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a3b95cac5ce3159cfeec9415b461bc26d44e9283fe1afd834f764867b230d41c",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g02-outer",
+      "seed_xyz_l0": [
+        2117.0,
+        4780.0,
+        3644.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc268/PHerc268-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492944167961385,
+      "bbox_l0_xyz": [
+        [
+          5124.60498046875,
+          7895.34130859375,
+          5208.5576171875
+        ],
+        [
+          6457.7021484375,
+          9206.1279296875,
+          6181.19873046875
+        ]
+      ],
+      "meta_sha256": "edd8af9181867738aad37500fd1e05c27c668d11463f85bfce13bd9e2e70d646",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc268/PHerc268-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a9fbdfe749ad73da0bc4ff717a3cbf764c7b795f179490cc47289d50ac33e421",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g03-middle",
+      "seed_xyz_l0": [
+        5791.0,
+        8549.0,
+        5498.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc268/PHerc268-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491985455258737,
+      "bbox_l0_xyz": [
+        [
+          9107.6083984375,
+          3608.9931640625,
+          5067.8759765625
+        ],
+        [
+          10431.42578125,
+          4959.52490234375,
+          5600.77294921875
+        ]
+      ],
+      "meta_sha256": "4a2163e0a925e695555a82a6198df97a4db7d4a7fa6d0963100ec24538bdac46",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc268/PHerc268-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "3da2b50fb9ab2bb9509a335ca2d7b8567298b9859c1d923945d7f22a0d2fa400",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g03-outer",
+      "seed_xyz_l0": [
+        9767.0,
+        4284.0,
+        5498.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc268/PHerc268-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3489568909495169,
+      "bbox_l0_xyz": [
+        [
+          6384.00927734375,
+          5211.49755859375,
+          7169.90771484375
+        ],
+        [
+          7695.01123046875,
+          6568.93603515625,
+          7924.50341796875
+        ]
+      ],
+      "meta_sha256": "79611db9b764efd340b7a9fc60032aa69fc28960afd5bf903880a54b8be48602",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc268/PHerc268-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "900d1e69cf74656872bd14bac6ccc884856820b0ddc595fd0c6eb8753a88fcea",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g04-inner",
+      "seed_xyz_l0": [
+        7030.0,
+        5875.0,
+        7352.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc268/PHerc268-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492504466639692,
+      "bbox_l0_xyz": [
+        [
+          3870.775146484375,
+          3307.713623046875,
+          6659.009765625
+        ],
+        [
+          5074.0380859375,
+          4680.0458984375,
+          7696.82861328125
+        ]
+      ],
+      "meta_sha256": "f8d3694d94d2fc8857ea0e629c0366a44364e68cfc0a2c62ca799574a4f42d08",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc268/PHerc268-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "d3e483d600c04b37a5ad0beabc3ef980e7ee84e146a37463b0458f4e33615716",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g04-middle",
+      "seed_xyz_l0": [
+        4460.0,
+        3984.0,
+        7352.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc268/PHerc268-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3489698660347191,
+      "bbox_l0_xyz": [
+        [
+          3920.659423828125,
+          9123.31640625,
+          7214.88818359375
+        ],
+        [
+          5238.8896484375,
+          10490.1015625,
+          7791.03271484375
+        ]
+      ],
+      "meta_sha256": "3b31e7aecf6aab50380149e5eac02c0d37aa15d6e7a5ae5def1fa3b0f7e1558c",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc268/PHerc268-g04-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a9607320cea1a494bf1a371b17faf41ed037729b97aad12a8b6d4c001476d50b",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g04-outer",
+      "seed_xyz_l0": [
+        4573.0,
+        9777.0,
+        7365.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc268/PHerc268-g04-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3489148586275304,
+      "bbox_l0_xyz": [
+        [
+          7862.013671875,
+          5782.69140625,
+          8534.12890625
+        ],
+        [
+          9188.4189453125,
+          7105.7509765625,
+          9237.3857421875
+        ]
+      ],
+      "meta_sha256": "9fa92dd1f1e74cd7ac633d550ae0d1679c88aba77eb04d1969952a151987c4e4",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc268/PHerc268-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "2e6641861a06a7e1b750109b80641fa69267a9e500245b46dbd6651355b25c22",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g05-middle",
+      "seed_xyz_l0": [
+        8519.0,
+        6452.0,
+        9206.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc268/PHerc268-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.349057390181905,
+      "bbox_l0_xyz": [
+        [
+          8984.3564453125,
+          7254.55029296875,
+          10592.0166015625
+        ],
+        [
+          10276.4375,
+          8573.1953125,
+          11274.623046875
+        ]
+      ],
+      "meta_sha256": "57a6f59e282a0885645b19eb0c73588e8a5a642c62d62d76d4724dbc64da81ec",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc268/PHerc268-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "e033b3467b72002449501f2900969e6771644c49b93a847311b572bb498a0cc0",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g06-outer",
+      "seed_xyz_l0": [
+        9647.0,
+        7895.0,
+        11060.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc268/PHerc268-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490727464083496,
+      "bbox_l0_xyz": [
+        [
+          1453.762451171875,
+          6440.39453125,
+          12809.08203125
+        ],
+        [
+          2795.88623046875,
+          7760.84912109375,
+          13420.98828125
+        ]
+      ],
+      "meta_sha256": "59dc90e246e9bfd8f56f78f938307960257b16cab079ea3628f2211092a9c59a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/campaigns/campaign-x-2026/runs/v19-pherc268-geometry-recovery/runtime/PHerc268/PHerc268-g07-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "ca818059c52b222e9d83af9141403fce6b4c64cec9a5e217c95b6ca536e363d3",
+      "sample_id": "PHerc268",
+      "seed_id": "PHerc268-g07-outer",
+      "seed_xyz_l0": [
+        2117.0,
+        7088.0,
+        12914.0
+      ],
+      "surface_meta": "workspace/campaigns/campaign-x-2026/runs/v19-pherc268-geometry-recovery/runtime/PHerc268/PHerc268-g07-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584042852012889,
+      "bbox_l0_xyz": [
+        [
+          3534.80126953125,
+          2604.490478515625,
+          1375.4659423828125
+        ],
+        [
+          4848.59033203125,
+          3947.5771484375,
+          2133.58447265625
+        ]
+      ],
+      "meta_sha256": "6cb38ea50df4a8a716928778c652f085c0b5399e67fb2d44ed5edcfa8a0a443b",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc358/PHerc358-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "fdc6f67fb95d3542e1a9fcedcd1c114d9349e24ad6d9829f1ecef7768143e6e1",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g01-inner",
+      "seed_xyz_l0": [
+        4171.0,
+        3261.0,
+        1779.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc358/PHerc358-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841668975666643,
+      "bbox_l0_xyz": [
+        [
+          1562.2515869140625,
+          3162.107666015625,
+          1579.7601318359375
+        ],
+        [
+          2848.98291015625,
+          4509.43505859375,
+          2113.677978515625
+        ]
+      ],
+      "meta_sha256": "5b059d59dff594a2664f3cb6f49a480789a63b87bc5ef8bf256da6091b149532",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc358/PHerc358-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a06c93987b03bc73517035908e92c1c2b2a98fb858efd7d5a4ec001d22cbb2b0",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g01-middle",
+      "seed_xyz_l0": [
+        2204.0,
+        3827.0,
+        1779.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc358/PHerc358-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843308128703943,
+      "bbox_l0_xyz": [
+        [
+          3296.95751953125,
+          3842.165283203125,
+          3143.1416015625
+        ],
+        [
+          4648.31689453125,
+          5097.5341796875,
+          4276.81396484375
+        ]
+      ],
+      "meta_sha256": "61dd00b5b289088898b82a4a4dca830d115d8075a9352a7f0bef892a256fa441",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc358/PHerc358-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "b80f20a98670f47c864d13a24a10746fae4ad8fde1adf9b216171ba568114b6c",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g02-inner",
+      "seed_xyz_l0": [
+        3971.0,
+        4465.0,
+        3622.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc358/PHerc358-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840964912683242,
+      "bbox_l0_xyz": [
+        [
+          4444.78759765625,
+          2055.980712890625,
+          3513.2353515625
+        ],
+        [
+          5804.03271484375,
+          3407.504638671875,
+          4001.12548828125
+        ]
+      ],
+      "meta_sha256": "dd8d8c6e3ec440597022f49801008e447c054000c43a0bef466fe976d5eac682",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc358/PHerc358-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "6ec36c6973a81e7dbdb913728c565ff5b9784037815ad47cf0fed9799b7886b3",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g02-middle",
+      "seed_xyz_l0": [
+        5126.0,
+        2723.0,
+        3622.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc358/PHerc358-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584191033964625,
+      "bbox_l0_xyz": [
+        [
+          647.4820556640625,
+          2305.5458984375,
+          3322.033447265625
+        ],
+        [
+          2054.95068359375,
+          3756.058837890625,
+          3851.25
+        ]
+      ],
+      "meta_sha256": "164591b576eb865f78e31ee5782c08ba65e5dda3b176c1192e36006dd4578109",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc358/PHerc358-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "840777bb310ddc3f9103262d526eb14a871868b6a2d04e1957a691f61a6d8866",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g02-outer",
+      "seed_xyz_l0": [
+        1340.0,
+        3040.0,
+        3622.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc358/PHerc358-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842104556598438,
+      "bbox_l0_xyz": [
+        [
+          3077.015625,
+          4787.99365234375,
+          4793.43310546875
+        ],
+        [
+          4400.0361328125,
+          6137.029296875,
+          5651.24853515625
+        ]
+      ],
+      "meta_sha256": "6998e2fe734a83418e31d5321f584b2264dbf034994c384a344504a456483ea6",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc358/PHerc358-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4d46457f4c6953017e2d102a7db3caa5e94048a55f9d81a3f5545fccb332c1f7",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g03-middle",
+      "seed_xyz_l0": [
+        3729.0,
+        5455.0,
+        5465.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc358/PHerc358-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842096705170465,
+      "bbox_l0_xyz": [
+        [
+          3846.17529296875,
+          3042.024169921875,
+          6918.4248046875
+        ],
+        [
+          5135.2548828125,
+          4446.9814453125,
+          7671.19189453125
+        ]
+      ],
+      "meta_sha256": "770be44d746d14c4068d6f372a63675ed68d970a69ba3a079bba3146e8377c5d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc358/PHerc358-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "70836fd927a42c7da1f97cb76b5457ef26bf5505e63183fe4838a06d623c1199",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g04-inner",
+      "seed_xyz_l0": [
+        4481.0,
+        3742.0,
+        7308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc358/PHerc358-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842700908653342,
+      "bbox_l0_xyz": [
+        [
+          2188.536865234375,
+          1864.9134521484375,
+          6818.7333984375
+        ],
+        [
+          3528.529052734375,
+          3195.619384765625,
+          7398.94873046875
+        ]
+      ],
+      "meta_sha256": "133acf4686f7868427948d7a414d279d277d04818e624cbadd66c073defd36b0",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc358/PHerc358-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "68fb28410916cd2f14218602026b51cc3ced0fecfa096e19b434b6fc6db46441",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g04-middle",
+      "seed_xyz_l0": [
+        2858.0,
+        2530.0,
+        7308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc358/PHerc358-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841649217409313,
+      "bbox_l0_xyz": [
+        [
+          4767.43798828125,
+          3449.493896484375,
+          8834.3447265625
+        ],
+        [
+          6110.8291015625,
+          4776.85498046875,
+          9265.8876953125
+        ]
+      ],
+      "meta_sha256": "849cb72ec5c36022a35f13663277022bb5acc88f65b140ac413630f19bc9061e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc358/PHerc358-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "028cac613413ca7b62802dfcf7c968c045967bc250e12a0af0e59e03aaa7e12b",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g05-middle",
+      "seed_xyz_l0": [
+        5438.0,
+        4112.0,
+        9150.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc358/PHerc358-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842006385466165,
+      "bbox_l0_xyz": [
+        [
+          1827.203369140625,
+          4036.016845703125,
+          10289.6201171875
+        ],
+        [
+          3159.788818359375,
+          5374.23876953125,
+          11187.37109375
+        ]
+      ],
+      "meta_sha256": "f0fb1ce3b7d47cd7fb3d0660a782773eefd22a4b18b76c02f74938c4ae8b8866",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc358/PHerc358-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "25b2f1a3f2da42372a90e08eff2c455b6778ea397ecf5eb20e0897bab8881e27",
+      "sample_id": "PHerc358",
+      "seed_id": "PHerc358-g06-middle",
+      "seed_xyz_l0": [
+        2470.0,
+        4704.0,
+        10993.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc358/PHerc358-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3490463507699575,
+      "bbox_l0_xyz": [
+        [
+          4697.7138671875,
+          3492.77978515625,
+          2507.56298828125
+        ],
+        [
+          6005.9052734375,
+          4818.134765625,
+          3338.387939453125
+        ]
+      ],
+      "meta_sha256": "cb6d181b788e91289caf3eb0f3d12e8f3a327084823b583b09cd070b5a5277e2",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc800/PHerc800-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "48d0ae82953ea8673085de7ebd8cfbc97c35cb6d1155198511c282d701931bad",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g01-inner",
+      "seed_xyz_l0": [
+        5337.0,
+        4151.0,
+        2973.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc800/PHerc800-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491350829766597,
+      "bbox_l0_xyz": [
+        [
+          5991.435546875,
+          7095.47900390625,
+          2397.2607421875
+        ],
+        [
+          7331.4345703125,
+          8408.12890625,
+          3316.811279296875
+        ]
+      ],
+      "meta_sha256": "d3aea3e1e14340e6d30eeb9e234d200a72050af7e97a00a93f049aabcb8d94fa",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc800/PHerc800-g01-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "a5538f614f95f58f96fbfc282c5cd28047619408efbbc6c036c45823585b0d05",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g01-outer",
+      "seed_xyz_l0": [
+        6653.0,
+        7755.0,
+        3001.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v2/runtime/surfaces/PHerc800/PHerc800-g01-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3494123121904624,
+      "bbox_l0_xyz": [
+        [
+          4414.35498046875,
+          4984.58251953125,
+          5853.95556640625
+        ],
+        [
+          5733.056640625,
+          6375.86328125,
+          6283.73046875
+        ]
+      ],
+      "meta_sha256": "62f2cca47be60f05f30c15207b61c63501b8cfa1edf3b81668ecbba26ddfb6f9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc800/PHerc800-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "44eb43b54beac75a581760875a4835b5ff4581194ae94d9428622fbdd3f0ca7f",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g02-inner",
+      "seed_xyz_l0": [
+        5056.0,
+        5678.0,
+        6010.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc800/PHerc800-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492857693962026,
+      "bbox_l0_xyz": [
+        [
+          5729.974609375,
+          2806.097412109375,
+          5847.13232421875
+        ],
+        [
+          7079.91796875,
+          4137.6845703125,
+          6048.94140625
+        ]
+      ],
+      "meta_sha256": "9c964a38f0f4a8b714fbb6fda10dc6b554fe0fa7f0be3f0be291065781f50f96",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc800/PHerc800-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "2bf5db1bf67c4426e21454834fae2940954ce6d41bd1be41353812531661b2bd",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g02-middle",
+      "seed_xyz_l0": [
+        6404.0,
+        3469.0,
+        6010.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc800/PHerc800-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493598646800256,
+      "bbox_l0_xyz": [
+        [
+          1122.6661376953125,
+          3200.46044921875,
+          5634.76025390625
+        ],
+        [
+          2427.9697265625,
+          4567.99267578125,
+          6784.15380859375
+        ]
+      ],
+      "meta_sha256": "c99c71ab4d43c466b770632d8b790a8a786e68e933c5d16effc8dc99e34cf9b1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc800/PHerc800-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "65bb420fff5e04a4200cd0f5adb2ab1308fdf6018188e3e6e2e2c74c549770a1",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g02-outer",
+      "seed_xyz_l0": [
+        1774.0,
+        3881.0,
+        6012.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc800/PHerc800-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491153985896545,
+      "bbox_l0_xyz": [
+        [
+          4077.66455078125,
+          6270.59619140625,
+          8610.5498046875
+        ],
+        [
+          5409.0712890625,
+          7611.52490234375,
+          9166.0146484375
+        ]
+      ],
+      "meta_sha256": "e341c7465b289ee37b3dc2fad2dc8eb57ec51f1b946d7310f4d82a4482e37f67",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc800/PHerc800-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "945c7b6703df1dc8161b04697a6f6d166e9c6f25a63ad314906e1fdc08b1016f",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g03-middle",
+      "seed_xyz_l0": [
+        4738.0,
+        6933.0,
+        9047.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc800/PHerc800-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491393746402722,
+      "bbox_l0_xyz": [
+        [
+          5062.208984375,
+          4101.9990234375,
+          11622.32421875
+        ],
+        [
+          6384.3583984375,
+          5480.525390625,
+          12179.44140625
+        ]
+      ],
+      "meta_sha256": "fb3bd17e82e1eb031f227d91fcd264604e49fc87543d264e419d895a8cd4f268",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc800/PHerc800-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "90c3d30d7fba6ed60b49e05e519b092c157324219a92d0e269b871d1818de800",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g04-inner",
+      "seed_xyz_l0": [
+        5706.0,
+        4790.0,
+        12084.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc800/PHerc800-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3493574266921722,
+      "bbox_l0_xyz": [
+        [
+          3003.068115234375,
+          2514.349609375,
+          11864.4033203125
+        ],
+        [
+          4298.09375,
+          3941.751220703125,
+          12941.46484375
+        ]
+      ],
+      "meta_sha256": "841dcc86281d74323275daf74c6448658929505de43eeabce549e9c9c190923a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc800/PHerc800-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "4d375ca407b5b8fa548e84e144b2d24eb1a5db2f371b3ae5dfb14d181754f5ad",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g04-middle",
+      "seed_xyz_l0": [
+        3624.0,
+        3225.0,
+        12084.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc800/PHerc800-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3491188427027554,
+      "bbox_l0_xyz": [
+        [
+          2995.676513671875,
+          7190.61376953125,
+          11302.3955078125
+        ],
+        [
+          4214.36181640625,
+          8667.4638671875,
+          12363.30859375
+        ]
+      ],
+      "meta_sha256": "53f781ce2ff9e4fcc21dcbde74fa1d868522a8484f400b700154cb0cd749d9c9",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc800/PHerc800-g04-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "182e898fa8bc11092b581429d2617d58f77370259d5e5769e70e3c3f262f5766",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g04-outer",
+      "seed_xyz_l0": [
+        3648.0,
+        7931.0,
+        12084.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc800/PHerc800-g04-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492262211243877,
+      "bbox_l0_xyz": [
+        [
+          3075.95068359375,
+          1078.7589111328125,
+          14866.4853515625
+        ],
+        [
+          4398.4384765625,
+          2429.2763671875,
+          15317.947265625
+        ]
+      ],
+      "meta_sha256": "417b69dd92157e8fa5c790a7b2819ddbed41c0840610988a2fa9226928327bc5",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc800/PHerc800-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "959a64bb6bc689b47100bf2e57e7718b6e916aa32625038fd6ad445a75287703",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g05-outer",
+      "seed_xyz_l0": [
+        3737.0,
+        1753.0,
+        15122.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc800/PHerc800-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.3492239789067453,
+      "bbox_l0_xyz": [
+        [
+          7145.16015625,
+          5729.64208984375,
+          17679.015625
+        ],
+        [
+          8473.78515625,
+          7075.09765625,
+          18338.4921875
+        ]
+      ],
+      "meta_sha256": "19b3217a3dc216d03b466a11eea952bd46e65cab68e953319a166d50b0e1b057",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc800/PHerc800-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "f3bf5a475ef83566539e021f0fe9f34398c2f8d0b7aebf96c7520c1b59d0808d",
+      "sample_id": "PHerc800",
+      "seed_id": "PHerc800-g06-outer",
+      "seed_xyz_l0": [
+        7809.0,
+        6402.0,
+        18159.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc800/PHerc800-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839251605734557,
+      "bbox_l0_xyz": [
+        [
+          3577.7265625,
+          2778.95654296875,
+          1799.8502197265625
+        ],
+        [
+          4916.65234375,
+          4112.95849609375,
+          2157.393310546875
+        ]
+      ],
+      "meta_sha256": "d9b5d219a85f919b459909981faf8fc5ae1b18fb94732170137bbf4562fc191e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc813/PHerc813-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "882ab0b667c996e1cbd0371fa40a8298df8f397aa55af9fa53220e568d6c93b0",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g01-inner",
+      "seed_xyz_l0": [
+        4244.0,
+        3436.0,
+        2060.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc813/PHerc813-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5843260024917019,
+      "bbox_l0_xyz": [
+        [
+          1667.8917236328125,
+          3272.616943359375,
+          2073.21728515625
+        ],
+        [
+          3017.857421875,
+          4600.1826171875,
+          2691.804931640625
+        ]
+      ],
+      "meta_sha256": "1718909f4503714dcfa7f61d4327643e4112f28b3d1484588336e1542bd901ce",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc813/PHerc813-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "22a754a0151fc1a376f1ca69f6cd3923aa7127b71ff4ca7070bf896c345c9a1f",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g01-middle",
+      "seed_xyz_l0": [
+        2343.0,
+        3937.0,
+        2104.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc813/PHerc813-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841612226483959,
+      "bbox_l0_xyz": [
+        [
+          3398.739990234375,
+          3910.09326171875,
+          3908.717041015625
+        ],
+        [
+          4750.322265625,
+          5223.99462890625,
+          4774.03369140625
+        ]
+      ],
+      "meta_sha256": "fada4c999462219640ebad2be0a2503ec9b01c528d57ef7d8b9daceb18b52241",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc813/PHerc813-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "aa27362670891dc4b77a534731326cc2224b3bd311d5cd3f6c695c5ad397f899",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g02-inner",
+      "seed_xyz_l0": [
+        4062.0,
+        4561.0,
+        4184.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc813/PHerc813-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841898329501551,
+      "bbox_l0_xyz": [
+        [
+          4498.22021484375,
+          2086.44580078125,
+          3435.303466796875
+        ],
+        [
+          5813.93212890625,
+          3480.5078125,
+          4393.49853515625
+        ]
+      ],
+      "meta_sha256": "065a9bdc854f449e10d4e3387fdf922d9414ee42e4f825287a79a7169225db0f",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc813/PHerc813-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "543a98ceab48f60d517e903bcc1d17744d70b14e41a3794859c0f8dda679f6ab",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g02-middle",
+      "seed_xyz_l0": [
+        5140.0,
+        2782.0,
+        4184.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc813/PHerc813-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5840863824862683,
+      "bbox_l0_xyz": [
+        [
+          742.3289794921875,
+          2446.3095703125,
+          4096.5029296875
+        ],
+        [
+          2078.5830078125,
+          3780.958984375,
+          4744.84619140625
+        ]
+      ],
+      "meta_sha256": "71edf64a70842b4d7e4e92f345693c2f09a9f177349c645b075d87961e3a2948",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc813/PHerc813-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "2341e335469eb618ea54aedfbb367554fdf7b0af80188e156128e5569a281bb1",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g02-outer",
+      "seed_xyz_l0": [
+        1406.0,
+        3106.0,
+        4184.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc813/PHerc813-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584102867417519,
+      "bbox_l0_xyz": [
+        [
+          3155.459716796875,
+          4898.72314453125,
+          6133.939453125
+        ],
+        [
+          4488.11474609375,
+          6266.5458984375,
+          6494.328125
+        ]
+      ],
+      "meta_sha256": "8c35e33bd84e9cd1bf1bb0f8ea469d07b26eb642d523b03963c114dc5ff1ddaf",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc813/PHerc813-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "79f11f8c3d93bba99c988ef3560a6a77ab3da21eaacde19fa7d54bf114b66d6e",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g03-middle",
+      "seed_xyz_l0": [
+        3822.0,
+        5571.0,
+        6308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc813/PHerc813-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5850996163136628,
+      "bbox_l0_xyz": [
+        [
+          5711.21533203125,
+          2115.7978515625,
+          5809.3212890625
+        ],
+        [
+          7001.80126953125,
+          3444.136474609375,
+          6645.13671875
+        ]
+      ],
+      "meta_sha256": "07ef02c4e3cd8669b4a4fa29d0102af8b9e33d7f13ffcacb6add7ffbec33177e",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc813/PHerc813-g03-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "59e4a38021f79e15b263f0b2fca5fff479e85242751a10ac95672d068d40c1a2",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g03-outer",
+      "seed_xyz_l0": [
+        6329.0,
+        2781.0,
+        6308.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v8/runtime/surfaces/PHerc813/PHerc813-g03-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5838759195116365,
+      "bbox_l0_xyz": [
+        [
+          3907.583251953125,
+          3152.44921875,
+          8160.3828125
+        ],
+        [
+          5228.8310546875,
+          4498.5107421875,
+          8724.2265625
+        ]
+      ],
+      "meta_sha256": "ff29d11bc5e8c8970590568b2a0aa59dde1e9b1263d3399d5c719bfd4b806824",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc813/PHerc813-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "62a514d6b65fc21cece574dfd94feabce8c40d433ffe324bcf4e4d888d45b476",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g04-inner",
+      "seed_xyz_l0": [
+        4595.0,
+        3822.0,
+        8432.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc813/PHerc813-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5839006401712126,
+      "bbox_l0_xyz": [
+        [
+          2191.478271484375,
+          1970.609375,
+          8085.90966796875
+        ],
+        [
+          3586.545654296875,
+          3262.148193359375,
+          9081.158203125
+        ]
+      ],
+      "meta_sha256": "60919021fb5146be620e361cc252936b4093c81b5576d4556efe39821ca2bbc4",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc813/PHerc813-g04-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "426c593e0239bce8880ab3a93450da57eee9e807c17ac21bb269e7c177d9f97a",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g04-middle",
+      "seed_xyz_l0": [
+        2894.0,
+        2585.0,
+        8432.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v12/runtime/surfaces/PHerc813/PHerc813-g04-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842401313313637,
+      "bbox_l0_xyz": [
+        [
+          2402.347900390625,
+          770.5452880859375,
+          10070.2626953125
+        ],
+        [
+          3753.71044921875,
+          2045.972900390625,
+          10963.310546875
+        ]
+      ],
+      "meta_sha256": "96924b235658e5a1439013376612fd70f61426e237e1fd583888d83933f70287",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc813/PHerc813-g05-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "bb245b03c63d1dff0ee9dbd95ca55ad80503213f14c6c5bae283076ba312929d",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g05-outer",
+      "seed_xyz_l0": [
+        3072.0,
+        1399.0,
+        10556.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc813/PHerc813-g05-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584174973428088,
+      "bbox_l0_xyz": [
+        [
+          1834.62744140625,
+          4132.6728515625,
+          12564.177734375
+        ],
+        [
+          3168.728759765625,
+          5475.412109375,
+          13053.7646484375
+        ]
+      ],
+      "meta_sha256": "c6feddb73496524de6bb8bcac7121d2f186ea30e0efa51d5301eb402da1fe14c",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc813/PHerc813-g06-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "6685e7b350bff275831b882e1d2a40b9f96384741639bb1f0023134a2eb3f7c1",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g06-middle",
+      "seed_xyz_l0": [
+        2502.0,
+        4805.0,
+        12680.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc813/PHerc813-g06-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841248939848136,
+      "bbox_l0_xyz": [
+        [
+          739.9370727539062,
+          3946.390625,
+          13987.001953125
+        ],
+        [
+          2110.09619140625,
+          5212.96923828125,
+          15072.9716796875
+        ]
+      ],
+      "meta_sha256": "0815a2420c81aab1b337e49de7f74e9157f3d58e392b2e14a61c601804e9c950",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/campaigns/campaign-x-2026/runs/v22-pherc813-geometry-recovery/runtime/PHerc813/PHerc813-g07-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "6a8b38ee64bcf9bc626a4255b03bf83ddaed3d66e7cea77bbd70e619c04e02eb",
+      "sample_id": "PHerc813",
+      "seed_id": "PHerc813-g07-outer",
+      "seed_xyz_l0": [
+        1421.0,
+        4598.0,
+        14804.0
+      ],
+      "surface_meta": "workspace/campaigns/campaign-x-2026/runs/v22-pherc813-geometry-recovery/runtime/PHerc813/PHerc813-g07-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842044189526596,
+      "bbox_l0_xyz": [
+        [
+          3755.7978515625,
+          2782.13037109375,
+          1531.452880859375
+        ],
+        [
+          5092.18212890625,
+          4072.215087890625,
+          2548.97314453125
+        ]
+      ],
+      "meta_sha256": "189d8d211c08e1c56258e940c4e26a6b7f2935675c65c4c747257e467120fe3d",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc826/PHerc826-g01-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "84163eda0e4f9237c3d24fc0c7cfc4e213e9a06780aa1a9b81cbed3b12cb70c6",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g01-inner",
+      "seed_xyz_l0": [
+        4424.0,
+        3426.0,
+        2051.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v4/runtime/surfaces/PHerc826/PHerc826-g01-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842209948525865,
+      "bbox_l0_xyz": [
+        [
+          1748.8892822265625,
+          3326.919189453125,
+          1786.723388671875
+        ],
+        [
+          3054.969482421875,
+          4717.951171875,
+          2818.337646484375
+        ]
+      ],
+      "meta_sha256": "be84322774cee36fff07f0fb2ecf44433cd3b92ca4924ac7947cfd47522470e1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc826/PHerc826-g01-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "b8567910aa17fe80376980a76a52a78aec9735f288ec4a406346a7f2dd62e477",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g01-middle",
+      "seed_xyz_l0": [
+        2388.0,
+        4020.0,
+        2051.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v3/runtime/surfaces/PHerc826/PHerc826-g01-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.583960474681139,
+      "bbox_l0_xyz": [
+        [
+          3467.761474609375,
+          4027.0107421875,
+          3937.832763671875
+        ],
+        [
+          4784.400390625,
+          5431.43017578125,
+          4696.8671875
+        ]
+      ],
+      "meta_sha256": "e4c8c3ed6324cc6a6002d1271adb551586ec51c9b5ab46c9ab415dcda376967a",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc826/PHerc826-g02-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "664bb5e066897d5ce0cc7291cd666f1b400f7489433c09c931c7fc45e94d6580",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g02-inner",
+      "seed_xyz_l0": [
+        4175.0,
+        4690.0,
+        4166.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v7/runtime/surfaces/PHerc826/PHerc826-g02-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842515564748296,
+      "bbox_l0_xyz": [
+        [
+          4469.994140625,
+          2159.597900390625,
+          3870.769775390625
+        ],
+        [
+          6120.69921875,
+          3632.44580078125,
+          4379.18603515625
+        ]
+      ],
+      "meta_sha256": "60ae42990fc82d094cfa1732949c67a75e11d35437de9b7981a326f66539c0a1",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc826/PHerc826-g02-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "034d44c0d34ffc339fa405ce83350865d900c03bf30b006235982c1e017f94c8",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g02-middle",
+      "seed_xyz_l0": [
+        5303.0,
+        2861.0,
+        4166.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v6/runtime/surfaces/PHerc826/PHerc826-g02-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584175004275358,
+      "bbox_l0_xyz": [
+        [
+          733.4187622070312,
+          2511.688232421875,
+          4023.38037109375
+        ],
+        [
+          2076.68896484375,
+          3879.56201171875,
+          4308.57470703125
+        ]
+      ],
+      "meta_sha256": "a09e0fe79575542281a9fadf1d7d83065d0e9030d490e48313f168f460dab30c",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc826/PHerc826-g02-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "844831e5dfed57d913acfa9d8534eec3eadab8a0adf2e402e9a2bd00175a18b5",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g02-outer",
+      "seed_xyz_l0": [
+        1402.0,
+        3194.0,
+        4166.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v5/runtime/surfaces/PHerc826/PHerc826-g02-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841888158182755,
+      "bbox_l0_xyz": [
+        [
+          3229.344482421875,
+          5035.2109375,
+          5471.06494140625
+        ],
+        [
+          4530.4541015625,
+          6430.3818359375,
+          6315.72998046875
+        ]
+      ],
+      "meta_sha256": "cbfe6516aaeb6051080adf8e3d420276ac208804ae44f398267def9208843859",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "VERIFIED_META_ONLY",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc826/PHerc826-g03-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "0100de024886f1afa4ecf40336993c909901ba8a6c3695d6150cf3564b834b71",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g03-middle",
+      "seed_xyz_l0": [
+        3870.0,
+        5731.0,
+        6281.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v9/runtime/surfaces/PHerc826/PHerc826-g03-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.58398332381731,
+      "bbox_l0_xyz": [
+        [
+          4038.89111328125,
+          3264.7392578125,
+          8304.1591796875
+        ],
+        [
+          5375.9482421875,
+          4608.55517578125,
+          8629.158203125
+        ]
+      ],
+      "meta_sha256": "0fcb3b2244a11c4be4eb6cca2018ddc2325890751104393138aff1b653304cda",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc826/PHerc826-g04-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "202f2ee71a6cdd7cc18bbdb7e3265ea2a79dd6897795d58ce63da3124628fbb0",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g04-inner",
+      "seed_xyz_l0": [
+        4700.0,
+        3931.0,
+        8396.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v13/runtime/surfaces/PHerc826/PHerc826-g04-inner/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584027419426132,
+      "bbox_l0_xyz": [
+        [
+          2302.115966796875,
+          5891.25927734375,
+          8314.0146484375
+        ],
+        [
+          3641.93798828125,
+          7226.2119140625,
+          8927.322265625
+        ]
+      ],
+      "meta_sha256": "caceb44f23be1e9b6352658950fcdf9879e68bcb487917fbf34a90a806aa9f47",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc826/PHerc826-g04-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "73dcb8005db69fac99c3faa26f361b21a8717342e9953dc03e77a3e01d7a15aa",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g04-outer",
+      "seed_xyz_l0": [
+        2969.0,
+        6555.0,
+        8396.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v11/runtime/surfaces/PHerc826/PHerc826-g04-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5842001092086837,
+      "bbox_l0_xyz": [
+        [
+          4998.03564453125,
+          3799.7646484375,
+          9715.2607421875
+        ],
+        [
+          6418.63720703125,
+          5137.74169921875,
+          10760.2734375
+        ]
+      ],
+      "meta_sha256": "2ec131250b065e3be7dcafaa88103f53546b7f75310c19ff62e26819edae4c56",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc826/PHerc826-g05-middle/GROWTH_RECEIPT.json",
+      "receipt_sha256": "91bed95e14f4993ea436b93149971779ca77b7a3516480ddbced135b8a1449a9",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g05-middle",
+      "seed_xyz_l0": [
+        5710.0,
+        4397.0,
+        10510.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v14/runtime/surfaces/PHerc826/PHerc826-g05-middle/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.584009048443627,
+      "bbox_l0_xyz": [
+        [
+          5810.98828125,
+          4663.7041015625,
+          12093.443359375
+        ],
+        [
+          7140.06884765625,
+          5989.94970703125,
+          12896.7626953125
+        ]
+      ],
+      "meta_sha256": "f1ca71e9e8cea6336556d29f7fe2f3c836a84bf7bfbea6c080b9878ef3f73127",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc826/PHerc826-g06-outer/GROWTH_RECEIPT.json",
+      "receipt_sha256": "9ebb4f83c90665f9c84d272b17086b50cedc957d18d2d25ae76724210da1051c",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g06-outer",
+      "seed_xyz_l0": [
+        6460.0,
+        5320.0,
+        12625.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v15/runtime/surfaces/PHerc826/PHerc826-g06-outer/surface/meta.json"
+    },
+    {
+      "area_cm2": 1.5841470127671764,
+      "bbox_l0_xyz": [
+        [
+          3859.501708984375,
+          3819.468994140625,
+          14589.408203125
+        ],
+        [
+          5206.77978515625,
+          5191.64306640625,
+          14816.7109375
+        ]
+      ],
+      "meta_sha256": "d001fd25b3ca70a4f3532dece27c8832d12111b19a8972836bf09ae2efa82405",
+      "non_claim": "A verified historical growth bbox is a duplicate-work exclusion, not a reusable TIFXYZ or validated sheet.",
+      "physical_qc_state": "UNVALIDATED",
+      "prediction_uri": "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "preservation_state": "SOURCE_TIFXYZ_COMPLETE",
+      "receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v16/runtime/PHerc826/PHerc826-g07-inner/GROWTH_RECEIPT.json",
+      "receipt_sha256": "510131e17c1f1a973ac3b62dcccc105e215290eeaa5c2c88f2531f77d9c90a36",
+      "sample_id": "PHerc826",
+      "seed_id": "PHerc826-g07-inner",
+      "seed_xyz_l0": [
+        4517.0,
+        4506.0,
+        14740.0
+      ],
+      "surface_meta": "workspace/archive/campaign-x-2026/legacy-phases/phase4/geometry_first_recovery_v16/runtime/PHerc826/PHerc826-g07-inner/surface/meta.json"
+    }
+  ],
+  "generated_at_utc": "2026-07-20T23:53:58Z",
+  "kind": "campaign_x_historical_growth_exclusions_v1",
+  "missing_metadata": [],
+  "missing_metadata_count": 0,
+  "passed_growth_receipt_count": 146,
+  "policy": [
+    "only PASSED geometry-recovery receipts with hash-matching meta.json create exclusions",
+    "metadata-only records prevent duplicate exploration but never enter the reusable TIFXYZ library",
+    "conflicting identities or hashes fail closed",
+    "no row is physical-QC validation, ink, text, or First Letters evidence"
+  ],
+  "schema_version": 1,
+  "source_root": "/Users/user/Documents/Software.nosync/Factory/vesubius-challenge/Campaign X",
+  "status": "LOCKED_VERIFIED",
+  "verified_meta_only_count": 73
+}

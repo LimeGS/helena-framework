@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "campaign-x/docker/execution-receipt-v1",
+  "title": "Campaign X immutable pipeline execution receipt",
+  "description": "Receipt emitted exactly once for a containerized pipeline step. It records provenance; it is not a scientific acceptance decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "schema_version", "status", "run_id", "step", "generated_at_utc", "provenance", "command", "environment", "inputs", "outputs"],
+  "properties": {
+    "kind": {"const": "campaign_x_execution_receipt"},
+    "schema_version": {"const": 1},
+    "status": {"enum": ["SUCCEEDED", "FAILED", "PRECONDITION_FAILED"]},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{7,127}$"},
+    "step": {"enum": ["vc3d-grow", "scrollfiesta-mesh", "surface-compare", "topology-check", "flattening", "ct-render", "ink-inference", "stability-screen", "high-recall", "ct-gate", "viewer", "orchestrator"]},
+    "generated_at_utc": {"type": "string", "format": "date-time"},
+    "provenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["git_commit", "image_digest", "image_platform", "scripts", "models"],
+      "properties": {
+        "git_commit": {"$ref": "#/$defs/git_commit"},
+        "image_digest": {"$ref": "#/$defs/oci_digest"},
+        "image_platform": {"const": "linux/amd64"},
+        "scripts": {"$ref": "#/$defs/named_hashes"},
+        "models": {"$ref": "#/$defs/named_hashes"}
+      }
+    },
+    "command": {
+      "type": "object", "additionalProperties": false,
+      "required": ["argv", "argv_sha256", "working_directory"],
+      "properties": {
+        "argv": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "argv_sha256": {"$ref": "#/$defs/sha256"},
+        "working_directory": {"const": "/work/repo"}
+      }
+    },
+    "environment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["cuda", "gpu", "container", "mounts"],
+      "properties": {
+        "cuda": {"type": "object", "additionalProperties": false, "required": ["runtime", "driver"], "properties": {"runtime": {"type": ["string", "null"]}, "driver": {"type": ["string", "null"]}}},
+        "gpu": {"type": "object", "additionalProperties": false, "required": ["available", "devices"], "properties": {"available": {"type": "boolean"}, "devices": {"type": "array", "items": {"type": "object"}}}},
+        "container": {"type": "object", "additionalProperties": false, "required": ["id", "read_only_root", "network_mode"], "properties": {"id": {"type": ["string", "null"]}, "read_only_root": {"const": true}, "network_mode": {"enum": ["none", "bridge"]}}},
+        "mounts": {"type": "object", "additionalProperties": false, "required": ["inputs_read_only", "outputs_read_write"], "properties": {"inputs_read_only": {"const": ["/work/repo", "/inputs", "/models"]}, "outputs_read_write": {"const": ["/outputs"]}}}
+      }
+    },
+    "inputs": {"$ref": "#/$defs/artifacts"},
+    "outputs": {"$ref": "#/$defs/artifacts"},
+    "error": {"type": ["object", "null"], "additionalProperties": false, "required": ["class", "message", "log_sha256"], "properties": {"class": {"type": "string"}, "message": {"type": "string"}, "log_sha256": {"$ref": "#/$defs/sha256"}}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "git_commit": {"type": "string", "pattern": "^[a-f0-9]{40}$"},
+    "oci_digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "artifact": {"type": "object", "additionalProperties": false, "required": ["path", "sha256", "bytes"], "properties": {"path": {"type": "string", "pattern": "^/(inputs|models|outputs|work/repo)/"}, "sha256": {"$ref": "#/$defs/sha256"}, "bytes": {"type": "integer", "minimum": 0}}},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "named_hashes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["name", "sha256"], "properties": {"name": {"type": "string"}, "sha256": {"$ref": "#/$defs/sha256"}}}}
+  }
+}

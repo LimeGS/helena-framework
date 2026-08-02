@@ -1,0 +1,77 @@
+{
+  "schema": "campaignx.segment_fleet_profile.v1",
+  "profile_id": "vc3d-m7-growth-v2",
+  "description": "Ink-blind VC3D/m7 local surface growth envelope. Same growth bounds as v1, extended to cover every option vc_grow_seg_from_seed accepts; the resume group applies only when the plan names a surface to resume from.",
+  "mode": "seed",
+  "parameters": {
+    "generations": {
+      "type": "integer",
+      "minimum": 20,
+      "maximum": 45,
+      "default": 35
+    },
+    "step_size": {
+      "type": "integer",
+      "minimum": 12,
+      "maximum": 24,
+      "default": 20
+    },
+    "min_area_cm": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 0.0,
+      "default": 0.0
+    },
+    "use_cuda": {
+      "type": "boolean",
+      "const": false,
+      "default": false
+    },
+    "inpaint": {
+      "type": "boolean",
+      "default": false,
+      "note": "fill detected holes; changes the surface, so it is off by default"
+    },
+    "skip_overlap_check": {
+      "type": "boolean",
+      "default": false,
+      "note": "skip the post-trace overlap check against other surfaces"
+    },
+    "rewind_gen": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0,
+      "default": null,
+      "note": "resumed grows only"
+    },
+    "resume_generations": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 45,
+      "default": null,
+      "note": "resumed grows only; overrides the JSON generations"
+    },
+    "resume_opt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "skip",
+        "local",
+        "global",
+        null
+      ],
+      "default": null,
+      "note": "resumed grows only"
+    }
+  },
+  "ink_used": false,
+  "supersedes": "vc3d-m7-growth-v1",
+  "change_rationale": "v1 bounded four parameters and the binary takes twelve, so inpainting, the overlap check and the whole resume path were unreachable from the fleet. v1 is left byte-identical because PLN-EXP-20260722-SEG-HYBRID-scrollfiesta-vc3d-r01-SOURCE_LOCK.json binds its sha256; a plan that wants the new options names v2."
+}

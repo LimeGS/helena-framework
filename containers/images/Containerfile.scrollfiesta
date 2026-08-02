@@ -1,0 +1,57 @@
+# syntax=docker/dockerfile:1.7
+# INTERNAL RESEARCH ONLY. The verified bundle contains Triangle and vendored
+# andres/graph code whose binary redistribution terms are not cleared.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG BASE_IMAGE
+
+ARG BUILD_COMMIT=unknown
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.2.0
+ARG SCROLLFIESTA_RUNTIME_PACKAGE_VERSION=0.1.0
+LABEL org.opencontainers.image.title="helena-scrollfiesta" \
+      org.opencontainers.image.description="Helena Framework ScrollFiesta mesh/weld plus locked Villa flatten/TIFXYZ research runtime" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.campaignx.scrollfiesta.runtime.version="${SCROLLFIESTA_RUNTIME_PACKAGE_VERSION}" \
+      org.campaignx.distribution="INTERNAL_RESEARCH_ONLY" \
+      org.campaignx.redistribution.blocked="triangle-and-andres-license-clearance"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=segmentation \
+    CAMPAIGN_X_GEOMETRY_BACKEND=scrollfiesta \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    SCROLLFIESTA_RUNTIME_ROOT=/opt/campaignx/scrollfiesta \
+    SCROLLFIESTA_CUBE_MESH=/opt/campaignx/scrollfiesta/bin/cube_mesh \
+    SCROLLFIESTA_GRID_WELD=/opt/campaignx/scrollfiesta/bin/grid_weld \
+    SCROLLFIESTA_OBJ_COMPONENTS=/opt/campaignx/scrollfiesta/bin/obj_components \
+    SCROLLFIESTA_PINHOLE_VERDICT=/opt/campaignx/scrollfiesta/bin/pinhole_verdict \
+    SCROLLFIESTA_SEAM_AUDIT=/opt/campaignx/scrollfiesta/bin/seam_audit \
+    SCROLLFIESTA_FLATBOI=/opt/campaignx/scrollfiesta/bin/flatboi \
+    SCROLLFIESTA_OBJ2TIFXYZ=/opt/campaignx/scrollfiesta/bin/vc_obj2tifxyz_legacy \
+    PATH=/opt/campaignx/scrollfiesta/bin:${PATH}
+
+# The named context is generated only from a verified native bundle. The OCI
+# build never receives a source tree, CT, m7, a model, credentials or results.
+COPY --from=scrollfiesta_runtime /scrollfiesta-runtime.tgz /tmp/scrollfiesta-runtime.tgz
+
+RUN mkdir -p /opt/campaignx/scrollfiesta \
+ && tar -xzf /tmp/scrollfiesta-runtime.tgz -C /opt/campaignx/scrollfiesta \
+ && test "$(cat /opt/campaignx/scrollfiesta/BUNDLE_SCHEMA)" = "campaignx.scrollfiesta_runtime_bundle.v1" \
+ && cd /opt/campaignx/scrollfiesta \
+ && sha256sum -c SHA256SUMS \
+ && test -x bin/cube_mesh \
+ && test -x bin/grid_weld \
+ && test -x bin/flatboi \
+ && test -x bin/vc_obj2tifxyz_legacy \
+ && bin/scrollunwrap --help >/dev/null \
+ && test ! -e bin/grid_pipeline \
+ && grep -q 'BLOCKED_PENDING_LICENSE_CLEARANCE' LICENSE_INVENTORY.json \
+ && rm -f /tmp/scrollfiesta-runtime.tgz
+
+WORKDIR /workspace/campaign-x
+CMD ["sh"]

@@ -1,0 +1,82 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -202,7 +202,7 @@ target_include_directories(scrollfiesta_core PUBLIC
+     ${SF_DEPS}/include
+     ${SF_DEPS}/src/graph/include)
+ target_link_libraries(scrollfiesta_core PRIVATE
+-    sf_triangle Clipper2 Clipper2Z ${SF_TIFF_LIBS})
++    sf_triangle Clipper2Z ${SF_TIFF_LIBS})
+ set_target_properties(scrollfiesta_core PROPERTIES
+     POSITION_INDEPENDENT_CODE ON
+     C_STANDARD 17
+@@ -322,3 +322,10 @@ if(SCROLLFIESTA_BUILD_TESTS)
++    # Regression for a USINGZ/non-USINGZ ABI mismatch in the Clipper2
++    # fallback used by hole_fill. Linking both archives selected the non-Z
++    # implementation while this translation unit saw the Z-sized Point64.
++    add_executable(sf_clipper2_wrap_regression tests/clipper2_wrap_regression.cpp)
++    target_link_libraries(sf_clipper2_wrap_regression PRIVATE scrollfiesta_core)
++    add_test(NAME sf_clipper2_wrap_regression COMMAND sf_clipper2_wrap_regression)
++
+     # The canonical consumer test: links NOTHING from scrollfiesta, loads the
+     # shared library at runtime and drives it through sf_get_api — exactly
+     # what an embedding host (VC3D) does. Only meaningful for shared builds.
+diff --git a/tests/clipper2_wrap_regression.cpp b/tests/clipper2_wrap_regression.cpp
+new file mode 100644
+--- /dev/null
++++ b/tests/clipper2_wrap_regression.cpp
+@@ -0,0 +1,54 @@
++#include "holefill/clipper2_wrap.h"
++
++#include <cmath>
++#include <cstdlib>
++#include <iostream>
++
++int main()
++{
++    // Exact seven-point fallback polygon from the PHerc0139 cube that
++    // previously crashed in Clipper2Lib::AddPaths_. The path is intentionally
++    // non-simple: this is the input class for which hole_fill calls Union.
++    const double points[] = {
++        -1.2731, -1.2577,
++        -1.0116,  0.7241,
++         0.7309,  0.6785,
++        -0.4123,  1.2106,
++         0.8159, -0.4862,
++         0.5758,  0.2891,
++         0.5745, -1.1583,
++    };
++
++    double *out_points = nullptr;
++    int *out_counts = nullptr;
++    int out_polygons = 0;
++    const int rc = Clipper2_union(points, 7, &out_points, &out_counts,
++                                  &out_polygons);
++    if (rc != 0 || out_polygons <= 0 || !out_points || !out_counts) {
++        std::cerr << "Clipper2_union rejected the PHerc0139 regression path\n";
++        std::free(out_points);
++        std::free(out_counts);
++        return 1;
++    }
++
++    std::size_t total = 0;
++    for (int polygon = 0; polygon < out_polygons; ++polygon) {
++        if (out_counts[polygon] < 3) {
++            std::free(out_points);
++            std::free(out_counts);
++            return 2;
++        }
++        total += static_cast<std::size_t>(out_counts[polygon]);
++    }
++    for (std::size_t i = 0; i < total * 2; ++i) {
++        if (!std::isfinite(out_points[i])) {
++            std::free(out_points);
++            std::free(out_counts);
++            return 3;
++        }
++    }
++
++    std::free(out_points);
++    std::free(out_counts);
++    return 0;
++}

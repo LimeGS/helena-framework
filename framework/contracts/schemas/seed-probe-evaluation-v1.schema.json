@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-evaluation-v1.schema.json",
+  "title": "Campaign X seed probe geometry evaluation v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "probe_run_id",
+    "probe_trial_id",
+    "probe_artifact_set_id",
+    "profile_id",
+    "profile_sha256",
+    "verdict",
+    "geometry_qc_state",
+    "measurement_complete",
+    "resolution_limited",
+    "inspection",
+    "geometry_certification_sha256",
+    "ink_used",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_evaluation.v1"},
+    "probe_run_id": {"type": "string", "minLength": 1},
+    "probe_trial_id": {"type": "string", "minLength": 1},
+    "probe_artifact_set_id": {"type": "string", "minLength": 1},
+    "profile_id": {"const": "tifxyz-geometry-gate-probe-v1"},
+    "profile_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verdict": {"enum": ["ELIGIBLE", "REJECTED", "UNMEASURED"]},
+    "geometry_qc_state": {"type": "string", "minLength": 1},
+    "measurement_complete": {"type": "boolean"},
+    "resolution_limited": {"type": ["boolean", "null"]},
+    "inspection": {"type": "object"},
+    "geometry_certification_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "ink_used": {"const": false},
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}

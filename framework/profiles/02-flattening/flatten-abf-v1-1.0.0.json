@@ -1,0 +1,22 @@
+{
+  "schema": "campaignx.flattening_profile.v1",
+  "profile_id": "flatten-abf-v1@1.0.0",
+  "name": "ABF++ full resolution",
+  "stage": "02-flattening",
+  "status": "OPERATIONAL",
+  "method": "vc_flatten: LSCM initialisation followed by ABF++ angle optimisation",
+  "iterations": 10,
+  "downsample": 1,
+  "lscm_only": false,
+  "scale_to_3d_area": true,
+  "notes": {
+    "iterations": "vc_flatten's own default. Raising it costs time and buys angle accuracy; no measurement here justifies a different number yet, and inventing one would put an unmeasured choice in every receipt.",
+    "downsample": "Full resolution. The point of P3 is a sheet whose pixels still address CT voxels, and downsampling throws away exactly that correspondence.",
+    "lscm_only": "ABF++ is left on. LSCM alone is the faster conformal fallback and belongs in a second profile, compared, rather than as an unrecorded flag.",
+    "scale_to_3d_area": "Output is scaled back to the surface's 3D area so the flattened sheet and the surface are measured in the same units. The receipt records both areas, so the residual distortion stays visible."
+  },
+  "non_claims": [
+    "these settings are vc_flatten's defaults, not a tuned configuration; they are frozen so that runs are comparable, not because they are known to be best",
+    "no A/B against lscm-only or against a downsampled run has been done on this corpus"
+  ]
+}

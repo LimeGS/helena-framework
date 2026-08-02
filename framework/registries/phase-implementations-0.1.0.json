@@ -1,0 +1,322 @@
+{
+  "schema": "campaignx.phase_implementations.v1",
+  "note": "Which component actually implements each pipeline phase. Most of these are separate published repositories, several on GitHub under MIT. The framework's job is to index, route and gate them -- not to reimplement them. Paths are relative to the vesubius-challenge working tree; remotes are authoritative.",
+  "phase_vocabulary": "framework/contracts/pipeline_phases.json",
+  "implementations": [
+    {
+      "component": "pherc0139-column-atlas",
+      "phases": [
+        "P8",
+        "P9"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "remote": "https://github.com/LimeGS/pherc0139-column-atlas",
+      "viewer": "https://limegs.github.io/pherc0139-column-atlas/viewer/",
+      "local_path": "release/pherc0139-column-atlas-gh",
+      "license": "MIT",
+      "what_it_does": "Every segmented column of PHerc 0139 as plates in physical reading order: 38 segments, 37 body wraps plus the title. The ordering is the contribution -- the ink maps themselves are the official ones.",
+      "entry_points": {
+        "wrap_order": "scripts/wrap_order.py -- wrap order from mesh geometry: PCA scroll axis, mean radial distance per segment. Spearman rho 0.9993 against the official wNNN sequence; mean radial step ~0.17 mm, the thickness of rolled papyrus.",
+        "separate_wraps_by_winding": "scripts/separate_wraps_by_winding.py -- winding-angle separation of a mesh into candidate wraps",
+        "fit_local_centerline": "scripts/fit_local_centerline.py",
+        "estimate_extent": "scripts/estimate_extent.py",
+        "reparametrize_to_column": "scripts/reparametrize_to_column.py -- reparametrize a mesh region into a column image",
+        "make_plates": "scripts/make_plates.py -- regenerate the column plates from the official ds8 ink maps",
+        "build_viewer": "scripts/build_viewer.py"
+      },
+      "produced_with": "new_canon_autoresearch_recipe, tile 256, stride 128, ds8 -- the same canonical 2 um lane this framework routes as ink-canonical-2um-screening@1.0.0",
+      "why_it_matters_here": "P8 and P9 were listed as PARTIAL and NOT_REACHED. They are neither: this is a working, published implementation of wrap ordering and column rendering. It also solves the exact defect flagged on PHerc0826, where a region of interest silently spanned two windings.",
+      "dependencies": [
+        "numpy",
+        "scipy",
+        "scikit-image",
+        "boto3"
+      ],
+      "what_it_does_not_do": [
+        "It is not a new ink detector. Its own README: 'This is triage/presentation of official model output, not a new ink detector.'",
+        "It claims no transcription. Its own README: 'We flag and order; we do not read greek. No transcription is claimed.'",
+        "No new letters were machine-recovered from raw CT. The maps come from the official new_canon_autoresearch_recipe output published by the challenge."
+      ],
+      "what_is_actually_established": {
+        "wrap_order": "Spearman rho 0.9993 against the official wNNN sequence; mean radial step ~0.17 mm, the thickness of rolled papyrus -- an independent physical check on the ordering.",
+        "legibility_index": "4905 windows scored across the 38 official maps; 63 gold windows at score >= 0.9 reviewed by one human: 54 'clear text', 9 'possible', 0 rejected as noise.",
+        "untranscribed_surface": "52 of the 54 fall outside the formally published title, and 36 of those sit in 10 wraps with no published reading at all.",
+        "positive_control": "The already-read title segment ranks 2nd of 38 by gold density, which is what validates the index.",
+        "the_defensible_claim": "Here are 36 windows of official ink-map output that appear legible and have no published reading, placed in physical reading order. That is a pointer for papyrologists, not a reading."
+      },
+      "externally_published_readings_are_not_ours": "The only formally read content on PHerc 0139 is the end title, 'Philodemou peri theon E', plus five isolated phrases in the supplement of arXiv 2606.29085. Those were published by others and are used here only as anchors and as a positive control."
+    },
+    {
+      "component": "vetting-card",
+      "phases": [
+        "P7"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "remote": "https://github.com/LimeGS/vetting-card",
+      "local_path": "release/vetting-card",
+      "what_it_does": "Automated anti-pareidolia checks for 'I found letters' claims. Drop a map, mark the region, get a calibrated pass/fail card carrying the SHA-256 hashes a reviewer needs to replay the claim. Runs in the browser via Pyodide; the image never leaves the machine.",
+      "entry_points": {
+        "vet_map": "vet_map.py",
+        "vet_pipeline": "vet_pipeline.py",
+        "make_card": "make_card.py",
+        "calibration": "calibration/measure.py, calibration/build_calibration_set.py"
+      },
+      "why_it_matters_here": "This is the calibrated form of the gate discipline. A first pass at a letterform-vs-density check was written for this framework and then deleted in favour of this: its thresholds are measured against a calibration set, and the invented ones were not.",
+      "the_rule_it_enables": "No priority review without a hash-bearing card and its input. A green card does not mean confirmed ancient text; it means the bytes survived a first automated round of refutation.",
+      "known_gaps": "Its own roadmap flags what is still missing: no angle-shuffle or render-jitter controls yet."
+    },
+    {
+      "component": "winding-field",
+      "phases": [
+        "P8"
+      ],
+      "status": "PUBLISHED_PARTIAL",
+      "remote": "https://github.com/LimeGS/winding-field",
+      "local_path": "release/winding-field-gh",
+      "what_it_does": "Winding-field experiments: recovering a global winding coordinate over a scroll cross-section.",
+      "known_state": "Negative result, and precise about it: after fixing a sign convention bug, still 43.8-45.8% same-sheet disagreement. Useful as a weak prior, not for automatic winding labels."
+    },
+    {
+      "component": "neural-tracing-audit",
+      "phases": [
+        "P1",
+        "P2"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "remote": "https://github.com/LimeGS/neural-tracing-audit",
+      "local_path": "release/neural-tracing-audit-gh",
+      "what_it_does": "Local multi-wrap benchmark for compressed-region surface tracing, with a documented correction: the audited checkpoint is trained at 4.8 um.",
+      "why_it_matters_here": "P2 currently certifies geometry without an independent tracing benchmark. This supplies one."
+    },
+    {
+      "component": "reference-strips",
+      "phases": [
+        "P1",
+        "P2"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/reference-strips",
+      "what_it_does": "The multi-wrap reference methodology as a reusable qualified-benchmark format, with a four-check qualification suite and a scorer for both tracers and meshers. 54 tests.",
+      "why_it_matters_here": "Its null-baseline synthetic-overshoot control guards against a scorer too loose to fail garbage -- the same failure class as a DEGENERATE ink map, applied to the benchmark itself."
+    },
+    {
+      "component": "scroll-tracing-benchmark",
+      "phases": [
+        "P1",
+        "P6"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/scroll-tracing-benchmark-v4",
+      "what_it_does": "The tracing-audit methodology packaged as a library: windowed multi-wrap reference construction, prediction-free validity gates, curvature-stratified window selection, permutation-null saturation classification and a NaN-row-abstain candidate contract.",
+      "why_it_matters_here": "Arguably the most mature liveness-and-control implementation in the whole release tree, and it predates the one written here. The abstain contract in particular is something this framework does not have: a scorer that may decline to answer.",
+      "known_state": "Three copies exist and none has a git remote, including the one named -gh. The -v4-ct-wip copy is a checkpointed work in progress; v4's own README says PHerc1667 stays a candidate until CT tuning and Gate C are committed."
+    },
+    {
+      "component": "scroll-streaming-tools",
+      "phases": [
+        "P0",
+        "P1",
+        "P4",
+        "P5"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/scroll-streaming-tools",
+      "what_it_does": "Four jobs for the 2.4 um rescans: bridge a legacy PPM onto a new volume and re-render, carve unsegmented territory into a renderable region, move human ink labels across volumes, and run three third-party ink models with correct preprocessing.",
+      "why_it_matters_here": "P4 is the framework's weakest phase: rendering a surface volume locally needs a volume-cartographer build this repo has only as metadata. This is the closest existing answer.",
+      "caveat": "Its own README says it is not a replacement for the official vesuvius package.",
+      "validation": "The chunk-gather render validates at r = 0.89 against an official ink map.",
+      "entry_points": {
+        "render_scroll3": "render_scroll3.py --ppm --out --layers --spacing --conc",
+        "winding_tracer": "winding_tracer.py -- traces into unsegmented territory",
+        "wedge_extract": "wedge_extract.py",
+        "label_transport": "label_transport.py -- moves human ink labels across volumes",
+        "adapters": "adapters/infer_{resnet3d_1667,dino3d,timesformer}.py -- three ink models with their exact preprocessing, one carrying an air-patch control"
+      }
+    },
+    {
+      "component": "ink-signal-study",
+      "phases": [
+        "P5",
+        "P6"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/ink-signal-study",
+      "what_it_does": "How much ink signal is in the public Herculaneum data: the E1-E32 negative-result atlas, the frozen-feature ceiling of 0.63-0.66 under spatial k-fold, and the density-vs-letters metric trap.",
+      "why_it_matters_here": "It supplies the reasons several lanes fail rather than only the fact that they do, and it is where the finding behind the vetting discipline comes from: a high AUROC on ink-dense, blob-labelled windows is compatible with a detector that cannot trace a single letter."
+    },
+    {
+      "component": "herculaneum-legibility-index",
+      "phases": [
+        "P7"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "remote": "https://github.com/LimeGS/herculaneum-legibility-index",
+      "local_path": "release/herculaneum-legibility-index-gh",
+      "what_it_does": "A legibility index over the official ink maps, with a PHerc 0139 writeup and evidence package."
+    },
+    {
+      "component": "hf-proxy-v4",
+      "phases": [
+        "P7"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "local_path": "release/hf-proxy-v4",
+      "what_it_does": "The ResNet-18 checkpoints (proxy_v4.pt, proxy_s2s3_v1.pt) behind the legibility index, with a model card covering training, thresholds and use.",
+      "known_state": "Carries a correction dated 2026-07-08 found in adversarial review.",
+      "remote": "https://huggingface.co/LimeGS/herculaneum-legibility-proxy"
+    },
+    {
+      "component": "dual-energy-ink",
+      "phases": [
+        "P5"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/dual-energy-ink",
+      "what_it_does": "A first dual-energy look at Herculaneum ink.",
+      "known_state": "Suggestive on Scroll 1; negative on the unread PHerc 0332, where 95.4% of the ratio channel is leakage of shared structure."
+    },
+    {
+      "component": "s2-canonical-track-a",
+      "phases": [
+        "P4",
+        "P5"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "experiments/s2-canonical-track-a",
+      "what_it_does": "The cleanest chunk-gather surface-volume renderer: PPM position+normal, inverts the published affine, nearest-chunk OME-Zarr HTTP GETs, and writes a 62-layer uint8 stack as layers/NN.tif. Resumable through done.json plus a memmap.",
+      "entry_points": {
+        "render_scroll2_canonical": "scripts/render_scroll2_canonical.py -- the renderer; a copy of release/scroll-streaming-tools/render_scroll3.py, which is the canonical source",
+        "gate0_canonical": "scripts/gate0_canonical.py",
+        "infer_canonical": "scripts/infer_canonical.py",
+        "qc_render_stack": "scripts/qc_render_stack.py -- structural QC of a completed render"
+      },
+      "why_it_matters_here": "P4 was described as PARTIAL_LOCALLY because rendering needs a volume-cartographer build this repo lacks. That framing was wrong: this renders surface volumes today without vc3d, and its output layout -- layers/NN.tif, uint8 -- is exactly what run_ink.py consumes."
+    },
+    {
+      "component": "patchwork2 (session-20260706)",
+      "phases": [
+        "P4",
+        "P5",
+        "P8"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "tools/session-20260706",
+      "what_it_does": "A more complete renderer than the track-a one: true trilinear interpolation rather than nearest voxel, sparse chunk-gather over HTTP Range, frame inversion between fixed and rescan, 62-layer uint8 stacks. Ships its own fleet deployment over SSH.",
+      "entry_points": {
+        "patchwork2_s2_seg": "patchwork2_s2_seg.py --patches r0:r1:c0:c1 --render-only --outdir",
+        "trackb_render": "trackb_render.py -- tifxyz window renderer with true normals and zoom upsampling",
+        "trackb_infer": "trackb_infer.py -- Hann-window overlap-add canonical inference",
+        "stitch_s2": "stitch_s2.py -- overlap-averaging mosaic of rendered patches",
+        "coverage_map": "coverage_map.py / project_coverage.py -- pools several segments' point clouds into one cylindrical coverage raster",
+        "deploy_fleet": "deploy_fleet.sh + run_tile_worker.sh -- real distributed execution, predating this framework's ink job queue"
+      },
+      "why_it_matters_here": "Trilinear rather than nearest matters at P4: nearest-voxel sampling quantises the depth axis, and the depth axis is what a detector's slab thickness depends on."
+    },
+    {
+      "component": "ppm_from_tifxyz",
+      "phases": [
+        "P3",
+        "P4"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "vendor/ppm_from_tifxyz.py",
+      "what_it_does": "Converts a TIFXYZ mesh into a PPM carrying position and normal, the normal coming from the cross product of the grid gradients. Prerequisite input for every renderer above.",
+      "why_it_matters_here": "This is the missing link between what P1 produces and what P4 consumes."
+    },
+    {
+      "component": "web-mapper",
+      "phases": [
+        "P6",
+        "P7"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "web-mapper",
+      "what_it_does": "A deployed web app for crowd review of candidate ink crops, with hidden controls that measure each reviewer's reliability, invite auth and a SQLite store.",
+      "entry_points": {
+        "ingest_candidates": "scripts/ingest_candidates.py",
+        "vet_windows": "scripts/vet_windows.py --scroll --workers --out -- runs the vetting-card gate battery across an index"
+      },
+      "why_it_matters_here": "vet_windows.py is the existing bridge between an index of candidates and the vetting-card checks; this framework should call it rather than grow a parallel screen."
+    },
+    {
+      "component": "wfield + neural_tracing winding audit",
+      "phases": [
+        "P8"
+      ],
+      "status": "RESEARCH_SCRIPTS_NOT_A_TOOL",
+      "local_path": "data/wfield, data/neural_tracing/winding_audit_v4.py",
+      "what_it_does": "Unsupervised global winding-field reconstruction r(z, theta) with anchor propagation from a human-verified segment, cross-validated out of sample against a second verified segment.",
+      "known_state": "Hardcoded paths, no argparse, driven by hand with .log files as the record of runs. Real machinery, not yet a tool."
+    },
+    {
+      "component": "geowrap-ssl-lab",
+      "phases": [
+        "P8"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "geowrap-ssl-lab",
+      "what_it_does": "Classifiers that decide whether two points lie on the same sheet, on adjacent wraps, or are unrelated -- the sheet-identity problem correct stitching depends on. Has a CLI and a pytest suite.",
+      "known_state": "Its own README: native CT segmentation and global unwinding not yet demonstrated."
+    },
+    {
+      "component": "segments/tools",
+      "phases": [
+        "P2"
+      ],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "segments/tools",
+      "what_it_does": "The publish-side quality gate for TIFXYZ segments: area, connectivity and a renderability probe that samples surface-layer zarr chunks over HTTPS to check that at least 95% are non-empty.",
+      "entry_points": {
+        "qc_publish": "qc_publish.py",
+        "probe_fast": "probe_fast.py",
+        "publish": "publish.py"
+      },
+      "why_it_matters_here": "It states the P2/P4 contract boundary explicitly -- the full layer render stays the consumer's job -- which is precisely the seam this framework sits on."
+    },
+    {
+      "component": "e24t1 physics",
+      "phases": [
+        "P6"
+      ],
+      "status": "RESEARCH_SCRIPTS_NOT_A_TOOL",
+      "local_path": "data/e24t1/physics",
+      "what_it_does": "A physics feasibility floor: NIST cross-sections through xraylib plus matched-filter analysis of whether ink is detectable at all at a given energy and voxel size.",
+      "why_it_matters_here": "P6 currently asks whether a map carries a decision. This asks whether the decision was physically available to be made, which is the stronger question and belongs beside it."
+    },
+    {
+      "component": "hf-proxy-v4-dataset",
+      "phases": [
+        "P7"
+      ],
+      "status": "PUBLISHED_WORKING",
+      "remote": "https://huggingface.co/datasets/LimeGS/herculaneum-legibility-proxy-labels",
+      "local_path": "release/hf-proxy-v4-dataset",
+      "what_it_does": "Training labels and the full 125,298-row scoring index for the legibility proxy, with a deterministic AUROC reproduction path.",
+      "entry_points": {
+        "train": "train.py --mode {s1,s2s3}",
+        "generate_crops": "generate_crops.py --download",
+        "eval_checkpoint": "eval_checkpoint.py -- deterministic AUROC reproduction"
+      }
+    },
+    {
+      "component": "helena-framework",
+      "phases": [],
+      "status": "WORKING_UNPUBLISHED",
+      "local_path": "release/helena-framework",
+      "what_it_does": "Dependency-free orchestration for unattended batch jobs on rented compute under hard dollar ceilings, with a local watchdog that does not trust the remote. Stdlib only.",
+      "why_it_matters_here": "Not a phase: it is the infrastructure that drove the PHerc0139 segmentation-expansion campaign. Directly comparable to this framework's ink job queue, and worth reconciling with it rather than running two.",
+      "entry_points": {
+        "executor_loop": "executor_loop.py --qa-self-test (27 checks)",
+        "watchdog": "watchdog.sh / qa_watchdog.sh"
+      }
+    },
+    {
+      "component": "publication",
+      "phases": [],
+      "status": "INTERNAL_ONLY",
+      "local_path": "release/publication",
+      "what_it_does": "The authoritative index of which subproject backs which claim: ten positive-result documents, one negative-results document, one community write-up.",
+      "why_it_matters_here": "When a claim needs a source, this says which repo carries it."
+    }
+  ]
+}

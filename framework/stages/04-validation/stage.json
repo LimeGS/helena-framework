@@ -1,0 +1,8 @@
+{
+  "stage_id": "04-validation",
+  "purpose": "Stability, orthogonal CT, geometry, and fiber checks turn maps into traceable review evidence.",
+  "inputs": ["replica_probability_maps", "registered_renders", "orthogonal_ct_views", "validation_profile"],
+  "outputs": ["stability_analysis", "ct_gate_result", "review_bundle", "validation_receipt"],
+  "image": "helena-qc",
+  "acceptance_boundary": "A retained candidate still needs an explicit human or separately declared adjudication rule."
+}

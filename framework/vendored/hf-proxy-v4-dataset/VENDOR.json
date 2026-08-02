@@ -1,0 +1,26 @@
+{
+  "component": "hf-proxy-v4-dataset",
+  "file_count": 8,
+  "files": {
+    "DATASET_CARD.md": "c52691e113040df53f11bd04d96a3dc3efe51eca9738a9c92b38af4c748187d7",
+    "VERIFICATION.md": "9a061cbb46799a424c97fbba21e96ca20367c6fc54f9c679b42c69ba1755766e",
+    "eval_checkpoint.py": "3d9647416a2fe6ebd3eba060404714037c74a4752f4820fda018d1dd4121651b",
+    "generate_crops.py": "954c5328afd4fdb46c7f4b2e1e6201eb24e9888f52faa4e13cfc3fe750771965",
+    "requirements.txt": "699c29991b6f59dc5b479ac40b4bbe408adde31402bc4e244aabd5d520def776",
+    "summarize_index.py": "61f10f57dc876e658dd917f5ab4523862b4090914a478d1cf5fed043fdea2259",
+    "test_package.py": "bc0fe5913cc9d8d12867bb0b68e5291c7edc8acc32724f3b50f01fac98d8294d",
+    "train.py": "5cae7de50354593a202b4d028b5aba2bbe1cdc96fa5e301a758a76d3ddf34d34"
+  },
+  "phases": [
+    "P7"
+  ],
+  "policy": "code only; plates, indices, reviews, checkpoints and fixtures are findings and stay at the source",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": "30138b40a45264f4fc35757fca1d773483666905",
+  "source_path": "release/hf-proxy-v4-dataset",
+  "source_remote": "git@git.grillisecurity.com:grilli/research/vesuvius-experiments.git",
+  "unavailable_dataless": [
+    "upload.sh"
+  ],
+  "vendored_at_utc": "2026-07-25T17:51:05Z"
+}

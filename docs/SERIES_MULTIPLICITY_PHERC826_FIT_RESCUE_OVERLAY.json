@@ -1,0 +1,90 @@
+{
+  "schema": "campaignx.series_multiplicity.selection_overlay.v1",
+  "overlay_id": "pherc826-fit-rescue-v1-selection-note",
+  "title": "Additive selection_note overlay for the PHerc826 fit_rescue_v1 receipts",
+  "generated_for": "docs/PIPELINE_AUDIT_20260724.md FIX-15 item 2",
+
+  "why_this_is_an_overlay_and_not_an_edit": {
+    "target_receipts_are_immutable": true,
+    "reason": [
+      "The fit_rescue_v1 receipts are frozen Phase-4 evidence under workspace/archive/campaign-x-2026/legacy-phases/. Rewriting a frozen receipt to add a caveat discovered afterwards would destroy the property that makes it evidence: that it records what was believed at the time it was written.",
+      "RESCUE_LOCK.json is additionally bound by size and checksum in the Vast workspace backup manifest at workspace/campaigns/campaign-x-2026/runs/vast-workspace-backup-20260720/workspace-manifest.tsv:181727 (1933 bytes). Editing it in place would silently invalidate that manifest.",
+      "The receipts also live outside this task's ownership boundary."
+    ],
+    "resolution": "This overlay is purely additive. It changes no byte of any receipt. It attaches the selection_note that the receipts should have carried, by explicit path reference, and is discoverable from docs/SERIES_MULTIPLICITY.md.",
+    "receipts_modified": []
+  },
+
+  "target": {
+    "sample_id": "PHerc826",
+    "fit_subdir": "fit_rescue_v1",
+    "root": "workspace/archive/campaign-x-2026/legacy-phases/phase4/targets/PHerc826/fit_rescue_v1/",
+    "receipts_this_note_applies_to": [
+      "RESCUE_LOCK.json",
+      "AB_EVALUATION.json",
+      "RESCUE_ANALYSIS.md",
+      "RESCUE_CLOSEOUT.md",
+      "evaluations/r62w10/AB_EVALUATION.json",
+      "evaluations/r62w20/AB_EVALUATION.json",
+      "evaluations/r62w30/AB_EVALUATION.json",
+      "evaluations/r62w40/AB_EVALUATION.json"
+    ]
+  },
+
+  "selection_note": "The fit_rescue_v1 configuration for PHerc826 was chosen AFTER the A/B result for this same target had been read. It is a post-hoc, target-specific configuration, and neither its gate outcomes nor its reported MAE, p90 or sign-accuracy figures are prospective or unbiased. Two independent selection events compound here: (1) the decision to attempt a rescue at all was taken for this one target out of thirteen, after its baseline A/B was seen; (2) the promoted relation weight was picked from a four-arm sweep in which every arm had already passed every gate, so the choice among them was made on the observed metrics. Any downstream use of PHerc826 fit_rescue_v1 geometry must carry this note, and the target must not be counted as an independent success in any per-target tally.",
+
+  "evidence": {
+    "selection_event_1_rescue_attempted_only_here": {
+      "claim": "PHerc826 is the only one of the thirteen eligible targets with a fit_rescue_v1 directory.",
+      "verification": "Enumerating workspace/archive/campaign-x-2026/legacy-phases/phase4/targets/*/ shows fit_rescue_v1 present for PHerc826 and absent for PHerc0800, PHerc1203, PHerc1218, PHerc125, PHerc1447, PHerc1545, PHerc191, PHerc211, PHerc268, PHerc358, PHerc800 and PHerc813.",
+      "targets_with_fit_rescue_v1": 1,
+      "targets_total": 13
+    },
+    "selection_event_1_timing": {
+      "claim": "The rescue lock was written after that target's A/B evaluation, not before it.",
+      "fit_ab_ab_evaluation_generated_at_utc": "2026-07-19T06:49:04Z",
+      "rescue_lock_generated_at_utc": "2026-07-19T07:25:54Z",
+      "gap": "36 min 50 s",
+      "paths": [
+        "workspace/archive/campaign-x-2026/legacy-phases/phase4/targets/PHerc826/fit_ab/AB_EVALUATION.json",
+        "workspace/archive/campaign-x-2026/legacy-phases/phase4/targets/PHerc826/fit_rescue_v1/RESCUE_LOCK.json"
+      ],
+      "note": "RESCUE_LOCK.json is itself explicit that it was written from the observed state: its diagnosis field records current_guard_area_cm2, current_safe_area_cm2 and current_satisfied_area_cm2 for this target, and its next_action prescribes the refit. The receipt is honest about being reactive; what is missing is the statement that this makes the subsequent numbers non-prospective."
+    },
+    "selection_event_2_arm_choice_after_all_arms_passed": {
+      "claim": "The promoted relation weight was selected from four arms that had ALL already passed ALL six gates.",
+      "arms_swept": ["r62w10", "r62w20", "r62w30", "r62w40"],
+      "arms_passing_all_gates": 4,
+      "gates": [
+        "candidate_mae_not_worse",
+        "candidate_p90_not_worse",
+        "candidate_sign_not_worse",
+        "candidate_zero_sign_contradictions",
+        "heldout_at_least_12",
+        "satisfaction_map_generated"
+      ],
+      "arm_promoted": "r62w30",
+      "promotion_receipt": "workspace/archive/campaign-x-2026/legacy-phases/phase4/targets/PHerc826/fit_rescue_v1/AB_EVALUATION.json",
+      "consequence": "Because the gates did not discriminate, the arm was chosen on its metric values. The reported MAE 0.109277, p90 0.235101 and 15/15 sign accuracy for r62w30 are therefore the maximum of a four-way selection over a 15-relation holdout, not a single prospective measurement. No multiplicity correction was applied across the four arms, and none is recorded anywhere.",
+      "holdout_size": 15,
+      "holdout_size_note": "A 15-relation holdout selected over four arms is small enough that the selection effect is not negligible relative to the reported differences."
+    }
+  },
+
+  "unbiased_estimator": false,
+  "multiplicity_correction_applied": false,
+  "prospective": false,
+  "target_specific_post_hoc_configuration": true,
+
+  "what_this_does_not_change": [
+    "The rescue's central geometric finding stands on its own and does not depend on the arm choice: the TIFXYZ vertices already existed inside the exact ROI, and the area loss was caused by slab clipping, one-cell erosion and failed relation guards rather than by missing segmentation. That is a structural diagnosis, not a selected metric.",
+    "The receipts already carry ink_used false, external_generalization_claim false, independent_h1_validated false and scope GEOMETRY_ONLY_NO_INK. This overlay adds a selection caveat; it does not withdraw those declarations.",
+    "RESCUE_CLOSEOUT.md already states that the resulting ROI is an irregular connected component of up to 4 cm2 rather than an accepted 20x20 mm official window, and that evidence must be reframed into an official 4 cm2 region before any claim."
+  ],
+
+  "non_claims": [
+    "This overlay does not establish that the PHerc826 rescue was wrong or that another arm would have been better.",
+    "This overlay does not establish correct geometry, ink, letters, or First Letters.",
+    "This overlay makes no external generalization claim."
+  ]
+}

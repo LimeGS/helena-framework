@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-locked-plan-v1.schema.json",
+  "title": "Campaign X deterministic seed probe locked plan v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "task_id",
+    "attempt_id",
+    "probe_run_id",
+    "probe_trial_id",
+    "source_snapshot_id",
+    "sample_id",
+    "cell",
+    "source",
+    "selected_seed",
+    "profile_id",
+    "profile_sha256",
+    "parameters",
+    "policy_sha256",
+    "noncanonical",
+    "ink_used",
+    "non_claims"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.seed_probe_locked_plan.v1"},
+    "status": {"const": "LOCKED_READY"},
+    "task_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "probe_run_id": {"type": "string", "minLength": 1},
+    "probe_trial_id": {"type": "string", "minLength": 1},
+    "source_snapshot_id": {"type": "string", "minLength": 1},
+    "sample_id": {"type": "string", "minLength": 1},
+    "cell": {
+      "type": "object",
+      "required": ["cell_id", "bounds_xyz", "center_xyz"],
+      "properties": {
+        "cell_id": {"type": "string", "minLength": 1},
+        "bounds_xyz": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "array",
+              "prefixItems": [
+                {"type": "integer"},
+                {"type": "integer"},
+                {"type": "integer"}
+              ],
+              "items": false
+            },
+            {
+              "type": "array",
+              "prefixItems": [
+                {"type": "integer"},
+                {"type": "integer"},
+                {"type": "integer"}
+              ],
+              "items": false
+            }
+          ],
+          "items": false
+        },
+        "center_xyz": {
+          "type": "object",
+          "required": ["x", "y", "z"],
+          "properties": {
+            "x": {"type": "integer"},
+            "y": {"type": "integer"},
+            "z": {"type": "integer"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "source_snapshot_id",
+        "ct_uri",
+        "ct_sha256",
+        "m7_uri",
+        "m7_sha256",
+        "shape_xyz",
+        "voxel_size_um",
+        "coordinate_frame"
+      ],
+      "properties": {
+        "source_snapshot_id": {"type": "string", "minLength": 1},
+        "ct_uri": {"type": "string", "minLength": 1},
+        "ct_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "m7_uri": {"type": "string", "minLength": 1},
+        "m7_sha256": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "shape_xyz": {
+          "type": "array",
+          "prefixItems": [
+            {"type": "integer", "minimum": 1},
+            {"type": "integer", "minimum": 1},
+            {"type": "integer", "minimum": 1}
+          ],
+          "items": false
+        },
+        "voxel_size_um": {"type": "number", "exclusiveMinimum": 0},
+        "coordinate_frame": {"const": "ct_l0_xyz"},
+        "source_content_lock": {
+          "$ref": "source-content-lock-v1.schema.json"
+        }
+      },
+      "additionalProperties": false
+    },
+    "selected_seed": {
+      "type": "object",
+      "required": ["candidate_id", "x", "y", "z"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "z": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "profile_id": {"const": "vc3d-m7-probe-v1"},
+    "profile_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parameters": {
+      "type": "object",
+      "required": ["generations", "step_size", "min_area_cm", "use_cuda"],
+      "properties": {
+        "generations": {"type": "integer", "minimum": 10, "maximum": 20},
+        "step_size": {"type": "integer", "minimum": 8, "maximum": 15},
+        "min_area_cm": {"const": 0.0},
+        "use_cuda": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "benchmark_execution": {
+      "$ref": "seed-probe-benchmark-execution-v1.schema.json"
+    },
+    "parameter_envelope_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "noncanonical": {"const": true},
+    "ink_used": {"const": false},
+    "non_claims": {
+      "type": "array",
+      "minItems": 2,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "additionalProperties": false
+}

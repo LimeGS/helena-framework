@@ -1,0 +1,96 @@
+{
+  "adoption_gate": {
+    "alternative_minimum_component_reduction_fraction": 0.3,
+    "maximum_cost_per_usable_cm2_ratio": 2.0,
+    "maximum_downstream_usable_tile_loss_fraction": 0.05,
+    "minimum_useful_area_gain_fraction_pherc826": 0.15,
+    "required_samples": [
+      "PHerc0139",
+      "PHerc826"
+    ]
+  },
+  "change_rationale": [
+    "0.1.2 declared uv_flipped_triangles and maximum_relative_stretch_p95_regression with no producer: the only post-flatboi check was that the OBJ contained vt lines, and the flip counters measured the pre-SLIM initialization.",
+    "0.1.3 keeps every 0.1.2 gate byte-identical and adds maximum_absolute_stretch_p95, because a purely relative regression gate passes two backends that are equally distorted.",
+    "The absolute cap is set from measurement, not from convenience: the one archived flatboi output (S1-PHerc0139 adapter-a06, 5047 triangles) measures stretch_p50 1.0710, stretch_p95 1.2454, stretch_max 1.9021 with zero flipped triangles."
+  ],
+  "comparison": {
+    "classes": [
+      "CONSENSUS",
+      "SCROLLFIESTA_ONLY",
+      "VC3D_ONLY",
+      "DISAGREEMENT"
+    ],
+    "maximum_distance_voxels": {
+      "fail_if_local_separation_unavailable": true,
+      "rule": "min(2.0, 0.5 * local_sheet_separation_voxels)"
+    },
+    "minimum_normal_dot": 0.8660254037844386,
+    "require_compatible_ct_support": true,
+    "same_source_and_roi_required": true
+  },
+  "flattening_initialization": {
+    "g4_remains_mandatory": true,
+    "multiple_boundary_loops": "PCA_TOP_TWO_EIGENVECTORS_WITH_DETERMINISTIC_SIGNS",
+    "topological_disk": "UNIFORM_TUTTE_BOUNDARY_CIRCLE_ARCLENGTH_V1"
+  },
+  "fusion_policy": {
+    "backend_default_until_adoption": "vc3d",
+    "physical_mesh_fusion_performed": false,
+    "store_each_backend_separately": true,
+    "vc3d_rescue_only_after_gap_detection": true
+  },
+  "gate_derivations": {
+    "minimum_valid_raster_fraction": "Evidence-based, not a priori. Measured over all 166 archived render logs the fleet sits at median 0.9429 (p05 0.9349, max 0.9660); a 0.95 gate would fail 144 of 166. The U0 PHerc0139 VC3D positive control rasterized at 0.9635 - top 5% of the fleet - and still produced 1 glyph candidate against a minimum of 10, so raster fraction has no demonstrated relationship to screen outcome. 0.90 isolates the single genuine outlier at 0.7395 and passes 165 of 166. It guards against gross zero fill; it is not a quality threshold."
+  },
+  "gate_producers": {
+    "maximum_absolute_stretch_p95": "scrollfiesta/uv_initialization.py:uv_distortion_metrics via adapter.py post-flatboi gate",
+    "maximum_roi_winding_step": "02-flattening/scripts/flattening_gates.py:label_winding_aware_components via build_quality_map.py and extract_connected_roi.py",
+    "maximum_uv_degenerate_triangles": "scrollfiesta/uv_initialization.py:uv_distortion_metrics via adapter.py post-flatboi gate",
+    "minimum_valid_raster_fraction": "02-flattening/scripts/flattening_gates.py:parse_rasterized_fraction via crop_render_window.py",
+    "minimum_window_valid_fraction": "02-flattening/scripts/flattening_gates.py:evaluate_window_validity via extract_exploratory_window.py",
+    "self_intersections": "scrollfiesta/topology.py:weld_report_self_intersection_count; UNMEASURED when no producer supplied a count",
+    "uv_flipped_triangles": "scrollfiesta/uv_initialization.py:uv_distortion_metrics via adapter.py post-flatboi gate",
+    "window_sentinel_audit_radius_quads": "02-flattening/scripts/flattening_gates.py:evaluate_window_validity via extract_exploratory_window.py"
+  },
+  "hard_gates": {
+    "inconsistent_winding_edges": 0,
+    "invalid_coordinates": 0,
+    "maximum_absolute_stretch_p95": 2.0,
+    "maximum_confirmed_sheet_bridges": 0,
+    "maximum_confirmed_sheet_switches": 0,
+    "maximum_degenerate_triangle_fraction": 0.0001,
+    "maximum_orientation_quarantine_fraction": 0.0001,
+    "maximum_relative_stretch_p95_regression": 0.05,
+    "maximum_roi_winding_step": 1,
+    "maximum_uv_degenerate_triangles": 0,
+    "minimum_ct_legible_area_fraction": 0.95,
+    "minimum_supported_area_within_tolerance_fraction": 0.98,
+    "minimum_valid_raster_fraction": 0.9,
+    "minimum_window_valid_fraction": 0.95,
+    "non_manifold_edges": 0,
+    "self_intersections": 0,
+    "uv_flipped_triangles": 0,
+    "window_sentinel_audit_radius_quads": 1
+  },
+  "lanes": {
+    "scrollfiesta": "segmentation.scrollfiesta-m7-mesh@0.1.2",
+    "vc3d": "segmentation.vc3d-m7-grow@1.0.0"
+  },
+  "measurement_definitions": {
+    "stretch": "Per triangle, J = [P1-P0, P2-P0] @ inv([q1-q0, q2-q0]) maps UV to 3D. Its singular values s1 >= s2 are normalized by sqrt(total 3D area / total UV area), and the reported stretch is max(s1, 1/s2) >= 1. p50/p95/max are unweighted percentiles over triangles.",
+    "uv_flipped_triangle_count": "Triangles whose UV signed area carries the sign opposite to the mesh majority, measured on the OBJ flatboi actually wrote, not on the SLIM initialization.",
+    "valid_raster_fraction": "rasterized_points / output_points, parsed from the renderer's 'Rasterized N / M points (X%)' line."
+  },
+  "orientation_cleanup": {
+    "all_removed_original_face_indices_must_be_recorded": true,
+    "ct_and_self_intersection_gates_remain_mandatory": true,
+    "policy": "GREEDY_MIN_CONFLICT_FACE_QUARANTINE_THEN_XOR_ORIENTATION_V1",
+    "retained_triangle_connectivity_may_change": false,
+    "vertices_may_move": false
+  },
+  "profile_id": "segmentation.hybrid-scrollfiesta-vc3d@0.1.3",
+  "schema": "campaignx.scientific_profile.v1",
+  "status": "EXPERIMENTAL_LOCKED",
+  "supersedes": "segmentation.hybrid-scrollfiesta-vc3d@0.1.2"
+}

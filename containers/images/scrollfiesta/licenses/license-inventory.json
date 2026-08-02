@@ -1,0 +1,67 @@
+{
+  "schema": "campaignx.scrollfiesta_license_inventory.v1",
+  "reviewed_for_runtime_package_version": "0.1.0",
+  "overall_distribution_status": "BLOCKED_PENDING_LICENSE_CLEARANCE",
+  "allowed_use": "INTERNAL_RESEARCH_EVALUATION_ONLY",
+  "components": [
+    {
+      "name": "ScrollFiesta",
+      "version": "0.9.0",
+      "source_commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+      "license": "MIT",
+      "compiled": true,
+      "redistribution_status": "NOTICE_REQUIRED"
+    },
+    {
+      "name": "scrollunwrap",
+      "version": "0.1.0",
+      "source_commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+      "license": "MIT",
+      "compiled": false,
+      "redistribution_status": "NOTICE_REQUIRED"
+    },
+    {
+      "name": "Triangle",
+      "source_tree": "737167bb7c5b7b7dbc6a3672739f9579c41a653c",
+      "license": "Custom non-commercial distribution terms",
+      "compiled": true,
+      "redistribution_status": "BLOCKED",
+      "reason": "Do not publish or commercially redistribute a binary or OCI image containing Triangle until its terms are resolved."
+    },
+    {
+      "name": "Clipper2",
+      "source_tree": "2d0304d96156b28fba7b53cc176f53ce91c36b92",
+      "license": "BSL-1.0",
+      "compiled": true,
+      "redistribution_status": "NOTICE_REQUIRED"
+    },
+    {
+      "name": "andres/graph",
+      "source_tree": "fe90d5408cfab8a100d239c966882782a8d1d371",
+      "license": "NO_LICENSE_TEXT_FOUND_IN_VENDORED_COPY",
+      "compiled": true,
+      "redistribution_status": "BLOCKED",
+      "reason": "Locate and record the upstream license grant before publishing a binary or image containing this code."
+    },
+    {
+      "name": "system libtiff",
+      "version": "runtime-selected",
+      "license": "libtiff",
+      "compiled": false,
+      "redistribution_status": "REVIEW_RUNTIME_SBOM"
+    },
+    {
+      "name": "Volume Cartographer flatboi and vc_obj2tifxyz_legacy",
+      "source_commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+      "license": "SEE_LOCKED_VILLA_RUNTIME_RECEIPT",
+      "compiled": false,
+      "redistribution_status": "INTERNAL_BUNDLE_INPUT_ONLY"
+    }
+  ],
+  "hard_rules": [
+    "Never push, publish or export the OCI image while overall_distribution_status is blocked.",
+    "Never use this recipe as evidence that binary redistribution rights have been resolved.",
+    "Preserve ScrollFiesta LICENSE, THIRD_PARTY_LICENSES.md, this inventory and the generated SBOM in every bundle.",
+    "CT, m7 predictions, models, credentials and scientific results are forbidden from every image and bundle."
+  ]
+}

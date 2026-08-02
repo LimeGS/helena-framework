@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/ink-method-routing-policy-v1.schema.json",
+  "title": "Campaign-scoped ink method routing policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "policy_id",
+    "campaign_id",
+    "targets",
+    "lanes"
+  ],
+  "properties": {
+    "schema": {"const": "campaignx.ink_method_routing_policy.v1"},
+    "policy_id": {"type": "string", "minLength": 1},
+    "campaign_id": {"type": "string", "minLength": 1},
+    "targets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sample_id", "voxel_size_um"],
+        "properties": {
+          "sample_id": {"type": "string", "minLength": 1},
+          "voxel_size_um": {"type": "number", "exclusiveMinimum": 0},
+          "energy_kev": {"type": "number", "exclusiveMinimum": 0}
+        }
+      }
+    },
+    "lanes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method_id", "disposition", "reason"],
+        "allOf": [
+          {
+            "if": {
+              "properties": {"disposition": {"const": "ENABLED_SCREENING"}},
+              "required": ["disposition"]
+            },
+            "then": {"required": ["profile_id", "control_receipt"]}
+          }
+        ],
+        "properties": {
+          "method_id": {"type": "string", "minLength": 1},
+          "profile_id": {"type": ["string", "null"]},
+          "disposition": {
+            "enum": [
+              "ENABLED_SCREENING",
+              "DIAGNOSTIC_ONLY",
+              "REJECTED_CONTROL",
+              "PENDING_ADAPTER_AND_CONTROL",
+              "INELIGIBLE_DOMAIN"
+            ]
+          },
+          "compatible_voxel_size_um": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["minimum", "maximum"],
+            "properties": {
+              "minimum": {"type": "number", "exclusiveMinimum": 0},
+              "maximum": {"type": "number", "exclusiveMinimum": 0}
+            }
+          },
+          "control_receipt": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "sha256", "status"],
+            "properties": {
+              "path": {"type": "string", "minLength": 1},
+              "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "status": {"type": "string", "minLength": 1}
+            }
+          },
+          "reason": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

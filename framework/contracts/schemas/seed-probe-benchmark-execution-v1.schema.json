@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/seed-probe-benchmark-execution-v1.schema.json",
+  "title": "Campaign X isolated paired seed-probe benchmark execution v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "execution_scope",
+    "benchmark_id",
+    "benchmark_spec_sha256",
+    "authorization",
+    "authorization_sha256",
+    "arm",
+    "policy_version",
+    "planner",
+    "seed_probe_mode",
+    "sample_id",
+    "cell_id",
+    "pair_rng_seed",
+    "rng_protocol",
+    "full_grow_envelope_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "campaignx.seed_probe_benchmark_execution.v1"
+    },
+    "execution_scope": {"const": "ISOLATED_NONPRODUCTION"},
+    "benchmark_id": {"type": "string", "minLength": 1},
+    "benchmark_spec_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authorization": {
+      "type": "object",
+      "required": [
+        "schema",
+        "benchmark_id",
+        "benchmark_spec_sha256",
+        "execution_scope",
+        "arm",
+        "baseline_policy_version",
+        "policy_version",
+        "planner",
+        "seed_probe_mode",
+        "cells"
+      ],
+      "properties": {
+        "schema": {
+          "const": "campaignx.seed_probe_benchmark_execution_authorization.v1"
+        },
+        "benchmark_id": {"type": "string", "minLength": 1},
+        "benchmark_spec_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "execution_scope": {"const": "ISOLATED_NONPRODUCTION"},
+        "arm": {"const": "closed_loop"},
+        "baseline_policy_version": {"type": "string", "minLength": 1},
+        "policy_version": {"type": "string", "minLength": 1},
+        "planner": {"const": "deterministic-v2"},
+        "seed_probe_mode": {"const": "select"},
+        "cells": {
+          "type": "array",
+          "minItems": 40,
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "required": [
+              "cell_id",
+              "sample_id",
+              "independence_block_id"
+            ],
+            "properties": {
+              "cell_id": {"type": "string", "minLength": 1},
+              "sample_id": {"type": "string", "minLength": 1},
+              "independence_block_id": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "authorization_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "arm": {"enum": ["baseline", "closed_loop"]},
+    "policy_version": {"type": "string", "minLength": 1},
+    "planner": {"const": "deterministic-v2"},
+    "seed_probe_mode": {"enum": ["off", "select"]},
+    "sample_id": {"type": "string", "minLength": 1},
+    "cell_id": {"type": "string", "minLength": 1},
+    "pair_rng_seed": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "rng_protocol": {
+      "const": "sha256-benchmark-spec-sample-cell-prefix16-v1"
+    },
+    "full_grow_envelope_sha256": {
+      "const": "aa5cf6b030e3b8f2d5f90009c332f4e22e120fd1d8f87cb6f6f11aa66aba8990"
+    }
+  },
+  "additionalProperties": false
+}

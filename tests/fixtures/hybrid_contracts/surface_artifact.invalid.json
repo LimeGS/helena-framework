@@ -1,0 +1,45 @@
+{
+  "schema": "campaignx.surface_artifact.v2",
+  "surface_id": "SURF-PHerc826-aaaaaaaaaaaa",
+  "created_at_utc": "2026-07-22T12:00:00Z",
+  "backend_family": "scrollfiesta",
+  "backend_profile": "segmentation.scrollfiesta-m7-mesh@0.1.0",
+  "sample_id": "PHerc826",
+  "source": {
+    "ct_uri": "s3://helena-fixture/ct.zarr",
+    "ct_sha256_or_etag": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "surface_prediction_uri": "s3://helena-fixture/m7.zarr",
+    "surface_prediction_sha256_or_etag": "etag:fixture-m7-v1",
+    "level": 0,
+    "voxel_size_um": [7.91, 7.91, 7.91],
+    "handedness": "RIGHT_HANDED"
+  },
+  "roi_level0_zyx": [74, 20, 30, 10, 84, 94],
+  "coordinate_transform": {
+    "source_order": "ZYX",
+    "canonical_order": "XYZ",
+    "winding_flipped": false,
+    "matrix": [[0, 0, 1, 0], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]]
+  },
+  "artifacts": {
+    "tifxyz": {"uri": "s3://helena-fixture/surface/tifxyz.manifest.json", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bytes": 128},
+    "source_mesh_obj": null,
+    "canonical_mesh_obj": null
+  },
+  "metrics": {
+    "area_cm2": 1.25,
+    "component_count": 1,
+    "vertex_count": 8,
+    "triangle_count": 6,
+    "invalid_coordinate_count": 0,
+    "non_manifold_edge_count": 0,
+    "self_intersection_count": 0,
+    "inconsistent_winding_edge_count": 0,
+    "degenerate_triangle_fraction": 0,
+    "orientable": true
+  },
+  "validation_state": "PROVISIONAL",
+  "receipt_uri": "s3://helena-fixture/surface/RUN_RECEIPT.json",
+  "receipt_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "ink_used": false
+}

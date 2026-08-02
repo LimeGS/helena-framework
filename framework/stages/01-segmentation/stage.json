@@ -1,0 +1,49 @@
+{
+  "stage_id": "01-segmentation",
+  "purpose": "A frozen CT/surface-prediction source plus a backend-specific plan produces one immutable canonical surface artifact.",
+  "inputs": ["immutable_ct_snapshot", "surface_prediction_snapshot", "segmentation_plan", "segmentation_profile"],
+  "outputs": ["tifxyz_surface", "optional_source_and_canonical_mesh", "surface_metadata", "backend_receipt"],
+  "autonomous_worker": "scripts/helena_segment_search_fleet.py",
+  "autonomous_boundary": "The LLM selects only an allowed m7 seed/profile hypothesis; deterministic code owns leases, plan locking, VC3D execution, deduplication, and catalogue writes.",
+  "planner_contract": {
+    "active": "segmentation-planner-v2",
+    "active_runtime_profile": "segmentation-planner-cost-aware-v2@1.0.0",
+    "packet_schema": "framework/contracts/schemas/segmentation-planner-packet-v2.schema.json",
+    "proposal_schema": "framework/contracts/schemas/segmentation-proposal-v2.schema.json",
+    "locked_plan_schema": "framework/contracts/schemas/segmentation-locked-plan-v2.schema.json",
+    "candidate_selection_policy": "adaptive-geometry-history-v2",
+    "ink_blind": true,
+    "coordinates_must_copy_a_listed_candidate": true,
+    "parameters_must_remain_inside_the_envelope": true,
+    "regional_failure_history_is_required": true,
+    "deterministic_validation_precedes_vc3d": true
+  },
+  "seed_probe": {
+    "active_profile": "seed-probe-v1",
+    "production_mode": "SHADOW_ONLY",
+    "relationship_to_router": "PRE_PLANNER_DETERMINISTIC_EVIDENCE_BENEATH_COST_AWARE_V2",
+    "policy_schema": "framework/contracts/schemas/seed-probe-policy-v1.schema.json",
+    "locked_plan_schema": "framework/contracts/schemas/seed-probe-locked-plan-v1.schema.json",
+    "evaluation_schema": "framework/contracts/schemas/seed-probe-evaluation-v1.schema.json",
+    "replaces_cost_aware": false,
+    "replaces_fusion": false,
+    "select_rollout_gate": "SAMPLE_SCOPED_ISOLATED_PAIRED_SELECT_APPROVAL_RECEIPT_PLUS_VERIFIED_IMMUTABLE_SOURCE_LOCK",
+    "canonical_output": false,
+    "runbook": "SEED_PROBE_RUNBOOK.md"
+  },
+  "distributed_runtime": {
+    "authoritative_control_plane": "postgresql",
+    "authoritative_artifact_store": "s3",
+    "sqlite_scope": "LOCAL_FIXTURE_OR_OFFLINE_ONLY",
+    "worker_persistence": "STATELESS_RESTARTABLE",
+    "finalization": "TRANSACTIONAL_HASH_VERIFIED",
+    "credentials_may_enter_artifacts": false,
+    "fixture_isolation": "FIXTURE_ONLY_NEVER_ENTERS_SCIENTIFIC_QC"
+  },
+  "image": "helena-vc3d",
+  "backend_images": {
+    "default": "helena-vc3d",
+    "experimental": ["helena-scrollfiesta"]
+  },
+  "acceptance_boundary": "A grow is not physical-QC acceptance, ink, or text."
+}

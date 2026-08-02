@@ -1,0 +1,46 @@
+--- a/include/igl/slim.cpp
++++ b/include/igl/slim.cpp
+@@ -131,31 +131,19 @@
+       //t.start();
+       // solve
+       Eigen::VectorXd Uc;
+-      // PaStiX 6 multifrontal direct solver. We cache one solver per
+-      // (SLIMData*, sparsity-pattern signature). Caching by SLIMData* alone
+-      // is unsafe because s.dim changing or the user re-invoking SLIM with
+-      // a different mesh would reuse a stale symbolic factorization.
+-      //
+-      // Signature: (rows, cols, nnz). Cheap to compute, sufficient to
+-      // detect any pattern change that would invalidate analyzePattern().
+-      // factorize() refreshes numerical values each iter regardless.
+-      struct PastixCache {
+-        igl::Pastix6LLT solver;
+-        Eigen::Index rows = -1;
+-        Eigen::Index cols = -1;
+-        Eigen::Index nnz  = -1;
+-      };
+-      static std::unordered_map<const igl::SLIMData*, PastixCache> cache;
+-      PastixCache& entry = cache[&s];
+-      const Eigen::Index L_nnz = L.nonZeros();
+-      if (entry.rows != L.rows() || entry.cols != L.cols() || entry.nnz != L_nnz) {
+-        entry.solver.analyzePattern(L);
+-        entry.rows = L.rows();
+-        entry.cols = L.cols();
+-        entry.nnz  = L_nnz;
++      // Campaign X reproducibility fallback.  The frozen PaStiX wrapper at
++      // Villa 05dcf034 segfaults even on the asymmetric smoke fixture on the
++      // Vast Ubuntu runtime.  Eigen's deterministic single-process LDLT is
++      // slower but fail-closed and sufficient for the bounded A/B pilots.
++      Eigen::SimplicialLDLT<Eigen::SparseMatrix<double>> solver;
++      solver.compute(L);
++      if (solver.info() != Eigen::Success) {
++        throw std::runtime_error("Eigen SimplicialLDLT factorization failed");
+       }
+-      entry.solver.factorize(L);
+-      Uc = entry.solver.solve(s.rhs);
++      Uc = solver.solve(s.rhs);
++      if (solver.info() != Eigen::Success || !Uc.allFinite()) {
++        throw std::runtime_error("Eigen SimplicialLDLT solve failed");
++      }
+       for (int i = 0; i < s.dim; i++)
+         uv.col(i) = Uc.block(i * s.v_n, 0, s.v_n, 1);
+ 

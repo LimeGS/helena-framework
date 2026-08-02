@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1.7
+# The control plane's backup, as an image rather than a cron line on a host.
+#
+# Built on the same PostgreSQL image the control plane runs, so pg_dump and
+# pg_restore are the versions that wrote the database rather than whatever the
+# host happens to have: a dump taken by an older client against a newer server
+# is refused, and one taken by a newer client may not restore where it is
+# needed.
+ARG BASE_IMAGE=postgres:16-alpine
+FROM ${BASE_IMAGE}
+
+ARG BUILD_COMMIT=unknown
+ARG FRAMEWORK_VERSION=0.10.0
+LABEL org.opencontainers.image.title="helena-backup" \
+      org.opencontainers.image.description="Control-plane backup to object storage" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+
+# aws-cli from the distribution rather than pip: this image has no business
+# carrying a Python toolchain, and the alpine package is the same client.
+RUN apk add --no-cache aws-cli python3
+
+COPY containers/images/backup_to_s3.py /usr/local/bin/backup-to-s3
+RUN chmod +x /usr/local/bin/backup-to-s3
+
+# Nothing is written outside the temporary directory it makes per round, so the
+# container needs no volume of its own.
+USER postgres
+ENTRYPOINT ["python3", "/usr/local/bin/backup-to-s3"]

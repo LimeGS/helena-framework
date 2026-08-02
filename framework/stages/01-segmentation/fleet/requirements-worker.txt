@@ -1,0 +1,28 @@
+# Python dependencies required by a production Segment Search Fleet worker.
+# OpenCode and VC3D are separate executables and are intentionally not part of
+# this Python environment.
+boto3==1.43.52
+aiohttp==3.14.3
+fsspec==2025.3.0
+numpy==2.2.6
+# The CPU P8 column-atlas lane reads TIFXYZ previews through PIL.  It runs in
+# this fleet image, not the ink image, so Pillow must be part of this runtime.
+Pillow==12.3.0
+psycopg2-binary==2.9.12
+# psycopg 3 as well, not instead: the segmentation store speaks psycopg2 and the
+# ink store speaks psycopg, and P4 resolving a flattened sheet is one process
+# reading both. The ink image has neither, which is why no ink worker has ever
+# run from it.
+psycopg[binary]==3.2.12
+requests==2.34.2
+# The geometry gate P2 runs on every finalized surface: ndimage for the seam
+# scan, cKDTree for candidate pairs. Without it certify returns
+# GEOMETRY_UNMEASURED for every surface in the campaign and says nothing about
+# why, which is what it did.
+scipy==1.15.3
+tifffile==2026.3.3
+# Public VC3D TIFXYZ artifacts are commonly LZW-compressed.  tifffile delegates
+# that codec here; without it P2 and the P8 merge wrapper cannot inspect the
+# original published bytes and downgrade every such surface to unmeasured.
+imagecodecs==2026.1.14
+zarr==3.1.6

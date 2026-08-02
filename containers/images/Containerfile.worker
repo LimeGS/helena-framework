@@ -1,0 +1,110 @@
+# syntax=docker/dockerfile:1.7
+#
+# A fleet worker: the framework, on top of the runtime it needs.
+#
+# This is the answer to "what does adding a host mean". It means running this
+# image there. Nothing is installed on the machine, nothing is cloned onto it,
+# and two hosts running the same layer chain are running the same code -- which
+# is not true of two hosts that each pulled a repository.
+#
+# It is thin on purpose. The base carries volume-cartographer, which is the
+# expensive half and changes when upstream does; the framework is a layer on
+# top, so a code change rebuilds in seconds rather than recompiling 1162 C++
+# targets. That is what makes "everything in the image" affordable enough to
+# actually hold to.
+#
+# The worker needs no GPU. VC3D grows surfaces on CPU -- use_cuda is const false
+# in the growth profile -- so this image runs anywhere, and the fleet's claim
+# query already filters GPU work away from hosts that declare none.
+ARG BASE_IMAGE
+ARG VILLA_IMAGE_DIGEST
+
+FROM ${BASE_IMAGE} AS worker
+ARG BASE_IMAGE
+ARG VILLA_IMAGE_DIGEST
+ARG BUILD_COMMIT=unknown
+ARG SOURCE_DATE_EPOCH=315532800
+LABEL org.opencontainers.image.title="helena-worker" \
+      org.opencontainers.image.description="Helena Framework fleet worker on the VC3D runtime" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.opencontainers.image.base.digest="${VILLA_IMAGE_DIGEST}"
+
+RUN case "${VILLA_IMAGE_DIGEST}" in \
+      *@sha256:[0-9a-f][0-9a-f]*) ;; \
+      *) echo "VILLA_IMAGE_DIGEST must be an immutable repository@sha256 reference" >&2; exit 2 ;; \
+    esac
+
+# Python 3.12, not the base's own. Ubuntu 26.04 ships 3.14, and the fleet's
+# pinned numpy==2.2.6 publishes no wheel for that ABI -- the oldest it offers is
+# 2.3.2 -- so pip fell back to building from source against a runtime image
+# that deliberately carries no compiler.
+#
+# The alternatives were worse. Loosening the pin changes the numerical library
+# under a segmenter to satisfy a base image, which is the tail wagging the dog;
+# adding a toolchain puts 1.5 GB of compiler in a production image so that one
+# package can build every time it is installed.
+# 26.04 packages only 3.14, so the interpreter comes from uv as a standalone
+# build. Three constraints collide here and the least load-bearing one gives:
+# the base is dictated by upstream volume-cartographer, the numpy pin sits under
+# a segmenter, and which Python runs the worker is an implementation detail.
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && rm -rf /var/lib/apt/lists/*
+COPY --from=uv_context /uv /usr/local/bin/uv
+RUN uv python install 3.12 \
+ && uv python find 3.12 > /tmp/python-path
+
+# Dependencies before code, so editing a Python file does not reinstall numpy.
+# --only-binary refuses to build from source at all: a wheel that silently
+# compiles is a wheel that will fail on the next base image instead of here.
+COPY --from=repo framework/stages/01-segmentation/fleet/requirements-worker.txt /tmp/requirements.txt
+RUN uv venv --python 3.12 /opt/venv \
+ && VIRTUAL_ENV=/opt/venv uv pip install --no-cache -q -r /tmp/requirements.txt \
+ && rm -f /tmp/requirements.txt
+ENV PATH=/opt/venv/bin:/opt/campaignx/vc3d/bin:${PATH}
+
+COPY --from=repo framework /workspace/campaign-x/framework
+COPY --from=repo scripts /workspace/campaign-x/scripts
+COPY --from=repo campaign_x.py /workspace/campaign-x/campaign_x.py
+
+# The seed service reads prediction volumes, so it needs a zarr reader. It is
+# installed after the pinned set rather than added to it: requirements-worker
+# describes what the fleet worker needs, and this is what the service beside it
+# needs.
+RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache -q "zarr>=3,<4" "s3fs" "aiohttp"
+
+# The binaries the segmentation fleet drives, resolved through the environment
+# the runtime image already sets, and checked here so a worker that cannot grow
+# fails at build rather than after claiming a lease and burning an attempt.
+RUN set -eu; \
+    for app in vc_grow_seg_from_seed vc_merge_tifxyz vc_obj2tifxyz_legacy \
+               vc_flatten vc_render_tifxyz; do \
+      command -v "$app" >/dev/null || { echo "missing from the runtime: $app" >&2; exit 3; }; \
+    done; \
+    /opt/venv/bin/python -c "import psycopg2, numpy, tifffile, imagecodecs, zarr; import PIL" \
+      || { echo "the worker cannot import what it runs on" >&2; exit 3; }; \
+    /opt/venv/bin/python -c "import tempfile; from pathlib import Path; import numpy as np, tifffile; p=Path(tempfile.gettempdir())/'helena-worker-lzw-smoke.tif'; a=np.arange(64,dtype=np.float32).reshape(8,8); tifffile.imwrite(p,a,compression='lzw'); b=tifffile.imread(p); p.unlink(); assert np.array_equal(a,b)" \
+      || { echo "the worker cannot round-trip LZW TIFXYZ coordinates" >&2; exit 3; }; \
+    PYTHONPATH=/workspace/campaign-x/framework/stages/01-segmentation/mcp \
+      /opt/venv/bin/python -c "import server, seed_candidates; assert seed_candidates.MAX_CANDIDATE_CHUNKS == 27" \
+      || { echo "the seed service does not import" >&2; exit 3; }
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    VC3D_GROW_BINARY=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+    VC3D_RENDER_BINARY=/opt/campaignx/vc3d/bin/vc_render_tifxyz \
+    HELENA_VILLA_IMAGE_DIGEST=${VILLA_IMAGE_DIGEST}
+
+WORKDIR /workspace/campaign-x
+
+COPY --from=repo containers/images/worker-entrypoint.sh /usr/local/bin/worker-entrypoint
+RUN chmod 0755 /usr/local/bin/worker-entrypoint
+
+# The seed service and the worker start together because they fail together: a
+# worker whose service died claims tasks and fails them, burning an attempt each
+# time. The entrypoint refuses to claim anything if the service did not come up.
+ENTRYPOINT ["/usr/local/bin/worker-entrypoint"]

@@ -1,0 +1,69 @@
+{
+  "schema": "campaignx.scrollfiesta_source_lock.v1",
+  "runtime_package_version": "0.1.0",
+  "scrollfiesta": {
+    "repository": "https://github.com/Hob3rMallow/scrollfiesta_public.git",
+    "commit": "f344c17931b9e264a17c8d760a4c478390133bd4",
+    "tree": "5299f2cb5a6f19ab84333d084b370f9664c8c7d6",
+    "native_version": "0.9.0",
+    "python_version": "0.1.0",
+    "python_tree": "592b2aa8d3ed463faddb3cda9e7481c913a893a3",
+    "python_uv_lock_sha256": "62ef615c57d76670228a77e98ceea407e244ccd778ccd97802193ac20e6d4a63",
+    "required_file_sha256": {
+      "LICENSE": "61c278e02b4d57de42489ff9ad1e0d54770f0d767bd7fce63dd8114c8c37e66a",
+      "THIRD_PARTY_LICENSES.md": "1a030d7c6a1d3dd475051d4410bcf8246516c4a79794d677b32cef5dfed79f47",
+      "README.txt": "b76ee735f71e4d37b1e00f94624355e155f4d29c1c627566ab15f13ba2bdc087",
+      "python/pyproject.toml": "c30ce29973bf87a0c30da5f2974484d64c51882ad1acb5d438b41d3d24c29665",
+      "python/README.md": "a2805d59d28c2de083241ebf0e8d98d7f9f7585d854ae3455b93efbe3bd51a06",
+      "python/uv.lock": "62ef615c57d76670228a77e98ceea407e244ccd778ccd97802193ac20e6d4a63",
+      "src/main.c": "cd935949a17cadc692aa353aee0809813ec965a105af49dff09c0a357c60987a",
+      "src/tools/grid_weld.c": "96b27655df6449cea73d6b770a7ad73e3c4178c6a5ba32e908da0229ef11ff8c",
+      "include/scrollfiesta.h": "1dfccd07e5ac669e91da44fee70088d7e8a147aec0499ed58af2ae5e37d6886d"
+    }
+  },
+  "volume_cartographer": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "required_runtime_artifacts": [
+      "flatboi",
+      "vc_obj2tifxyz_legacy"
+    ],
+    "flatboi_dependencies": {
+      "pastix_tag": "v6.4.0",
+      "pastix_commit": "1151c30a25e2014ff4b39bf8c7ac4b381913f193",
+      "libigl_commit": "ae8f959ea26d7059abad4c698aba8d6b7c3205e8"
+    }
+  },
+  "vendored_dependency_trees": {
+    "triangle": "737167bb7c5b7b7dbc6a3672739f9579c41a653c",
+    "clipper2": "2d0304d96156b28fba7b53cc176f53ce91c36b92",
+    "andres_graph": "fe90d5408cfab8a100d239c966882782a8d1d371",
+    "libtiff_4_7_1": "54f782c5c15ea1d79d8a57ea0c170ac0f96f31f6",
+    "zlib": "a0772146f753ee7705e5cffae284868ef9d62759",
+    "poissonrecon": "dfa174b19f6762026f69d2b789da90f35c916a1f",
+    "probabilistic_quadrics": "a7d6a78c44c77ecf359be92c8ecb819256f5a415"
+  },
+  "build_policy": {
+    "tiff": true,
+    "openmp": true,
+    "build_tests": true,
+    "build_shared_library": true,
+    "required_ctest_targets": [
+      "sf_test_common",
+      "sf_api_dlopen"
+    ],
+    "runtime_cli": [
+      "cube_mesh",
+      "grid_weld",
+      "obj_components",
+      "pinhole_verdict",
+      "seam_audit",
+      "flatboi",
+      "vc_obj2tifxyz_legacy"
+    ],
+    "forbidden_runtime_cli": [
+      "grid_pipeline"
+    ],
+    "distribution": "INTERNAL_RESEARCH_ONLY"
+  }
+}

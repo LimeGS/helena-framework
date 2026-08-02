@@ -1,0 +1,96 @@
+{
+  "components": [
+    {
+      "component": "scroll-streaming-tools",
+      "file_count": 12,
+      "phases": [
+        "P0",
+        "P1",
+        "P4",
+        "P5"
+      ],
+      "source_commit": "2c219df966e4e4a4b2a38ef96c94d0cae7adadd3",
+      "source_path": "release/scroll-streaming-tools",
+      "source_remote": null
+    },
+    {
+      "component": "vetting-card",
+      "file_count": 30,
+      "phases": [
+        "P7"
+      ],
+      "source_commit": "c52d6966e5029dd2350708b2155db9de25e23e18",
+      "source_path": "release/vetting-card",
+      "source_remote": "git@github.com:LimeGS/vetting-card.git"
+    },
+    {
+      "component": "scroll-tracing-benchmark-v4",
+      "file_count": 41,
+      "phases": [
+        "P1",
+        "P6"
+      ],
+      "source_commit": "00aa1497e81353348a4b1ad72ce305ee14bccf59",
+      "source_path": "release/scroll-tracing-benchmark-v4",
+      "source_remote": null,
+      "unavailable_dataless": [],
+      "files_unavailable": 0
+    },
+    {
+      "component": "reference-strips",
+      "file_count": 20,
+      "phases": [
+        "P1",
+        "P2"
+      ],
+      "source_commit": "0f59ce099b1a6f59eec2fdef1811f5a0ec433824",
+      "source_path": "release/reference-strips",
+      "source_remote": null
+    },
+    {
+      "component": "pherc0139-column-atlas-gh",
+      "file_count": 12,
+      "phases": [
+        "P8",
+        "P9"
+      ],
+      "source_commit": "6bc0a7dcc462e0a1faa2be717197c674a44fabb3",
+      "source_path": "release/pherc0139-column-atlas-gh",
+      "source_remote": "git@github.com:LimeGS/pherc0139-column-atlas.git"
+    },
+    {
+      "component": "helena-framework",
+      "file_count": 7,
+      "phases": [],
+      "source_commit": "a14d59dc70ce4fcadf6e7a645e1ddf4b5f4d97a1",
+      "source_path": "release/helena-framework",
+      "source_remote": null
+    },
+    {
+      "component": "hf-proxy-v4-dataset",
+      "file_count": 8,
+      "phases": [
+        "P7"
+      ],
+      "source_commit": "30138b40a45264f4fc35757fca1d773483666905",
+      "source_path": "release/hf-proxy-v4-dataset",
+      "source_remote": "git@git.grillisecurity.com:grilli/research/vesuvius-experiments.git"
+    },
+    {
+      "component": "ppm_from_tifxyz",
+      "file_count": 1,
+      "phases": [
+        "P3",
+        "P4"
+      ],
+      "source_commit": null,
+      "source_path": "vendor/ppm_from_tifxyz.py",
+      "source_remote": null
+    }
+  ],
+  "generated_at_utc": "2026-07-25T17:51:05Z",
+  "schema": "campaignx.vendored_index.v1",
+  "total_files": 131,
+  "total_unavailable": 0,
+  "unavailable_note": "files evicted to iCloud with the dataless flag; materialise them and re-run to complete the vendoring"
+}

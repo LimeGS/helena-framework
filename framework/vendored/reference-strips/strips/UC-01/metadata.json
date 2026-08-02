@@ -1,0 +1,100 @@
+{
+ "strip_id": "UC-01",
+ "registered": "2026-07-10",
+ "registration_kind": "by_recipe",
+ "scroll": "PHerc0332 / Scroll 3",
+ "volume": "PHerc332.volpkg volumes_zarr_standardized/53keV_7.91um_Scroll3.zarr level 0",
+ "voxel_size_um": 7.91,
+ "segment_id": "20240618142020",
+ "band": {
+  "ppm_rows": [
+   1145,
+   1344
+  ],
+  "columns": 25706,
+  "revolutions": 3.03,
+  "audit_seed_window_cols": [
+   12750,
+   12950
+  ]
+ },
+ "source_file": "band_r1145_200_xyz.npz",
+ "source_sha256": "a93b0683df0e3a03dc656f8a259c2d83c5949215a46fec6b4655c70d660d4408",
+ "source_sha256_status": "computed from the local file 2026-07-10; matches neural-tracing-audit docs/CHECKSUMS.txt",
+ "redownload_recipe": "HTTP range-request rows 1145-1344 of https://dl.ash2txt.org/full-scrolls/Scroll3/PHerc332.volpkg/paths/20240618142020/20240618142020.ppm (header 74 bytes, row-major float64 x,y,z,nx,ny,nz, width 25706); see release/neural-tracing-audit/docs/NT_AUDIT.md, final section",
+ "converter": "convert_ntaudit_band.py",
+ "converter_status": "tested against the real band file; class populations match the source audit's published table exactly",
+ "provenance_docs": [
+  "release/neural-tracing-audit/docs/NT_AUDIT.md",
+  "release/neural-tracing-audit/docs/BENCHMARK.md"
+ ],
+ "qualification_measured_in_source_audit": {
+  "note": "measured in the source audit on its 200x200 seed window with its grid-based methodology; cited as provenance, not produced by this repo",
+  "self_test_vox": 0.0,
+  "wrong_side_control_fail_pct": 99.1,
+  "null_baseline_wrong_pct": 100.0,
+  "null_baseline_distance_note": "at ~2x the distance of the real network predictions",
+  "ct_intensity_spacing_vox": 13.0,
+  "ct_intensity_spacing_um": 103.0,
+  "ct_spacing_p10_p90_vox": [
+   8,
+   22
+  ]
+ },
+ "qualification_measured_here": {
+  "date": "2026-07-10",
+  "tool": "qualify_strip.py (reference-strips v0)",
+  "overall": "QUALIFIED",
+  "self_test_max_dist_vox": 0.0,
+  "wrong_side_min_fail_pct": 99.62,
+  "null_baseline_min_wrong_pct": 99.16,
+  "ct_check": {
+   "run": true,
+   "date": "2026-07-10",
+   "pass": true,
+   "ct_median_spacing_vox": 13.0,
+   "ct_median_spacing_um": 102.83,
+   "ct_p10_vox": 8.0,
+   "ct_p90_vox": 29.0,
+   "n_spacings": 83,
+   "n_cells": 9,
+   "strip_pitch_um": 141.8,
+   "ratio_ct_over_pitch": 0.725,
+   "accepted_ratio_band": [0.5, 2.0],
+   "volume": "https://dl.ash2txt.org/full-scrolls/Scroll3/PHerc332.volpkg/volumes_zarr_standardized/53keV_7.91um_Scroll3.zarr level 0 (zarr v2, shape z9778 y3550 x3400, uint8)",
+   "download_used_mb": 35.2,
+   "note": "streamed from the public CT zarr along the strip's recovered per-wrap normals; reproduces the source audit's 13.0 vox = 103 um seed-normal spacing (that figure now measured band-wide through the shipped check_ct, not merely cited)"
+  }
+ },
+ "measured_strip_properties": {
+  "n_wraps": 4,
+  "source_winding_class_to_wrap": {
+   "-2": 0,
+   "-1": 1,
+   "0": 2,
+   "1": 3
+  },
+  "class_populations": {
+   "-2": 114509,
+   "-1": 1654338,
+   "0": 1675193,
+   "1": 1631237
+  },
+  "pitch_um": {
+   "median": 141.8,
+   "p10": 72.6,
+   "p90": 528.1
+  },
+  "tier": "medium",
+  "tier_note": "band-wide median; the audit's ultra-compressed seed-window core measures 70-88 um (KD gaps) / 103 um (CT), see README.md",
+  "normals": "present: per-cell surface normals recovered from PPM channels 3:6 (nx,ny,nz), aligned to the same band grid as xyz (the source .npz snapshot is xyz-only, but the PPM the band was cut from carries all six channels; see README rebuild recipe). Enables qualify_strip.py --ct-check."
+ },
+ "pitch_um_median_band_wide": 141.8,
+ "pitch_vox_median_band_wide": 17.93,
+ "pitch_um_p10_p90": [
+  72.6,
+  528.1
+ ],
+ "tier": "medium",
+ "tier_note": "Band-wide median pitch lands in the medium tier under the PROVISIONAL thresholds; the audited seed window (cols 12750-12950) is the ultra-compressed core (local gaps 8.8-11.2 vox = 70-88 um; CT-confirmed 103 um median spacing). The band is heterogeneous (p90 528 um). Scoring uses per-point LOCAL gap, so the tier label is a coarse descriptor only; the 'UC' in the strip id refers to the audited seed-window regime. Mirrors the tier note in this directory's README.md."
+}

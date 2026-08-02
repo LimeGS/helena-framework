@@ -1,0 +1,80 @@
+{
+  "kind": "campaignx.ct_fiber_texture_priority_router_profile.v4_2",
+  "profile_id": "ct-fiber-texture-priority-router@4.2.0",
+  "status": "DEVELOPMENT_OPTIMIZED_PENDING_MULTISCROLL_TRANSFER_V3",
+  "supersedes_for_priority_ordering_only": "ct-fiber-supported-window-router@4.1.0",
+  "base_router": {
+    "profile": "framework/profiles/validation/ct-fiber-supported-window-router-v4.1.json",
+    "meaning": "v4.1 still decides whether physical support exists. v4.2 only subdivides supported Tier B."
+  },
+  "feature_schema": {
+    "feature_schema_id": "ct-centered-texture-morphology@1.0.0",
+    "input": "65-plane surface-normal CT stack with frozen 35x35 centered audit ROI",
+    "normalization": "per-component robust 1st-to-99th percentile clipping",
+    "descriptors": [
+      "four concentric physical-locality bands across depth",
+      "central, maximum, minimum, standard-deviation, residual and argmax projections",
+      "12x12 pooled projection texture",
+      "HOG projection morphology",
+      "global depth profiles"
+    ],
+    "feature_count": 5236
+  },
+  "model": {
+    "kind": "STANDARD_SCALE_PCA60_RBF_SVC",
+    "artifact": "workspace/campaigns/campaign-x-2026/findings/ct-priority-router-v42/development-v1/CT_PRIORITY_ROUTER_V42.joblib",
+    "sha256": "e25bdc7eb425dcef66eabf6b212c081f546ae93a4a355231420ec778d88ee873",
+    "random_seed": 20260724,
+    "fitted_development_threshold": -0.3596780657072368,
+    "decision_score_tolerance": 1e-05,
+    "score_semantics": "monotonic review-priority score; not a calibrated probability"
+  },
+  "routing": {
+    "tier_a": "historical v3 retained evidence; unchanged",
+    "tier_b1": "supported evidence above the development threshold; review first",
+    "tier_b2": "supported evidence below the threshold; preserve and review later",
+    "tier_c": "insufficient physical support; extend or resegment",
+    "automatic_discard": false,
+    "automatic_ink_claim": false,
+    "tier_b2_deterministic_audit_fraction": 0.1,
+    "tier_b2_audit_rule": "sha256(component_id) first 32 bits modulo 10 equals zero"
+  },
+  "development_contract": {
+    "development_sets": [
+      "MULTISCROLL_TRANSFER_V1",
+      "MULTISCROLL_TRANSFER_V2"
+    ],
+    "development_component_count": 600,
+    "development_surface_group_count": 15,
+    "development_scrolls": [
+      "PHerc0814",
+      "PHerc1667",
+      "PHercParis4"
+    ],
+    "receipt": "workspace/campaigns/campaign-x-2026/findings/ct-priority-router-v42/development-v1/DEVELOPMENT_RECEIPT.json",
+    "receipt_sha256": "e6b7b23634f280c767bc52b29c243daf9fcaefd28da1b69caf82bc81017827de"
+  },
+  "development_diagnostics": {
+    "fitted_positive_high_priority_recall": 0.99,
+    "fitted_confound_downrank_rate": 0.8033333333333333,
+    "grouped_oof_positive_high_priority_recall": 0.9866666666666667,
+    "grouped_oof_confound_downrank_rate": 0.09333333333333334,
+    "interpretation": "The large fitted-versus-OOF gap is known overfit. It is accepted only for non-destructive ordering."
+  },
+  "future_validation_contract": {
+    "benchmark": "MULTISCROLL_TRANSFER_V3",
+    "spatially_disjoint_from": [
+      "MULTISCROLL_TRANSFER_V1",
+      "MULTISCROLL_TRANSFER_V2"
+    ],
+    "minimum_positive_recall_per_scroll": 0.95,
+    "threshold_or_model_changes_after_v3_freeze_prohibited": true,
+    "v3_required_before_external_transfer_claim": true
+  },
+  "non_claims": [
+    "not externally validated",
+    "not a calibrated ink probability",
+    "Tier B2 is not evidence of absence",
+    "not accepted ink, text, letters, or First Letters"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "campaignx.segmentation_planner_runtime_profile.v1",
+  "profile_id": "segmentation-planner-cost-aware-v2@1.0.0",
+  "planner_contract": "v2",
+  "decision_order": [
+    "DETERMINISTIC_PROBE_WINNER",
+    "DETERMINISTIC_NO_HISTORY",
+    "VALIDATED_CACHE",
+    "DIRECT_OPUS",
+    "FUSION_OPUS_SOL",
+    "DIRECT_FABLE_LAST_RESORT",
+    "DETERMINISTIC_PROVIDER_FALLBACK"
+  ],
+  "direct_model": "anthropic/claude-opus-5",
+  "fusion_panel": [
+    "anthropic/claude-opus-5",
+    "openai/gpt-5.6-sol"
+  ],
+  "fusion_judge": "anthropic/claude-opus-5",
+  "last_resort_model": "anthropic/claude-fable-5",
+  "reasoning": {
+    "effort": "high",
+    "max_tokens": 4096
+  },
+  "max_completion_tokens": 4096,
+  "compact_decision_view": true,
+  "full_packet_local_validation_required": true,
+  "cache_revalidation_required": true,
+  "ink_blind": true,
+  "api_key_persisted": false,
+  "historical_max_reasoning_fusion_profile_replaced": false
+}

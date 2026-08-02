@@ -1,0 +1,29 @@
+{
+  "schema": "campaignx.seed_probe_evaluation_profile.v1",
+  "profile_id": "tifxyz-geometry-gate-probe-v1",
+  "gate": {
+    "path": "framework/stages/04-validation/scripts/helena_tifxyz_geometry_gate.py",
+    "sha256": "a0d561b64ab1be16dc274a0d5633fe37d7efe6c5b052742a3f374f8e0030bb5a"
+  },
+  "integrity_dependency": {
+    "path": "framework/stages/04-validation/scripts/helena_audit_mesh_integrity.py",
+    "sha256": "503ffc0db06d720001bce38e776f4756e9e092472327ea1c51a4598de37814e6"
+  },
+  "policy": {
+    "band_cells": 4,
+    "gap_voxels": 3.0,
+    "parallel_angle_deg": 20.0,
+    "fold_angle_deg": 150.0,
+    "step_discontinuity_factor": 8.0,
+    "minimum_valid_fraction": 0.25,
+    "minimum_largest_component_fraction": 0.9,
+    "minimum_valid_triangles": 64,
+    "maximum_candidate_pairs": 20000000,
+    "resolution_limit_voxels": 16.0
+  },
+  "eligible_state": "GEOMETRY_CERTIFIED",
+  "reject_state_prefix": "GEOMETRY_REJECTED_",
+  "resolution_limited_is_eligible": false,
+  "ink_used": false,
+  "non_claim": "This profile detects bounded artifact geometry defects; it does not certify the correct physical lamina."
+}

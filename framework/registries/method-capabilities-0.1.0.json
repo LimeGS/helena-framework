@@ -1,0 +1,559 @@
+{
+  "entries": [
+    {
+      "input_contract": {
+        "current_threshold": 0.2,
+        "framework": "nnU-Net v2",
+        "modality": "single-channel CT",
+        "published_snapshot_usage": true
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/01-segmentation",
+      "method_id": "surface-m7-nnunet@1.0.0",
+      "method_kind": "SURFACE_PREDICTION",
+      "notes": [
+        "Campaign X currently consumes published predictions rather than rerunning nnU-Net inference."
+      ],
+      "recommended_policy": "Use the immutable official m7 prediction snapshot as the common upstream prior; do not interpret it as an instance-separated sheet.",
+      "source_url": "https://huggingface.co/scrollprize/surface_m7_nnunet",
+      "stage_id": "01-segmentation",
+      "training_or_reference_domain": [
+        "Dataset100_VesuviusSurface",
+        "786 training volumes"
+      ],
+      "validation_status": "CONTROL_AND_TARGET_SUPPORTED"
+    },
+    {
+      "input_contract": {
+        "output": "TIFXYZ",
+        "seed_required": true,
+        "surface_prior": "m7"
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/01-segmentation/scripts/run_geometry_recovery_v1.py",
+      "method_id": "vc3d-m7-seed-grow@1.0.0",
+      "method_kind": "SEEDED_SURFACE_GROWTH",
+      "notes": [
+        "Produces local surfaces, not whole-scroll coverage and not automatic physical acceptance."
+      ],
+      "recommended_policy": "Use as the production seeded segmenter while alternatives have not passed compatible frozen reference controls; vary only through locked seed/profile plans.",
+      "source_url": "https://github.com/ScrollPrize/villa/tree/main/segmentation",
+      "stage_id": "01-segmentation",
+      "training_or_reference_domain": [
+        "Herculaneum CT"
+      ],
+      "validation_status": "CONTROL_AND_TARGET_SUPPORTED"
+    },
+    {
+      "input_contract": {
+        "native_coordinates": "ZYX",
+        "output": "welded OBJ",
+        "surface_prior": "binary recto mask"
+      },
+      "integration_status": "EXPERIMENTAL_BLOCKED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/01-segmentation/backends/scrollfiesta",
+      "method_id": "scrollfiesta-m7-mesh@0.1.1",
+      "method_kind": "MULTICUBE_MESH_AND_WELD",
+      "notes": [
+        "The runtime crash was repaired, but the current adapter profile still fails a frozen seam and reference-agreement control."
+      ],
+      "recommended_policy": "Keep as a comparative backend and geometric auditor only. Do not catalog its surfaces until seam, reference-agreement, and flattening gates pass.",
+      "source_url": "https://github.com/Hob3rMallow/scrollfiesta_public",
+      "stage_id": "01-segmentation",
+      "training_or_reference_domain": [
+        "Herculaneum CT",
+        "local frozen reference controls"
+      ],
+      "validation_status": "FAILED_REFERENCE_CONTROL"
+    },
+    {
+      "input_contract": {
+        "input": "point-cloud volume and umbilicus",
+        "output": "winding-number sheet mesh"
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "thaumato-anakalyptor@1.0.0",
+      "method_kind": "INSTANCE_SEGMENTATION_WINDING_AND_MESH",
+      "notes": [],
+      "recommended_policy": "Add only as a separate backend with explicit umbilicus and checkpoint provenance; compare on controls before target use.",
+      "source_url": "https://github.com/ScrollPrize/villa/tree/main/thaumato-anakalyptor",
+      "stage_id": "01-segmentation",
+      "training_or_reference_domain": [
+        "PHerc0332 upstream example",
+        "Vesuvius Grand Prize pipeline"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "oriented surface mesh or TIFXYZ",
+        "output": "flattened coordinates and registered CT stack"
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/02-flattening",
+      "method_id": "villa-flatboi-tifxyz@1.0.0",
+      "method_kind": "MESH_FLATTEN_AND_TIFXYZ_RENDER",
+      "notes": [],
+      "recommended_policy": "Use only after topology and orientation gates; retain distortion, flipped-triangle, and CT-registration maps.",
+      "source_url": "https://github.com/ScrollPrize/villa",
+      "stage_id": "02-flattening",
+      "training_or_reference_domain": [
+        "Herculaneum surfaces"
+      ],
+      "validation_status": "CONTROL_AND_TARGET_SUPPORTED"
+    },
+    {
+      "input_contract": {
+        "output_scale": "approximately 1/16",
+        "physical_depth_normalization_required": true,
+        "tensor": "B,1,26,64,64"
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_timesformer.py",
+      "method_id": "timesformer-gp-scroll1@1.0.0",
+      "method_kind": "SURFACE_CONDITIONED_3D_TO_2D_INK",
+      "notes": [
+        "The six-replica adapter is reproducible; cross-scroll precision and recall remain domain-dependent and must be established by each campaign.",
+        "Checkpoint recovered 2026-07-25 from the public upstream repository scrollprize/timesformer_GP_scroll1 (model.safetensors, 145 MB, not gated). Its SHA-256 matches the digest this registry and the frozen stage-03 profile already declared, so the identity was verifiable rather than asserted. Compatibility was checked before use: 137 tensors all under the backbone. prefix that InkTimeSformer expects, and config.json matches the frozen architecture field for field (dim 512, depth 8, n_heads 6, num_classes 16, num_frames 26). load_model already rejects any missing or unexpected key.",
+        "2026-07-25 survey: eighteen public ink detectors exist in the scrollprize organisation; this registry carried seven and the campaign enabled one. scrollprize/ink_detection_pipeline was found to ship these same weights (identical digest 490a98f9...), so it is a wrapper rather than a distinct method and is deliberately not registered separately."
+      ],
+      "receipt_model_family_aliases": [
+        "timesformer_GP_scroll1",
+        "public_gp_scroll1_490a98f_fleet_v1"
+      ],
+      "recommended_policy": "Keep as one high-recall screening lane, never as a universal negative test. Require same-family controls and CT/fiber adjudication.",
+      "source_url": "https://huggingface.co/scrollprize/timesformer_GP_scroll1",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "2023 Scroll 1 Grand Prize data"
+      ],
+      "validation_status": "CONTROL_SUPPORTED_TARGET_UNCALIBRATED"
+    },
+    {
+      "input_contract": {
+        "architecture": "large TimeSformer",
+        "depth": 16,
+        "dim": 512,
+        "heads": 8,
+        "physical_depth_normalization_required": true
+      },
+      "integration_status": "RUNNABLE_DIAGNOSTIC",
+      "known_checkpoint_sha256": "c85dd722aad3734476dd6d8f14fae7a249a0a3c019fbd68f894558ae381e3e9d",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_timesformer.py",
+      "method_id": "timesformer-large-scroll1-01122024@1.0.0",
+      "method_kind": "SURFACE_CONDITIONED_3D_TO_2D_INK",
+      "notes": [
+        "Campaign-specific adoption or rejection decisions belong in that campaign's routing policy."
+      ],
+      "receipt_model_family_aliases": [
+        "timesformer_large_scroll1_01122024"
+      ],
+      "recommended_policy": "Use only through a campaign-specific frozen control decision. A model being larger does not license target screening.",
+      "source_url": "https://huggingface.co/scrollprize/timesformer_large_scroll1_01122024",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHercParis4 Scroll 1 fragments"
+      ],
+      "validation_status": "CONTROL_SUPPORTED_TARGET_UNCALIBRATED"
+    },
+    {
+      "input_contract": {
+        "architecture": "small TimeSformer",
+        "physical_depth_normalization_required": true,
+        "training_voxel_um": 7.91
+      },
+      "integration_status": "RUNNABLE_DIAGNOSTIC",
+      "known_checkpoint_sha256": "b5f9f48c231728548e906ec52b56434aa2bbe86e90927212be1322314d35b331",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_timesformer.py",
+      "method_id": "timesformer-scroll5-pherc172@1.0.0",
+      "method_kind": "SURFACE_CONDITIONED_3D_TO_2D_INK",
+      "notes": [
+        "Several historical receipts mislabeled this checkpoint as GP Scroll1; SHA-256 is authoritative."
+      ],
+      "receipt_model_family_aliases": [
+        "timesformer_scroll5_july_retreat"
+      ],
+      "recommended_policy": "Use as a diversity lane or PHerc172-compatible control, not as a target-negative classifier for 8.64/9.362 um scans.",
+      "source_url": "https://huggingface.co/scrollprize/timesformer_scroll5_27112024",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "pretrained PHercParis4",
+        "finetuned PHerc172"
+      ],
+      "validation_status": "CONTROL_SUPPORTED_TARGET_UNCALIBRATED"
+    },
+    {
+      "input_contract": {
+        "intensity_clip_max": 200,
+        "layer_order_must_be_declared": true,
+        "tensor": "B,1,62,256,256"
+      },
+      "integration_status": "RUNNABLE_DIAGNOSTIC",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/06-discovery/scripts/run_pherc1667_iteration0.py",
+      "method_id": "pherc1667-cross-segment-iteration0@1.0.0",
+      "method_kind": "RESNET3D50_2D_UNET_INK",
+      "notes": [
+        "The adapter currently lives in discovery and must move to stage 03 before production use."
+      ],
+      "recommended_policy": "Prefer iteration 0 over PHerc1667 iterations 1-5 for out-of-domain transfer experiments; admit only after the frozen local control A/B passes.",
+      "source_url": "https://huggingface.co/scrollprize/PHerc.1667-iteration-0",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "500p2a",
+        "658",
+        "two additional cross-segment surfaces",
+        "no PHerc1667 l_2 labels"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "target_domain": "PHerc1667 l_2",
+        "tensor": "B,1,62,256,256"
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "pherc1667-iteration5@1.0.0",
+      "method_kind": "RESNET3D50_2D_UNET_INK",
+      "notes": [],
+      "recommended_policy": "Use for PHerc1667 in-domain work, not as the default transfer model for the 13 Campaign X rolls.",
+      "source_url": "https://huggingface.co/scrollprize/PHerc.1667-iteration-5",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc1667 l_2 with dense iteration-5 labels"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "native_voxel_um": 2.4,
+        "normalization": "percentile min-max p1/p99",
+        "patch": "256,256,256",
+        "recommended_weights": "ema_model",
+        "resampling_receipt_required": true
+      },
+      "integration_status": "RUNNABLE_DIAGNOSTIC",
+      "known_checkpoint_sha256": "5a148c2c1bb730bfa683f2b3e3cdfc2000424003605e42300b527ff90118b303",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_3d_dino.py",
+      "method_id": "ink-3d-dino-guided@1.0.0",
+      "method_kind": "VOLUMETRIC_3D_INK_SEGMENTATION",
+      "notes": [
+        "A same-domain Paris4 functional sanity run succeeded, but it had no independent voxelwise ink labels.",
+        "Campaign X targets at 8.64/9.362 um require 3.6x/3.90x linear upsampling to the model scale, which creates no new spatial information."
+      ],
+      "recommended_policy": "Use only as a diagnostic on native 2.4 um CT or under a separately frozen physical-resampling control. Never infer compatibility from upstream teacher-label breadth.",
+      "source_url": "https://huggingface.co/scrollprize/ink_3d_dino_guided",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "final full-supervision checkpoint: PHercParis4 2.4 um",
+        "upstream teacher-label sources: Paris4, PHerc0139, PHerc0500P2, PHerc0814, PHerc0841, PHerc1667, MAN5, 9B"
+      ],
+      "validation_status": "LOCAL_FUNCTIONAL_ONLY"
+    },
+    {
+      "input_contract": {
+        "input": "single-channel CT",
+        "native_voxel_um": 2.0
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "36dd0de84b7b7aa6590184192c7415466cd8a1ba7c1e59f42c6373846373c3e0",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_canonical2um.py",
+      "method_id": "ink-canonical-2um@1.0.0",
+      "method_kind": "RESNET152_3D_INK",
+      "notes": [
+        "A campaign may independently forbid an otherwise resolution-compatible scan because of contamination or holdout policy.",
+        "Reproduced on 2026-07-28 at r = 0.885 against the community's published map for this recipe on PHerc0139 20250108000000-w025, with their CT, their mesh, their runner and this checkpoint -- whose sha256 and size are byte-identical to scrollprize/ink_canonical_2um. It took two corrections: routing the lane to this recipe's own runner, and --flip-normals on the render. One window of one segment, so this is a reproduction and not a validation of the method.",
+    "This recipe ships its own runner and the registry named the generic one. They are not interchangeable: the generic runner normalises clip(0,200)/200 and resamples the depth axis, and this recipe divides by 255 with no clip and takes consecutive layers. Measured 2026-07-28 against the community's published map for this very recipe on PHerc0139 20250108000000-w025, on ground where our render matches theirs at r=0.98: the generic runner's map correlates r=0.079. ink-canonical-2um-screening@1.0.0 stays on record with the wrong adapter because its hash is in receipts; @1.1.0 is the lane to route."
+      ],
+      "recommended_policy": "Do not route the current 8.64/9.362 um targets to this model by default. Use only on compatible high-resolution scans or a separately validated resampling profile.",
+      "source_url": "https://huggingface.co/scrollprize/ink_canonical_2um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "approximately 2 um Herculaneum CT"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "classes": [
+          "background",
+          "vertical fiber",
+          "horizontal fiber",
+          "ink"
+        ],
+        "native_voxel_um": 2.4
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "fiber-ink-4class-selfdistill@1.0.0",
+      "method_kind": "FIBER_ORIENTATION_AND_INK_CLASSIFIER",
+      "notes": [],
+      "recommended_policy": "Integrate as an auxiliary disagreement/fiber lane, not as a universal ink gate; upstream cross-scroll generalization is not established.",
+      "source_url": "https://huggingface.co/scrollprize/fiber_ink_4class_selfdistill",
+      "stage_id": "04-validation",
+      "training_or_reference_domain": [
+        "PHercParis4 2.4 um"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "replica maps plus orthogonal CT",
+        "profile": "ct-fiber-localization-gate-v3-candidate-coverage"
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/04-validation/scripts/apply_high_recall_ct_fiber_gate.py",
+      "method_id": "ct-fiber-localization-gate-v3@3.0.0",
+      "method_kind": "DETERMINISTIC_CT_FIBER_GATE",
+      "notes": [
+        "The benchmark is small and is not a universal per-scroll calibration."
+      ],
+      "recommended_policy": "Retain as fail-safe routing logic while adding learned fiber models only as auxiliary evidence. Never use it to prove absence of ink.",
+      "source_url": "https://github.com/ScrollPrize/villa",
+      "stage_id": "04-validation",
+      "training_or_reference_domain": [
+        "local source-locked positives",
+        "coverage controls",
+        "local hard negatives"
+      ],
+      "validation_status": "CONTROL_SUPPORTED_TARGET_UNCALIBRATED"
+    },
+    {
+      "input_contract": {
+        "depth_units": "micrometres on a fixed canonical z grid",
+        "operational_decisions": "immutable ct-fiber-localization-gate-v3 decisions",
+        "output_tiers": [
+          "V3_RETAINED_REVIEW",
+          "SHADOW_REVIEW_NOT_DISCARDED",
+          "EXTEND_OR_RESEGMENT_SURFACE"
+        ]
+      },
+      "integration_status": "RUNNABLE_SHADOW_ONLY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/04-validation/scripts/helena_route_ct_gate_shadow_v4.py",
+      "method_id": "ct-fiber-shadow-router-v4@4.0.0",
+      "method_kind": "PHYSICAL_CT_FEATURES_AND_NONDESTRUCTIVE_SHADOW_ROUTER",
+      "notes": [
+        "Current 33/33 and 26/26 historical figures were post-hoc and are not treated as independent recall.",
+        "This method cannot establish absence, ink identity, text, letters, or First Letters."
+      ],
+      "recommended_policy": "Run beside v3 without altering it. Preserve every downrank; route boundary failures to surface extension. Do not promote it until at least three independent positive scrolls and two confound scrolls pass the frozen multiscroll benchmark.",
+      "source_url": null,
+      "stage_id": "04-validation",
+      "training_or_reference_domain": [
+        "PHerc0139 trusted positives",
+        "PHerc0172 coverage controls",
+        "target candidates in shadow only"
+      ],
+      "validation_status": "BLOCKED_INSUFFICIENT_INDEPENDENT_MULTISCROLL_CONTROLS"
+    },
+    {
+      "input_contract": {
+        "base_router": "ct-fiber-supported-window-router@4.1.0",
+        "centered_audit_roi_pixels": [
+          35,
+          35
+        ],
+        "output_tiers": [
+          "TIER_B1_HIGH_PRIORITY_REVIEW",
+          "TIER_B2_PRESERVED_LOW_PRIORITY"
+        ],
+        "surface_normal_ct_planes": 65
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "e25bdc7eb425dcef66eabf6b212c081f546ae93a4a355231420ec778d88ee873",
+      "local_adapter": "framework/stages/04-validation/scripts/helena_apply_ct_priority_router_v42.py",
+      "method_id": "ct-fiber-texture-priority-router@4.2.0",
+      "method_kind": "NONDESTRUCTIVE_CT_TEXTURE_PRIORITY_ROUTER",
+      "notes": [
+        "Fitted development downranking is intentionally overfit and is not a transfer estimate.",
+        "V3 positive high-priority recall was 96%, 96%, and 98%; confound B2 rates were 22%, 14%, and 22%.",
+        "V3 is consumed and cannot be reused to tune a replacement.",
+        "The score is review priority, not calibrated ink probability.",
+        "This method cannot establish absence, ink identity, text, letters, or First Letters."
+      ],
+      "recommended_policy": "Do not make v4.2 the default. Its spatially disjoint MULTISCROLL_TRANSFER_V3 passed positive recall and preservation but failed confound-efficiency gates in every scroll. If explicitly used as an experimental ordering hint, never discard B2 and deterministically audit ten percent.",
+      "source_url": null,
+      "stage_id": "04-validation",
+      "training_or_reference_domain": [
+        "MULTISCROLL_TRANSFER_V1 development controls",
+        "MULTISCROLL_TRANSFER_V2 development controls",
+        "PHerc0814",
+        "PHerc1667",
+        "PHercParis4"
+      ],
+      "validation_status": "MULTISCROLL_TRANSFER_V3_FAILED_NOT_PROMOTED"
+    },
+    {
+      "input_contract": {
+        "base_router": "ct-fiber-supported-window-router@4.1.0",
+        "centered_audit_roi_pixels": [
+          35,
+          35
+        ],
+        "feature_schema": "ct-physical-morphology-compact@1.0.0",
+        "output_tiers": [
+          "TIER_B1_HIGH_PRIORITY_REVIEW",
+          "TIER_B2_PRESERVED_LOW_PRIORITY"
+        ],
+        "surface_normal_ct_planes": 65
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "86efcd2e5a75295d2f375fe46b99ac245cf4c3e67bb7c71c687cff3f52b1ccd5",
+      "local_adapter": "framework/stages/04-validation/scripts/helena_execute_ct_priority_transfer_v4_once.py",
+      "method_id": "ct-fiber-physical-priority-router@4.3.0",
+      "method_kind": "NONDESTRUCTIVE_CT_PHYSICAL_MORPHOLOGY_PRIORITY_ROUTER",
+      "notes": [
+        "The compact 163-feature representation removes raw pixels, HOG, PCA, learned embeddings, and scanner identifiers.",
+        "MULTISCROLL_TRANSFER_V3 was not used for training or threshold selection.",
+        "MULTISCROLL_TRANSFER_V4 is consumed and cannot be reused to tune a replacement.",
+        "The score is review priority, not calibrated ink probability.",
+        "This method cannot establish absence, ink identity, text, letters, or First Letters."
+      ],
+      "recommended_policy": "Do not make v4.3 the default. Its one-shot MULTISCROLL_TRANSFER_V4 preserved all evidence but failed the 95% positive B1 recall gate on PHerc0009B and PHercMAN5. It may be inspected experimentally only; B2 is never a negative or discard.",
+      "source_url": null,
+      "stage_id": "04-validation",
+      "training_or_reference_domain": [
+        "MULTISCROLL_TRANSFER_V1 and V2 base development controls",
+        "PHerc0139 and PHerc0841 source-held-out calibration"
+      ],
+      "validation_status": "MULTISCROLL_TRANSFER_V4_FAILED_NOT_PROMOTED"
+    },
+    {
+      "input_contract": {
+        "input": "surface pairs plus CT geometry",
+        "variants": [
+          "R6",
+          "R6.1",
+          "R6.2"
+        ]
+      },
+      "integration_status": "RUNNABLE_PRIMARY",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/05-reconstruction",
+      "method_id": "r6-relation-family@6.2.0",
+      "method_kind": "SURFACE_RELATION_AND_WINDING_CONSTRAINTS",
+      "notes": [
+        "The relation family is locally functional but remains domain-sensitive; campaign-specific evidence belongs outside the framework registry."
+      ],
+      "recommended_policy": "Route only through a frozen per-campaign A/B. Prefer the safer baseline or abstain whenever a target/domain A/B fails; no variant is a universal default.",
+      "source_url": "https://github.com/ScrollPrize/villa",
+      "stage_id": "05-reconstruction",
+      "training_or_reference_domain": [
+        "local functional benchmark",
+        "cross-surface field A/B",
+        "target-specific recovery experiments"
+      ],
+      "validation_status": "LOCAL_FUNCTIONAL_ONLY"
+    },
+    {
+      "input_contract": {
+        "modality": "single-channel CT",
+        "native_voxel_um": 7.9,
+        "published_snapshot_usage": true
+      },
+      "integration_status": "INTEGRATED_THEN_DISQUALIFIED",
+      "known_checkpoint_sha256": "fa00728db74d714769960dd77e9911a0e0938b3f272933c153632b5bed543c34",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink.py",
+      "method_id": "resnet50-7.9um-scroll1-frags@1.0.0",
+      "method_kind": "INK_PROBABILITY_3D_RESNET50",
+      "notes": [
+        "Loaded with the checkpoint repo own modeling code and config (0 missing, 0 unexpected tensors), so the architecture is not in question.",
+        "Decoder weights are indistinguishable from a fresh initialisation: decoder.logit.weight std 0.03578 loaded against 0.03684 fresh; decoder.convs.0.0.weight std 0.00695 against 0.00694.",
+        "The backbone is genuinely trained: real/noise feature separation 0.75 at the first level against 0.15 for a random model.",
+        "Output logits stay inside +/-0.11 for real known-ink data, uniform noise, all-zeros and all-ones alike.",
+        "n_classes 1139 is the fragment classification pretext task, not an ink head.",
+        "Measured 2026-07-25 on the PHerc0139 known-ink window. See framework/contracts/lane_liveness.py, which now gates this class of failure."
+      ],
+      "recommended_policy": "DO NOT ROUTE. The published artifact is a pretraining checkpoint: a trained ResNet3D-50 backbone paired with an untrained decoder. It is not an ink detector and no screen run on its output can mean anything. The backbone may still be usable as a frozen encoder if this project ever trains its own head.",
+      "source_url": "https://huggingface.co/scrollprize/resnet50_7.9um_scroll1_frags",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "2023 Scroll 1 fragment labels at 7.9 um (backbone only)",
+        "the published decoder is at initialisation and was never trained"
+      ],
+      "validation_status": "LOCALLY_DISQUALIFIED_UNTRAINED_OUTPUT_HEAD"
+    },
+    {
+      "input_contract": {
+        "modality": "single-channel CT",
+        "native_voxel_um": 3.0,
+        "published_snapshot_usage": true
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "resnet50-3um-01122024@1.0.0",
+      "method_kind": "INK_PROBABILITY_3D_RESNET50",
+      "notes": [
+        "Registered 2026-07-25 from the public scrollprize organisation. The upstream LFS oid prefix is 052670ea5013e1fa; the full digest must be bound when an adapter is written, not before."
+      ],
+      "recommended_policy": "Scale-incompatible with the 8.64/9.362 um cohort; development instrument on fine scans only.",
+      "source_url": "https://huggingface.co/scrollprize/resnet50_3um_01122024",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "approximately 3 um Herculaneum CT"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "modality": "single-channel CT",
+        "native_voxel_um": 7.91,
+        "published_snapshot_usage": true
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "timesformer-scroll5-27112024@1.0.0",
+      "method_kind": "INK_PROBABILITY_TIMESFORMER",
+      "notes": [
+        "Registered 2026-07-25 from the public scrollprize organisation. The upstream LFS oid prefix is 3c6b0b4d1b766a69; the full digest must be bound when an adapter is written, not before."
+      ],
+      "recommended_policy": "Distinct checkpoint from the july_retreat variant this registry already carried as timesformer-scroll5-pherc172; both existed upstream and were never distinguished. Diversity lane only.",
+      "source_url": "https://huggingface.co/scrollprize/timesformer_scroll5_27112024",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc172 / Scroll 5, November 2024 checkpoint"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "modality": "single-channel CT",
+        "native_voxel_um": 32.0,
+        "published_snapshot_usage": true
+      },
+      "integration_status": "KNOWN_NOT_INTEGRATED",
+      "known_checkpoint_sha256": null,
+      "local_adapter": null,
+      "method_id": "ink-coverage-32um@1.0.0",
+      "method_kind": "INK_COVERAGE_NNUNET",
+      "notes": [
+        "Registered 2026-07-25 from the public scrollprize organisation. The upstream LFS oid prefix is not published as LFS; the full digest must be bound when an adapter is written, not before."
+      ],
+      "recommended_policy": "The only public detector trained COARSER than the 8.64/9.362 um cohort. It predicts ink coverage rather than letter morphology, so it cannot serve First Letters, but it is the only lane whose training scale does not require the targets to be upsampled.",
+      "source_url": "https://huggingface.co/scrollprize/ink-coverage-32um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "approximately 32 um CT, nnU-Net folds 0-2"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    }
+  ],
+  "generated_from_public_sources_at_utc": "2026-07-22T18:00:00Z",
+  "identity_policy": "A method name is descriptive only. Execution identity requires source revision, checkpoint SHA-256 when applicable, preprocessing contract, physical voxel scale, coordinate/layer order, and adapter version.",
+  "registry_version": "0.1.0",
+  "schema": "campaignx.method_capability_registry.v1"
+}

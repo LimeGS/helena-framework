@@ -1,0 +1,275 @@
+{
+  "schema": "campaignx.pipeline_phases.v1",
+  "note": "Single source of truth for the phase vocabulary. The panel serves this at /api/phases and renders it as the user guide is written against it. Maturity is what is true today, not what is planned. Each phase declares its prerequisites: what it needs, which phase normally produces that, and whether it can be satisfied from outside the pipeline. The last field matters -- several phases can be entered from public artefacts, and blocking on the previous phase would forbid a route this project has used.",
+  "phases": [
+    {
+      "id": "P0",
+      "slug": "intake",
+      "name": "Volume intake",
+      "one_line": "Freeze which CT volume you are working from, and at what physical scale.",
+      "consumes": "a public OME-Zarr scan in the open-data bucket",
+      "produces": "a frozen catalog entry: scan id, voxel size in \u00b5m, beam energy",
+      "lives_in": [
+        "workspace/catalog/eligible_volumes.json"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "No command. The catalog is a committed artefact; the panel lists every scroll the bucket exposes and flags the ones it describes.",
+      "how_it_fails": "Silently. If the voxel size is not pinned here, every micron figure downstream is unanchored and the scale-matching in P5 resamples against a number nobody checked.",
+      "gate": null,
+      "prerequisites": {
+        "needs": null,
+        "produced_by": [],
+        "may_come_from_outside": true,
+        "external_source": "the open-data bucket lists every scroll",
+        "note": "Nothing gates this. It is where a mission names what it attempts."
+      },
+      "runnable_here": false
+    },
+    {
+      "id": "P1",
+      "slug": "segmentation",
+      "name": "Segmentation",
+      "one_line": "Find sheet surfaces inside the volume.",
+      "consumes": "the m7 surface-prediction volume for the scroll, at threshold 0.2 -- not the CT itself",
+      "produces": "a TIFXYZ surface -- x.tif, y.tif, z.tif, meta.json -- mapping each surface pixel to a CT voxel",
+      "lives_in": [
+        "framework/stages/01-segmentation"
+      ],
+      "maturity": "WORKING",
+      "distributed": true,
+      "how_to_run": "Queue work for a scroll and choose how the seed is chosen. The fleet claims from segment_tasks in PostgreSQL and grows with vc3d; the planner picks the seed inside a cell the bootstrap found uncovered.",
+      "how_it_fails": "A surface can grow across a lamina boundary and look perfectly well-formed. P2 exists because P1 cannot tell.",
+      "gate": null,
+      "prerequisites": {
+        "needs": "an m7 surface-prediction volume, and the voxel size P0 froze",
+        "produced_by": [
+          "P0"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "the m7 predictions published beside each scan in the open bucket",
+        "note": "P0 supplies the catalog entry -- the voxel size and which scan is eligible -- and the m7 prediction it points at is a public artefact, not something P0 makes. The grower is handed m7_uri and never ct_uri. The seed is decided here, not upstream."
+      },
+      "decides": {
+        "what": "the seed point",
+        "how": "one of six planners, from deterministic scoring to a model panel",
+        "why_it_matters": "A surface is the answer to 'what is at this seed'. Two planners asked to search the same cell can pick different seeds and grow different sheets, both correct, so the planner is part of the provenance rather than a runtime detail."
+      },
+      "runnable_here": true,
+      "runner": "framework/stages/01-segmentation/fleet/cli.py"
+    },
+    {
+      "id": "P2",
+      "slug": "geometry-certification",
+      "name": "Geometry certification",
+      "one_line": "Decide whether a grown surface is a physically plausible lamina.",
+      "consumes": "a TIFXYZ surface",
+      "produces": "CERTIFIED, REJECTED, or CERTIFIED with resolution_limited set",
+      "lives_in": [
+        "framework/stages/04-validation/scripts/helena_tifxyz_geometry_gate.py",
+        "framework/stages/01-segmentation/fleet/finalizer.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "Runs automatically when the fleet finalizes a surface. `certify` applies the same gate to surfaces that already exist -- the corpus the gate was written for, which it could not reach until now.",
+      "how_it_fails": "Loudly now for a gate that is not on disk: a moved file used to degrade every surface to GEOMETRY_UNMEASURED one at a time, which is exactly how it went unnoticed that scipy was missing from the worker image and no surface had ever been certified. A gate that runs and cannot measure a surface still returns UNMEASURED, with the reason recorded on the surface.",
+      "gate": "the eight ANDed requirements of the CT/fibre gate v3",
+      "prerequisites": {
+        "needs": "a TIFXYZ surface",
+        "produced_by": [
+          "P1"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "public segments carry their own TIFXYZ",
+        "note": "A surface fetched from the public bucket certifies exactly like a grown one."
+      },
+      "runnable_here": true,
+      "runner": "framework/stages/04-validation/scripts/helena_tifxyz_geometry_gate.py"
+    },
+    {
+      "id": "P3",
+      "slug": "flattening",
+      "name": "Flattening",
+      "one_line": "Unroll the certified surface into a flat sheet, keeping the coordinate map.",
+      "consumes": "a certified TIFXYZ surface",
+      "produces": "a flattened surface with its pixel-to-voxel correspondence preserved",
+      "lives_in": [
+        "framework/stages/02-flattening/flatten.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "`flatten` takes certified surfaces this profile has not flattened and runs vc_flatten -- ABF++ over an LSCM initialisation -- from the VC3D build the fleet already grows with. TIFXYZ in, TIFXYZ out, so the pixel-to-voxel correspondence survives by construction rather than by a second map that could disagree.",
+      "how_it_fails": "By refusing. An uncertified surface is rejected rather than flattened, because flattening smooths out the seam that would have shown a lamina crossing. Output is parsed as a TIFXYZ before it is published, so a zero exit with no files is a failure.",
+      "gate": "the surface must be GEOMETRY_CERTIFIED by P2",
+      "prerequisites": {
+        "needs": "a certified surface",
+        "produced_by": [
+          "P2"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "public segments arrive already flattened",
+        "note": null
+      },
+      "runnable_here": true,
+      "runner": "framework/stages/02-flattening/flatten.py",
+      "known_limit": "The profile freezes vc_flatten's own defaults so runs are comparable, not because they are known to be best: no A/B against lscm-only or a downsampled run has been done on this corpus. Measured area ratio on the first 32 surfaces is 0.947-0.951."
+    },
+    {
+      "id": "P4",
+      "slug": "surface-volume",
+      "name": "Surface volume rendering",
+      "one_line": "Sample the CT along the surface normal to produce the layer stack the detector eats.",
+      "consumes": "a surface -- the flat sheet P3 unrolled, or the certified surface itself -- and the volume to sample along its normals",
+      "produces": "N numbered uint8 TIFFs -- the layer stack, e.g. 109 layers at 2.399 \u00b5m for the positive control",
+      "lives_in": [
+        "framework/vendored/scroll-streaming-tools/render_scroll3.py",
+        "framework/vendored/ppm_from_tifxyz/ppm_from_tifxyz.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "Two renderers, and which one runs is part of what a layer stack means. The default is volume-cartographer's vc_render_tifxyz: give it the volume plus exactly one of `flattened_surface` (a surface id, whose sheet the worker fetches) or `segmentation` (a path). Layers go to `tif_output`, defaulting to layers/ in the job's run directory; `num_slices` and `slice_step` are the depth. The chunk-gather lane is Scroll 3 only and takes a PPM.",
+      "how_it_fails": "This is the phase that decides depth. Feeding a detector N consecutive slices when its training expected N slices at a different physical spacing hands it a slab of the wrong thickness. num_slices and slice_step are therefore sent only when a job chose them, so a receipt never shows a depth nobody picked.",
+      "gate": null,
+      "prerequisites": {
+        "needs": "a tifxyz: a flattened sheet from P3, or a certified surface",
+        "produced_by": [
+          "P3",
+          "P1",
+          "P2"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "surface-volumes/ published beside a scan",
+        "note": "The default lane can now be handed a surface id and it fetches the sheet P3 published, which is what this phase was declared to consume. A path to the certified surface still works, and both stay renderable because the two have never been compared on the same surface."
+      },
+      "runnable_here": true,
+      "known_limit": "The two renderers have never been compared on the same surface, so r = 0.89 is a statement about the chunk-gather lane and does not transfer to the default. A flattened sheet is also a resampling of the surface, so a stack rendered from it is one interpolation further from the scan than one rendered from the certified tifxyz; those two have not been compared either. Separately, vc_render_tifxyz has its own --flatten: flattening as P3 instead keeps the sheet reusable across renders and gives it a receipt, but the two paths have not been compared.",
+      "verified": "33 slices at 1380x1380 rendered from the flattened sheet of surface 0e79f232 in 17.9s on one consumer GPU"
+    },
+    {
+      "id": "P5",
+      "slug": "ink-detection",
+      "name": "Ink detection",
+      "one_line": "Run a detector over the layer stack to produce a probability map.",
+      "consumes": "a layer stack plus an ink lane profile",
+      "produces": "probability.npy and a receipt binding profile, checkpoint, scale and normalization",
+      "lives_in": [
+        "framework/stages/03-ink"
+      ],
+      "maturity": "WORKING",
+      "distributed": true,
+      "how_to_run": "Queue it from the Command page, or run run_ink.py --profile <id> directly. Switching detector is switching --profile; frames, tile, training scale and the clip value all come from the profile.",
+      "how_it_fails": "Quietly and in the input contract. The upstream contract is clip(0,200) then divide by 200; this project divided by 255 for 95 runs. Separately, the scale ratio must match both the spatial axes and the depth axis, and only one of the two was resampled at first.",
+      "gate": null,
+      "prerequisites": {
+        "needs": "a layer stack",
+        "produced_by": [
+          "P4"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "surface-volumes/ in the public buckets",
+        "note": "This is the entry point actually used: PHerc0139 was screened from a downloaded 109-layer stack, skipping P1 through P3 entirely. A panel that greyed P5 out until P4 had run would have blocked the route this project took."
+      },
+      "runnable_here": true
+    },
+    {
+      "id": "P6",
+      "slug": "liveness-and-control",
+      "name": "Liveness",
+      "one_line": "Ask whether the map carries a decision at all, and whether the lane still reproduces on known ink.",
+      "consumes": "a probability map",
+      "produces": "ALIVE, DEGENERATE or EMPTY, written into the P5 receipt",
+      "lives_in": [
+        "framework/contracts/lane_liveness.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "No command: assess_liveness runs inside the P5 runner and its verdict is a field of INK_PROFILE_RECEIPT.json. Exit 3 and LANE_NOT_USABLE are how a dead lane refuses.",
+      "how_it_fails": "By being read as a gate it is not. Nothing downstream checks it before running: a DEGENERATE map can still be screened.",
+      "gate": "DEGENERATE is not a claim about ink; it says no screen on this map can mean anything",
+      "prerequisites": {
+        "needs": "a probability map",
+        "produced_by": [
+          "P5"
+        ],
+        "may_come_from_outside": false,
+        "external_source": null,
+        "note": "A check inside P5 rather than a stage of its own. The positive-control comparison this used to claim is not implemented: assess_liveness sees one array and no control run."
+      },
+      "runnable_here": false
+    },
+    {
+      "id": "P7",
+      "slug": "screening",
+      "name": "Screening and adjudication",
+      "one_line": "Turn a probability map into a verdict about text-like structure.",
+      "consumes": "a probability map and one claimed bounding box on it",
+      "produces": "candidate shapes, qualifying rows, and a pass or fail against the strict screen",
+      "lives_in": [
+        "framework/stages/04-validation"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "The strict text screen requires at least ten candidates and at least two rows carrying four shapes each. The Run page draws the threshold slider with the map's own percentiles marked on it.",
+      "how_it_fails": "By being asked about a box nobody should trust. The bbox is a human claim with no producer in this pipeline, and liveness is not enforced before it runs.",
+      "gate": "at least 10 candidates and at least 2 qualifying rows, and -- per the vetting-card discipline -- no priority review without a hash-bearing card and its input",
+      "prerequisites": {
+        "needs": "a probability map, and a bounding box to vet",
+        "produced_by": [
+          "P5"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "the bounding box comes from a person, not from a phase",
+        "note": "Declared as gated on P6 and it is not: no code checks the liveness verdict before screening. The queue refuses a map whose receipt is not ALIVE; nothing stops the runner being called directly."
+      },
+      "runnable_here": true
+    },
+    {
+      "id": "P8",
+      "slug": "reconstruction",
+      "name": "Reconstruction",
+      "one_line": "Stitch segments into one continuous sheet: who neighbours whom, in what order and orientation.",
+      "consumes": "published segment meshes, or two or more compatible geometry-certified TIFXYZ surface artifacts plus a connected layout and explicit reference",
+      "produces": "a relation graph or a new immutable merged TIFXYZ with complete N-to-1 lineage, seam evidence and geometry certification",
+      "lives_in": [
+        "framework/vendored/pherc0139-column-atlas-gh/scripts/wrap_order.py",
+        "framework/stages/05-reconstruction/scripts/run_vc3d_tifxyz_merge.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "Choose a fixed P8 lane and POST only its declared parameters to /api/jobs. column-atlas derives wrap order from public meshes. vc3d-tifxyz-merge resolves immutable certified surface IDs, validates scroll/CT/frame/resolution compatibility and a connected layout, then a worker invokes the digest-pinned upstream Volume Cartographer vc_merge_tifxyz with an explicit reference and deterministic nonzero RANSAC seed.",
+      "how_it_fails": "The merge lane fails closed on incompatible parents, disconnected layout, insufficient overlap or inliers, incomplete upstream output, geometry-gate failure, digest mismatch or backend error. It never rewrites a parent artifact. Column-atlas separately refuses the winding ambiguity that affected PHerc0826.",
+      "gate": null,
+      "prerequisites": {
+        "needs": "published segment meshes, or compatible geometry-certified TIFXYZ surfaces",
+        "produced_by": [
+          "P1",
+          "P2"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "segments/ published beside a scan in the open bucket",
+        "note": "column-atlas may consume public meshes directly. vc3d-tifxyz-merge consumes immutable P1 surfaces only after P2 geometry certification; neither lane invents a new stitching algorithm."
+      },
+      "runnable_here": true
+    },
+    {
+      "id": "P9",
+      "slug": "reading",
+      "name": "Rendering and reading",
+      "one_line": "Compose the assembled sheet into a readable page and recover text.",
+      "consumes": "the published ink maps for a scroll and a measured P8 radial order",
+      "produces": "ordered plate images for review",
+      "lives_in": [
+        "framework/vendored/pherc0139-column-atlas-gh/scripts/make_plates.py"
+      ],
+      "maturity": "WORKING",
+      "how_to_run": "Name a successful column-atlas P8 job (ordering_of) or an explicit measured wrap_radial.json (order_path). make_plates.py derives outer-to-inner order from descending r_mean, fetches the official ds8 maps and writes review plates.",
+      "how_it_fails": "Fails closed if the radial table is missing, malformed, contains duplicate wraps, lacks numeric finite r_mean values, or names a wrap absent from the public segment inventory.",
+      "gate": "a probability map is not OCR and does not by itself accept ink, text, letters or First Letters",
+      "prerequisites": {
+        "needs": "published ink maps and a measured radial order",
+        "produced_by": [
+          "P8"
+        ],
+        "may_come_from_outside": true,
+        "external_source": "the official ds8 ink maps in the open bucket plus an explicit wrap_radial.json",
+        "note": "The queue resolves ordering_of to a successful P8 radial-table output; standalone runs must name order_path explicitly."
+      },
+      "runnable_here": true,
+      "runner": "framework/vendored/pherc0139-column-atlas-gh/scripts/make_plates.py"
+    }
+  ],
+  "implementations_registry": "framework/registries/phase-implementations-0.1.0.json"
+}

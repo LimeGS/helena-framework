@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-regional-attempt-history-v1.schema.json",
+  "title": "Campaign X ink-blind regional segmentation attempt history",
+  "type": "object",
+  "required": ["schema", "task_id", "source_snapshot_id", "region", "selection", "attempt_count", "outcome_counts", "attempts", "ink_used", "history_sha256"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_regional_attempt_history.v1"},
+    "task_id": {"type": "string", "minLength": 1},
+    "source_snapshot_id": {"type": "string", "minLength": 1},
+    "region": {"type": "object"},
+    "selection": {"type": "object"},
+    "attempt_count": {"type": "integer", "minimum": 0, "maximum": 32},
+    "outcome_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}},
+    "attempts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["history_id", "task_id", "cell_id", "policy_version", "outcome", "same_cell", "bounds_xyz", "selected_seed", "profile_id", "parameters", "recipe_sha256", "updated_at_utc"],
+        "properties": {
+          "history_id": {"type": "string", "minLength": 1},
+          "task_id": {"type": "string", "minLength": 1},
+          "cell_id": {"type": "string", "minLength": 1},
+          "policy_version": {"type": "string", "minLength": 1},
+          "outcome": {"enum": ["NO_SEED", "GROW_FAILED", "DUPLICATE_SURFACE", "GEOMETRY_REJECTED_BRIDGE", "GEOMETRY_REJECTED_LAMINA_SWITCH", "GEOMETRY_REJECTED_DISTORTION", "GEOMETRY_REJECTED_COVERAGE"]},
+          "same_cell": {"type": "boolean"},
+          "bounds_xyz": {"type": "array"},
+          "selected_seed": {"type": ["object", "null"]},
+          "profile_id": {"type": ["string", "null"]},
+          "parameters": {"type": ["object", "null"]},
+          "recipe_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+          "updated_at_utc": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "ink_used": {"const": false},
+    "history_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "additionalProperties": false
+}

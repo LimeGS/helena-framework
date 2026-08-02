@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://campaignx.local/schemas/segmentation-proposal-v2.schema.json",
+  "title": "Campaign X bounded adaptive segmentation proposal v2",
+  "type": "object",
+  "required": ["schema", "task_id", "attempt_id", "selected_seed", "profile_id", "parameters", "history_considered", "hypothesis", "parameter_rationale", "variation_summary", "alternatives_rejected", "ink_used"],
+  "properties": {
+    "schema": {"const": "campaignx.segmentation_proposal.v2"},
+    "task_id": {"type": "string", "minLength": 1},
+    "attempt_id": {"type": "string", "minLength": 1},
+    "selected_seed": {
+      "type": "object",
+      "required": ["candidate_id", "x", "y", "z"],
+      "properties": {
+        "candidate_id": {"type": "string", "minLength": 1},
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "z": {"type": "integer"}
+      },
+      "additionalProperties": false
+    },
+    "profile_id": {"type": "string", "minLength": 1},
+    "parameters": {"type": "object"},
+    "history_considered": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "hypothesis": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "parameter_rationale": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "variation_summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "alternatives_rejected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["candidate_id", "reason"],
+        "properties": {
+          "candidate_id": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": false
+      }
+    },
+    "ink_used": {"const": false}
+  },
+  "additionalProperties": false
+}

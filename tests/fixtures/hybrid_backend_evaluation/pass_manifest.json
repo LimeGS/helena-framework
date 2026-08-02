@@ -1,0 +1,116 @@
+{
+  "schema": "campaignx.surface_backend_gate_input.v1",
+  "evaluation_id": "EVAL-PHerc826-hybrid-pass-a01",
+  "comparison_id": "CMP-PHerc826-hybrid-pass-a01",
+  "sample_id": "PHerc826",
+  "roi_level0_zyx": [5120, 4992, 5376, 5376, 5248, 5632],
+  "surfaces": {
+    "vc3d": {
+      "surface_id": "SURF-PHerc826-vc3d-fixture-a01",
+      "backend_profile": "segmentation.vc3d-m7-growth@1.0.0",
+      "artifact_uri": "s3://fixture/vc3d/SURFACE_ARTIFACT.json",
+      "artifact_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "receipt_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "scrollfiesta": {
+      "surface_id": "SURF-PHerc826-scrollfiesta-fixture-a01",
+      "backend_profile": "segmentation.scrollfiesta-m7-mesh@0.1.0",
+      "artifact_uri": "s3://fixture/scrollfiesta/SURFACE_ARTIFACT.json",
+      "artifact_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "receipt_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+  },
+  "thresholds": {
+    "local_sheet_separation_voxels": 4.0,
+    "maximum_agreement_distance_voxels": 2.0,
+    "minimum_normal_dot": 0.866,
+    "minimum_ct_legible_fraction": 0.95,
+    "minimum_ct_within_tolerance_fraction": 0.98,
+    "maximum_degenerate_fraction": 0.0001,
+    "maximum_relative_stretch_regression": 0.05,
+    "minimum_area_gain_fraction": 0.15,
+    "minimum_component_reduction_fraction": 0.3,
+    "maximum_downstream_tile_loss_fraction": 0.05,
+    "maximum_relative_cost_per_cm2": 2.0
+  },
+  "measurements": {
+    "topology": {
+      "vc3d": {
+        "non_manifold_edges": 0, "self_intersections": 0,
+        "invalid_coordinates": 0, "inconsistent_winding_edges": 0,
+        "uv_flipped_triangles": 0, "degenerate_triangle_fraction": 0.00005,
+        "orientable": true, "hole_repair_count": 0, "hole_repair_max_span_voxels": null
+      },
+      "scrollfiesta": {
+        "non_manifold_edges": 0, "self_intersections": 0,
+        "invalid_coordinates": 0, "inconsistent_winding_edges": 0,
+        "uv_flipped_triangles": 0, "degenerate_triangle_fraction": 0.00004,
+        "orientable": true, "hole_repair_count": 0, "hole_repair_max_span_voxels": null
+      }
+    },
+    "ct": {
+      "vc3d": {
+        "ct_legible_area_fraction": 0.98, "ct_within_tolerance_fraction": 0.99,
+        "confirmed_bridge_count": 0, "confirmed_sheet_change_count": 0,
+        "surface_ct_distance_p95_voxels": 1.2
+      },
+      "scrollfiesta": {
+        "ct_legible_area_fraction": 0.97, "ct_within_tolerance_fraction": 0.99,
+        "confirmed_bridge_count": 0, "confirmed_sheet_change_count": 0,
+        "surface_ct_distance_p95_voxels": 1.4
+      }
+    },
+    "flattening": {
+      "vc3d": {
+        "uv_flipped_triangle_count": 0, "uv_degenerate_triangle_fraction": 0.00003,
+        "stretch_p95": 1.0, "baseline_stretch_p95": 1.0,
+        "confirmed_ct_seam_jump_count": 0
+      },
+      "scrollfiesta": {
+        "uv_flipped_triangle_count": 0, "uv_degenerate_triangle_fraction": 0.00004,
+        "stretch_p95": 1.02, "baseline_stretch_p95": 1.0,
+        "confirmed_ct_seam_jump_count": 0
+      }
+    },
+    "utility": {
+      "vc3d": {
+        "usable_area_cm2": 1.0, "component_count": 10,
+        "downstream_usable_tiles": 100, "cost_per_usable_cm2": 1.0,
+        "area_equivalent_for_component_reduction": true,
+        "continuity_gain_equivalent": false
+      },
+      "scrollfiesta": {
+        "usable_area_cm2": 1.2, "component_count": 8,
+        "downstream_usable_tiles": 100, "cost_per_usable_cm2": 1.5,
+        "area_equivalent_for_component_reduction": true,
+        "continuity_gain_equivalent": false
+      }
+    },
+    "continuity_supported": true
+  },
+  "regions": [
+    {
+      "region_id": "REG-consensus-01", "area_cm2": 0.8,
+      "vc3d_component_ids": ["vc-01"], "scrollfiesta_component_ids": ["sf-01"],
+      "distance_p95_voxels": 1.0, "normal_dot_p05": 0.95, "same_sheet": true,
+      "ct_support": {"vc3d": "SUPPORTED", "scrollfiesta": "SUPPORTED"},
+      "backend_region_validity": {"vc3d": "PASS", "scrollfiesta": "PASS"},
+      "notes": ["fixture consensus region"]
+    },
+    {
+      "region_id": "REG-scrollfiesta-only-01", "area_cm2": 0.4,
+      "vc3d_component_ids": [], "scrollfiesta_component_ids": ["sf-02"],
+      "distance_p95_voxels": null, "normal_dot_p05": null, "same_sheet": null,
+      "ct_support": {"vc3d": "UNVERIFIED", "scrollfiesta": "SUPPORTED"},
+      "backend_region_validity": {"vc3d": "UNMEASURED", "scrollfiesta": "PASS"},
+      "notes": ["fixture ScrollFiesta-only region"]
+    }
+  ],
+  "evidence": [
+    {
+      "panel": "CT",
+      "vc3d": {"uri": "s3://fixture/vc3d/ct.png", "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "bytes": 1024},
+      "scrollfiesta": {"uri": "s3://fixture/scrollfiesta/ct.png", "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "bytes": 1024}
+    }
+  ]
+}

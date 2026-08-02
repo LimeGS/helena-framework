@@ -1,0 +1,134 @@
+# syntax=docker/dockerfile:1.7
+#
+# ThaumatoAnakalyptor.
+#
+# Read this before building it: upstream moved it to villa/deprecated/. It is
+# not the current segmenter and the registry is right to call it
+# UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED. This image makes it *runnable* so it can
+# be compared against; adopting anything it produces is a separate decision that
+# needs its own control.
+#
+# The upstream DockerfileThaumato is a build that cannot be repeated. It takes
+# Miniconda `latest`, clones three repositories at build time, and compiles CUDA
+# kernels for eight architectures. Fixed here, in order:
+#
+#   * Miniconda is pinned to a release and verified by sha256.
+#   * Source comes from the `villa_src` context at the locked commit rather than
+#     from a clone; the two third-party clones keep upstream's own pinned
+#     commits and are the only network source left.
+#   * TORCH_CUDA_ARCH_LIST is an ENV, not a bare `RUN export`. Upstream writes
+#     `RUN export TORCH_CUDA_ARCH_LIST=...` on its own line three times, and
+#     each of those is a shell that exits immediately; the variable never
+#     reaches the compiler. It survived because two later RUN lines re-export it
+#     inline, so MinkowskiEngine got it and pointnet2 did not.
+#   * The default arch list is the one GPU this runs on. Eight architectures is
+#     eight times the nvcc work, and on a 3-core host that is the difference
+#     between a long build and an unfinishable one.
+ARG CUDA_BASE_IMAGE
+
+FROM ${CUDA_BASE_IMAGE} AS build
+ARG CUDA_BASE_IMAGE
+ARG DEBIAN_FRONTEND=noninteractive
+ARG VILLA_COMMIT
+ARG BUILD_COMMIT=unknown
+# 315532800 is 1980-01-01, not zero. A build ARG is in the environment of every
+# RUN in its stage, and SOURCE_DATE_EPOCH is a standard setuptools honours: with
+# it at 0 every wheel build dies on "ZIP does not support timestamps before
+# 1980", which surfaces as seven unrelated packages failing to build. The other
+# Containerfiles default it to 0 safely because there it only fills a label.
+ARG SOURCE_DATE_EPOCH=315532800
+
+# sm_75 is Turing, which is what the fleet host has. Override for other cards;
+# every value added multiplies the CUDA compile.
+ARG TORCH_CUDA_ARCH_LIST="7.5"
+ENV TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST} \
+    FORCE_CUDA=1 \
+    PYTHONUNBUFFERED=1 \
+    # This environment pulls roughly half a gigabyte of wheels -- open3d alone
+    # ships 400 MB -- and pip's 15-second default read timeout gives up part way
+    # through one of them and takes the whole conda env with it. The failure
+    # reads as a resolver error several hundred lines from the actual cause.
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
+
+LABEL org.opencontainers.image.title="helena-thaumato" \
+      org.opencontainers.image.description="ThaumatoAnakalyptor, upstream-deprecated, built for comparison only" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${CUDA_BASE_IMAGE}" \
+      org.helena.villa.commit="${VILLA_COMMIT}" \
+      org.helena.adoption="COMPARISON_ONLY: upstream deprecated this; nothing it produces is catalogued without its own control"
+
+# open3d links X11 and GL even when it is only ever used headless, so importing
+# it on a server dies with `libX11.so.6: cannot open shared object file`. These
+# are the stubs that satisfy the loader; nothing here opens a window.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3-pip curl wget bzip2 git ca-certificates build-essential ninja-build \
+      libopenblas-dev \
+      libx11-6 libxext6 libxrender1 libgl1 libglib2.0-0 libgomp1 \
+ && rm -rf /var/lib/apt/lists/*
+
+# `latest` is not a version. This is the release upstream's environment file was
+# written against, and the checksum is what makes re-running this build produce
+# the same interpreter rather than whichever one Anaconda published that day.
+ARG MINICONDA_VERSION=py310_23.5.2-0
+# Verified against the published installer, not recalled. The first value here
+# was invented and the checksum caught it, which is the point of having one.
+ARG MINICONDA_SHA256=ea5e6e8a3d5a0247b9df85382d27220fac8e59b5778fd313c5913879cd9baafc
+RUN curl -fsSLo /tmp/miniconda.sh \
+      "https://repo.anaconda.com/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" \
+ && echo "${MINICONDA_SHA256}  /tmp/miniconda.sh" | sha256sum -c - \
+ && bash /tmp/miniconda.sh -b -p /opt/conda \
+ && rm -f /tmp/miniconda.sh
+ENV PATH=/opt/conda/bin:${PATH}
+
+RUN conda create --name thaumato python=3.10.9 pip=23.1 -y
+ENV CONDA_DEFAULT_ENV=thaumato \
+    PATH=/opt/conda/envs/thaumato/bin:${PATH}
+
+# cython<3 and pyyaml 5.4.1 must land before the environment file: pyyaml 5.4.1
+# does not build against cython 3, and with build isolation pip fetches cython 3
+# regardless of what is already installed.
+RUN pip install "cython<3.0.0" pyyaml==5.4.1 --no-build-isolation -v
+
+COPY --from=villa_src deprecated/thaumato-anakalyptor/environment_thaumato.yml /workspace/
+RUN conda env update --name thaumato -f /workspace/environment_thaumato.yml
+
+COPY --from=villa_src deprecated/thaumato-anakalyptor/ThaumatoAnakalyptor/mask3d/third_party/ \
+     /workspace/ThaumatoAnakalyptor/mask3d/third_party/
+
+RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 \
+      --extra-index-url https://download.pytorch.org/whl/cu113 \
+ && pip install torch-scatter==2.1.1 -f https://data.pyg.org/whl/torch-1.12.1+cu113.html \
+ && pip install 'git+https://github.com/facebookresearch/detectron2.git@710e7795d0eeadf9def0e7ef957eea13532e34cf' --no-deps
+
+# MinkowskiEngine is the long pole and the usual point of failure. Its commit is
+# upstream's pin, kept.
+RUN git clone --recursive https://github.com/NVIDIA/MinkowskiEngine \
+      /workspace/ThaumatoAnakalyptor/mask3d/third_party/MinkowskiEngine \
+ && cd /workspace/ThaumatoAnakalyptor/mask3d/third_party/MinkowskiEngine \
+ && git checkout 02fc608bea4c0549b0a7b00ca1bf15dee4a0b228 \
+ && python setup.py install --force_cuda --blas=openblas
+
+RUN git clone https://github.com/ScanNet/ScanNet.git \
+      /workspace/ThaumatoAnakalyptor/mask3d/third_party/ScanNet \
+ && cd /workspace/ThaumatoAnakalyptor/mask3d/third_party/ScanNet/Segmentator \
+ && git checkout 3e5726500896748521a6ceb81271b0f5b2c0e7d2 \
+ && make \
+ && cd /workspace/ThaumatoAnakalyptor/mask3d/third_party/pointnet2 \
+ && python setup.py install
+
+COPY --from=villa_src deprecated/thaumato-anakalyptor/ /workspace/
+
+# Imports rather than inference: the checkpoints are not in this image and
+# nothing here should imply otherwise. This catches the failure that actually
+# happens -- a MinkowskiEngine that built but cannot load its own extension.
+# Imports rather than inference: the checkpoints are not in this image. open3d
+# is included because it is the one that fails on a headless host, and it fails
+# at import, which is the cheapest place to find out.
+RUN python -c "import MinkowskiEngine, torch, open3d; \
+print('torch', torch.__version__, 'ME', MinkowskiEngine.__version__, \
+      'open3d', open3d.__version__)"
+
+WORKDIR /workspace
+CMD ["python", "ThaumatoAnakalyptor.py", "--help"]

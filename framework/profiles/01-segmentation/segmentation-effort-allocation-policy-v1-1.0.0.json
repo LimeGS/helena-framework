@@ -1,0 +1,60 @@
+{
+  "schema": "campaignx.effort_allocation_policy.v1",
+  "profile_id": "segmentation-effort-allocation-policy-v1@1.0.0",
+  "decides": "how much further segmentation effort a roll should receive next",
+  "never_decides": "whether a roll contains ink, text, letters, or any First Letters evidence",
+  "ink_blind": true,
+  "recommendations": [
+    "CONTINUE",
+    "PAUSE_PENDING_REVIEW",
+    "NEEDS_NEW_APPROACH"
+  ],
+  "recommendation_semantics": {
+    "CONTINUE": "the current approach is still producing checkable geometry on this roll; keep its slot",
+    "PAUSE_PENDING_REVIEW": "stop spending new slots until a human reviews the geometry evidence; the roll is not retired and no measurement is discarded",
+    "NEEDS_NEW_APPROACH": "the current approach has not produced geometry this pipeline can check on this roll; a different method is required before more slots are spent"
+  },
+  "inputs": [
+    "grow attempt count from immutable growth receipts",
+    "measured surface area per attempt from the finalizer and the geometry surface catalogue",
+    "POST_FIT_RELATION_GUARD passed/failed relation counts, where an evaluation exists",
+    "NO_SEED cause breakdown from campaignx.seed_candidate_rejection_diagnostics.v1, where materialized"
+  ],
+  "forbidden_inputs": [
+    "ink model activations or scores",
+    "ink screening outcomes",
+    "text-like or glyph-like candidate counts",
+    "any human reading of a rendered surface"
+  ],
+  "decision_order": [
+    "INSUFFICIENT_EFFORT_SPENT",
+    "NO_RELATION_GUARD_EVALUATION",
+    "GUARD_EVIDENCE_TOO_THIN",
+    "GUARD_PASS_RATE_BELOW_NEW_APPROACH_FLOOR",
+    "GUARD_PASS_RATE_BELOW_CONTINUE_FLOOR",
+    "MARGINAL_AREA_BELOW_FLOOR",
+    "CONTINUE"
+  ],
+  "thresholds": {
+    "minimum_attempts_before_any_pause": 5,
+    "minimum_guard_relation_count": 30,
+    "needs_new_approach_maximum_guard_pass_rate": 0.4,
+    "continue_minimum_guard_pass_rate": 0.6,
+    "minimum_unique_area_per_attempt_cm2": 0.1
+  },
+  "threshold_rationale": {
+    "minimum_attempts_before_any_pause": "a roll that has barely been tried cannot be judged; fewer attempts than this always yields CONTINUE",
+    "minimum_guard_relation_count": "below this the passed/failed split is too thin to separate a bad fit from a small sample, so the roll pauses for review rather than being reclassified",
+    "needs_new_approach_maximum_guard_pass_rate": "under this rate the fitted relation model disagrees with the frozen winding constraints on the majority of measured relations, so more attempts of the same kind are not expected to become checkable",
+    "continue_minimum_guard_pass_rate": "above this rate the geometry the pipeline produced is still mostly consistent with the frozen relations",
+    "minimum_unique_area_per_attempt_cm2": "an attempt that adds less measured area than this is paying a GPU slot for nothing measurable; it can only downgrade a recommendation, never upgrade one"
+  },
+  "missing_evidence_rule": "absent evidence is recorded as UNAVAILABLE and never scored as zero; an absent relation-guard evaluation is itself the NEEDS_NEW_APPROACH cause because the roll never reached a checkable stage",
+  "non_claims": [
+    "a PAUSE_PENDING_REVIEW or NEEDS_NEW_APPROACH recommendation is about effort allocation only",
+    "no recommendation states or implies that a roll contains no ink, no text, and no letters",
+    "no recommendation retires a roll, deletes evidence, or closes a scientific question",
+    "a low relation-guard pass rate describes the geometry this pipeline produced, not the papyrus",
+    "measured area is candidate geometry, never a validated physical sheet"
+  ]
+}

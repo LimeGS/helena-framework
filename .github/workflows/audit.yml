@@ -1,0 +1,81 @@
+name: audit
+
+# The business-logic audit had no automatic trigger anywhere in the repository:
+# no workflow, no pre-commit hook, no root Makefile, no installed Git hook. Its
+# only reference was tests/test_business_logic_audit.py. This workflow makes the
+# repository-only audit a blocking check on every push and pull request, and
+# archives its explicitly reduced-scope report. The full audit remains a
+# separate release gate wherever the external campaign evidence is mounted.
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests-and-audit:
+    name: pytest + business-logic audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install test dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          # The requirements files, not a hand-kept list. The list drifted: it
+          # was missing yaml, tifffile, PIL, scipy and fastapi, so 28 of the
+          # test modules failed to import and the run reported 29 collection
+          # errors rather than a result.
+          python3 -m pip install -r panel/requirements.txt -r tests/requirements.txt
+
+      - name: Run the test suite
+        run: python3 -m pytest -q
+
+      - name: Run the business-logic audit
+        run: python3 framework/audits/audit_business_logic.py --repository-only
+
+      - name: Write the dated audit report
+        if: always()
+        run: |
+          mkdir -p audit-report
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          ref="${GITHUB_REF_NAME//\//-}"
+          python3 framework/audits/audit_business_logic.py --repository-only \
+            > "audit-report/BUSINESS_LOGIC_AUDIT_${ref}_${stamp}.json" || true
+
+      - name: Upload the audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-logic-audit-${{ github.run_id }}
+          path: audit-report/
+          retention-days: 90
+
+      # FIX-14 acceptance: "there is a dated report for every tag". A tagged
+      # build additionally keeps the report for the full retention window under
+      # a name that carries the tag.
+      - name: Upload the release audit report
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-logic-audit-release-${{ github.ref_name }}
+          path: audit-report/
+          retention-days: 365

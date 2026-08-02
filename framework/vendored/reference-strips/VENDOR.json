@@ -1,0 +1,37 @@
+{
+  "component": "reference-strips",
+  "file_count": 20,
+  "files": {
+    "README.md": "15e99dc57f927f76e507d6fb53aaf3279f56bfd7ce1e07010a12e6465ba37965",
+    "make_strip.py": "dc68195abd6d35a48a2bac1f6f74fe3e74a4eda2a58c86774734890d86a00754",
+    "mesh_metrics.py": "7bc34073c76a804770b481b27d15a24face632231a9e4fc54bef9e37bf318ff3",
+    "qualify_strip.py": "cc5870b47e56364677790293462b580436ae47ab647bac2c2e5b2339a4d12594",
+    "requirements.txt": "b64873cf661f7a699e6434bd355a45a43bec1d491ea258ee5b8ee43ed5449726",
+    "score_strip.py": "ebaf60af31d59b45ec9070caff36506605aadb1eeec215ed06240bf0c91645a8",
+    "scoring_core.py": "4ce2465f508402508ebef526a93fe48f654da26d141c728f5dbe9161e682b530",
+    "strip_format.py": "309ab98e74ec98b4675e7c0372151cc613f26d9b880c0f235b58905886d83954",
+    "strips/UC-01/README.md": "44b53e8af4d7b9e4f0d95ff17c7ac131c12be2f26e747bae2bba41630b3caa61",
+    "strips/UC-01/UC-01.qualification.json": "3fce8287ad94a8faf2870194dbbc83625da3717d180089b1ffaaae67436febe5",
+    "strips/UC-01/UC-01.qualification.md": "59103b4de334cea968c99194685e20e55277993942b25fec9067289f492583b3",
+    "strips/UC-01/convert_ntaudit_band.py": "1c8051cfd60eb356eed54f92f016efd2e85c710681fd92d0ded2382604d68979",
+    "strips/UC-01/metadata.json": "909136be72c3c560927749df6480425cf034c1302f7cd8f0b46db730bfba8471",
+    "tests/synthetic.py": "d8e158aeca9e5f76ce677a63758c521a14b2cfe84a6c0b7a027db082913fdfda",
+    "tests/test_make_strip.py": "7255090099aae689c1ccd3a4d6e455ea9723fade65cb20989c298b9e6cec7e35",
+    "tests/test_qualify_strip.py": "d8cdd35e8ced536f2e5ebe51f96c3bad56ac4c26fbc831a55265751c164c5caf",
+    "tests/test_score_mesh.py": "1479d40fac3d036acae2955a841d81ec4229ee23c7c55d6b66e2a96c6c0d1fdd",
+    "tests/test_score_points.py": "573d1ca5627770d97de17e9c90202280942554b40b60501a341e430d233cb20c",
+    "tests/test_strip_format.py": "742593ef609e0f68609866cf4a911107479af4fdb00001535572306525c02689",
+    "tests/test_uc01_converter.py": "8b2a23004f3dcb3f3a4ad08a9094889abc3ece0ef7b08cc66667f253ccfac2f0"
+  },
+  "phases": [
+    "P1",
+    "P2"
+  ],
+  "policy": "code only; plates, indices, reviews, checkpoints and fixtures are findings and stay at the source",
+  "schema": "campaignx.vendored_component.v1",
+  "source_commit": "0f59ce099b1a6f59eec2fdef1811f5a0ec433824",
+  "source_path": "release/reference-strips",
+  "source_remote": null,
+  "unavailable_dataless": [],
+  "vendored_at_utc": "2026-07-25T17:51:05Z"
+}

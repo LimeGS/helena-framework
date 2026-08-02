@@ -1,0 +1,95 @@
+# P4, P5, P7 and P8: the ink-fleet worker.
+#
+#   docker compose --env-file /etc/helena/ink.env \
+#                  -f containers/compose/ink.compose.yaml up -d
+#
+# Rendering wants a GPU and so does the detector, so this one takes a card. Which
+# card is a per-host fact and lives in the env file, not here.
+#
+# One instance per slot, because one instance served five phases in series. On a
+# two-card host that meant a second person's P5 waited for the first even with a
+# card idle, and a long render blocked every P7 and P8 behind it. The queue was
+# never the bottleneck -- it hands work to as many workers as ask for it. There
+# was one asker.
+#
+# A second slot, on the other card:
+#
+#   HELENA_INK_SLOT=1 HELENA_INK_DEVICE=0 docker compose -p helena-ink-1 \
+#     --env-file /etc/helena/ink.env -f containers/compose/ink.compose.yaml up -d
+#
+# -p is required: the project name is what keeps the two from being recreations
+# of each other. Slots may share a card -- rendering is mostly IO -- but two
+# detectors will not both fit in 6 GiB, which is why this is a decision per host
+# rather than a number this file picks.
+name: helena-ink
+
+services:
+  ink:
+    image: ${HELENA_INK_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.10.0}}
+    container_name: helena-ink-${HELENA_INK_SLOT:-0}
+    restart: unless-stopped
+      # A ceiling, because this host has already lost PostgreSQL to a full
+      # disk. Docker's default json-file driver has no limit at all: a
+      # worker in a retry loop writes until the volume the database is on
+      # runs out, and nothing in this stack was bounded before.
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    network_mode: host
+    environment:
+      # Not P2 or P3: this image has no vc_flatten. Those run on the segment
+      # image, which carries the whole VC3D toolchain. P9 is here because the
+      # plates are composed from the official ink maps, which is a download and
+      # an image pipeline -- the same runtime the rest of these need.
+      HELENA_WORKER_PHASES: ${HELENA_INK_PHASES:-P4,P5,P7,P9}
+    env_file:
+      - ${HELENA_INK_ENV:-/etc/helena/ink.env}
+      # Credentials the panel does not yet hold. Once they are set from the
+      # panel, a worker reads them from the control plane at startup and this
+      # line can go.
+      - ${HELENA_INK_AWS_ENV:-/etc/helena/aws.env}
+    # One card, named by index. `gpus: all` on a two-card box means both
+    # services think they own both, and 6 GiB will not hold two models.
+    gpus:
+      - driver: nvidia
+        device_ids: ["${HELENA_INK_DEVICE:-1}"]
+        capabilities: [gpu]
+    volumes:
+      - ${HELENA_INK_RUNS:?set HELENA_INK_RUNS to the run directory}:${HELENA_INK_RUNS}
+      # The same volume the panel writes, read-only here. It was a required
+      # host path, which meant a new host could not start an ink worker until
+      # somebody had put checkpoints somewhere and said where; now the panel
+      # fills the volume and the worker reads it. A host path still works:
+      # set HELENA_INK_MODELS.
+      - ${HELENA_INK_MODELS:-helena-models}:/models:ro
+      # Where vc_render_tifxyz stages the volume chunks it streams. Same path
+      # inside and out, so a path in a job's recorded command means one thing.
+      - ${HELENA_INK_CACHE:?set HELENA_INK_CACHE to the volume cache}:${HELENA_INK_CACHE}
+      # P4 layer stacks and P5 probability maps use the panel-owned durable
+      # artifact volume by default.  Without this mount, /artifacts is merely
+      # the worker container's writable layer and disappears on recreation.
+      - ${HELENA_INK_ARTIFACTS:-helena-artifacts}:/artifacts
+    command:
+      - python3
+      - /workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py
+      - --host-id
+      - ${HELENA_INK_HOST_ID:?set HELENA_INK_HOST_ID to this host's name}
+      # Named by slot, not by pid. The default was host-plus-pid, so a restart
+      # gave the same worker a new identity: leases it still held looked like a
+      # stranger's, and nothing could be attributed across the restart.
+      - --worker-id
+      - ${HELENA_INK_HOST_ID}-ink${HELENA_INK_SLOT:-0}
+      - --runs-root
+      - ${HELENA_INK_RUNS}
+      - --poll-seconds
+      - "${HELENA_INK_POLL_SECONDS:-10}"
+      - --job-timeout
+      - "${HELENA_INK_JOB_TIMEOUT:-21600}"
+
+volumes:
+  helena-models:
+    name: ${HELENA_MODELS_VOLUME:-helena-models}
+    external: true
+  helena-artifacts:
+    name: ${HELENA_ARTIFACTS_VOLUME:-helena-artifacts}
+    external: true

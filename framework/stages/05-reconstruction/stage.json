@@ -1,0 +1,8 @@
+{
+  "stage_id": "05-reconstruction",
+  "purpose": "Validated surfaces are related into graphs, joins, columns, and pages under a frozen relation profile.",
+  "inputs": ["validated_surfaces", "relation_profile", "coordinate_contract"],
+  "outputs": ["relation_graph", "assembly_candidates", "reconstruction_receipt"],
+  "image": "helena-orchestrator",
+  "acceptance_boundary": "A relation proposal is not an externally validated reconstruction unless its declared benchmark passes."
+}

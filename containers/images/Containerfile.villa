@@ -1,0 +1,183 @@
+# syntax=docker/dockerfile:1.7
+#
+# volume-cartographer, compiled from source.
+#
+# This is the piece the stack was missing. Containerfile.vc3d unpacks a
+# ``vc3d-runtime.tgz`` and verifies it; build_vc3d_runtime_bundle.sh assembles
+# that tarball out of *already-built* binaries and their ldd closure. Neither
+# compiles anything, so the binaries came from somewhere off the record -- and
+# the one on the GPU host does not even start on its own, because it was copied
+# without its libraries and needs an LD_LIBRARY_PATH wrapper to run at all.
+#
+# Building properly fixes that on its own: upstream sets an install RPATH of
+# $ORIGIN/../lib, so the apps find their own libraries and there is no wrapper.
+#
+# The same image is where ScrollFiesta gets flatboi and vc_obj2tifxyz_legacy,
+# which its native bundle takes as inputs and cannot produce.
+#
+# Source arrives as the named build context ``villa_src`` at the commit the
+# ScrollFiesta source lock pins. Nothing is fetched here: a build that clones
+# is a build whose output depends on the day it ran.
+ARG BASE_IMAGE
+
+# ---------------------------------------------------------------- toolchain --
+FROM ${BASE_IMAGE} AS deps
+ARG DEBIAN_FRONTEND=noninteractive
+# scripts/install_build_deps.sh is upstream's own list and the single source of
+# truth shared with their CI. Copying it rather than restating it means the
+# toolchain cannot drift from the code being compiled.
+COPY --from=villa_src volume-cartographer/scripts/install_build_deps.sh /tmp/install_build_deps.sh
+RUN bash /tmp/install_build_deps.sh && rm -f /tmp/install_build_deps.sh
+
+# -------------------------------------------------------------------- build --
+FROM deps AS build
+ARG VILLA_COMMIT
+ARG VILLA_TREE
+RUN test -n "${VILLA_COMMIT}" -a -n "${VILLA_TREE}" || { \
+      echo "VILLA_COMMIT and VILLA_TREE build-args are required: an unrecorded source identity makes the receipt unverifiable" >&2; \
+      exit 2; \
+    }
+COPY --from=villa_src volume-cartographer /src
+WORKDIR /src
+
+# The recorded commit must match the tree that was actually copied, or the
+# receipt binds a provenance the image does not have.
+RUN echo "${VILLA_COMMIT}" > /src/.villa-commit
+
+# ci-release-gcc is upstream's own preset. VC_BUILD_FLATBOI defaults ON for
+# Linux (CMakeLists.txt:57) and drags in PaStiX, which is why flang and Scotch
+# are in the dependency list.
+# No MCP server is built here, and vc3d-mcp-headless.patch is not applied.
+#
+# That patch adds `add_subdirectory(apps/VC3D/mcp)`, and no commit of upstream
+# volume-cartographer has ever contained that directory -- checked across every
+# ref. It applied cleanly because it only edits CMakeLists.txt, and produced
+# nothing because the source it points at is not there. The seed-candidate
+# service now lives in this repository as Python, under
+# framework/stages/01-segmentation/mcp.
+RUN cmake --preset ci-release-gcc \
+ && cmake --build --preset ci-release-gcc \
+ && cmake --install build/ci-release-gcc --prefix /usr/local --component vc_runtime
+
+# Every binary the framework names, checked here rather than at run time. A
+# missing app otherwise surfaces as a fleet attempt that fails after claiming a
+# lease and burning a retry.
+RUN set -eu; \
+    for app in vc_grow_seg_from_seed vc_render_tifxyz vc_obj2tifxyz_legacy \
+               vc_merge_tifxyz vc_flatten flatboi; do \
+      test -x "/usr/local/bin/$app" || { echo "missing after install: $app" >&2; exit 3; }; \
+    done
+
+# The toolchain, recorded by the stage that used it. ScrollFiesta's packager
+# requires this and nothing produced it, which is the same gap as the missing
+# compile: the facts it wants -- which compiler, which cmake, which preset --
+# exist only here, and only while the builder stage is still around.
+#
+# build_root is left null. It names where the binaries sit in the build that
+# consumes them, which is not a fact about this compile; the consumer fills it
+# in for the tree it actually assembled.
+RUN set -eu; \
+    printf '%s\n' \
+      '{' \
+      '  "schema": "campaignx.villa_toolchain_receipt.v1",' \
+      "  \"source_commit\": \"$(cat /src/.villa-commit)\"," \
+      "  \"source_tree\": \"${VILLA_TREE}\"," \
+      '  "build_root": null,' \
+      '  "toolchain": {' \
+      "    \"c_compiler\": \"$(gcc --version | head -1)\"," \
+      "    \"cxx_compiler\": \"$(g++ --version | head -1)\"," \
+      "    \"cmake_version\": \"$(cmake --version | head -1)\"," \
+      '    "build_type": "Release",' \
+      '    "build_command": "cmake --preset ci-release-gcc && cmake --build --preset ci-release-gcc"' \
+      '  }' \
+      '}' \
+      > /toolchain.json; \
+    python3 -c "import json,sys; json.load(open('/toolchain.json'))" \
+      || { echo "toolchain receipt is not valid JSON" >&2; exit 3; }; \
+    cat /toolchain.json
+
+# Derive the runtime package list instead of restating it. A hand-written list
+# is a guess about a distribution's soname suffixes -- libopencv-core412t64 is
+# 26.04's name and 24.04's was different -- and a wrong guess fails the build
+# with "Unable to locate package" long after the compile it wasted. Asking dpkg
+# which packages own the libraries the binaries actually load cannot be wrong
+# about either.
+RUN set -eu; \
+    ldd /usr/local/bin/* /usr/local/lib/*.so* 2>/dev/null \
+      | awk '/=> \//{print $3}' | xargs -r -n1 readlink -f | sort -u \
+      | xargs -r dpkg -S 2>/dev/null \
+      | sed -E 's/^diversion by ([^ ]+) .*/\1/' \
+      | cut -d: -f1 | tr ',' '\n' | sed 's/^ *//' \
+      | grep -E '^[a-z0-9][a-z0-9+.-]*$' | sort -u \
+      > /tmp/runtime-packages.txt; \
+    test -s /tmp/runtime-packages.txt || { echo "no runtime packages resolved" >&2; exit 3; }; \
+    echo "runtime packages:"; cat /tmp/runtime-packages.txt
+
+# ------------------------------------------------------------------ runtime --
+FROM ${BASE_IMAGE} AS runtime
+ARG BASE_IMAGE
+ARG BUILD_COMMIT=unknown
+ARG VILLA_COMMIT
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.4.1
+LABEL org.opencontainers.image.title="helena-villa" \
+      org.opencontainers.image.description="Helena Framework volume-cartographer runtime, compiled from source" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.helena.villa.commit="${VILLA_COMMIT}"
+
+# Runtime libraries only. The toolchain stays in the builder: a compiler in a
+# production image is 1.5 GB of attack surface that never runs.
+#
+# The list is the one the build stage derived from the binaries themselves, so
+# it tracks the distribution rather than a guess about it. ca-certificates is
+# named explicitly because it is not a linked library: VC3D reads public HTTPS
+# Zarr and a missing trust store surfaces as `HTTP 0 fetching .zattrs`.
+ARG DEBIAN_FRONTEND=noninteractive
+COPY --from=build /tmp/runtime-packages.txt /tmp/runtime-packages.txt
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates $(tr '\n' ' ' < /tmp/runtime-packages.txt) \
+ && update-ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /toolchain.json /opt/campaignx/vc3d/VILLA_TOOLCHAIN.json
+# Kept in the image, not only consumed: anything built on top needs the same
+# libraries for these binaries to start, and re-deriving the list would mean
+# re-deriving it from binaries whose builder is gone.
+COPY --from=build /tmp/runtime-packages.txt /opt/campaignx/vc3d/RUNTIME_PACKAGES.txt
+COPY --from=build /usr/local/bin /opt/campaignx/vc3d/bin
+COPY --from=build /usr/local/lib /opt/campaignx/vc3d/lib
+
+# The environment the framework already expects, kept byte-identical to
+# Containerfile.vc3d so an executor pointed at either image behaves the same.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=vc3d \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    VC3D_RUNTIME_ROOT=/opt/campaignx/vc3d \
+    VC3D_GROW_BINARY=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+    VC3D_RENDER_BINARY=/opt/campaignx/vc3d/bin/vc_render_tifxyz \
+    VC_MCP_GROW_EXECUTABLE=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    PATH=/opt/campaignx/vc3d/bin:${PATH}
+
+# No LD_LIBRARY_PATH: the install RPATH is $ORIGIN/../lib and the layout above
+# preserves that relationship. If this ever needs one, the copy is wrong.
+RUN set -eu; \
+    for app in vc_merge_tifxyz vc_obj2tifxyz_legacy vc_flatten vc_render_tifxyz; do \
+      test -x "/opt/campaignx/vc3d/bin/$app" \
+        || { echo "$app is absent from the installed runtime" >&2; exit 3; }; \
+      "/opt/campaignx/vc3d/bin/$app" --help >/dev/null 2>&1 \
+        || "/opt/campaignx/vc3d/bin/$app" 2>&1 | grep -Eiq 'usage|required|option' \
+        || { echo "$app does not start" >&2; exit 3; }; \
+    done; \
+    /opt/campaignx/vc3d/bin/vc_grow_seg_from_seed --help >/dev/null 2>&1 \
+      || /opt/campaignx/vc3d/bin/vc_grow_seg_from_seed 2>&1 | grep -q "params" \
+      || { echo "vc_grow_seg_from_seed does not start" >&2; exit 3; }
+
+WORKDIR /workspace/campaign-x
+CMD ["sh"]

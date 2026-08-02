@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1.7
+# The runtime that claims ink-fleet jobs: P4 rendering, P5 inference, P7
+# screening, P8 wrap order.
+#
+# Built on helena-surface-qc rather than helena-ink because P4's default
+# lane is a VC3D binary and the ink image has none -- and helena-surface-qc
+# is already the composition of the frozen TimeSformer runtime with the verified
+# VC3D bundle, which is exactly the union the four phases need. Building on it
+# means the model the worker runs is the same model, byte for byte, that QC was
+# validated with.
+#
+# No ink worker had ever run anywhere before this image existed: the ink image
+# has no psycopg, so the worker died on `import psycopg` before reaching a job,
+# and the queue accumulated work nobody claimed.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+ARG BUILD_COMMIT=unknown
+ARG FRAMEWORK_VERSION=0.2.0
+LABEL org.opencontainers.image.title="helena-ink-worker" \
+      org.opencontainers.image.description="Helena Framework ink-fleet worker runtime (P4/P5/P7/P8)" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=ink-worker \
+    CAMPAIGN_X_REPO=/workspace/campaign-x
+WORKDIR /workspace/campaign-x
+
+COPY containers/images/requirements.ink-worker.txt /opt/campaignx/requirements.ink-worker.txt
+RUN python3 -m pip install --no-cache-dir \
+      -r /opt/campaignx/requirements.ink-worker.txt
+
+# The code is copied in, not mounted. Mounting a checkout means an image plus a
+# directory that has to be kept in step, on every host, by hand -- and an rsync
+# of that directory is one --delete away from removing live data, which is how
+# this project lost its panel accounts.
+#
+# Only what the phases read: contracts, profiles, the frozen catalog, and the
+# fleet code. Not the vendored renderers or anyone else's runtime.
+COPY framework /workspace/campaign-x/framework
+COPY scripts /workspace/campaign-x/scripts
+COPY workspace/catalog /workspace/campaign-x/workspace/catalog
+
+# The checkpoints, the run directory and the credentials still arrive as mounts:
+# those are state and secrets, and neither belongs in an image.
+CMD ["python3", "/workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py"]
