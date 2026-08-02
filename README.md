@@ -239,5 +239,7 @@ If you change behaviour, change the test that describes it.
 `tests/e2e` needs a running deployment and is skipped without one. It refuses to
 pass by skipping everything: a run where nothing asserted is a failed run.
 
-Code follows Semantic Versioning; profiles, runs and receipts carry their own
-immutable identities, and that standard is in the developer reference.
+Code follows Semantic Versioning and the current version is in `VERSION`, which
+the compose defaults and the build script are checked against. Profiles, runs and
+receipts carry their own immutable identities — those are not the platform's
+version and never move with it.
