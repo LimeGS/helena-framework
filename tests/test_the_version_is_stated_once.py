@@ -48,3 +48,34 @@ def test_the_build_script_agrees() -> None:
         assert found == VERSION, (
             f"build-images.sh names helena-panel:{found}; VERSION says {VERSION}"
         )
+
+
+def test_the_coverage_badge_is_a_number_ci_enforces() -> None:
+    """A badge nobody enforces goes green while the thing it claims falls.
+
+    There is no coverage service and no token here, and the workflow does not
+    commit anything -- the public mirror is one squashed commit per release, so
+    a job writing a percentage into the repository would fight that. What the
+    badge says instead is a floor, and --cov-fail-under is what makes it true:
+    the run goes red before the badge can lie.
+    """
+    import re
+
+    readme = (ROOT / "README.md").read_text()
+    claimed = re.search(r"coverage-%E2%89%A5(\d+)%25", readme)
+    if not claimed:
+        return  # no badge, nothing to keep honest
+
+    workflow = (ROOT / ".github/workflows/audit.yml").read_text()
+    enforced = re.search(r"--cov-fail-under=(\d+)", workflow)
+    assert enforced, (
+        f"the README claims coverage of at least {claimed.group(1)}% and nothing "
+        "in the workflow enforces it"
+    )
+    assert int(enforced.group(1)) >= int(claimed.group(1)), (
+        f"the badge claims ≥{claimed.group(1)}% and CI only requires "
+        f"{enforced.group(1)}%"
+    )
+    assert "pytest-cov" in (ROOT / "tests/requirements.txt").read_text(), (
+        "the workflow measures coverage with a plugin it does not install"
+    )

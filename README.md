@@ -4,6 +4,12 @@
        width="620">
 </p>
 
+<p align="center">
+  <a href="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml"><img src="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml/badge.svg" alt="audit"></a>
+  <a href="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml"><img src="https://img.shields.io/badge/coverage-%E2%89%A560%25-brightgreen.svg" alt="coverage at least 60%"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
+</p>
+
 An orchestration and evidence layer for the volume → surface → ink → page
 pipeline. It re-implements none of it. **VC3D, m7, ScrollFiesta, the Volume
 Cartographer flatteners and the ink models stay exactly what they are**, behind
@@ -46,8 +52,7 @@ curl -fsSL https://raw.githubusercontent.com/LimeGS/helena-framework/main/instal
 ```
 
 Needs Docker and a few GB. Puts the panel on `https://localhost:8800`; see
-[Deploying](#deploying) for what it checks, how to claim the first account, and
-how to add workers.
+[Deploying](#deploying) for the first account and for workers.
 
 ---
 
@@ -121,11 +126,10 @@ source.
 
 ## Deploying
 
-Single host, no configuration — the Quickstart line above clones, builds and
-starts the stack, and checks the things whose failures are illegible from
-inside Docker first — a full disk otherwise surfaces as
-`apt-get` exiting 100 about `/var/cache/apt`, and a compose v1 shim as a YAML
-error about a valid key. It refuses outright on a machine that already runs a
+The Quickstart line above clones, builds and starts the stack, checking first
+what is illegible from inside Docker: a full disk otherwise surfaces as
+`apt-get` exiting 100 about `/var/cache/apt`, a compose v1 shim as a YAML error
+about a valid key. It refuses outright on a machine that already runs a
 Helena stack: the compose project is named the same either way, so `up` would
 recreate the existing one rather than start a second.
 

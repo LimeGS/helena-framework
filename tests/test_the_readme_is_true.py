@@ -254,7 +254,11 @@ def test_the_bootstrap_command_is_the_one_the_panel_answers() -> None:
 
 def test_the_screenshots_it_shows_are_in_the_repository() -> None:
     """A README whose images 404 on GitHub looks abandoned before it is read."""
-    for src in re.findall(r'<img src="([^"]+)"', README):
+    for src in re.findall(r'src="([^"]+)"', README):
+        # Badges are served by GitHub and shields.io and are supposed to be
+        # remote; what must exist locally is everything this repository ships.
+        if src.startswith("http"):
+            continue
         assert (ROOT / src).is_file(), f"the README shows {src}, which is not here"
 
     # And each says what it is, for anyone who cannot see it.

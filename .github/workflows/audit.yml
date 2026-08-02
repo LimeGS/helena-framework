@@ -47,7 +47,12 @@ jobs:
           python3 -m pip install -r panel/requirements.txt -r tests/requirements.txt
 
       - name: Run the test suite
-        run: python3 -m pytest -q
+        # --cov-fail-under is the whole point of the badge: it turns "the tests
+        # pass" into "the tests pass and coverage did not drop below 60". A
+        # percentage nobody enforces goes green while it falls.
+        run: |
+          python3 -m pytest -q --cov=framework --cov=panel \
+            --cov-report=term:skip-covered --cov-fail-under=60
 
       - name: Run the business-logic audit
         run: python3 framework/audits/audit_business_logic.py --repository-only

@@ -38,3 +38,4 @@ joblib          # how that router's model is loaded
 # which sorts above the plain one, so this stays version-agnostic.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch           # ink detection: run_ink_timesformer imports it at module level
+pytest-cov
