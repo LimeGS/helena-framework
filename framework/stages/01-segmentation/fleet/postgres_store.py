@@ -382,8 +382,20 @@ class PostgresFleetStore:
                 # of them immediately claimable by the ink model. The gate held on
                 # the path that measures geometry and leaked on the path that never
                 # does, which is the wrong way round.
-                geometry_state = (payload.get("geometry_qc_state")
-                                  or DEFAULT_GEOMETRY_QC_STATE)
+                #
+                # A verdict the surface already carries outranks the default, or
+                # certifying a surface and then enqueuing its job strands the job:
+                # an import's payload never names a geometry state, and
+                # record_geometry_certification -- the thing that promotes a job
+                # out of WAITING_GEOMETRY -- has already run by then, so nothing
+                # is left to promote it.
+                geometry_state = (
+                    payload.get("geometry_qc_state")
+                    or (existing.get("geometry_qc_state")
+                        if existing is not None else None)
+                    or DEFAULT_GEOMETRY_QC_STATE
+                )
+                job_state = qc_job_state_for(geometry_state)
                 cursor.execute(
                     """INSERT INTO segment_qc_jobs
                        (qc_job_id,surface_id,profile_id,state,payload,updated_at)
@@ -392,7 +404,7 @@ class PostgresFleetStore:
                         qc_id,
                         surface_id,
                         profile_id,
-                        qc_job_state_for(geometry_state),
+                        job_state,
                         json.dumps(job_payload or {}, sort_keys=True, separators=(",", ":")),
                     ),
                 )
@@ -410,7 +422,10 @@ class PostgresFleetStore:
                     "status": "ENQUEUED",
                     "surface_id": surface_id,
                     "qc_job_id": qc_id,
-                    "qc_state": "PENDING",
+                    # What was written, not what used to be assumed: this said
+                    # PENDING unconditionally, so a caller reading the answer was
+                    # told the job was claimable while the row said otherwise.
+                    "qc_state": job_state,
                     "reconciliation": reconciliation,
                 }
 

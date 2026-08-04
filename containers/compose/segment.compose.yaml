@@ -17,7 +17,7 @@ name: helena-segment
 
 services:
   segment:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.1}}
     container_name: helena-segment
     # unless-stopped rather than a supervisor: docker starts it at boot, and a
     # worker that dies mid-task leaves its lease to expire, which the fleet
@@ -57,7 +57,7 @@ services:
   # queue does not care which container claims a row, only that the runtime
   # behind it is real.
   fleet-runner:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.1}}
     container_name: helena-fleet-runner
     restart: unless-stopped
     logging:

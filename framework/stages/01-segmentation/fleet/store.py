@@ -865,8 +865,15 @@ class FleetStore:
                 # As in the PostgreSQL store: this is the imported-surface path,
                 # imports carry no geometry verdict, and a hardcoded PENDING let
                 # every one of them straight through the gate.
-                geometry_state = (payload.get("geometry_qc_state")
-                                  or DEFAULT_GEOMETRY_QC_STATE)
+                # As there: a verdict the surface already carries outranks the
+                # default, or certifying before enqueuing strands the job.
+                geometry_state = (
+                    payload.get("geometry_qc_state")
+                    or (existing["geometry_qc_state"]
+                        if existing is not None else None)
+                    or DEFAULT_GEOMETRY_QC_STATE
+                )
+                job_state = qc_job_state_for(geometry_state)
                 connection.execute(
                     """INSERT INTO qc_jobs(qc_job_id,surface_id,profile_id,state,payload_json,created_at,updated_at)
                        VALUES(?,?,?,?,?,?,?)""",
@@ -874,7 +881,7 @@ class FleetStore:
                         qc_id,
                         surface_id,
                         profile_id,
-                        qc_job_state_for(geometry_state),
+                        job_state,
                         _dump(job_payload or {}),
                         now,
                         now,
@@ -895,7 +902,7 @@ class FleetStore:
                     "status": "ENQUEUED",
                     "surface_id": surface_id,
                     "qc_job_id": qc_id,
-                    "qc_state": "PENDING",
+                    "qc_state": job_state,
                     "reconciliation": reconciliation,
                 }
             except BaseException:

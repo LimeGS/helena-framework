@@ -20,6 +20,7 @@ it, holding a job back would strand the surface instead of gating it.
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -27,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
 
 from fleet.store import (  # noqa: E402
+    FleetStore,
     QC_WAITING_GEOMETRY,
     qc_job_state_for,
 )
@@ -107,3 +109,75 @@ def test_a_verdict_promotes_what_was_waiting_on_it() -> None:
         # And a rejection has to sweep up the waiting ones too, or a job sits
         # waiting forever on a surface that was refused.
         assert "IN ('PENDING','{QC_WAITING_GEOMETRY}')" in certified
+
+
+def _certified_surface(store, scroll: str) -> tuple[str, str]:
+    snapshot = store.register_snapshot({
+        "sample_id": scroll,
+        "ct_uri": f"https://example.invalid/{scroll}/ct.zarr",
+        "m7_uri": f"https://example.invalid/{scroll}/m7.zarr",
+        "shape_xyz": [1024, 1024, 2048], "voxel_size_um": 9.362,
+        "coordinate_frame": "ct_l0_xyz",
+    })
+    surface = store.import_surface({
+        "surface_id": f"{scroll}-s", "source_snapshot_id": snapshot,
+        "sample_id": scroll,
+        "artifact_sha256": hashlib.sha256(scroll.encode()).hexdigest(),
+        "artifact_uri": "s3://bucket/s", "bbox_xyz": [[0, 0, 0], [10, 10, 10]],
+        "area_cm2": 1.0, "state": "QC_SCREENED",
+        "physical_qc_state": "UNVALIDATED"})
+    store.record_geometry_certification(surface, "GEOMETRY_CERTIFIED",
+                                        {"schema": "test"})
+    return snapshot, surface
+
+
+def _enqueue(store, snapshot: str, scroll: str, surface: str, profile: str) -> dict:
+    return store.enqueue_imported_surface_qc({
+        "surface_id": surface, "source_snapshot_id": snapshot,
+        "sample_id": scroll,
+        "artifact_sha256": hashlib.sha256(f"{scroll}-qc".encode()).hexdigest(),
+        "artifact_uri": "s3://bucket/s", "bbox_xyz": [[0, 0, 0], [1, 1, 1]],
+        "area_cm2": 1.0}, profile_id=profile)
+
+
+def test_certifying_before_enqueuing_does_not_strand_the_job(tmp_path) -> None:
+    """The promotion runs on certification, so it cannot fix a later job.
+
+    Both orders have to arrive at a claimable job. Enqueue-then-certify was
+    covered: the certification promotes what is waiting. Certify-then-enqueue
+    was not, and it stranded the surface -- the state was read from the payload,
+    an import's payload never carries one, so a surface the gate had already
+    passed got a job that waits for a verdict that has come and gone.
+    """
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    snapshot, surface = _certified_surface(store, "TESTstranded")
+
+    _enqueue(store, snapshot, "TESTstranded", surface, "surface-qc@1.0.0")
+
+    claimed = store.claim_qc("qc-worker", 60, profile_id="surface-qc@1.0.0")
+    assert claimed is not None and claimed["surface_id"] == surface, (
+        "a certified surface's QC job is not claimable, so it is stranded: the "
+        "gate is holding back a surface that already passed it"
+    )
+
+
+def test_the_answer_names_the_state_it_wrote(tmp_path) -> None:
+    """It said PENDING whatever it wrote, which is a caller-visible lie."""
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    scroll = "TESThonest"
+    snapshot = store.register_snapshot({
+        "sample_id": scroll,
+        "ct_uri": f"https://example.invalid/{scroll}/ct.zarr",
+        "m7_uri": f"https://example.invalid/{scroll}/m7.zarr",
+        "shape_xyz": [1024, 1024, 2048], "voxel_size_um": 9.362,
+        "coordinate_frame": "ct_l0_xyz",
+    })
+    # No surface imported first and no verdict anywhere: this is the unmeasured
+    # case, and the honest answer is that the job waits.
+    answer = _enqueue(store, snapshot, scroll, f"{scroll}-new", "surface-qc@1.0.0")
+    assert answer["qc_state"] == QC_WAITING_GEOMETRY, (
+        f"enqueue answered {answer['qc_state']} for an unmeasured surface"
+    )
+    assert store.claim_qc("qc-worker", 60, profile_id="surface-qc@1.0.0") is None
