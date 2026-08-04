@@ -38,10 +38,10 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 # The GPUs the QC workers are pinned to, one project each.
 devices="${HELENA_QC_DEVICES:-0 1}"
 # The image Containerfile.ink-worker builds on. Overridable, because the tag moves.
-qc_base="${HELENA_QC_BASE_IMAGE:-localhost:5000/helena/helena-surface-qc:0.1.1}"
 # Where built images are published. Both hosts route to this MetalLB VIP, so a
 # deploy is a pull rather than a copy of a source tree.
 registry="${HELENA_REGISTRY:-localhost:5000/helena}"
+qc_base="${HELENA_QC_BASE_IMAGE:-$registry/helena-surface-qc:0.1.1}"
 registry_host="${registry%%/*}"
 # The full hash, because that is what the pipeline tags with ($CI_COMMIT_SHA).
 # This script used the short one everywhere, so it looked for a tag CI never

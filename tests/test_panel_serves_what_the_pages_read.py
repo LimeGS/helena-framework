@@ -165,7 +165,11 @@ def test_seed_probe_launcher_contract_is_served_with_its_bounds(client):
     probe = client.get("/api/segmentation/options").json()["probe"]
     assert [mode["id"] for mode in probe["modes"]] == ["off", "shadow", "select"]
     assert probe["default_mode"] == "off"
-    assert probe["top_k"] == {"minimum": 1, "maximum": 3, "default": 2}
+    # 20, not 3. Three made the probe a tie-break between m7's best candidates,
+    # and the first shadow run measured 8 of 8 ELIGIBLE at that depth -- a 0%
+    # rejection rate against a 34% break-even. Whether m7's ordering holds at
+    # rank 20 is the open question, and the cap is what made it unaskable.
+    assert probe["top_k"] == {"minimum": 1, "maximum": 20, "default": 2}
     assert probe["generations"] == {"minimum": 10, "maximum": 20, "default": 12}
     assert probe["select_readiness"]["available"] is False
     assert probe["select_readiness"]["benchmark_approved"] is False

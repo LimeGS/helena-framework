@@ -205,6 +205,10 @@ def command_bootstrap(args: argparse.Namespace) -> int:
         candidate_selection_policy=args.candidate_selection_policy,
         planner=args.planner,
         planner_model=args.planner_model,
+        # Rides in the task payload, which is the dict the worker claims, so
+        # task.get("candidate_rank") reaches the planner it builds.
+        candidate_rank=getattr(args, "candidate_rank", 1),
+        reconsider_covered=getattr(args, "reconsider_covered", False),
         queued_reason=args.reason,
         created_by=args.queued_by,
         mission_id=args.mission_id,
@@ -1569,11 +1573,37 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
         ),
     )
     bootstrap.add_argument(
+        "--reconsider-covered",
+        action="store_true",
+        # Clearance skips cells near a surface somebody already grew, which is
+        # what keeps coverage spreading -- and also what puts m7's alternatives
+        # out of reach, since a cell only has alternatives where it produced
+        # something. A run that means to revisit says so here.
+        help="offer cells clearance would skip, to grow m7's other candidates",
+    )
+    bootstrap.add_argument(
+        "--candidate-rank",
+        type=int,
+        default=1,
+        # Which rung of m7's frozen ordering to grow. 1 is the best candidate and
+        # what every run does; a higher rank grows an alternative the planner
+        # would otherwise only record as rejected. Stamped on the task so the
+        # worker can hand it to the planner it builds -- a rank accepted at the
+        # API and dropped before the host would attribute a surface to a
+        # configuration that never ran.
+        help="which of m7's ranked candidates to grow (1 = the best)",
+    )
+    bootstrap.add_argument(
         "--seed-probe-top-k",
         type=int,
-        choices=range(1, 4),
+        # The cap lives here and in the panel's request model, and raising one
+        # without the other leaves the API accepting a value this refuses.
+        # Three made the probe a tie-break between m7's best candidates; the
+        # first shadow run measured 8 of 8 ELIGIBLE at that depth, so it paid
+        # for nothing. Whether the ordering holds at rank 20 is the question.
+        choices=range(1, 21),
         default=2,
-        metavar="{1,2,3}",
+        metavar="{1..20}",
     )
     bootstrap.add_argument(
         "--seed-probe-generations",

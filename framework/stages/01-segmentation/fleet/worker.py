@@ -9,6 +9,7 @@ import time
 from itertools import product
 from pathlib import Path
 from typing import Any, Callable, Protocol
+import traceback
 from urllib.error import HTTPError, URLError
 
 from .common import content_sha256, utc_now, write_json_atomic
@@ -568,7 +569,16 @@ class SegmentWorker:
         if not wanted or self.planner_factory is None:
             return self.planner
         try:
-            return self.planner_factory(wanted, task.get("planner_model") or None)
+            built = self.planner_factory(wanted, task.get("planner_model") or None)
+            # Per-task planner configuration, which is what the panel refuses to
+            # accept while it cannot reach a host. candidate_rank is the first
+            # field to travel: it says which rung of m7's ordering to grow, and a
+            # rank accepted at the API and dropped here would produce a surface
+            # attributed to a configuration that never ran.
+            rank = task.get("candidate_rank")
+            if rank is not None:
+                setattr(built, "candidate_rank", int(rank))
+            return built
         except Exception as error:  # noqa: BLE001
             raise PlannerProviderUnavailable(
                 f"this host cannot run the {wanted} planner: "
@@ -698,7 +708,16 @@ class SegmentWorker:
                 )
                 return receipt
             except BaseException as error:
-                receipt = {"status": "BLOCKED_SOURCE_UNAVAILABLE", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now()}
+                # The type and message alone are not a diagnosis. This state has already
+                # masked unrelated faults -- mcp/server.py records one that "read like
+                # the bucket being down" -- and a bare "HTTPError: HTTP Error 401"
+                # names neither the endpoint nor the caller, which is exactly the
+                # information somebody needs and cannot recover afterwards.
+                receipt = {
+                    "status": "BLOCKED_SOURCE_UNAVAILABLE",
+                    "error": f"{type(error).__name__}: {error}",
+                    "traceback": traceback.format_exc(),
+                }
                 write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
                 self.store.mark_terminal(task["task_id"], task["attempt_id"], task["lease_token"], "BLOCKED_SOURCE_UNAVAILABLE", receipt)
                 return receipt

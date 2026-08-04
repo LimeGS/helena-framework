@@ -39,3 +39,4 @@ joblib          # how that router's model is loaded
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch           # ink detection: run_ink_timesformer imports it at module level
 pytest-cov
+psycopg2-binary

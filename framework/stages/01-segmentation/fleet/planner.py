@@ -221,7 +221,12 @@ PROPOSAL_KEYS_V1 = {
 
 PROPOSAL_KEYS = PROPOSAL_KEYS_V1
 
+# candidate_rank rides in v2 only. v1 is a frozen contract, and a proposal that
+# answers "the third candidate here" is a question v1 was never asked; widening
+# it after the fact would make old proposals unverifiable against their own
+# schema.
 PROPOSAL_KEYS_V2 = PROPOSAL_KEYS_V1 | {
+    "candidate_rank",
     "history_considered",
     "parameter_rationale",
     "variation_summary",
@@ -731,6 +736,33 @@ class DeterministicPlanner:
             raise RuntimeError("deterministic planner received no candidates")
         envelope = packet["parameter_envelope"]
         ordered_candidates = sorted(candidates, key=candidate_rank_key)
+        # Start further down m7's ordering, so the candidates this planner would
+        # otherwise record as alternatives_rejected can be grown instead.
+        #
+        # Those entries keep only a candidate_id and a reason -- no coordinates --
+        # so a rejected alternative cannot be re-queued from what was stored. It
+        # has to be re-derived here, from the same frozen ordering, which is why
+        # this is a planner knob and not a replay of the database.
+        #
+        # Rank 1 is the default and is exactly today's behaviour. A run at rank 3
+        # is a different question about the same ground, so it belongs under its
+        # own policy_version, and the rank is stamped on the proposal: a surface
+        # grown from m7's third choice is not the same evidence as one grown from
+        # its first, and collapsing them would be the error this repository exists
+        # to prevent.
+        rank = int(getattr(self, "candidate_rank", 1))
+        if rank != 1 and self.contract_version != "v2":
+            raise RuntimeError(
+                "candidate_rank needs the v2 proposal contract: v1 has no field "
+                "to record which rung a seed came from, and an unrecorded rank "
+                "is a surface nobody can attribute"
+            )
+        if rank > len(ordered_candidates):
+            raise RuntimeError(
+                f"candidate_rank {rank} but m7 offered {len(ordered_candidates)} "
+                "candidates here; there is no such alternative to grow"
+            )
+        ordered_candidates = ordered_candidates[rank - 1:]
         parameter_names = list(envelope["parameters"])
         parameter_value_sets = [
             self._allowed_parameter_values(envelope["parameters"][name])
@@ -776,6 +808,10 @@ class DeterministicPlanner:
             "task_id": packet["task_id"],
             "attempt_id": packet["attempt_id"],
             "selected_seed": {key: chosen[key] for key in ("candidate_id", "x", "y", "z")},
+            # Which rung of m7's ordering this came from. A surface grown from
+            # the third choice is not the same evidence as one grown from the
+            # first, and nothing downstream can tell them apart without this.
+
             "profile_id": chosen_profile,
             "parameters": parameters,
             "hypothesis": "Deterministic ink-blind planner selected the first allowed non-repeated geometric recipe.",
@@ -787,6 +823,10 @@ class DeterministicPlanner:
         }
         if self.contract_version == "v2":
             proposal.update({
+                # Which rung of m7's ordering this came from. A surface grown
+                # from the third choice is not the same evidence as one from the
+                # first, and nothing downstream can tell them apart without it.
+                "candidate_rank": rank,
                 "schema": "campaignx.segmentation_proposal.v2",
                 "history_considered": [str(row["history_id"]) for row in history_rows],
                 "parameter_rationale": {

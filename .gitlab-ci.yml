@@ -81,7 +81,14 @@ variables:
   # a deploy a pull: the image is built once, named by commit, and every host
   # runs those exact bytes instead of compiling its own copy from a tree that
   # may or may not be current.
-  HELENA_REGISTRY: "registry.grillisecurity.com/helena"
+  # Deliberately empty here. The registry is this deployment's own address and
+  # the repository is published, so it is set as a masked CI/CD variable in
+  # project settings rather than committed.
+  #
+  # Unset, containers/deploy-platform.sh falls back to building the panel from
+  # the checkout -- slower, and bytes only that host has, which is what a
+  # registry exists to avoid. A deployment that wants pulls has to name its own.
+  HELENA_REGISTRY: ""
   # The container the smoke stage creates and removes its account in.
   HELENA_PANEL_CONTAINER: "helena-panel"
   GIT_DEPTH: "50"
@@ -173,6 +180,14 @@ unit tests:
   # stage. Measured: 284 seconds to 131.
   image: helena-ci:$CI_COMMIT_SHA
   tags: [swisspost-1]
+  variables:
+    # The QC adapter records which code produced a piece of evidence, and takes
+    # it from a Git checkout when nothing tells it otherwise. Inside the job
+    # container the checkout belongs to another user, so git refuses it as
+    # dubious ownership and the adapter raises rather than guessing -- which is
+    # the right refusal in the wrong place. CI knows the commit; telling it is
+    # the answer the adapter already offers.
+    HELENA_QC_CODE_COMMIT: $CI_COMMIT_SHA
   script:
     # e2e is excluded here on purpose: it needs a deployment, and there is not
     # one yet at this point in the pipeline. It runs in `verify`, after deploy.

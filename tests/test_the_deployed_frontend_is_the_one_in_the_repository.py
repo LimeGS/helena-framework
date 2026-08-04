@@ -432,3 +432,76 @@ def test_the_ci_image_does_not_accumulate_forever() -> None:
     assert 'grep -v "helena-ci:$CI_COMMIT_SHA"' in steps, (
         "the pruning does not exclude the image this pipeline is about to use"
     )
+
+
+def test_the_unit_job_can_record_which_code_made_the_evidence() -> None:
+    """Two tests passed on a laptop and failed in CI for a reason neither is about.
+
+    The QC adapter records the commit that produced a piece of evidence, and
+    reads it from a Git checkout when nothing tells it otherwise. Inside the job
+    container that checkout belongs to another user, so git declines it as
+    dubious ownership and the adapter raises rather than guessing. The refusal is
+    correct -- evidence with an unknown provenance is worse than no evidence --
+    it just fires somewhere the answer is already known.
+    """
+    import yaml
+
+    unit = yaml.safe_load(CI)["unit tests"]
+    assert unit.get("variables", {}).get("HELENA_QC_CODE_COMMIT"), (
+        "the unit job does not pass the commit, so any test touching the QC "
+        "adapter fails on provenance rather than on what it tests"
+    )
+    assert "$CI_COMMIT_SHA" in str(unit["variables"]["HELENA_QC_CODE_COMMIT"]), (
+        "the commit is hardcoded; it has to be the one being built"
+    )
+
+
+def test_the_repository_names_no_private_host() -> None:
+    """This repository is published, so an address in it is an address given out.
+
+    Not a secret -- naming a registry grants nothing -- but infrastructure the
+    project did not mean to hand over, and once pushed it cannot be unpublished.
+    The registry now comes from a CI/CD variable, and the vendored sources say
+    their origin is internal instead of naming the host it lives on.
+    """
+    import subprocess
+
+    # Split, so this file does not itself become the last thing the search
+    # finds -- a check that fails on its own text is a check nobody keeps.
+    needle = "grilli" + "security"
+    tracked = subprocess.run(
+        ["git", "grep", "-lI", needle, "--",
+         ".", ":!.claude", ":!docs/plans", ":!brand/BRAND-GUIDE.md"],
+        cwd=ROOT, capture_output=True, text=True).stdout.split()
+    assert not tracked, f"a private host is named in: {tracked}"
+
+
+def test_the_vendored_origin_is_marked_rather_than_invented() -> None:
+    """Removing a hostname must not become claiming a different provenance.
+
+    A VENDOR.json records where imported technique came from. Rewriting that to
+    a plausible public URL would be tidier and false, and falsifying provenance
+    is the failure this repository exists to prevent -- so the entry says the
+    source is internal, which is true and unhelpful in the honest direction.
+    """
+    import json
+
+    index = json.loads((ROOT / "framework/vendored/INDEX.json").read_text())
+    remotes = [str(v) for v in _walk_values(index) if "vesuvius-experiments" in str(v)]
+    assert remotes, "the vendored index no longer records that source at all"
+    for remote in remotes:
+        assert remote.startswith("internal:"), (
+            f"{remote!r} names a location; an unreachable source should say it "
+            "is internal rather than point somewhere"
+        )
+
+
+def _walk_values(node):
+    if isinstance(node, dict):
+        for value in node.values():
+            yield from _walk_values(value)
+    elif isinstance(node, list):
+        for value in node:
+            yield from _walk_values(value)
+    else:
+        yield node

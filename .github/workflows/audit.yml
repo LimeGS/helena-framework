@@ -24,6 +24,20 @@ concurrency:
 jobs:
   tests-and-audit:
     name: pytest + business-logic audit
+    # Eighty-five tests skipped for want of a database, and they are the ones
+    # covering the queue: postgres_store.py sat at 11% while the README's
+    # headline guarantee -- claims expire -- lives in it. The tests were already
+    # written. They just never ran.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: throwaway
+          POSTGRES_DB: throwaway
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -50,6 +64,9 @@ jobs:
         # --cov-fail-under is the whole point of the badge: it turns "the tests
         # pass" into "the tests pass and coverage did not drop below 60". A
         # percentage nobody enforces goes green while it falls.
+        env:
+          HELENA_TEST_DSN: postgresql://postgres:throwaway@127.0.0.1:5432/throwaway
+          SEGMENT_FLEET_DATABASE_URL: postgresql://postgres:throwaway@127.0.0.1:5432/throwaway
         run: |
           python3 -m pytest -q --cov=framework --cov=panel \
             --cov-report=term:skip-covered --cov-fail-under=60
