@@ -59,6 +59,12 @@ PROBE_DECISION_ACTIONS = frozenset(
 SOURCE_CONTENT_LOCK_SCHEMA = "campaignx.source_content_lock.v1"
 BENCHMARK_SPEC_SCHEMA = "campaignx.seed_probe_benchmark_spec.v1"
 BENCHMARK_DECISION_SCHEMA = "campaignx.seed_probe_benchmark_decision.v1"
+
+# How far down m7's candidate ordering a probe may look. Mirrored by the fleet
+# CLI's argparse choices, the panel's request model and the launcher contract
+# it serves; a test compares them, because this bound has been wrong in four
+# places at once.
+TOP_K_MAXIMUM = 20
 BENCHMARK_AUTHORIZATION_SCHEMA = (
     "campaignx.seed_probe_benchmark_authorization.v1"
 )
@@ -965,8 +971,16 @@ def normalize_seed_probe_policy(value: dict[str, Any]) -> dict[str, Any]:
     if mode not in {"shadow", "select"}:
         raise ValueError("seed probe mode must be shadow or select")
     top_k = int(value["top_k"])
-    if not 1 <= top_k <= 3:
-        raise ValueError("seed probe top_k must be between 1 and 3")
+    # The fourth place this bound lived. Three made the probe a tie-break
+    # between m7's best candidates, and the first shadow run ever executed
+    # measured 8 of 8 ELIGIBLE at that depth -- a 0% rejection rate against a
+    # 34% break-even, so probing paid for nothing. Whether m7's ordering holds
+    # at rank 20 is the open question, and this is what made it unaskable.
+    #
+    # maximum_attempts below is a different number and stays at 3: it bounds
+    # retries per candidate, not how far down the ordering to look.
+    if not 1 <= top_k <= TOP_K_MAXIMUM:
+        raise ValueError(f"seed probe top_k must be between 1 and {TOP_K_MAXIMUM}")
     if mode == "select" and top_k < 2:
         raise ValueError(
             "seed probe select mode requires at least two candidates; "

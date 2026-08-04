@@ -1354,6 +1354,11 @@ RETIRED_SEEDERS = [
           "options": ["anthropic", "openai", "openrouter"], "note": ""},
          {"field": "model", "label": "model", "type": "text",
           "suggestions": ["claude-opus-5", "gpt-5.6-sol-pro"], "note": ""},
+         {"field": "reconsider_covered", "label": "reconsider covered cells",
+          "type": "text",
+          "note": "Offer cells clearance would skip because a surface already "
+                  "grew there. Those are the cells with alternatives to grow, "
+                  "so a rank above 1 needs this to reach anything."},
      ],
      "note": "The same harness against the older packet schema. Not offered; it "
              "exists to reproduce runs that used it."},
@@ -1361,12 +1366,38 @@ RETIRED_SEEDERS = [
 
 SEGMENTATION_SEEDERS = [
     {"id": "deterministic-v2", "name": "Deterministic", "kind": "deterministic",
-     "repeatable": True, "configures": [],
+     "repeatable": True, "configures": [
+         {"field": "candidate_rank", "label": "candidate rank", "type": "number",
+          "note": "Which rung of m7's frozen ordering to grow. 1 is the best "
+                  "candidate and the default; a higher rank grows one of the "
+                  "alternatives this planner would otherwise only record as "
+                  "rejected. The rank is stamped on the proposal, because a "
+                  "surface from the third choice is not the evidence a first "
+                  "choice is."},         {"field": "reconsider_covered", "label": "reconsider covered cells",
+          "type": "text",
+          "note": "Offer cells clearance would skip because a surface already "
+                  "grew there. Those are the cells with alternatives to grow, "
+                  "so a rank above 1 needs this to reach anything."},
+
+     ],
      "note": "Scores candidates by cell volume and clearance, takes the best, and "
              "skips any recipe that already failed in this region. Same queue and "
              "same history, same seed, every time."},
     {"id": "deterministic", "name": "Deterministic (history blind)",
-     "kind": "deterministic", "repeatable": True, "configures": [],
+     "kind": "deterministic", "repeatable": True, "configures": [
+         {"field": "candidate_rank", "label": "candidate rank", "type": "number",
+          "note": "Which rung of m7's frozen ordering to grow. 1 is the best "
+                  "candidate and the default; a higher rank grows one of the "
+                  "alternatives this planner would otherwise only record as "
+                  "rejected. The rank is stamped on the proposal, because a "
+                  "surface from the third choice is not the evidence a first "
+                  "choice is."},
+         {"field": "reconsider_covered", "label": "reconsider covered cells",
+          "type": "text",
+          "note": "Offer cells clearance would skip because a surface already "
+                  "grew there. Those are the cells with alternatives to grow, "
+                  "so a rank above 1 needs this to reach anything."},
+     ],
      "note": "The same scoring with the history ignored, so it will pick a recipe "
              "that already failed here. That is the point of it: reproducing an "
              "older run exactly, and standing as the control arm that shows "
@@ -2846,6 +2877,13 @@ class SegmentationRunRequest(BaseModel):
     planner: str = Field(default_factory=lambda: DEFAULT_SEEDER)
     max_tasks: int = Field(4, ge=1, le=48)
     grid_step: int = Field(2048, ge=256, le=8192)
+    # Not a planner knob: the planners are right that they configure nothing with
+    # it. It is provenance stamped on the task, and it is what makes asking a
+    # covered cell a second question rather than a duplicate -- the planner
+    # refuses a cell that already has a task under the same grid and policy, and
+    # that refusal is correct. Growing m7's second candidate over ground its
+    # first already covered needs a name for the new question.
+    policy_version: str | None = Field(default=None, max_length=64)
     seed_config: dict[str, str] = Field(default_factory=dict)
     reason: str = Field("", max_length=500)
     # A deterministic, bounded experiment inside the selected planner lane.
@@ -2854,7 +2892,13 @@ class SegmentationRunRequest(BaseModel):
     # lanes below and only when the evidence separates a winner; otherwise the
     # attempt stops for a person instead of guessing.
     seed_probe_mode: Literal["off", "shadow", "select"] = "off"
-    seed_probe_top_k: int = Field(2, ge=1, le=3)
+    # Raised from 3. Three is a tie-break between m7's best candidates; the
+    # question is whether m7's ordering holds further down, and that cannot be
+    # asked at 3. Measured at top_k=3 on PHerc826: 8 of 8 candidates ELIGIBLE,
+    # a 0% rejection rate against a 34% break-even -- so probing paid for
+    # nothing. Either the tail is as good, and m7 orders well, or it degrades
+    # and the rejection that makes a cheap filter worth running appears there.
+    seed_probe_top_k: int = Field(2, ge=1, le=20)
     seed_probe_generations: int = Field(12, ge=10, le=20)
     # Which mission's P0 selection this run reads. The launcher records a
     # selection and then queued a run that had no idea which one was current, so
@@ -3242,7 +3286,7 @@ def api_segmentation_options(sample: str | None = Query(None)):
             ],
             "default_mode": "off",
             "select_readiness": seed_probe_select_readiness(sample),
-            "top_k": {"minimum": 1, "maximum": 3, "default": 2},
+            "top_k": {"minimum": 1, "maximum": 20, "default": 2},
             "generations": {"minimum": 10, "maximum": 20, "default": 12},
             "note": (
                 "seed-probe-v1 is a closed-loop deterministic micro-growth layer "
@@ -4642,6 +4686,7 @@ def api_no_seed(sample: str | None = Query(None),
     # rejected everything.
     stages = {"raw_candidate_count": 0, "usable_candidate_count": 0}
     undiagnosed = 0
+    diagnosed = 0
     by_sample: dict[str, int] = {}
     reasons: dict[str, int] = {}
     never_proposed = 0
@@ -4662,9 +4707,23 @@ def api_no_seed(sample: str | None = Query(None),
         if not isinstance(counts, dict):
             undiagnosed += 1
             continue
+        # An attempt can fail two screens, and by_cause counts occurrences so
+        # that filtering on either finds it. Its sum is therefore not a count of
+        # attempts, and reading it as one made the arithmetic miss by exactly
+        # the number of double-diagnosed rows: 163 causes over 161 attempts.
+        #
+        # diagnosed is the attempt-level partner: one per row that carries any
+        # cause at all, so diagnosed + undiagnosed == attempts holds however
+        # many screens a single attempt trips.
+        named = False
         for cause, count in counts.items():
             if int(count or 0) > 0:
                 causes[cause] = causes.get(cause, 0) + 1
+                named = True
+        if named:
+            diagnosed += 1
+        else:
+            undiagnosed += 1
 
     # An attempt whose reason blames a screen while its raw count is zero did
     # not fail that screen: nothing ever reached it. That combination means the
@@ -4676,6 +4735,7 @@ def api_no_seed(sample: str | None = Query(None),
     return JSONResponse({
         "available": True, "attempts": len(rows), "by_cause": causes,
         "candidates_surviving_each_screen": stages,
+        "diagnosed": diagnosed,
         "undiagnosed": undiagnosed, "by_sample": by_sample,
         "reasons": reasons,
         "no_candidate_ever_proposed": never_proposed,
@@ -5539,6 +5599,9 @@ def api_queue_segmentation(request: SegmentationRunRequest, http: Request):
     # Refused rather than silently ignored, the same as an unrunnable backend.
     # Wiring them means a per-task planner config through the factory the worker
     # calls; until that exists, saying so is the honest answer.
+    # candidate_rank is deliberately absent: the worker reads it off the task and
+    # sets it on the planner it builds, so it reaches the host that grows the
+    # seed. The three below still do not.
     UNTRAVELLED = {"panel", "judge", "effort"}
     stranded = sorted(UNTRAVELLED & {f for f, v in request.seed_config.items()
                                      if str(v).strip()})
@@ -5732,6 +5795,18 @@ def api_queue_segmentation(request: SegmentationRunRequest, http: Request):
         # the same kind of nothing as choosing a planner that never travels.
         *(["--planner-model", request.seed_config["model"]]
           if request.seed_config.get("model") else []),
+        # The name of the question this run is asking. Without it a covered cell
+        # is a duplicate; with it, the same ground under a new policy.
+        *(["--policy-version", request.policy_version] if request.policy_version else []),
+        # The rung of m7's ordering to grow. Travels to the task, and from there
+        # the worker sets it on the planner it builds.
+        *(["--candidate-rank", str(int(request.seed_config["candidate_rank"]))]
+          if request.seed_config.get("candidate_rank") else []),
+        # Revisiting ground that already produced a surface, which is where
+        # m7's alternatives live.
+        *(["--reconsider-covered"]
+          if str(request.seed_config.get("reconsider_covered", "")).lower()
+          in {"1", "true", "yes"} else []),
         # A bounded deterministic layer inside the chosen lane. Pass every
         # value, including ``off``, so the task records what the operator asked
         # for rather than inheriting whichever default a later worker image has.

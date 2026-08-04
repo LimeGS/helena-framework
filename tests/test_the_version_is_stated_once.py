@@ -79,3 +79,29 @@ def test_the_coverage_badge_is_a_number_ci_enforces() -> None:
     assert "pytest-cov" in (ROOT / "tests/requirements.txt").read_text(), (
         "the workflow measures coverage with a plugin it does not install"
     )
+
+
+def test_the_workflow_gives_the_database_tests_a_database() -> None:
+    """Eighty-five tests skipped for want of one, and they cover the queue.
+
+    postgres_store.py -- leases, SKIP LOCKED, claim expiry, which is the
+    README's headline guarantee -- sat at 11%. Not because nobody tested it:
+    thirteen test files exercise it and every one skipped, because CI had no
+    Postgres. The coverage was written. It never ran.
+    """
+    import yaml
+
+    workflow = yaml.safe_load((ROOT / ".github/workflows/audit.yml").read_text())
+    job = next(iter(workflow["jobs"].values()))
+    assert "postgres" in job.get("services", {}), (
+        "the workflow has no database, so the tests that need one still skip"
+    )
+
+    steps = " ".join(str(s) for s in job["steps"])
+    for variable in ("HELENA_TEST_DSN", "SEGMENT_FLEET_DATABASE_URL"):
+        assert variable in steps, f"{variable} is never set, so those tests skip anyway"
+
+    assert "psycopg2" in (ROOT / "tests/requirements.txt").read_text(), (
+        "a Postgres the tests cannot reach: the driver is not installed, which "
+        "surfaces as 'PostgreSQL mode requires psycopg2' rather than as a skip"
+    )

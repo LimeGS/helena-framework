@@ -197,6 +197,111 @@ def evaluate_seam_qc(summary: dict[str, Any], expected_edges: set[frozenset[str]
             "edges": checked, "policy": policy, "generated_at_utc": utc_now()}
 
 
+def evaluate_collision_qc(parents: list[dict[str, Any]], paths_dir: Path,
+                          expected_edges: set[frozenset[str]],
+                          policy: dict[str, Any]) -> dict[str, Any]:
+    """Every pair, not only the ones the layout declared.
+
+    Seam QC certifies each edge it was told about, and the loop above iterates
+    `expected_edges`. Pairs nobody declared neighbours are never looked at --
+    and a scroll is one sheet, so two surfaces five wraps apart in the layout
+    can still end up in the same place.
+
+    They did. In the PHerc826 reconstruction w045 and w046 pass within 34 um of
+    each other across 62% of their extent, and w041/w042 within 74 um, against a
+    control pair of true neighbours at 165 um. Papyrus is 100-200 um thick.
+    Every one of those surfaces is GEOMETRY_CERTIFIED and every declared seam
+    passed: the contradiction is between a pair the layout never named, so
+    nothing in this file could reach it.
+
+    Undeclared neighbours in contact are reported rather than refused. Two
+    surfaces may legitimately be adjacent without the layout saying so -- the
+    layout is a stitching order, not a claim about geometry. What cannot be
+    legitimate is two sheets closer than one sheet is thick, and that is what
+    this returns.
+    """
+    from framework.contracts import winding
+
+    located: dict[str, Any] = {}
+    for parent in parents:
+        artifact = str(parent["artifact_id"])
+        points = _read_tifxyz_points(paths_dir, artifact)
+        if points is None:
+            continue
+        located[artifact] = points
+
+    if len(located) < 2:
+        return {"schema": "campaignx.vc3d_merge_collision_qc.v1",
+                "status": "NOT_EVALUATED",
+                "why": "fewer than two parents could be read as geometry",
+                "generated_at_utc": utc_now()}
+
+    centre, axis = _scroll_frame(list(located.values()))
+    at = {name: winding.locate(pts, centre, axis) for name, pts in located.items()}
+
+    findings = []
+    names = sorted(at)
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            if at[a] is None or at[b] is None:
+                continue
+            declared = frozenset((a, b)) in expected_edges
+            verdict, evidence = winding.compare(at[a], at[b])
+            if verdict == winding.CONTRADICTED:
+                findings.append({"pair": [a, b], "declared_neighbours": declared,
+                                 "verdict": verdict, **evidence})
+
+    undeclared = [f for f in findings if not f["declared_neighbours"]]
+    status = "PASS" if not undeclared else "CONTRADICTED"
+    if undeclared and policy.get("refuse_on_undeclared_collision", False):
+        first = undeclared[0]
+        raise MergeRefused(
+            f"{first['pair'][0]} and {first['pair'][1]} are not declared "
+            f"neighbours and pass within {first['separation_um']:.0f} um, "
+            "which is thinner than a sheet of papyrus")
+    return {"schema": "campaignx.vc3d_merge_collision_qc.v1", "status": status,
+            "pairs_examined": len(names) * (len(names) - 1) // 2,
+            "contradictions": findings,
+            "undeclared_contradictions": len(undeclared),
+            "policy": {"refuse_on_undeclared_collision":
+                       bool(policy.get("refuse_on_undeclared_collision", False))},
+            "generated_at_utc": utc_now()}
+
+
+def _read_tifxyz_points(paths_dir: Path, artifact: str):
+    """The parent's geometry, subsampled. None when it cannot be read.
+
+    Subsampled because this runs on every merge and the verdict turns on where
+    a surface sits, not on its detail: locate() takes medians.
+    """
+    directory = paths_dir / artifact
+    try:
+        import numpy as np
+        import tifffile
+    except ImportError:
+        return None
+    try:
+        x, y, z = (tifffile.imread(str(directory / f"{c}.tif")).astype(float)
+                   for c in "xyz")
+    except Exception:
+        return None
+    pts = np.stack([x.ravel(), y.ravel(), z.ravel()], axis=1)
+    pts = pts[np.isfinite(pts).all(axis=1) & (pts > 0).all(axis=1)]
+    if len(pts) < 200:
+        return None
+    return pts[:: max(1, len(pts) // 4000)]
+
+
+def _scroll_frame(clouds):
+    """Centre and axis from the parents themselves, so this needs no P0 record."""
+    import numpy as np
+    cloud = np.vstack(clouds)
+    centre = cloud.mean(axis=0)
+    step = max(1, len(cloud) // 20000)
+    _, _, vh = np.linalg.svd(cloud[::step] - centre, full_matrices=False)
+    return centre, vh[0]
+
+
 def upstream_command(*, binary: Path, obj2tifxyz: Path, merge_json: Path,
                      paths_dir: Path, reference: str, ransac_seed: int,
                      anchor_cap: int, strip_cols: int) -> list[str]:
@@ -371,9 +476,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         obj_path = candidates[0]
     shutil.copy2(obj_path, output / "combined.obj")
 
-    seam_qc = evaluate_seam_qc(
-        summary, declared_edges(alias_rows), profile["seam_gate"])
+    edges = declared_edges(alias_rows)
+    seam_qc = evaluate_seam_qc(summary, edges, profile["seam_gate"])
     write_json(output / "SEAM_QC.json", seam_qc)
+
+    # Seam QC has now certified every edge the layout declared. Nothing has
+    # looked at the pairs it did not, and that is where w045/w046 hid.
+    collision_qc = evaluate_collision_qc(
+        parents, paths_dir, edges, profile.get("collision_gate", {}))
+    write_json(output / "COLLISION_QC.json", collision_qc)
     geometry = certify_surface_geometry(output)
     write_json(output / "GEOMETRY_CERTIFICATION.json", geometry)
     if geometry.get("geometry_qc_state") != "GEOMETRY_CERTIFIED":

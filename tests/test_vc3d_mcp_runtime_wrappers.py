@@ -133,7 +133,13 @@ def test_container_grow_wrapper_preserves_atomic_output_contract() -> None:
     path = SCRIPTS / "run_vc3d_grow_container.sh"
     subprocess.run(["sh", "-n", str(path)], check=True)
     text = path.read_text(encoding="utf-8")
-    assert "HELENA_VC3D_IMAGE:-localhost:5000/helena/helena-vc3d:0.3.2" in text
+    # The registry prefix is derived rather than hardcoded: unset means a bare
+    # local tag, which is what an unconfigured host can actually resolve.
+    # Hardcoding one broke the worker build -- it looked for the Villa base in a
+    # registry that does not exist while the image sat on the host under the
+    # real one.
+    assert "HELENA_VC3D_IMAGE:-${HELENA_REGISTRY" in text
+    assert "helena-vc3d:0.3.2" in text
     assert "HELENA_WORKER_DATA_ROOT:-/srv/helena" in text
     assert "refusing an unmounted absolute path" in text
     assert '-v "$data_root:$data_root"' in text

@@ -18,7 +18,7 @@
   "schema": "campaignx.vendored_component.v1",
   "source_commit": "30138b40a45264f4fc35757fca1d773483666905",
   "source_path": "release/hf-proxy-v4-dataset",
-  "source_remote": "git@git.grillisecurity.com:grilli/research/vesuvius-experiments.git",
+  "source_remote": "internal:vesuvius-experiments",
   "unavailable_dataless": [
     "upload.sh"
   ],

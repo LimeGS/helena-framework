@@ -193,7 +193,15 @@ def test_a_failure_is_explained_somewhere_and_the_arithmetic_closes(panel):
         pytest.skip(diagnosis.get("reason", "no diagnosis available"))
 
     attempts = diagnosis["attempts"]
-    diagnosed = sum(diagnosis["by_cause"].values())
+    # by_cause counts occurrences, not attempts: one attempt can trip two
+    # screens, and filtering on either has to find it. Summing it and calling
+    # the total an attempt count missed by exactly the number of rows with two
+    # causes -- 163 over 161. `diagnosed` is the attempt-level partition.
+    diagnosed = diagnosis["diagnosed"]
+    assert sum(diagnosis["by_cause"].values()) >= diagnosed, (
+        "fewer causes than diagnosed attempts, so an attempt was diagnosed by "
+        "nothing"
+    )
     undiagnosed = diagnosis["undiagnosed"]
     assert diagnosed + undiagnosed == attempts, (
         f"{diagnosed} diagnosed plus {undiagnosed} undiagnosed does not equal "

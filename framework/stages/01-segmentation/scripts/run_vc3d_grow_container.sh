@@ -5,7 +5,7 @@
 # atomic directory exchange which cannot replace a bind-mount point.
 set -eu
 
-image="${HELENA_VC3D_IMAGE:-localhost:5000/helena/helena-vc3d:0.3.2}"
+image="${HELENA_VC3D_IMAGE:-${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}helena-vc3d:0.3.2}"
 data_root="${HELENA_WORKER_DATA_ROOT:-/srv/helena}"
 expected_image_id="${HELENA_VC3D_IMAGE_ID:-}"
 device="${CUDA_VISIBLE_DEVICES:-0}"

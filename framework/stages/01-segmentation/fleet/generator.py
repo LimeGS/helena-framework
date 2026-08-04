@@ -295,6 +295,12 @@ def generate_tasks_for_snapshot(
     p0_resolved_by: str | None = None,
     seed_probe: dict[str, Any] | None = None,
     benchmark_execution_authorization: dict[str, Any] | None = None,
+    # Which rung of m7's frozen ordering the tasks this builds should grow.
+    # 1 is the top candidate and what every caller has always got.
+    candidate_rank: int = 1,
+    # Offer cells that clearance would skip, so a run can grow m7's ranked
+    # alternatives on ground that already produced a surface.
+    reconsider_covered: bool = False,
 ) -> list[dict[str, Any]]:
     if grid_step < query_radius * 2:
         raise ValueError("grid_step must be at least twice query_radius")
@@ -454,11 +460,33 @@ def generate_tasks_for_snapshot(
         # Subtract that maximum displacement so every point in the claimed
         # query cube, rather than only its centre, satisfies the clearance.
         guaranteed_gap = gap - query_radius
-        if guaranteed_gap < clearance:
+        # Clearance is what keeps the fleet spreading: a cell too close to a
+        # surface somebody already grew is skipped, so coverage moves outward
+        # instead of re-growing the same lamina.
+        #
+        # That is also why m7's alternatives were unreachable. A cell only
+        # yields candidates where papyrus is, so the cells that produced a
+        # surface are exactly the ones with alternatives to grow -- and they
+        # are the ones clearance excludes. Asking for rank 2 over uncovered
+        # ground returned NO_SEED 48 times out of 48, on cells that share not
+        # one id with the 12 that ever produced anything.
+        #
+        # reconsider_covered lifts the filter for a run that means to revisit.
+        # Off by default: with it on, a run competes with its own history, and
+        # that has to be asked for rather than inherited.
+        if guaranteed_gap < clearance and not reconsider_covered:
             continue
         finite_gap = guaranteed_gap if math.isfinite(guaranteed_gap) else float(max(shape))
         # Lower lexical indices win exact score ties, regardless of traversal/runtime.
-        rank_key = (finite_gap, tuple(-index for index in indices), center)
+        # Ordinarily the largest clearance wins: the fleet spreads into open
+        # ground first. A run that asked to revisit wants the opposite -- the
+        # cells nearest an existing surface are the ones with alternatives to
+        # grow -- and lifting the filter alone did not deliver them: with 48
+        # places and clearance still deciding, covered cells came last every
+        # time and the run offered 48 cells sharing none with the productive
+        # ones. Reversing the preference is what makes the flag do anything.
+        ordering_gap = -finite_gap if reconsider_covered else finite_gap
+        rank_key = (ordering_gap, tuple(-index for index in indices), center)
         if benchmark_cell_ids is not None:
             cell_id = "r%05dc%05da%05d" % indices
             if cell_id in benchmark_cell_ids:
@@ -586,6 +614,10 @@ def generate_tasks_for_snapshot(
                 "seed_probe_required": normalized_probe is not None,
             },
             **({"planner": planner} if planner else {}),
+            # The rung of m7's ordering this task grows. On the task, because
+            # this is the dict a worker claims and reads; the run summary also
+            # carries it and reaches nobody.
+            "candidate_rank": int(candidate_rank),
             **({"planner_model": planner_model} if planner_model else {}),
             # Why somebody asked for this run, carried on the task itself.
             # The launcher says the reason is "kept with the run" and it was kept
@@ -734,6 +766,9 @@ def generate_manual_tasks(
     p0_artifact_id: str | None = None,
     p0_artifact_sha256: str | None = None,
     p0_resolved_by: str | None = None,
+    # Which rung of m7's frozen ordering the tasks this builds should grow.
+    # 1 is the top candidate and what every caller has always got.
+    candidate_rank: int = 1,
 ) -> list[dict[str, Any]]:
     """One task per point a person supplied, instead of per uncovered cell.
 
@@ -849,6 +884,10 @@ def generate_manual_tasks(
             "candidate_selection_policy": "score-cell-volume-clearance-v1",
             "planner_contract_version": "v1",
             **({"planner": planner} if planner else {}),
+            # The rung of m7's ordering this task grows. On the task, because
+            # this is the dict a worker claims and reads; the run summary also
+            # carries it and reaches nobody.
+            "candidate_rank": int(candidate_rank),
             **({"planner_model": planner_model} if planner_model else {}),
             # Why somebody asked for this run, carried on the task itself.
             # The launcher says the reason is "kept with the run" and it was kept
@@ -909,6 +948,12 @@ def bootstrap_queue(
     verify_sources: bool = True,
     seed_probe: dict[str, Any] | None = None,
     benchmark_execution_authorization: dict[str, Any] | None = None,
+    # Which rung of m7's ordering each task should grow. 1 is what every run has
+    # always done; a higher rank reaches the candidates a proposal would
+    # otherwise only record as rejected. Defaulted so every existing caller
+    # keeps its behaviour.
+    candidate_rank: int = 1,
+    reconsider_covered: bool = False,
 ) -> dict[str, Any]:
     store.initialize()
     sources = bootstrap_sources(store, eligible_path, samples, verify=verify_sources)
@@ -1002,6 +1047,8 @@ def bootstrap_queue(
             benchmark_execution_authorization=(
                 benchmark_execution_authorization
             ),
+            candidate_rank=candidate_rank,
+            reconsider_covered=reconsider_covered,
         )
         inserted, seen = store.create_tasks(tasks)
         generated[snapshot["sample_id"]] = {"generated": seen, "inserted": inserted}
@@ -1026,6 +1073,9 @@ def bootstrap_queue(
             "recenter_radius_xyz": recenter_radius_xyz or {"x": 64, "y": 64, "z": 64},
             "ct_material_support_gate": ct_material_support_gate,
             "planner": planner,
+            # The worker reads this off the task and sets it on the planner it
+            # builds, so a rank asked for at the API reaches the host.
+            "candidate_rank": int(candidate_rank),
             "planner_model": planner_model,
             "candidate_selection_policy": candidate_selection_policy,
             "planner_contract_version": (

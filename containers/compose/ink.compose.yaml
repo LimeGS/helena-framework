@@ -25,7 +25,7 @@ name: helena-ink
 
 services:
   ink:
-    image: ${HELENA_INK_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.20.0}}
+    image: ${HELENA_INK_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.21.0}}
     container_name: helena-ink-${HELENA_INK_SLOT:-0}
     restart: unless-stopped
       # A ceiling, because this host has already lost PostgreSQL to a full

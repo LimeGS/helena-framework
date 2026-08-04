@@ -1728,7 +1728,11 @@ def _v2_proposal(packet: dict, candidate_id: str = "c02") -> dict:
     }
     parameters["generations"] = 30
     return {
-        "schema": "campaignx.segmentation_proposal.v2",
+        # 1 is what every run does unless it is deliberately asking for one of
+        # m7's alternatives; the field records which rung the seed came from.
+        "candidate_rank": 1,
+        "candidate_rank": 1,
+    "schema": "campaignx.segmentation_proposal.v2",
         "task_id": packet["task_id"],
         "attempt_id": packet["attempt_id"],
         "selected_seed": {key: selected[key] for key in ("candidate_id", "x", "y", "z")},

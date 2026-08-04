@@ -25,7 +25,13 @@ tag="${2:-helena-worker:local}"
 #
 # A fully qualified name cannot be mistaken for somebody else's image, and
 # buildx pulls it without help.
-base="${BASE_IMAGE:-localhost:5000/helena/helena-villa:local}"
+# A registry prefix only when this host has one. Hardcoding a registry into the
+# default broke exactly once: generalising it to localhost:5000 for publication
+# made the deploy look for the Villa base in a registry that does not exist,
+# while the image was sitting on the host under the real one. Unset means bare
+# local tags, which is what an unconfigured machine can actually resolve.
+prefix="${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}"
+base="${BASE_IMAGE:-${prefix}helena-villa:local}"
 # uv comes from a pinned image rather than a directory beside the source.
 #
 # It used to be "$context/uvctx", a 66 MB binary that was never in the
@@ -37,7 +43,7 @@ base="${BASE_IMAGE:-localhost:5000/helena/helena-villa:local}"
 # Mirrored into the cluster registry rather than pulled from ghcr, for the same
 # reason the rest is: the hosts route to the VIP, and a build should not depend
 # on the internet being up.
-uv_context="${UV_CONTEXT:-docker-image://localhost:5000/helena/uv:0.11.32}"
+uv_context="${UV_CONTEXT:-docker-image://${prefix}uv:0.11.32}"
 commit="${BUILD_COMMIT:-$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 
 test -f "$context/containers/images/Containerfile.worker" \
@@ -52,8 +58,8 @@ case "$base" in
   *)
     docker image inspect "$base" >/dev/null 2>&1 || {
       echo "the base image $base is not on this host; pulling it"
-      docker pull "${VILLA_IMAGE:-localhost:5000/helena/helena-villa:local}" >/dev/null \
-        && docker tag "${VILLA_IMAGE:-localhost:5000/helena/helena-villa:local}" "$base" \
+      docker pull "${VILLA_IMAGE:-${prefix}helena-villa:local}" >/dev/null \
+        && docker tag "${VILLA_IMAGE:-${prefix}helena-villa:local}" "$base" \
         || { echo "could not restore $base from the registry" >&2; exit 2; }
     } ;;
 esac
