@@ -22,7 +22,7 @@ services:
     # profile; taking them from the image rather than a mounted checkout is what
     # lets a machine run this with nothing on its disk. The model underneath is
     # the same model, byte for byte, that every past verdict was issued with.
-    image: ${HELENA_QC_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.21.0}}
+    image: ${HELENA_QC_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.21.1}}
     container_name: helena-surface-qc-${HELENA_QC_DEVICE:-0}
     restart: unless-stopped
       # A ceiling, because this host has already lost PostgreSQL to a full

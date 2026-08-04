@@ -33,7 +33,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
 
-from fleet.common import content_sha256
+from fleet.common import content_sha256, stable_id
 
 DSN = os.environ.get("HELENA_TEST_DSN")
 pytestmark = pytest.mark.skipif(
@@ -280,8 +280,20 @@ def grown(store, snapshot, scroll, *, name: str, points: list) -> dict:
 
 
 def claim_one(store, snapshot, scroll, *, grid: str) -> dict:
-    store.create_tasks([task(snapshot, scroll, 0, grid=grid, policy="p1")])
-    claimed = store.claim("worker-a", 60)
+    """Claim the task this call created, and not merely a pending one.
+
+    `claim` takes whatever the queue holds, which is what a worker wants and
+    what a test cannot rely on: these tests share one database, so a task an
+    earlier test left pending was handed back here and the surface built from
+    this test's snapshot was then finalized against it. The failure read as
+    "surface receipt is not bound to its task", which was true and told you
+    nothing about why.
+    """
+    wanted = stable_id("task", {"sample_id": scroll, "grid_version": grid})
+    store.create_tasks([
+        {**task(snapshot, scroll, 0, grid=grid, policy="p1"), "task_id": wanted}
+    ])
+    claimed = store.claim("worker-a", 60, task_id=wanted)
     assert claimed, "nothing to claim"
     return claimed
 
@@ -444,9 +456,13 @@ def test_a_qc_job_is_claimed_once_and_owned_by_its_token(store, snapshot, scroll
     # Its own profile id: claim_qc takes whatever is pending for a profile, and
     # these tests share one database.
     profile = f"surface-qc-{scroll.lower()}@1.0.0"
+    # Certified, because the subject here is the lease and not the gate: an
+    # uncertified surface gets a job that waits on geometry, which is correct
+    # and leaves nothing to claim. This asked for `certify=False` and then for a
+    # claimable job, which the geometry gate stopped being able to mean.
     surface = imported_surface(store, snapshot, scroll, name="qc",
                                geometry="GEOMETRY_CERTIFIED", physical="UNVALIDATED",
-                               uri="s3://bucket/qc", certify=False)
+                               uri="s3://bucket/qc")
     store.enqueue_imported_surface_qc(
         {"surface_id": surface, "source_snapshot_id": snapshot, "sample_id": scroll,
          "artifact_sha256": hashlib.sha256(f"{scroll}-qc".encode()).hexdigest(),
