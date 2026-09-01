@@ -19,8 +19,7 @@ CONTROLS = (ROUTES / "guide-controls.ts").read_text()
 APP = (ROOT / "panel/web/src/App.tsx").read_text()
 
 # Pages that document rather than being documented.
-DOCUMENTATION = {"UserGuide", "Tutorial", "ApiReference", "DeveloperReference",
-                 "Docs", "Handbook"}
+DOCUMENTATION = {"ApiReference", "DeveloperReference", "Docs", "Handbook"}
 
 # Pages with controls that no route and no import reaches: dead surfaces, not
 # undocumented ones. Proved orphaned below rather than merely asserted, so this
@@ -79,36 +78,30 @@ def test_the_unreachable_list_is_honest() -> None:
         )
 
 
-def test_the_tutorial_and_the_guide_are_different_things() -> None:
-    """The split is the point.
+def test_every_tab_is_reachable_from_the_documentation_page() -> None:
+    """Three tabs now, where there were five.
 
-    One page tried to be both and was, in practice, the walkthrough with the
-    reference missing: it told you to leave controls on their defaults without
-    ever saying what those defaults were for.
+    The Tutorial and the User guide were separate pages, and the handbook has
+    both inside it -- the walkthrough as a section, every panel page with its
+    controls as another. Keeping the old tabs beside it meant three answers to
+    the same question, two of them going stale unwatched.
+
+    What remains beside the handbook is generated from the code it describes
+    rather than written, which is why it is not prose that can rot.
     """
-    tutorial = (ROUTES / "tutorial-content.ts").read_text()
-    # The tutorial walks phases; the guide indexes pages. Neither should have
-    # grown the other's shape.
-    assert '  id: "P0"' in tutorial and "page:" not in tutorial.split("export const STOPS")[1]
-    assert "STOPS" not in CONTROLS, "the guide has grown a walkthrough"
-
-
-def test_both_are_reachable_from_the_documentation_page() -> None:
     docs = (ROUTES / "Docs.tsx").read_text()
-    for tab in ("Handbook", "Tutorial", "UserGuide", "DeveloperReference",
-                "ApiReference"):
-        assert tab in docs, f"{tab} is not on the documentation page"
-    # It opened on the walkthrough, for the reason that the person who has never
-    # run this cannot tell which tab they need. The handbook is that reason
-    # carried further: it has the walkthrough inside it as a section, and a
-    # contents list beside it, so the first screen answers "what is here" as
-    # well as "where do I start".
+    for tab in ("Handbook", "DeveloperReference", "ApiReference"):
+        assert f"<{tab} />" in docs, f"{tab} is not on the documentation page"
+    for gone in ("<Tutorial />", "<UserGuide />"):
+        assert gone not in docs, (
+            f"{gone} is back beside the handbook, which has that material inside it"
+        )
     assert '"handbook"' in docs, (
         "the documentation page does not open on the handbook"
     )
 
 
-def test_the_tutorial_describes_the_phases_the_contract_defines() -> None:
+def test_the_handbook_describes_the_phases_the_contract_defines() -> None:
     """The walkthrough shipped with ink detection at P4, screening at P5 and
     coverage at P6. All three were wrong.
 
@@ -117,31 +110,21 @@ def test_the_tutorial_describes_the_phases_the_contract_defines() -> None:
     following it queues the wrong phase and reads the result as a failure of the
     science.
 
-    Checked by keyword rather than by prose, so the wording stays free while the
-    subject cannot drift.
+    This used to match keywords against the tutorial's prose, because the prose
+    was the only place the phase appeared. The handbook titles each phase
+    section with the contract's own name, so the check is now an equality rather
+    than a guess at which words mean which phase.
     """
     import json
 
     contract = json.loads((ROOT / "framework/contracts/pipeline_phases.json").read_text())
     phases = contract if isinstance(contract, list) else contract["phases"]
-    by_id = {p["id"]: p for p in phases}
+    by_id = {p["id"]: p["name"] for p in phases}
 
-    tutorial = (ROOT / "panel/web/src/routes/tutorial-content.ts").read_text()
-    stops = dict(re.findall(r'id: "(P\d)",\n    goal: "([^"]+)"', tutorial))
+    handbook = (ROUTES / "handbook-content.ts").read_text()
+    titled = dict(re.findall(r'"title":\s*"(P\d) \u2014 ([^"]+)"', handbook))
 
-    assert set(stops) == set(by_id), "the tutorial and the contract disagree on which phases exist"
-
-    # One word each that the phase is unmistakably about. If a stop stops being
-    # about its phase, this is what notices.
-    subject = {
-        "P0": ("volume", "scale"), "P1": ("surface", "seed", "segment"),
-        "P2": ("lamina", "plausible", "certif"), "P3": ("unroll", "flat"),
-        "P4": ("layer stack", "normal", "sample"), "P5": ("detector", "probability"),
-        "P6": ("decision", "liveness", "carries"), "P7": ("verdict", "text-like"),
-        "P8": ("stitch", "continuous", "sheet"), "P9": ("readable", "page", "compose"),
-    }
-    for phase, words in subject.items():
-        goal = stops[phase].lower()
-        assert any(w in goal for w in words), (
-            f"the tutorial's {phase} is not about {by_id[phase]['name']!r}: {stops[phase]!r}"
-        )
+    assert titled == by_id, (
+        "the handbook and the contract disagree about the phases: "
+        f"handbook has {titled}, contract has {by_id}"
+    )

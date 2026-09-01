@@ -450,7 +450,7 @@ build the panel image:
     # bundle. A stale source tree once produced an image whose Python half was
     # current and whose pages were weeks old, and every other signal said fine.
     - |
-      for page in UserGuide ApiReference DeveloperReference; do
+      for page in Handbook ApiReference DeveloperReference; do
         docker run --rm $panel_image \
           sh -c "ls /workspace/campaign-x/panel/web/dist/assets | grep -q $page" \
           || { echo "$page is missing from the built frontend"; exit 1; }

@@ -105,13 +105,33 @@ follows `REPRODUCE.md` can compare digests rather than eyeball two images.
 
 ## 5. An end-to-end test log without skipped pipeline stages
 
-**Not in this package.** It is running as a separate job and will be added
-here when it lands, as its own commit.
+Both logs are in `e2e-2026-09-01/`, run against a deployment on 2026-09-01.
 
-The honest reason it is not simply attached: `tests/e2e` skips a test when the
-deployment has no artifact for that phase, and `HELENA_E2E_NO_SKIP=1` turns a
-run where nothing asserted into a failed run. So a log without skipped stages
-is not a flag on a pytest invocation -- it requires a deployment that has
-actually produced every phase, which is a heavy pass and takes longer than the
-rest of this page put together. Attaching a log full of green skips would have
-answered the letter of the request and none of it.
+| Log | Result |
+|---|---|
+| `e2e-full.log` | 55 passed, 3 skipped, 94s |
+| `e2e-heavy.log` | 2 passed, 56 deselected, 980s |
+
+They are two jobs on purpose. The full suite runs everything that does not need
+a GPU day; the heavy job runs the two that do, under `HELENA_E2E_HEAVY=1`, and
+those two are two of the three skips in the first log. Between them 57 of the
+58 tests ran.
+
+**The remaining skip, stated plainly rather than buried.** One test is skipped
+in both:
+
+    tests/e2e/test_the_gates_hold_on_the_deployment.py:101
+    no surface carries a human review on this control plane
+
+It checks that a human verdict does not overwrite a geometry verdict, and it
+skips because no surface on this deployment carries a human review — not
+because a phase did not run. Every phase ran.
+
+It could be made to pass by recording a review on a surface, and that was
+deliberately not done: the record would be a human judgement attributed to an
+account, created so that a test would not skip. A green log bought that way is
+worth less than a log with one honest skip in it.
+
+The suite refuses to pass by skipping everything: under `HELENA_E2E_NO_SKIP=1`
+a run where nothing asserted is turned red, which is what the heavy job runs
+under.

@@ -210,17 +210,25 @@ at once — they answer different questions.
 
 Everything else is in the panel, under **Documentation**:
 
-- **Tutorial** — one pass through all ten phases: what to press, how long it
-  takes, how to tell it worked.
-- **User guide** — every control on every page, and when to leave it alone.
+- **Handbook** — the whole of it in one place: a walkthrough from a scan to a
+  picture of letters, a page per phase with its traps, and every panel page with
+  what its controls do and when to leave them alone.
 - **Developer reference** — contracts, profiles, receipts, versioning, and how
   to put your own tool into a phase.
 - **API reference** — the HTTP surface, from the routes themselves.
-- **[PHerc0826 golden run](docs/golden-runs/pherc0826-2026-08-01/README.md)** —
-  an end-to-end evidence dossier, merge through ink screening to a negative.
 
-Those are generated partly from the contracts the code runs on, so they cannot
-drift from the deployment in front of you — which is why this file is short.
+Two runs are kept as evidence; only one is reproducible by a stranger:
+
+- **September 2026 — [the public ink control](docs/public-control/REPRODUCE.md)**
+  — the whole ink chain on a volume read anonymously from the open-data bucket
+  and a non-gated checkpoint verified by digest. Six boundaries, all passed,
+  receipts and logs beside it.
+- ~~**August 2026 — [PHerc0826 golden run](docs/golden-runs/pherc0826-2026-08-01/README.md)**~~
+  — merge through ink screening to a negative. Superseded: older tooling, and a
+  private bucket, so it records one deployment instead of being reproducible.
+
+The two references are generated from the code they describe, so they cannot
+drift from the deployment in front of you. That is why this file is short.
 
 ---
 
