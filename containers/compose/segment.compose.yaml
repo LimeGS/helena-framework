@@ -17,7 +17,7 @@ name: helena-segment
 
 services:
   segment:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.2}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.23.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -71,7 +71,13 @@ services:
       # directory instead only when ARTIFACT_ROOT is an s3:// prefix, where this
       # really is scratch.
       - ${HELENA_SEGMENT_ARTIFACTS:?set HELENA_SEGMENT_ARTIFACTS to helena-artifacts, or to a scratch directory when publishing to s3}:/artifacts
-    command: ${HELENA_SEGMENT_ARGS:---watch --max-jobs 0 --poll-seconds 20}
+    # --allow-local-artifacts because publishing to a volume on the panel host
+    # is the documented default: object storage is optional and off. Without it
+    # the worker refuses a local --artifact-root, which is correct on a fleet
+    # whose surfaces have to outlive any one machine and wrong on the
+    # single-machine install the README describes. A fleet sets ARTIFACT_ROOT to
+    # an s3:// prefix, where the flag is inert.
+    command: ${HELENA_SEGMENT_ARGS:---watch --max-jobs 0 --poll-seconds 20 --allow-local-artifacts}
 
   # P2 and P3 as queued jobs, in this image because this is the one with the
   # whole VC3D toolchain. The ink worker claimed them and could not run them:
@@ -84,7 +90,7 @@ services:
   # queue does not care which container claims a row, only that the runtime
   # behind it is real.
   fleet-runner:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.2}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.23.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -151,7 +157,7 @@ services:
   # Read-only and ink-blind: it measures candidate availability and writes
   # nothing but its receipt to the control plane.
   preflight:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.2}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.23.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -187,6 +193,11 @@ services:
     network_mode: host
     env_file:
       - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+    # preflight writes attempts where the workers do. It had no volumes at all,
+    # so /artifacts was the container's own filesystem, which it cannot write:
+    # `mkdir: cannot create /artifacts/attempts: Permission denied`, forever.
+    volumes:
+      - ${HELENA_SEGMENT_ARTIFACTS:?set HELENA_SEGMENT_ARTIFACTS to helena-artifacts, or to a scratch directory when publishing to s3}:/artifacts
     environment:
       HELENA_WORKER_KIND: preflight
       # Its own service on its own port. Every container starts one, and with

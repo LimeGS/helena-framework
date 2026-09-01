@@ -138,6 +138,13 @@ LABEL org.helena.lane.image="${LANE_IMAGE}"
 # lasagna beside it.
 COPY --from=lane /opt/villa /opt/lanes/spiral
 
+# pip records an editable install as a .pth naming a source tree and a
+# __editable___*_finder module holding absolute paths, and both still said
+# /opt/villa after the copy. The interpreter started and imported nothing
+# from the lane, so the job failed on the worker with
+#   ModuleNotFoundError: No module named 'koine_machines'
+# after it had been claimed and leased. Rewriting the prefix is checked
+# rather than assumed: a silent no-op here costs a GPU job to discover.
 # The virtualenv was built at /opt/villa, and both its interpreter symlink and
 # the `home` in pyvenv.cfg are absolute. Moving the tree leaves bin/python
 # dangling, which sh reports as "not found" -- naming the symlink rather than
@@ -148,7 +155,11 @@ RUN set -eu; \
     interp="$(cd "$lane"/python/*/bin && pwd)"; \
     ln -sfn "$interp/python3" "$lane/venv/bin/python"; \
     ln -sfn "$interp/python3" "$lane/venv/bin/python3"; \
-    sed -i "s|^home = .*|home = $interp|" "$lane/venv/pyvenv.cfg"
+    sed -i "s|^home = .*|home = $interp|" "$lane/venv/pyvenv.cfg"; \
+    grep -rl "/opt/villa" "$lane/venv"/lib/*/site-packages 2>/dev/null \
+      | while read -r stale; do sed -i "s|/opt/villa|$lane|g" "$stale"; done; \
+    ! grep -rq "/opt/villa" "$lane/venv"/lib/*/site-packages 2>/dev/null \
+      || { echo "the lane venv still points at /opt/villa" >&2; exit 3; }
 
 
 ENV VILLA_PYTHON=/opt/lanes/spiral/venv/bin/python \

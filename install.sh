@@ -170,6 +170,26 @@ elif command -v lsof >/dev/null 2>&1; then
 else
   listening=""
 fi
+# A GPU is not enough: Docker reaches it through the NVIDIA container runtime,
+# and without that the workers build, start, claim work and find no device. That
+# is the worst shape a missing dependency can take -- everything looks installed
+# and the jobs fail one at a time, hours later. Measured on a rented 5090, where
+# `docker run --gpus all` failed while `nvidia-smi` on the host was fine.
+#
+# A warning rather than a refusal: the machine may be getting its workers later,
+# and the panel half needs none of this.
+if [ "$WANT" = gpu ]; then
+  # Asked of the daemon rather than by starting a container: a probe would have
+  # to pull an image to prove a runtime is configured, and the answer is already
+  # in `docker info`.
+  if ! $D info --format '{{json .Runtimes}}' 2>/dev/null | grep -q '"nvidia"'; then
+    warn "Docker cannot reach a GPU on this host, so the GPU workers will start
+  and then find no device. Install the NVIDIA Container Toolkit, then
+  \`nvidia-ctk runtime configure --runtime=docker\` and restart Docker:
+  https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html"
+  fi
+fi
+
 if [ -n "$listening" ] && [ "$listening" -gt 0 ] 2>/dev/null; then
   die "port $PORT is already in use. Set HELENA_PORT to another one."
 elif [ -z "$listening" ]; then

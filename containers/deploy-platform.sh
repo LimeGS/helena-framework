@@ -51,6 +51,10 @@ case "$profile" in
 esac
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
+
+# Named here rather than beside the build: the gpu profile needs it too, to
+# build villa when nothing can be pulled.
+worker_tag="helena-worker-cpp:local-$commit"
 compose="$root/containers/compose"
 # Configuration lives in the checkout, not in /etc.
 #
@@ -92,7 +96,25 @@ if [ -z "$devices" ] && [ -f "$env_dir/surface-qc.env" ]; then
   devices="$(sed -n 's/^[[:space:]]*HELENA_QC_DEVICES[[:space:]]*=[[:space:]]*//p' \
     "$env_dir/surface-qc.env" | tail -1 | tr -d '"'\''' | tr ',' ' ')"
 fi
-devices="${devices:-0 1}"
+# Then the cards this machine actually has. The fallback was `0 1` -- "both
+# cards, which is what this has always assumed" -- and a host with one card
+# fails before the container starts:
+#
+#   nvidia-container-cli: device error: 1: unknown device
+#
+# Counting them is not an assumption. nvidia-smi is on any host that can run
+# this profile at all; if it cannot be asked, one card is the safer guess than
+# two, because asking for a card that is not there fails and leaving one idle
+# does not.
+if [ -z "$devices" ]; then
+  count="$(nvidia-smi --list-gpus 2>/dev/null | grep -c '^GPU ' || true)"
+  case "$count" in
+    ''|0) devices=0 ;;
+    *) devices="$(i=0; while [ "$i" -lt "$count" ]; do printf '%s ' "$i"; i=$((i + 1)); done)" ;;
+  esac
+  # printf, not say(): this runs at line 115 and say() is defined at 146.
+  printf '  using GPU %s, counted on this host\n' "$devices"
+fi
 qc_base="${HELENA_QC_BASE_IMAGE:-$registry/helena-gpu-runtime:0.1.1}"
 # The full hash: CI tags the panel with $CI_COMMIT_SHA, and the short form names
 # no image in the registry. Passed in rather than derived, because the pipeline's
@@ -154,6 +176,146 @@ for template in "$compose"/*.env.example; do
   say "wrote $wanted from its template; edit it if the defaults do not fit"
 done
 
+# The compose files name their env files as ${HELENA_*_ENV:-/etc/helena/...},
+# and the templates that set those variables set them to this fleet's absolute
+# paths. Both were true when the env files lived in /etc; they moved into the
+# checkout and nothing told compose. On a host that had been configured before,
+# /etc/helena still holds them and everything works -- which is why this only
+# ever broke on a clean install, as
+#
+#   env file /etc/helena/segment.env not found
+#
+# after the hour that compiles villa. Measured on a rented 5090.
+#
+# Point each one at the file that was just seeded, and only when it is really
+# there and nobody has said otherwise: a host that keeps its env somewhere else
+# has set these already, and this must not override that.
+for pair in \
+  "HELENA_SEGMENT_ENV segment.env" \
+  "HELENA_HOST_REPORT_ENV segment.env" \
+  "HELENA_INK_ENV ink.env" \
+  "HELENA_QC_ENV surface-qc.env"
+do
+  var="${pair%% *}" file="${pair#* }"
+  eval "current=\${$var:-}"
+  [ -n "$current" ] && continue
+  [ -f "$env_dir/$file" ] || continue
+  export "$var=$env_dir/$file"
+done
+
+# host-report names the machine it reports on and refuses to interpolate
+# without it, so a clean install brought the stack up and then failed with
+#
+#   required variable HELENA_HOST_ID is missing a value
+#
+# No template can know this, which is why it was in none of them and in every
+# hand-written /etc/helena instead. The hostname is a defensible default: it is
+# what the operator already calls this machine, and it is one line to change.
+this_host="$(hostname 2>/dev/null || echo helena-worker)"
+
+# Four of them, one per stack, and the templates ship two placeholders --
+# `changeme-hostname` and `this-machine` -- which are not names a machine has.
+# A worker registers under whatever this says, so the placeholders reach the
+# panel and every host in a fleet claims to be the same one. Setting only
+# HELENA_HOST_ID, as this first did, fixes host-report and leaves the segment
+# worker registering as changeme-hostname, which is how the second name was
+# found at all.
+for pair in \
+  "segment.env HELENA_HOST_ID" \
+  "segment.env HELENA_SEGMENT_HOST_ID" \
+  "ink.env HELENA_INK_HOST_ID" \
+  "surface-qc.env HELENA_QC_HOST_ID"
+do
+  file="$env_dir/${pair%% *}" var="${pair#* }"
+  [ -f "$file" ] || continue
+  current="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
+  case "$current" in
+    ""|changeme*|this-machine|REPLACE*)
+      if grep -qE "^$var=" "$file"; then
+        sed -i "s|^$var=.*|$var=$this_host|" "$file"
+      else
+        printf '%s=%s\n' "$var" "$this_host" >> "$file"
+      fi
+      say "set $var to $this_host in $(basename "$file")" ;;
+  esac
+done
+
+# The workers' database URL, written from what the panel's postgres actually
+# runs with. The templates shipped this fleet's address and a placeholder
+# password -- segment.env named another host with a CHANGEME password and
+# ink.env said
+# `postgresql://REPLACE` -- so on any other machine every worker started, failed
+# to reach a database and kept trying:
+#
+#   connection to server at ..., port 55432 failed: timeout expired
+#   [Errno -3] Temporary failure in name resolution
+#
+# Nothing published that, so the queue simply never ran. Measured on a rented
+# 5090, where it is the difference between a deployment and a panel with idle
+# workers beside it.
+#
+# The values are the compose file's own defaults, overridden by platform.env if
+# it names others. The workers use host networking and postgres publishes on
+# loopback, so 127.0.0.1 is the address they see.
+pg_user="$(grep -oE '^POSTGRES_USER=.*' "$env_dir/platform.env" 2>/dev/null | cut -d= -f2- || true)"
+pg_pass="$(grep -oE '^POSTGRES_PASSWORD=.*' "$env_dir/platform.env" 2>/dev/null | cut -d= -f2- || true)"
+pg_db="$(grep -oE '^POSTGRES_DB=.*' "$env_dir/platform.env" 2>/dev/null | cut -d= -f2- || true)"
+pg_port="$(grep -oE '^HELENA_POSTGRES_PORT=.*' "$env_dir/platform.env" 2>/dev/null | cut -d= -f2- || true)"
+dsn="postgresql://${pg_user:-campaignx}:${pg_pass:-helena-local-only}@127.0.0.1:${pg_port:-55432}/${pg_db:-campaignx}"
+
+# The QC stack mounts a postgres env file as a required bind, and the panel
+# stack reads one too. Both templates named /srv/helena/control-plane/postgres.env
+# -- this fleet's path -- so on any other machine the QC container restarted
+# forever on `POSTGRES_USER missing from env file` while the bind mounted a
+# directory Docker had created to satisfy it.
+#
+# Write it from the same values as the URL above, 0600 because it holds the
+# password, and point the two variables that name it at what was written.
+if [ ! -f "$env_dir/postgres.env" ]; then
+  umask 077
+  {
+    printf 'POSTGRES_USER=%s\n' "${pg_user:-campaignx}"
+    printf 'POSTGRES_DB=%s\n' "${pg_db:-campaignx}"
+    printf 'POSTGRES_PASSWORD=%s\n' "${pg_pass:-helena-local-only}"
+  } > "$env_dir/postgres.env"
+  # 0600 and owned by the uid the workers run as. It holds the password, so it
+  # stays unreadable to everyone else -- but it is bind-mounted into containers
+  # that are not root, and root-owned 0600 means the QC worker restarts forever
+  # on `PostgreSQL env file is not readable: /run/secrets/postgres.env` with the
+  # file plainly there. The mode was right for the host and wrong for its reader.
+  chmod 600 "$env_dir/postgres.env"
+  chown "${HELENA_WORKER_UID:-1000}:${HELENA_WORKER_GID:-1000}" "$env_dir/postgres.env" 2>/dev/null || true
+  say "wrote $env_dir/postgres.env from the platform's own settings"
+fi
+for pair in "platform.env HELENA_POSTGRES_ENV" "surface-qc.env HELENA_QC_POSTGRES_ENV"; do
+  file="$env_dir/${pair%% *}" var="${pair#* }"
+  [ -f "$file" ] || continue
+  current="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
+  [ -n "$current" ] && [ -f "$current" ] && continue
+  if grep -qE "^$var=" "$file"; then
+    sed -i "s|^$var=.*|$var=$env_dir/postgres.env|" "$file"
+  else
+    printf '%s=%s\n' "$var" "$env_dir/postgres.env" >> "$file"
+  fi
+done
+
+# Only when it is absent or still the shipped placeholder: an operator who has
+# pointed these at a real control plane has said something this must not undo.
+for pair in "segment.env FLEET_DB" "ink.env CX_DB"; do
+  file="$env_dir/${pair%% *}" var="${pair#* }"
+  [ -f "$file" ] || continue
+  current="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
+  case "$current" in
+    ""|*REPLACE*|*CHANGEME*)
+      if grep -qE "^$var=" "$file"; then
+        sed -i "s|^$var=.*|$var=$dsn|" "$file"
+      else
+        printf '%s=%s\n' "$var" "$dsn" >> "$file"
+      fi
+      say "pointed $var in $(basename "$file") at this host's control plane" ;;
+  esac
+done
+
 # The GPU half is buildable from this checkout now, so build it rather than
 # refusing.
 #
@@ -173,11 +335,32 @@ if [ "$profile" = gpu ]; then
     # not this one's -- written here it is an unset parameter, and under `set -u`
     # the deploy dies on the line that was meant to be helpful.
     villa_image="${HELENA_VILLA_IMAGE:-${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}helena-villa:local}"
+    # It used to refuse here and say that deploying nogpu once was the shortest
+    # way to get villa. True, and useless: `--gpu` is a choice the installer
+    # offers, so a clean machine that took it got a panel, no workers, and a
+    # warning telling it to run the other profile. The gpu profile builds its
+    # own prerequisite now.
+    #
+    # This is the hour the check above exists to spend only when it can pay off,
+    # and it pays off here: there is nothing to pull, so compiling is the only
+    # way the profile completes at all.
     $D image inspect "$villa_image" >/dev/null 2>&1 || {
-      echo "$qc_base needs $villa_image, which is not here yet." >&2
-      echo "containers/build-worker.sh builds it; the nogpu profile runs that" >&2
-      echo "first, so deploying nogpu once is the shortest way to get it." >&2
-      exit 4
+      say "$qc_base needs $villa_image, which is not here yet -- building it"
+      say "  this compiles volume-cartographer and takes an hour or two"
+      if ! BUILD_COMMIT="$commit" sh "$root/containers/build-worker.sh" "$root" "$worker_tag" \
+           > /tmp/helena-villa-build.log 2>&1; then
+        echo "$villa_image failed to build; the GPU profile stops here" >&2
+        tail -20 /tmp/helena-villa-build.log >&2
+        exit 4
+      fi
+      # build-worker.sh tags villa itself, so ask again rather than assume: a
+      # rename there would otherwise surface as a confusing failure three builds
+      # later instead of here.
+      $D image inspect "$villa_image" >/dev/null 2>&1 || {
+        echo "build-worker.sh ran but $villa_image is still not here; it may" >&2
+        echo "tag villa under another name than this deploy expects." >&2
+        exit 4
+      }
     }
     ink_image="${HELENA_INK_IMAGE_BASE:-helena-ink:local}"
     $D image inspect "$ink_image" >/dev/null 2>&1 || {
@@ -259,7 +442,28 @@ set_image() {
   ls -1t "$file".bak-* 2>/dev/null | tail -n +11 | while read -r old_backup; do
     rm -f "$old_backup"
   done
-  sed -i "s|^$var=.*|$var=$val|" "$file"
+  # Substitute if the line is there, append if it is not. It was only the
+  # substitution, which is a silent no-op on a file that does not already carry
+  # the variable -- and none of the templates do. On a host configured before
+  # the templates existed the line was there by hand, so the deploy worked; on a
+  # clean machine it wrote nothing, said nothing, and compose fell through to
+  # its default and tried to pull an image that had just been built locally:
+  #
+  #   pull access denied for helena-worker-cpp, repository does not exist
+  #
+  # Measured on a rented 5090.
+  if grep -qE "^$var=" "$file"; then
+    sed -i "s|^$var=.*|$var=$val|" "$file"
+  else
+    printf '%s=%s\n' "$var" "$val" >> "$file"
+  fi
+  # -xF: whole line, literal. An image name has dots and slashes in it, and
+  # building a regex out of it to check it was written is how the check itself
+  # becomes the bug.
+  grep -qxF "$var=$val" "$file" || {
+    echo "$var could not be written to $file" >&2
+    exit 4
+  }
 }
 
 # `compose up | grep` reports grep's exit status, not compose's, so a stack
@@ -340,7 +544,6 @@ up "the platform stack" -p helena -f "$compose/platform.compose.yaml" \
 #
 # Built on the host that runs them rather than pushed: these are gigabytes on a
 # CUDA base, and the hosts reach each other on nothing but 22.
-worker_tag="helena-worker-cpp:local-$commit"
 say "building $worker_tag"
 # Piping the build into grep hides its exit status behind grep's, so a build
 # that failed read as a build that succeeded and the deploy carried on to start

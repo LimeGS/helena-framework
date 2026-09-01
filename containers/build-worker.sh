@@ -133,13 +133,32 @@ if [ -z "$villa_digest" ]; then
       docker pull "$base" >/dev/null 2>&1 || docker image inspect "$base" >/dev/null
       villa_digest="$(docker image inspect "$base" \
         --format '{{index .RepoDigests 0}}' 2>/dev/null || true)"
+      # An image compiled on this host has never been pushed, so it has no
+      # RepoDigests at all and the refusal below fired on every clean install --
+      # after the hour that compiled villa. Measured on a rented 5090.
+      #
+      # The fallback is the local image ID, which is a content address over the
+      # image config: it names these exact bytes and cannot float. It is
+      # deliberately not pullable, because nothing published it; what makes the
+      # base auditable here is upstream in the image's own labels, the villa
+      # commit and tree that this script verified before compiling.
+      if [ -z "$villa_digest" ]; then
+        local_id="$(docker image inspect "$base" --format '{{.Id}}' 2>/dev/null || true)"
+        case "$local_id" in
+          sha256:*) villa_digest="${base%%@*}@$local_id"
+                    echo "  $base was built here and never pushed, so its identity is" >&2
+                    echo "  the local image id rather than a registry digest" >&2 ;;
+        esac
+      fi
       ;;
   esac
 fi
 case "$villa_digest" in
   *@sha256:*) ;;
   *)
-    echo "the Villa base has no resolved repository@sha256 digest; set VILLA_IMAGE_DIGEST explicitly" >&2
+    echo "the Villa base has no resolved repository@sha256 digest and no local" >&2
+    echo "image id either, which means it is not on this host; set" >&2
+    echo "VILLA_IMAGE_DIGEST explicitly if you know what it should be" >&2
     exit 2
     ;;
 esac

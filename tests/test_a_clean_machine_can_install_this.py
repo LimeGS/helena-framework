@@ -158,10 +158,23 @@ def test_every_env_file_the_deploy_demands_has_an_example():
     import re  # noqa: PLC0415
 
     deploy = (ROOT / "containers/deploy-platform.sh").read_text()
-    demanded = set(re.findall(r"env_dir/([a-z-]+)\.env", deploy))
+    named = set(re.findall(r"env_dir/([a-z-]+)\.env", deploy))
     examples = {path.name.removesuffix(".env.example")
                 for path in (ROOT / "containers/compose").glob("*.env.example")}
-    assert demanded <= examples, f"no example for: {sorted(demanded - examples)}"
+
+    # postgres.env is written by the deploy from the platform's own settings,
+    # not copied from an example. A template for it would have to carry a
+    # placeholder password, and a placeholder that reaches a running deployment
+    # is the failure this whole file is about: the shipped ones said CHANGEME
+    # and REPLACE, and every worker on a clean machine tried to reach a
+    # database that was not there.
+    generated = {"postgres"}
+    assert 'printf \'POSTGRES_PASSWORD=%s\\n\'' in deploy, (
+        "postgres.env is exempt from needing an example because the deploy "
+        "writes it; if it stopped writing it, it needs one")
+
+    assert named - generated <= examples, (
+        f"no example for: {sorted(named - generated - examples)}")
 
 
 def test_the_segment_example_carries_the_one_variable_with_no_default():
@@ -200,9 +213,11 @@ def test_the_gpu_profile_builds_its_base_rather_than_refusing():
     rebuild.
 
     Then it refused early and said what to set, which was honest and still left
-    a reader stuck. All three are produced here now, so it builds them. The
-    check that remains is the one no build can remove: villa must exist first,
-    because that is where the tools are compiled.
+    a reader stuck. All four are produced here now, villa included, so it builds
+    them. The check that remains is the one no build can remove: villa must
+    exist before the GPU base, because that is where the tools are compiled --
+    but "must exist" is satisfied by building it, not by sending the reader to
+    another profile and exiting.
     """
     deploy = (ROOT / "containers/deploy-platform.sh").read_text()
 
@@ -220,9 +235,17 @@ def test_the_gpu_profile_builds_its_base_rather_than_refusing():
         "the deploy no longer builds the surface-QC base, so a host without it "
         "is stuck again")
     assert "Containerfile.ink" in guidance, "nor its ink parent"
-    assert "build-worker.sh builds it" in guidance, (
-        "villa cannot be built here and the message has to say what does build "
-        "it; without that the reader has a missing image and no next step")
+    # It used to refuse and name the profile that would produce villa, and the
+    # message was honest: villa really was built elsewhere. That left `--gpu`,
+    # which the installer offers as a choice, unable to finish on a clean
+    # machine -- measured on a rented 5090: a panel, no workers, and a warning
+    # to go run the other profile. So the property is no longer "it says what
+    # builds villa" but "it builds villa".
+    assert 'sh "$root/containers/build-worker.sh"' in guidance, (
+        "the gpu profile does not build villa, so a host that cannot pull the "
+        "GPU base is stuck being told to deploy nogpu first")
+    assert "exit 4" in guidance, (
+        "nothing stops the profile when villa still is not there afterwards")
 
 
 def test_the_readme_does_not_promise_a_profile_needs_nothing_it_needs():
