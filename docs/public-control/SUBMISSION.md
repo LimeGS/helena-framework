@@ -96,12 +96,21 @@ exit 0 and all, and the liveness gate is what caught it.
 
 ## Reproducibility, checked rather than claimed
 
-`probability.npy`, `ink.tif` and `ink_reverse.tif` are **bit-identical** to a
-run made nine days earlier on the same inputs -- same SHA-256, three for three.
-The two runs were made from different working trees on different days. What
-that demonstrates is narrow and worth stating precisely: the inference path is
-deterministic given the same volume, checkpoint and scale, so a third party who
-follows `REPRODUCE.md` can compare digests rather than eyeball two images.
+Two runs on the same GPU, nine days apart and from different working trees,
+produced **bit-identical** `probability.npy`, `ink.tif` and `ink_reverse.tif` --
+same SHA-256, three for three.
+
+A third run, on a rented RTX 5090, did **not**: same volume, same checkpoint,
+same scale, different bytes. `fc9f91da…` on ours, `f4abc1b4…` there. What did
+match is the map's statistics, to four decimals -- p50 0.2784, p99 0.7765, std
+0.1674 -- because the difference is floating-point accumulation on different
+hardware, not a different result.
+
+So the claim is narrower than "compare the digests". On the same GPU the digest
+is a fair check and a cheap one. Across different GPUs it is not, and a reviewer
+who reproduced this and found a different hash would be right to be suspicious
+of a page that had promised one. Compare the liveness statistics instead, which
+the receipt records.
 
 ## 5. An end-to-end test log without skipped pipeline stages
 

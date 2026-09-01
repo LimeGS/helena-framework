@@ -54,7 +54,7 @@ name: helena-ink
 
 services:
   ink:
-    image: ${HELENA_INK_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.22.2}}
+    image: ${HELENA_INK_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.23.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -101,12 +101,21 @@ services:
       # Credentials the panel does not yet hold. Once they are set from the
       # panel, a worker reads them from the control plane at startup and this
       # line can go.
-      - ${HELENA_INK_AWS_ENV:-/etc/helena/aws.env}
+      # Optional, and the same form the panel already uses: credentials live
+      # in the control plane, and a missing file here stopped the whole stack
+      # from starting on any host that keeps none.
+      - path: ${HELENA_INK_AWS_ENV:-/etc/helena/aws.env}
+        required: false
     # One card, named by index. `gpus: all` on a two-card box means both
     # services think they own both, and 6 GiB will not hold two models.
     gpus:
       - driver: nvidia
-        device_ids: ["${HELENA_INK_DEVICE:-1}"]
+        # 0, like every other stack here. It defaulted to 1 because this fleet
+        # has two cards and the ink lane takes the second; a host with one card
+        # has only device 0, and compose failed with
+        #   nvidia-container-cli: device error: 1: unknown device
+        # A two-card host sets HELENA_INK_DEVICE=1, which ours does.
+        device_ids: ["${HELENA_INK_DEVICE:-0}"]
         capabilities: [gpu]
     volumes:
       - ${HELENA_INK_RUNS:?set HELENA_INK_RUNS to the run directory}:${HELENA_INK_RUNS}

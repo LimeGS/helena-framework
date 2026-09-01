@@ -17,7 +17,7 @@ context="${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
 # them from the daemon that built them. Pass one, or set HELENA_REGISTRY,
 # to tag for a push.
 registry="${2:-${HELENA_REGISTRY:-}}"
-# Empty registry means local tags: `helena-panel:0.22.2`, which is exactly what
+# Empty registry means local tags: `helena-panel:0.23.0`, which is exactly what
 # the compose files default to. With one set, everything is prefixed and pushed.
 if [ -n "$registry" ]; then prefix="$registry/"; else prefix=""; fi
 # The version, from the one file that holds it. A commit hash is an identity

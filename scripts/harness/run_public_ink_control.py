@@ -384,7 +384,12 @@ def main() -> int:
     ap.add_argument("--checkpoint-path",
                     help="the checkpoint, as the worker sees it")
     ap.add_argument("--source-pixel-um", type=float, default=9.362)
-    ap.add_argument("--artifact-store", default="/artifacts/ink-maps-v1")
+    # Defaults to the pixel size because the control's volume is isotropic --
+    # its own key says 9.362um and the procedure calls it isotropic -- but it is
+    # a separate figure and an anisotropic volume has to say so. Defaulting to
+    # None and filling it in below keeps "not given" distinguishable from "given
+    # and equal", which is what a receipt has to be able to show.
+    ap.add_argument("--source-slice-um", type=float, default=None)
     args = ap.parse_args()
 
     inference = None
@@ -405,10 +410,25 @@ def main() -> int:
             # a second input in the receipt and leave which one the map came
             # from a matter of trust. A stack is the alternative, and pooling
             # then needs the scale it was rendered at.
+            # artifact_store is not sent: the panel owns it and refuses a
+            # request that sets it with HTTP 409. requeue_timesformer_large.py
+            # already carried that note and this did not, so the queued path
+            # failed at the first POST against any deployment -- which is the
+            # path a reviewer is asked to trust.
             parameters={"checkpoint": args.checkpoint_path,
-                        "artifact_store": args.artifact_store,
-                        **({"tiff_dir": args.tiff_dir,
-                            "source_pixel_um": args.source_pixel_um}
+                        # source_pixel_um on both paths. It was sent only with
+                        # a tiff_dir, and the panel needs it either way: its
+                        # catalogue has no entry for a scroll a stranger brings,
+                        # so it refuses rather than guessing a scale --
+                        # correctly, because a wrong micron silently pools the
+                        # volume to the wrong size and the map still looks like
+                        # a map. The control already had the figure and did not
+                        # pass it.
+                        "source_pixel_um": args.source_pixel_um,
+                        "source_slice_um": (args.source_slice_um
+                                            if args.source_slice_um is not None
+                                            else args.source_pixel_um),
+                        **({"tiff_dir": args.tiff_dir}
                            if args.tiff_dir else
                            {"surface_volume": args.surface_volume})})
 

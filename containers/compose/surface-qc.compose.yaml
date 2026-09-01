@@ -22,7 +22,7 @@ services:
     # profile; taking them from the image rather than a mounted checkout is what
     # lets a machine run this with nothing on its disk. The model underneath is
     # the same model, byte for byte, that every past verdict was issued with.
-    image: ${HELENA_QC_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.22.2}}
+    image: ${HELENA_QC_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.23.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -47,7 +47,11 @@ services:
     network_mode: host
     env_file:
       - ${HELENA_QC_ENV:-/etc/helena/surface-qc.env}
-      - ${HELENA_QC_AWS_ENV:-/etc/helena/aws.env}
+      # Optional, and the same form the panel already uses: credentials live
+      # in the control plane, and a missing file here stopped the whole stack
+      # from starting on any host that keeps none.
+      - path: ${HELENA_QC_AWS_ENV:-/etc/helena/aws.env}
+        required: false
     environment:
       # Evidence provenance belongs to this immutable deployment, not to the
       # long-lived host env file.  deploy-platform.sh resolves and exports the
