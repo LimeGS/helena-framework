@@ -115,8 +115,14 @@ def test_it_stays_short_enough_to_read() -> None:
 
 def test_it_points_at_the_documentation_that_replaced_it() -> None:
     """The reason it can stay short."""
-    for section in ("Tutorial", "User guide", "Developer reference", "API reference"):
+    # Three tabs, not five: the Tutorial and the User guide were folded into the
+    # handbook, which has the walkthrough as a section and the panel pages as
+    # another. A README still sending people to a tab that is gone is worse than
+    # one that says nothing.
+    for section in ("Handbook", "Developer reference", "API reference"):
         assert section in README, f"the README does not mention the {section}"
+    for gone in ("**Tutorial**", "**User guide**"):
+        assert gone not in README, f"the README still offers {gone}, which is not a tab"
 
 
 def test_the_opening_claims_are_implemented() -> None:

@@ -1052,14 +1052,12 @@ def test_the_documentation_is_served_rather_than_shipped_as_files(app_module):
     stale = sorted(p.name for p in (ROOT / "docs").glob("*.md"))
     assert stale == [], f"markdown left behind: {stale}"
 
-    guide = (ROOT / "panel/web/src/routes/UserGuide.tsx").read_text()
-    # Built from the contract and the live schema, not from a copy of either.
-    assert "/api/phases" in guide and "/parameters" in guide
-    assert "details" in guide, "the per-phase modules are collapsible"
-    # Segmentation is planned rather than parameterised, so its controls are the
-    # seeders and the eighteen options, and both are served too.
-    assert "/api/segmentation/options" in guide
-    assert '"/api/segmentation"' in guide
+    # The per-phase modules used to be a route that fetched /api/phases and
+    # rendered the live schema. The handbook replaced it with prose built from
+    # docs/handbook, so what is asserted here is that the prose ships, and the
+    # reference tabs beside it are still the generated ones.
+    handbook = (ROOT / "panel/web/src/routes/handbook-content.ts").read_text()
+    assert len(handbook) > 100_000, "the handbook content module is too small to be the handbook"
 
     developer = (ROOT / "panel/web/src/routes/DeveloperReference.tsx").read_text()
     for topic in ("Adding a model or a tool", "Extending each phase",
@@ -1124,11 +1122,31 @@ def test_every_phase_is_actually_guided(app_module):
     """A module that only restates the contract is not a guide. Each phase must
     say what you are doing, what to have ready, the decisions in order, what to
     look at afterwards, and how it goes wrong quietly."""
-    content = (ROOT / "panel/web/src/routes/guide-content.ts").read_text()
-    for phase in ("P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9"):
-        assert f"\n  {phase}: {{" in content, f"{phase} has no guide"
-    for section in ("purpose:", "before:", "steps:", "reading:", "traps:"):
-        assert content.count(section) >= 10, f"{section} missing from some phase"
+    import json
+    import re as _re
+
+    contract = json.loads((ROOT / "framework/contracts/pipeline_phases.json").read_text())
+    phases = contract if isinstance(contract, list) else contract["phases"]
+
+    pages = sorted((ROOT / "docs/handbook/20-phases").glob("*.md"))
+    assert len(pages) == len(phases), (
+        f"one page per phase: {len(phases)} phases, {[p.name for p in pages]}"
+    )
+
+    # Deliberately not a fixed set of headings. The old guide was a record per
+    # phase with the same five keys, so the keys could be asserted; these are
+    # written pages and P1's two approaches are not P6's single question. What
+    # a stub cannot fake is length and structure, so that is what is checked.
+    for page in pages:
+        text = page.read_text()
+        assert _re.search(r"^summary: \S", text, _re.M), f"{page.name} has no summary"
+        assert len(text.split()) >= 300, (
+            f"{page.name} is {len(text.split())} words -- too short to be more "
+            "than a restatement of the contract"
+        )
+        assert len(_re.findall(r"^## ", text, _re.M)) >= 3, (
+            f"{page.name} has fewer than three sections"
+        )
 
 
 def test_the_guide_ships_the_pictures_it_embeds(app_module):
@@ -1137,22 +1155,25 @@ def test_the_guide_ships_the_pictures_it_embeds(app_module):
     Vite copies into the build."""
     import re
 
-    guide = (ROOT / "panel/web/src/routes/UserGuide.tsx").read_text()
-    content = (ROOT / "panel/web/src/routes/guide-content.ts").read_text()
-    named = set(re.findall(r'src=\{?"([a-z-]+)"', guide + content))
-    named |= set(re.findall(r'src: "([a-z-]+)"', content))
-    assert named, "the guide embeds no figures at all"
+    named = set()
+    for page in (ROOT / "docs/handbook").rglob("*.md"):
+        named |= set(re.findall(r'!\[[^\]]*\]\(([a-z0-9-]+)\.(?:png|jpg|svg)', page.read_text()))
+    assert named, "the handbook embeds no figures at all"
 
     # Under src/assets and imported, not under a public directory: the panel
     # serves static files from /assets only, so a picture anywhere else falls
     # through to the single-page fallback and renders broken.
-    shipped = {p.stem for p in (ROOT / "panel/web/src/assets/guide").glob("*.png")}
+    shipped = {p.stem for p in (ROOT / "panel/web/src/assets/handbook").glob("*.png")}
     assert named <= shipped, f"missing: {sorted(named - shipped)}"
-    for figure in sorted(named):
-        assert f'assets/guide/{figure}.png"' in guide, f"{figure} is not imported"
 
     # And every caption teaches: a figure with no words under it is decoration.
-    assert guide.count("caption=") + content.count("caption:") >= len(named)
+    # Markdown carries the caption as the image's title attribute, so a figure
+    # written as ![alt](file.png) with nothing after it fails here.
+    import re as _re
+    for page in (ROOT / "docs/handbook").rglob("*.md"):
+        for alt, title in _re.findall(r'!\[([^\]]*)\]\([a-z0-9-]+\.(?:png|jpg|svg)\s*("[^"]*")?\)',
+                                      page.read_text()):
+            assert title, f"a figure in {page.name} has no caption"
 
 
 def test_a_link_carries_the_scope_it_was_read_in(app_module):
@@ -1171,7 +1192,7 @@ def test_the_documentation_opens_folded_shut(app_module):
     what is there."""
     import re
 
-    for name in ("UserGuide", "DeveloperReference"):
+    for name in ("DeveloperReference",):
         source = (ROOT / f"panel/web/src/routes/{name}.tsx").read_text()
         cards = re.findall(r"<Card [^>]*?>", source, re.S)
         # The one card that stays open is the list of phase modules, and every
@@ -1179,9 +1200,14 @@ def test_the_documentation_opens_folded_shut(app_module):
         open_cards = [c for c in cards if "collapsed" not in c]
         assert open_cards == [], f"{name}: {open_cards}"
 
-    guide = (ROOT / "panel/web/src/routes/UserGuide.tsx").read_text()
-    assert "<details className=\"guide-phase\">" in guide, "modules must start closed"
-    assert "guide-phase\" open" not in guide
+    # The handbook opens on one page rather than a stack of cards, so what has
+    # to hold instead is which page that is. The route falls back to the first
+    # entry, so the first entry is the one that says what is here.
+    route = (ROOT / "panel/web/src/routes/Handbook.tsx").read_text()
+    assert "HANDBOOK[0]" in route, "the handbook no longer falls back to its first page"
+    content = (ROOT / "panel/web/src/routes/handbook-content.ts").read_text()
+    first = content[content.index('"title"'):content.index('"title"') + 200]
+    assert "How to read" in first, f"the handbook opens on {first[:80]!r}"
 
 
 def test_the_prose_has_a_readable_measure(app_module):
@@ -1190,7 +1216,7 @@ def test_the_prose_has_a_readable_measure(app_module):
     css = (ROOT / "panel/web/src/styles.css").read_text()
     block = css[css.index("---- documentation: a column you can actually read ----"):]
     assert "max-width:74ch" in block
-    assert ".guide-prose p" in block and ".guide-phase p" in block
+    assert ".guide-prose p" in block
 
 
 def test_the_openapi_document_is_not_swallowed_by_the_spa() -> None:

@@ -1,0 +1,61 @@
+[0KRunning with gitlab-runner 19.2.1 (a470182f)
+[0K  on gpu-1 A77c3ELga, system ID: r_k1jcwMgdPdXp
+section_start:1788247336:prepare_executor[0K
+[0KPreparing the "docker" executor
+[0KUsing Docker executor with image docker:27-cli ...
+[0KUsing effective pull policy of [always if-not-present] for container docker:27-cli
+[0KPulling docker image docker:27-cli ...
+[0KUsing docker image sha256:2e7c23dd1c3d20e207ea0fc3677430c643501bd66bbc1c51b833cccbf5fbcae3 for docker:27-cli with digest docker@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c ...
+section_end:1788247343:prepare_executor[0K
+section_start:1788247343:prepare_script[0K
+[0KPreparing environment
+[0KUsing effective pull policy of [always if-not-present] for container sha256:754cb58bf7df02abfad8c65eae4476fe9f2b970a7861c90ebcf08227b3a2747e
+Running on runner-a77c3elga-project-157-concurrent-0 via gpu-1...
+section_end:1788247345:prepare_script[0K
+section_start:1788247345:get_sources[0K
+[0KGetting source from Git repository
+Gitaly correlation ID: 01M1DXHRMTZCYRAGANTZZBHSJD
+Fetching changes with git depth set to 50...
+Reinitialized existing Git repository in /builds/grilli/research/helena-framework/.git/
+Created fresh repository.
+Checking out 1940c693 as detached HEAD (ref is staging)...
+
+Skipping Git submodules setup
+section_end:1788247349:get_sources[0K
+section_start:1788247349:step_script[0K
+[0KExecuting "step_script" stage of the job script
+[0KUsing effective pull policy of [always if-not-present] for container docker:27-cli
+[0KUsing docker image sha256:2e7c23dd1c3d20e207ea0fc3677430c643501bd66bbc1c51b833cccbf5fbcae3 for docker:27-cli with digest docker@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c ...
+$ docker info > /dev/null 2>&1 || { # collapsed multi-line command
+$ export HELENA_PANEL_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)"
+$ docker exec -e U="$HELENA_E2E_USER" -e P="$HELENA_PANEL_PASSWORD" \ # collapsed multi-line command
+$ docker exec -e M="$HELENA_E2E_MISSION" -e S="$HELENA_E2E_SCROLL" \ # collapsed multi-line command
+mission ci-1419 created (campaign-bound)
+$ env | grep -E '^HELENA_[A-Za-z0-9_]+=' > /tmp/e2e.env
+$ set -e # collapsed multi-line command
+........................................s...............ss               [100%]
+=============================== warnings summary ===============================
+tests/e2e/test_first_letters_positive_control.py::test_real_panel_routes_fail_closed_if_selected_p0_changes_during_orchestration
+  /usr/local/lib/python3.11/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tests/e2e/test_the_gates_hold_on_the_deployment.py:101: no surface carries a human review on this control plane
+SKIPPED [1] tests/e2e/test_the_platform_end_to_end.py:163: set HELENA_E2E_HEAVY=1
+SKIPPED [1] tests/e2e/test_the_platform_end_to_end.py:199: set HELENA_E2E_HEAVY=1
+55 passed, 3 skipped, 1 warning in 94.08s (0:01:34)
+section_end:1788247455:step_script[0K
+section_start:1788247455:after_script[0K
+[0KRunning after_script
+Running after script...
+$ docker rm -f "e2e-$CI_JOB_ID" > /dev/null 2>&1 || true
+$ docker exec -e U="$HELENA_E2E_USER" "$HELENA_PANEL_CONTAINER" python3 -c " # collapsed multi-line command
+removed ci-1419
+$ docker exec -e M="$HELENA_E2E_MISSION" "$HELENA_PANEL_CONTAINER" python3 -c " # collapsed multi-line command
+removed mission ci-1419
+section_end:1788247460:after_script[0K
+section_start:1788247460:cleanup_file_variables[0K
+[0KCleaning up project directory and file based variables
+section_end:1788247461:cleanup_file_variables[0K
+Job succeeded

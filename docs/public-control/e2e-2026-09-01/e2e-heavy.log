@@ -1,0 +1,48 @@
+[0KRunning with gitlab-runner 19.2.1 (a470182f)
+[0K  on gpu-1 A77c3ELga, system ID: r_k1jcwMgdPdXp
+section_start:1788247496:prepare_executor[0K
+[0KPreparing the "docker" executor
+[0KUsing Docker executor with image docker:27-cli ...
+[0KUsing effective pull policy of [always if-not-present] for container docker:27-cli
+[0KPulling docker image docker:27-cli ...
+[0KUsing docker image sha256:2e7c23dd1c3d20e207ea0fc3677430c643501bd66bbc1c51b833cccbf5fbcae3 for docker:27-cli with digest docker@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c ...
+section_end:1788247501:prepare_executor[0K
+section_start:1788247501:prepare_script[0K
+[0KPreparing environment
+[0KUsing effective pull policy of [always if-not-present] for container sha256:754cb58bf7df02abfad8c65eae4476fe9f2b970a7861c90ebcf08227b3a2747e
+Running on runner-a77c3elga-project-157-concurrent-0 via gpu-1...
+section_end:1788247502:prepare_script[0K
+section_start:1788247502:get_sources[0K
+[0KGetting source from Git repository
+Gitaly correlation ID: 01M1DXPMHJDT0ZQ3C0MJ6WND8R
+Fetching changes with git depth set to 50...
+Reinitialized existing Git repository in /builds/grilli/research/helena-framework/.git/
+Created fresh repository.
+Checking out 1940c693 as detached HEAD (ref is staging)...
+
+Skipping Git submodules setup
+section_end:1788247506:get_sources[0K
+section_start:1788247506:step_script[0K
+[0KExecuting "step_script" stage of the job script
+[0KUsing effective pull policy of [always if-not-present] for container docker:27-cli
+[0KUsing docker image sha256:2e7c23dd1c3d20e207ea0fc3677430c643501bd66bbc1c51b833cccbf5fbcae3 for docker:27-cli with digest docker@sha256:851f91d241214e7c6db86513b270d58776379aacc5eb9c4a87e5b47115e3065c ...
+$ docker info > /dev/null 2>&1 || { # collapsed multi-line command
+$ export HELENA_E2E_VOLUME_URL="$(docker exec helena-postgres psql -U campaignx -d campaignx -tAc "select ct_uri from segment_source_snapshots where ct_uri like 'https%' limit 1" | tr -d '[:space:]')"
+$ test -n "$HELENA_E2E_VOLUME_URL" || { echo "no https volume in the control plane"; exit 1; }
+$ export HELENA_PANEL_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)"
+$ docker exec -e U="$HELENA_E2E_USER" -e P="$HELENA_PANEL_PASSWORD" \ # collapsed multi-line command
+$ env | grep -E '^HELENA_[A-Za-z0-9_]+=' > /tmp/e2e.env
+$ set -e # collapsed multi-line command
+..                                                                       [100%]
+2 passed, 56 deselected in 980.09s (0:16:20)
+section_end:1788248495:step_script[0K
+section_start:1788248495:after_script[0K
+[0KRunning after_script
+Running after script...
+$ docker rm -f "e2e-$CI_JOB_ID" > /dev/null 2>&1 || true
+$ docker exec -e U="$HELENA_E2E_USER" "$HELENA_PANEL_CONTAINER" python3 -c " # collapsed multi-line command
+section_end:1788248498:after_script[0K
+section_start:1788248498:cleanup_file_variables[0K
+[0KCleaning up project directory and file based variables
+section_end:1788248499:cleanup_file_variables[0K
+Job succeeded

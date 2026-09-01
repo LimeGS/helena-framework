@@ -63,3 +63,33 @@ with two map viewers on a shared pan and zoom.
 > **Trap** Seed agreement is **not** here. It is on the P1 Segmentation panel,
 > as a state pill and one number per surface. This page has no distance, no
 > decomposition and no seed in it at all.
+
+## The phase rail
+
+Each scroll carries a rail: one mark per phase, in pipeline order, saying where
+that phase stands for that scroll. It is the densest thing on the page, and its
+ten states are the whole alphabet — a mark you cannot read is a row you cannot
+act on.
+
+| Mark | Means |
+|---|---|
+| **running** | running now on a worker |
+| **queued** | queued — no worker has claimed it yet |
+| **failed** | the last attempt failed |
+| **stopped** | the last attempt was cancelled |
+| **done** | has produced something here |
+| **ready** | prerequisites met — ready to run |
+| **blocked** | prerequisites not met |
+| **waiting** | prerequisites not met — nothing upstream yet |
+| **elsewhere** | run somewhere other than this deployment |
+| **no-run** | nothing to run — a committed artefact, or a check inside another phase |
+
+Three of these are easy to confuse and mean different things. **blocked** and
+**waiting** both say the prerequisites are not met, but waiting adds that
+nothing upstream has been attempted yet, so there is nothing to chase. And
+**no-run** is not a failure to run: it is a phase with nothing to do for this
+scroll, which is why it is drawn differently from **done**.
+
+> **Trap** **elsewhere** is the one that misleads. It means the work exists but
+> was not produced here, so this deployment cannot show you its receipt — not
+> that it is missing.

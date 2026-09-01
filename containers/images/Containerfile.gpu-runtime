@@ -23,14 +23,28 @@
 # and the closure `ldd` reports for them, which is why it is still assembled
 # rather than copied wholesale from the compiler's image.
 # The base is not the ink image, and this is the constraint the two-parent
-# arrangement encoded without ever saying so. Measured: villa compiles on
-# ubuntu:25.10, whose glibc is 2.42, and its binaries ask for GLIBC_2.38; the
-# pytorch runtime image is 2.35. Basing this on the ink image builds an image
-# whose tools cannot start -- `version GLIBC_2.38 not found`, on the first job,
-# because a bundle carries its library closure and deliberately not glibc.
+# arrangement encoded without ever saying so. A bundle carries its library
+# closure and deliberately not glibc, so the tools cannot start on a base older
+# than the one they were compiled against: `version GLIBC_x.y not found`, on the
+# first job. The pytorch runtime image is 2.35, which is why it is not this.
 #
-# So: a base new enough for the binaries, the ink environment copied onto it,
-# and the bundle assembled from the image that compiled it.
+# What that constraint needs is not a base that is new *enough* -- a number
+# somebody picks and another number drifts away from -- but the same base villa
+# compiled on. This file had python:3.12-slim, villa moved to a newer Ubuntu,
+# and the two defaults were free to drift because nothing tied them: the deploy
+# built an image whose tools asked for GLIBC_2.43 against a 2.41 base.
+#
+# So the deploy reads villa's own `org.opencontainers.image.base.name` label and
+# passes it here, and the relation holds by construction rather than by two
+# defaults agreeing.
+#
+# The base needs a glibc and a trust store and nothing else. The Python that
+# runs here is the ink image's conda environment, copied in below and put on
+# PATH -- the base's own interpreter is never used, which is why the base may be
+# a bare OS image and why its Python version does not matter.
+#
+# So: villa's own base, the ink environment copied onto it, and the bundle
+# assembled from the image that compiled it.
 ARG BASE_IMAGE
 ARG INK_IMAGE
 ARG VILLA_IMAGE
@@ -105,6 +119,7 @@ RUN test -n "${CA_CERTIFICATES_VERSION}" || { \
  && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates="${CA_CERTIFICATES_VERSION}" \
  && update-ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+
 
 # What the bundle says it needs, on top of what this image installs anyway. The
 # packaged MCP is two .py files with no dependency closure, and it declares its

@@ -60,13 +60,23 @@ def test_contracts_and_single_container_topology_exist() -> None:
     assert "COPY --from=ink_runtime /opt/conda /opt/conda" in gpu
 
     # The base is not the ink image, and that is a constraint rather than a
-    # preference: villa compiles on glibc 2.42 and its binaries ask for 2.38,
-    # while the pytorch runtime image is 2.35. Basing this on ink builds tools
-    # that cannot start -- measured, before this check existed.
+    # preference: a bundle carries its library closure and deliberately not
+    # glibc, so the tools cannot start on a base older than the one that
+    # compiled them, and the pytorch runtime image is 2.35.
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
     assert "FROM ${BASE_IMAGE}" in gpu
-    assert "GLIBC_2.38" in gpu, (
-        "nothing states the glibc floor, so the next person to simplify this "
-        "by basing it on the ink image learns why on the first job")
+    assert "glibc" in gpu, (
+        "nothing states the glibc constraint, so the next person to simplify "
+        "this by basing it on the ink image learns why on the first job")
+
+    # Not a version number. This asserted "GLIBC_2.38" while the file named a
+    # floor, and the floor is what went wrong: it was true when written, villa
+    # moved to a newer base, and a constant cannot track the thing it describes.
+    # The floor is derived from the bundle now and the base is read off villa,
+    # so what there is to check is that neither is a literal again.
+    assert "org.opencontainers.image.base.name" in deploy, (
+        "the deploy picks the GPU base itself again instead of reading the one "
+        "villa was compiled on, which is how the two drifted apart before")
 
     assert "VC_MCP_SERVER_BINARY=/opt/campaignx/vc3d/bin/vc_mcp_server" in gpu
     assert "VC_MCP_GROW_EXECUTABLE=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed" in gpu

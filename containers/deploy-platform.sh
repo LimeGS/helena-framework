@@ -188,13 +188,45 @@ if [ "$profile" = gpu ]; then
         -t "$ink_image" "$root/containers/images" >/dev/null \
         || { echo "$ink_image failed to build; the GPU profile stops here" >&2; exit 5; }
     }
-    # The base is not the ink image: villa's binaries ask for GLIBC_2.38 and the
-    # pytorch runtime is 2.35, so that combination builds tools that cannot
-    # start. The Containerfile checks and says so; this default avoids it.
-    say "building $qc_base from $ink_image and $villa_image"
+    # The base is villa's own base, read off the image rather than chosen here.
+    # A bundle carries its library closure and deliberately not glibc, so the
+    # tools cannot start on anything older than what compiled them. This used to
+    # be a separate default -- python:3.12-slim -- which was true until villa
+    # moved to a newer Ubuntu, and then the deploy built an image whose tools
+    # asked for GLIBC_2.43 against a 2.41 base. Two defaults cannot be relied on
+    # to agree; one value read from the other cannot disagree.
+    qc_base_os="${HELENA_QC_BASE_OS_IMAGE:-$($D image inspect "$villa_image" \
+      --format '{{index .Config.Labels "org.opencontainers.image.base.name"}}' 2>/dev/null)}"
+    test -n "$qc_base_os" || {
+      echo "$villa_image does not label the base it was compiled on, so the" >&2
+      echo "  GLIBC the bundle needs cannot be guaranteed. Set" >&2
+      echo "  HELENA_QC_BASE_OS_IMAGE to that base to build anyway." >&2
+      exit 5
+    }
+    # A tag, usually: build-worker.sh passes ubuntu:25.10 and the label records
+    # what it was given. A digest is better and this accepts either -- requiring
+    # one would have rejected the path every clean install takes, which is worse
+    # than a mutable tag whose glibc the gate checks anyway.
+    case "$qc_base_os" in
+      *@sha256:*) : ;;
+      *) say "  $qc_base_os is a tag, so this base is reproducible only while
+  that tag means what it means today" ;;
+    esac
+    # Pinned to whatever that base holds rather than to a constant. The version
+    # string is distribution-specific -- 20250419 on Debian, 20260601~26.04.1 on
+    # Ubuntu 26.04 -- so a constant is correct for exactly one base and breaks
+    # the moment villa moves, which is the failure this whole block exists for.
+    ca_version="${HELENA_CA_CERTIFICATES_VERSION:-$($D run --rm --entrypoint sh \
+      "$qc_base_os" -c 'apt-get update -qq >/dev/null 2>&1; apt-cache policy ca-certificates 2>/dev/null | awk "/Candidate:/{print \$2}"' 2>/dev/null)}"
+    test -n "$ca_version" || {
+      echo "could not read the ca-certificates version out of $qc_base_os." >&2
+      echo "  Set HELENA_CA_CERTIFICATES_VERSION to pin it explicitly." >&2
+      exit 5
+    }
+    say "building $qc_base from $ink_image and $villa_image on $qc_base_os"
     $D build -q \
-      --build-arg BASE_IMAGE="${HELENA_QC_BASE_OS_IMAGE:-python:3.12-slim}" \
-      --build-arg CA_CERTIFICATES_VERSION="${HELENA_CA_CERTIFICATES_VERSION:-20250419}" \
+      --build-arg BASE_IMAGE="$qc_base_os" \
+      --build-arg CA_CERTIFICATES_VERSION="$ca_version" \
       --build-arg INK_IMAGE="$ink_image" \
       --build-arg VILLA_IMAGE="$villa_image" \
       --build-arg VILLA_COMMIT="$(villa_lock commit)" \

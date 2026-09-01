@@ -127,7 +127,7 @@ def test_ci_publishes_the_image_it_tested() -> None:
     assert "$panel_image" in build[: build.index("docker push")]
     # The push is last: the import check and the bundle check come first.
     assert build.index("import panel.app") < build.index("docker push")
-    assert build.index("UserGuide") < build.index("docker push")
+    assert build.index("Handbook") < build.index("docker push")
     # And it is skipped rather than attempted when there is nowhere to push to.
     assert 'if [ -n "$HELENA_REGISTRY" ]; then' in build[build.index("docker push") - 200:]
 

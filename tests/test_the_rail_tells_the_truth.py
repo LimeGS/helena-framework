@@ -209,10 +209,19 @@ def test_the_guide_shows_the_same_marks_the_rail_does():
     Hence the length checks -- a vacuous pass is worse than a failure, because
     nobody comes to look.
     """
-    guide = (ROOT / "panel/web/src/routes/UserGuide.tsx").read_text()
-    keyed = set(re.findall(r'<Mark status="([\w-]+)"', guide))
+    # The key was a <dl> in the User guide, which the handbook replaced. It is a
+    # table in the handbook's Missions page now, one row per mark, so what this
+    # reads is the generated content rather than a route file.
+    # The generated module is structured blocks rather than Markdown, so the
+    # table's first column arrives as `strong` spans. Intersecting with the rail
+    # is what makes the comparison below meaningful in the direction that
+    # matters: a state the handbook never names is missing from `keyed` and
+    # fails, which is the case somebody is left unable to read a mark.
+    handbook = (ROOT / "panel/web/src/routes/handbook-content.ts").read_text()
+    bolded = set(re.findall(r'"kind":\s*"strong",\s*"text":\s*"([\w-]+)"', handbook))
+    keyed = bolded & _states_in_the_rail()
     rail = _states_in_the_rail()
 
     assert len(rail) >= 10, f"only found {sorted(rail)} in STATUS"
-    assert len(keyed) >= 10, f"only found {sorted(keyed)} in the guide"
-    assert rail == keyed, f"rail {sorted(rail)} vs guide {sorted(keyed)}"
+    assert len(keyed) >= 10, f"only found {sorted(keyed)} in the handbook"
+    assert rail == keyed, f"rail {sorted(rail)} vs handbook {sorted(keyed)}"

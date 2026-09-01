@@ -12133,6 +12133,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "compare",
     "text": "Compare"
+   },
+   {
+    "id": "the-phase-rail",
+    "text": "The phase rail"
    }
   ],
   "blocks": [
@@ -12413,6 +12417,235 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " here. It is on the P1 Segmentation panel, as a state pill and one number per surface. This page has no distance, no decomposition and no seed in it at all."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "The phase rail",
+    "id": "the-phase-rail"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Each scroll carries a rail: one mark per phase, in pipeline order, saying where that phase stands for that scroll. It is the densest thing on the page, and its ten states are the whole alphabet — a mark you cannot read is a row you cannot act on."
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Mark"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "running"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "running now on a worker"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "queued"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "queued — no worker has claimed it yet"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "failed"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the last attempt failed"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "stopped"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the last attempt was cancelled"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "done"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "has produced something here"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "ready"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "prerequisites met — ready to run"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "blocked"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "prerequisites not met"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "waiting"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "prerequisites not met — nothing upstream yet"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "elsewhere"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "run somewhere other than this deployment"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "no-run"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "nothing to run — a committed artefact, or a check inside another phase"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Three of these are easy to confuse and mean different things. "
+     },
+     {
+      "kind": "strong",
+      "text": "blocked"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "strong",
+      "text": "waiting"
+     },
+     {
+      "kind": "text",
+      "text": " both say the prerequisites are not met, but waiting adds that nothing upstream has been attempted yet, so there is nothing to chase. And "
+     },
+     {
+      "kind": "strong",
+      "text": "no-run"
+     },
+     {
+      "kind": "text",
+      "text": " is not a failure to run: it is a phase with nothing to do for this scroll, which is why it is drawn differently from "
+     },
+     {
+      "kind": "strong",
+      "text": "done"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "elsewhere"
+     },
+     {
+      "kind": "text",
+      "text": " is the one that misleads. It means the work exists but was not produced here, so this deployment cannot show you its receipt — not that it is missing."
      }
     ]
    }

@@ -1,33 +1,26 @@
 import { lazy, Suspense, useState } from "react";
 import { Empty } from "../components/Bits";
 
-// Three errands, one menu. Somebody running the pipeline for the first time,
-// somebody who already runs it and needs to know what a control does, and
-// somebody putting their own tool into it are asking different questions -- and
-// a page that serves all three serves none.
-//
-// Tutorial is the path: press these, in this order, get a result. User guide is
-// the reference: every control, what it is for, what to leave it on. They were
-// one page, which in practice meant the path with the reference missing.
+// The handbook is the prose: the walkthrough, the phases, and every panel page
+// with its controls, built from docs/handbook and served whole. It replaced a
+// separate Tutorial and User guide, which had split the path from the reference
+// and so answered a first run with the reference missing and a lookup with the
+// path in the way. The two references that remain are generated from the code
+// they describe rather than written, which is why they stay their own tabs.
 const Handbook = lazy(() => import("./Handbook"));
-const Tutorial = lazy(() => import("./Tutorial"));
-const UserGuide = lazy(() => import("./UserGuide"));
 const DeveloperReference = lazy(() => import("./DeveloperReference"));
 const ApiReference = lazy(() => import("./ApiReference"));
 
 const TABS = [
   ["handbook", "Handbook"],
-  ["tutorial", "Tutorial"],
-  ["guide", "User guide"],
   ["developer", "Developer reference"],
   ["api", "API reference"],
 ] as const;
 
 export default function Documentation() {
-  // Tutorial first and by default: the person who has never run this is the one
-  // who cannot yet tell which tab they need.
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>(
-    window.location.hash.startsWith("#/docs/") ? "handbook" : "handbook");
+  // The handbook by default: the person who has never run this is the one who
+  // cannot yet tell which tab they need, and it is the tab that answers that.
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("handbook");
   return (
     <>
       <nav className="subtabs">
@@ -40,8 +33,6 @@ export default function Documentation() {
       </nav>
       <Suspense fallback={<Empty>loading…</Empty>}>
         {tab === "handbook" && <Handbook />}
-        {tab === "tutorial" && <Tutorial />}
-        {tab === "guide" && <UserGuide />}
         {tab === "developer" && <DeveloperReference />}
         {tab === "api" && <ApiReference />}
       </Suspense>

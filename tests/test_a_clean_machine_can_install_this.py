@@ -212,7 +212,10 @@ def test_the_gpu_profile_builds_its_base_rather_than_refusing():
         "the GPU base is settled after the worker is built, which is the hour "
         "of compiling this check exists to spend only when it can pay off")
 
-    guidance = deploy[gate:gate + 2600]
+    # To the end of the gpu block, not a byte count. It was gate + 2600, and a
+    # comment added inside the block pushed the build out of the window: the
+    # test failed while the property it names was still true.
+    guidance = deploy[gate:deploy.index("# Point an env file's image variable", gate)]
     assert "Containerfile.gpu-runtime" in guidance, (
         "the deploy no longer builds the surface-QC base, so a host without it "
         "is stuck again")
