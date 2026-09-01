@@ -64,7 +64,8 @@ def test_the_pairs_that_must_be_exactly_one_are_stated():
     assert p4 and set(p4[0]["names"]) == {"segmentation", "flattened_surface"}
     assert p4[0]["lane"] == "vc-render-tifxyz"
     p5 = phase_parameter_schema("P5")["exactly_one_of"]
-    assert p5 and set(p5[0]["names"]) == {"tiff_dir", "layer_stack"}
+    assert p5 and set(p5[0]["names"]) == {"tiff_dir", "layer_stack",
+                                          "surface_volume"}
 
 
 def test_the_vc3d_merge_form_is_lane_scoped_json_and_profile_locked():

@@ -1,0 +1,488 @@
+{
+  "checks": {
+    "DISCOVERY_CONTROL": {
+      "contradictory_terminal_results": [
+        "ZERO_POST_CT_CANDIDATES",
+        "ZERO_POST_CLEARANCE_CANDIDATES",
+        "NO_SURVIVOR_INSIDE_DECLARED_TOLERANCE"
+      ],
+      "execution_parameters": {
+        "ct_material_support_gate": {
+          "level": 5,
+          "minimum_nonzero_voxels": 1,
+          "policy": "ome-zarr-nearby-material-v1",
+          "radius_l0_voxels": 192
+        },
+        "max_candidates": 100,
+        "maximum_surface_probe_regions": 4096,
+        "minimum_cell_clearance_voxels": 0,
+        "minimum_separation_voxels": 16,
+        "minimum_volume_clearance_voxels": 64,
+        "packet_candidate_limit": 8
+      },
+      "expected_outcome": "AT_LEAST_ONE_POST_CT_POST_CLEARANCE_CANDIDATE_IN_REGION",
+      "failed_outcome": "CONTROL_FAILED",
+      "growth_allowed": false,
+      "incomplete_causes": [
+        "MISSING_OR_UNHASHED_CT_READ_SET",
+        "MISSING_OR_UNHASHED_M7_READ_SET",
+        "MISSING_OR_UNHASHED_M7_PROVIDER_REQUEST_OR_RESPONSE",
+        "MISSING_OR_NONTERMINAL_CANDIDATE_STAGE"
+      ],
+      "incomplete_outcome": "CONTROL_INCOMPLETE",
+      "inputs": {
+        "candidate_selection_policy": "score-cell-volume-clearance-v1",
+        "ct_material_support_policy": "ome-zarr-nearby-material-v1",
+        "ct_source": "source_locks.ct",
+        "known_region": "known_region",
+        "m7_level_set_iso_value": 0.2,
+        "m7_source": "source_locks.m7",
+        "provider": "vc3d-mcp@1.0.0",
+        "seed_region_policy": "m7-chunk-safe-merge-interior-v2"
+      },
+      "pass_requirements": [
+        "CT_READ_SET_CONTENT_BOUND",
+        "M7_READ_SET_CONTENT_BOUND",
+        "M7_PROVIDER_REQUEST_RESPONSE_CONTENT_BOUND",
+        "AT_LEAST_ONE_POST_CT_CANDIDATE",
+        "AT_LEAST_ONE_POST_CLEARANCE_CANDIDATE",
+        "AT_LEAST_ONE_SURVIVOR_INSIDE_DECLARED_TOLERANCE"
+      ],
+      "purpose": "Test candidate availability without growth and without using any downstream signal."
+    },
+    "PIPELINE_CONTROL": {
+      "automatic_letter_acceptance": false,
+      "contradictory_terminal_results": [
+        "GROW_REJECTED",
+        "GEOMETRY_REJECTED",
+        "PHYSICAL_QC_TERMINAL_INCOMPATIBLE",
+        "P5_DEGENERATE_OR_EMPTY",
+        "P7_ROUTE_CONTRADICTS_KNOWN_POSITIVE"
+      ],
+      "execution_parameters": {
+        "P4": {
+          "flip_normals": null,
+          "flip_normals_rule": "ORIENTATION_PARITY_PLUS_VERIFIED_ABSOLUTE_ORIENTATION_RECEIPT",
+          "group_idx": 0,
+          "lane": "vc-render-tifxyz",
+          "num_slices": 33,
+          "remote_source_rule": "EXACT_SELECTED_P0_CT_URI",
+          "scale": 1.0,
+          "slice_step": 1.0,
+          "volume_rule": "SERVER_INJECTED_CONTROL_CACHE_PATH"
+        },
+        "P5": {
+          "batch_size": 1,
+          "device": "cuda",
+          "on_degenerate": "fail",
+          "source_pixel_um_rule": "PROVEN_P3_P4_LATERAL_METRIC",
+          "source_slice_um_rule": "SELECTED_P0_VOXEL_SIZE_UM_TIMES_P4_SCALE_TIMES_P4_SLICE_STEP",
+          "training_checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+          "training_profile_id": "timesformer-gp-scroll1-screening@1.0.0",
+          "training_profile_sha256": "189bbdf8dc32de8b552c09c1137dd9daea96807624cfcf671a824ebbf20dd6db",
+          "verified_training_pixel_um": 7.91
+        },
+        "P7": {
+          "bbox_rule": "PROVENANCE_LOCKED_POSITIVE_CONTROL_ROI_TRANSFORM",
+          "px_um_rule": "P5_RECEIPT_TRAINING_PIXEL_UM"
+        },
+        "maximum_attempts": 1
+      },
+      "expected_outcome": "CANONICAL_CHAIN_REACHES_PRIORITY_HUMAN_REVIEW_FOR_KNOWN_PUBLIC_POSITIVE",
+      "failed_outcome": "CONTROL_FAILED",
+      "geometry_certification_profile": {
+        "canonical_policy_sha256": "e2b0dd1c3608edc5a190b676dcddd1a5bbf4cb904f11c74e89b447af60476a6e",
+        "profile_id": "tifxyz-geometry-certification@1.0.0"
+      },
+      "incomplete_outcome": "CONTROL_INCOMPLETE",
+      "orientation_parity": {
+        "absolute_orientation": {
+          "evidence_receipt_sha256": null,
+          "reason": "NO_COMMITTED_RECEIPT_BINDS_ABSOLUTE_SIDE_FOR_THE_EXACT_W025_9.362UM_REFERENCE",
+          "same_winding_flip_normals": null,
+          "verified": false
+        },
+        "policy": {
+          "distance_tie_epsilon_squared_voxels": 1e-12,
+          "maximum_candidates_per_vertex": 4096,
+          "maximum_distance_ct_l0_voxels": 2.0,
+          "maximum_elapsed_seconds": 60.0,
+          "maximum_grown_vertices": 2000000,
+          "maximum_reference_triangles": 250000,
+          "maximum_sampled_correspondences": 1024,
+          "maximum_spatial_index_insertions": 4000000,
+          "minimum_correspondences": 64,
+          "minimum_median_absolute_dot": 0.9,
+          "minimum_sign_consensus": 0.95,
+          "profile_id": "first-letters-orientation-parity@1.0.0",
+          "spatial_cell_edge_voxels": 4.0
+        }
+      },
+      "p3_p4_lateral_metric": {
+        "evidence": {
+          "reason": "NO_COMMITTED_RECEIPT_BINDS_FLATTENED_UV_TO_3D_JACOBIANS_TO_THE_EXACT_P4_RASTER_TRANSFORM",
+          "receipt_sha256": null,
+          "verified": false
+        },
+        "policy": {
+          "maximum_uv_to_3d_distortion_ratio": 1.25,
+          "minimum_valid_triangle_fraction": 0.95,
+          "profile_id": "first-letters-p3-p4-lateral-metric@1.0.0"
+        }
+      },
+      "pass_requirements": [
+        "CANONICAL_FULL_GROW",
+        "GEOMETRY_CERTIFICATION",
+        "PHYSICAL_QC",
+        "P3_FLATTENING",
+        "P4_RENDERING",
+        "P5_LIVE_OUTPUT",
+        "P7_ROUTING",
+        "HUMAN_REVIEW_ROUTING"
+      ],
+      "positive_control_roi": {
+        "p5_transform_receipt_sha256": null,
+        "provenance_artifact_sha256": null,
+        "provenance_artifact_uri": null,
+        "reason": "NO_COMMITTED_IMMUTABLE_LETTERFORM_ROI_AND_TRANSFORM_FOR_THE_EXACT_P5_MAP",
+        "source_bbox_xyxy": null,
+        "source_coordinate_system": null,
+        "transformed_bbox_xyxy": null,
+        "verified": false,
+        "verified_training_pixel_um": null
+      },
+      "purpose": "Isolate the canonical grow and unchanged downstream acceptance path from autonomous candidate availability.",
+      "qc_job_terminal_state": "COMPLETED",
+      "required_artifacts": {
+        "P3_FLATTENING": "COMPLETE_HASH_BOUND_FLATTENED_SURFACE",
+        "P4_RENDERING": "COMPLETE_HASH_BOUND_LAYER_MANIFEST",
+        "P5_LIVE_OUTPUT": "ALIVE_HASH_BOUND_PROBABILITY_MAP",
+        "P7_ROUTING": "HASH_BOUND_STRICT_SCREEN_AND_VETTING_PACKET"
+      },
+      "seed_origin": "human",
+      "seed_provenance": {
+        "coordinate_ct_l0_xyz": [
+          3079.062744140625,
+          3961.3037109375,
+          4441.35595703125
+        ],
+        "coordinate_frame": "PHerc0139/20250728140407-9.362um/CT-L0/XYZ",
+        "may_be_relabelled_autonomous": false,
+        "must_be_recorded_as": "human",
+        "source_lock": "community_surface",
+        "surface_cell_yx": [
+          156,
+          234
+        ]
+      },
+      "terminal_physical_qc_compatible_with_downstream": [
+        "CT_SUPPORTED",
+        "CT_SUPPORTED_REVIEW"
+      ]
+    }
+  },
+  "control_cohort": {
+    "control_id": "PHerc0139-w025-public-positive-v1",
+    "disjointness_rule": "CONTROL_SCROLL_ID_MUST_NOT_APPEAR_IN_EVALUATION_SCROLL_IDS",
+    "evaluation_scroll_ids": [
+      "PHerc125",
+      "PHerc191",
+      "PHerc211",
+      "PHerc257",
+      "PHerc268",
+      "PHerc358",
+      "PHerc800",
+      "PHerc813",
+      "PHerc826",
+      "PHerc1203",
+      "PHerc1218",
+      "PHerc1447",
+      "PHerc1545"
+    ],
+    "role": "DEVELOPMENT_ONLY_PUBLIC_POSITIVE_CONTROL",
+    "scroll_id": "PHerc0139",
+    "segment_id": "20250108000000-w025_2025010863"
+  },
+  "known_region": {
+    "anchor_ct_l0_xyz": [
+      3079.062744140625,
+      3961.3037109375,
+      4441.35595703125
+    ],
+    "anchor_revision_note": "Moved from cell [182,170] because four independent grows at that anchor screened INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY: the model returned a constant map (p99-p50 spread 0.047-0.084, std 0.011-0.020) rather than a decision. Raw CT at that anchor measures p50 59 against 92.7 +- 15.2 over the 117 surfaces that screen ALIVE -- the lower quartile of PHerc0139's own volume. This cell measures p50 106, and a grow seeded there screened CT_SUPPORTED_RETAINED_FOR_REVIEW with spread 0.391. Both cells are valid coordinates of the same source-locked w025 surface, so this is a move within region_definition and changes no attribution: as selection_note already records, the anchor is a provenance-marked seed and not a letter coordinate. No threshold, gate or lock was altered.",
+    "anchor_surface_cell_yx": [
+      156,
+      234
+    ],
+    "control_tolerance_ct_l0_voxels": 2.0,
+    "coordinate_frame": "PHerc0139/20250728140407-9.362um/CT-L0/XYZ",
+    "inside_rule": "CANDIDATE_CT_L0_POINT_IS_WITHIN_TOLERANCE_OF_THE_BILINEAR_SURFACE_DEFINED_BY_VALID_SOURCE_LOCKED_TIFXYZ_QUADS",
+    "region_definition": "VALID_COORDINATES_OF_SOURCE_LOCKED_W025_TIFXYZ_SURFACE",
+    "selection_note": "The public attribution fixes PHerc0139 w25, not this anchor as the published phrase location. The anchor is a provenance-marked seed on the source-locked surface, not a letter coordinate.",
+    "surface_bbox_ct_l0_xyz": {
+      "maximum": [
+        4227.0732421875,
+        4459.0224609375,
+        8200.6669921875
+      ],
+      "minimum": [
+        1924.2802734375,
+        2327.994140625,
+        1550.487548828125
+      ]
+    },
+    "surface_grid_shape_yx": [
+      364,
+      340
+    ],
+    "voxel_size_um": 9.362
+  },
+  "model_locks": [
+    {
+      "checkpoint_sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+      "checkpoint_source": {
+        "access": "public, not gated",
+        "approximate_bytes": 145000000,
+        "artifact": "model.safetensors",
+        "note": "The digest below is what decides. This names where to get the bytes; it does not replace checking them.",
+        "url": "https://huggingface.co/scrollprize/timesformer_GP_scroll1",
+        "verified_utc": "2026-07-25"
+      },
+      "model_family": "timesformer_GP_scroll1",
+      "profile_id": "timesformer-gp-scroll1-screening@1.0.0"
+    }
+  ],
+  "non_claims": [
+    "PHerc0139 participated in development; this control is not independent validation.",
+    "The public w25 attribution does not fix the frozen seed as a letter coordinate.",
+    "A discovery miss is a failure of the frozen provider and gates, not evidence that PHerc0139 lacks writing.",
+    "A pipeline pass routes a known positive for blinded human review; it does not automatically accept ink, text, letters or a First Letters claim."
+  ],
+  "outcome_semantics": {
+    "CONTROL_FAILED": "A complete terminal record contradicts a required discovery or pipeline result.",
+    "CONTROL_INCOMPLETE": "At least one required stage, artifact, hash, source response or human-review routing record is missing or nonterminal.",
+    "CONTROL_PASS": "Every requirement for both named checks is present and passes on the exact deployed revision, source locks and profile locks.",
+    "staleness_rule": "Any deployed revision, source lock, provider configuration, model, threshold or profile-lock change invalidates the receipt."
+  },
+  "positive_evidence": [
+    {
+      "independent_validation": false,
+      "observation": "PHerc. 139 has visible recovered writing and the supplementary phrase inventory includes w25.",
+      "role": "PUBLIC_COMMUNITY_ATTRIBUTION",
+      "source_lock": "public_evidence"
+    },
+    {
+      "independent_validation": false,
+      "observation": "The public w025 TIFXYZ binds a concrete surface in the discovery CT frame.",
+      "role": "SOURCE_LOCKED_PUBLIC_SURFACE",
+      "source_lock": "community_surface"
+    },
+    {
+      "independent_validation": false,
+      "observation": "The public byte-locked map supplies visible positive-control evidence for w025 and is never consulted by discovery.",
+      "role": "SOURCE_LOCKED_PUBLIC_POSITIVE_MAP",
+      "source_lock": "official_positive_map"
+    },
+    {
+      "independent_validation": false,
+      "observation": "The existing primary PHerc0139 GP-scroll1 control reports 15 candidates across 5 row bands with 2 qualifying rows.",
+      "path": "framework/profiles/03-ink/strict-text-like-screen-calibration-declaration-1.0.0.json",
+      "role": "REPOSITORY_SOURCE_LOCKED_VALIDATION",
+      "sha256": "097e86ea82d773bc80c9925683ba301c96275bc242499db2c877e0d0878b621b"
+    }
+  ],
+  "profile_id": "first-letters-control-policy@1.2.0",
+  "profile_locks": [
+    {
+      "path": "framework/stages/01-segmentation/fleet/profiles/vc3d-m7-growth-v2.json",
+      "profile_id": "vc3d-m7-growth-v2",
+      "sha256": "5f114ba19bbc08fe85126332d9adacec537def03d7fc8891e6950d098b464136"
+    },
+    {
+      "path": "framework/profiles/01-segmentation/hybrid-scrollfiesta-vc3d-0.1.3.json",
+      "profile_id": "segmentation.hybrid-scrollfiesta-vc3d@0.1.3",
+      "sha256": "bcaed98e9bf4751251cce2a378c32b343f096c83412dbded88a923bc1ef0047f"
+    },
+    {
+      "path": "framework/profiles/04-validation/surface-qc-gp-scroll1-ct-fiber-v3-1.0.0.json",
+      "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+      "sha256": "e0e099eac347f4c590f4428dc361be8bdb5432ccb5b791c2801f131d0eaa4793"
+    },
+    {
+      "path": "framework/profiles/02-flattening/flatten-abf-v1-1.0.0.json",
+      "profile_id": "flatten-abf-v1@1.0.0",
+      "sha256": "5771b2dc6465c8e59e530fa6410f5cdffafcda4b429ea3c5279b0e98834117a8"
+    },
+    {
+      "path": "framework/profiles/03-ink/timesformer-gp-scroll1-screening-1.0.0.json",
+      "profile_id": "timesformer-gp-scroll1-screening@1.0.0",
+      "sha256": "189bbdf8dc32de8b552c09c1137dd9daea96807624cfcf671a824ebbf20dd6db"
+    },
+    {
+      "path": "framework/profiles/03-ink/strict-text-like-screen-calibration-declaration-1.0.0.json",
+      "profile_id": "strict-text-like-screen-calibration@1.0.0",
+      "sha256": "097e86ea82d773bc80c9925683ba301c96275bc242499db2c877e0d0878b621b"
+    }
+  ],
+  "safety": {
+    "allow_unvalidated": false,
+    "control_pass_is_independent_validation": false,
+    "discovery_inputs_are_content_blind": true,
+    "real_data_execution_authorized_by_this_manifest": false,
+    "synthetic_probability_map_test_is_sufficient": false
+  },
+  "schema": "campaignx.first_letters_control_manifest.v1",
+  "source_locks": {
+    "community_surface": {
+      "artifact_kind": "TIFXYZ_SURFACE",
+      "artifacts": [
+        {
+          "path": "meta.json",
+          "sha256": "f5f367e36f64ea0bda614923c7b620ccc06f2045467a8ad13bd5a8198d08500a"
+        },
+        {
+          "path": "x.tif",
+          "sha256": "ff1f6aad64f3c29194f78b627aec196b534f4746d8cdae240aba9f8ae4fe36fe"
+        },
+        {
+          "path": "y.tif",
+          "sha256": "a6850b1923ac23892bfc1e6da5f3aa55680d58e4f6662380564fbc4b5d64d370"
+        },
+        {
+          "path": "z.tif",
+          "sha256": "f4b958977c488b6e163c528f43ad04d78328c6ba4fd0e6a6807336fcc9e61625"
+        }
+      ],
+      "coordinate_frame": "PHerc0139/20250728140407-9.362um/CT-L0/XYZ",
+      "grid_shape_yx": [
+        364,
+        340
+      ],
+      "role": "DISCOVERY_REGION_AND_PIPELINE_SEED_PROVENANCE",
+      "uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20250108000000-w025_2025010863/mesh/20250108000000-on-20250728140407-9.362um.tifxyz"
+    },
+    "ct": {
+      "array_order": "ZYX",
+      "content_identity_note": "No whole-store digest is available or inferred. Root metadata is byte locked, and an executed control remains incomplete until its receipt materializes the canonical SHA-256 read-set manifest for every CT object actually read.",
+      "coordinate_frame": "PHerc0139/20250728140407-9.362um/CT-L0/XYZ",
+      "execution_content_lock": {
+        "complete_if": "EVERY_OBJECT_READ_HAS_SHA256_AND_BYTES_AND_THE_CANONICAL_MANIFEST_SHA256_IS_RECORDED",
+        "missing_or_unhashed_read": "CONTROL_INCOMPLETE",
+        "read_set_manifest": {
+          "all_objects_read_must_appear_exactly_once": true,
+          "canonical_manifest_sha256_required": true,
+          "canonical_order": "LEXICOGRAPHIC_OBJECT_KEY",
+          "required_fields": [
+            "object_key",
+            "sha256",
+            "bytes"
+          ]
+        },
+        "required_receipt_schema": "campaignx.first_letters_source_read_set.v1",
+        "source_change_after_read": "CONTROL_INCOMPLETE_STALE",
+        "source_role": "DISCOVERY_CT"
+      },
+      "metadata": [
+        {
+          "path": ".zattrs",
+          "sha256": "97e968dbbf11cc856dc57648aaaa9e6cade5e6575472dcfdeac7cfa50f546dd9"
+        },
+        {
+          "path": "0/.zarray",
+          "sha256": "562679cffc09a94b7342a38c37e49f433a4dfa6e3c93b7599dbeaec791186a35"
+        }
+      ],
+      "role": "DISCOVERY_P0_CT",
+      "shape_zyx": [
+        20974,
+        6621,
+        6621
+      ],
+      "uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/volumes/20250728140407-9.362um-1.2m-113keV-masked.zarr",
+      "voxel_size_um": 9.362,
+      "whole_store_digest": {
+        "sha256": null,
+        "status": "UNAVAILABLE_NOT_INVENTED"
+      }
+    },
+    "m7": {
+      "array_order": "ZYX",
+      "content_identity_note": "No whole-store digest is available or inferred. Root metadata is byte locked, and an executed control remains incomplete until its receipt materializes the canonical SHA-256 read-set manifest for every M7 object actually read plus request and response byte hashes for the provider exchange.",
+      "coordinate_frame": "PHerc0139/20250728140407-9.362um/CT-L0/XYZ",
+      "dtype": "uint8",
+      "execution_content_lock": {
+        "complete_if": "EVERY_OBJECT_READ_HAS_SHA256_AND_BYTES_THE_CANONICAL_MANIFEST_SHA256_IS_RECORDED_AND_PROVIDER_REQUEST_AND_RESPONSE_BYTES_ARE_HASH_BOUND",
+        "missing_or_unhashed_read": "CONTROL_INCOMPLETE",
+        "provider_exchange": {
+          "request_sha256_required": true,
+          "response_bytes_required": true,
+          "response_sha256_required": true
+        },
+        "read_set_manifest": {
+          "all_objects_read_must_appear_exactly_once": true,
+          "canonical_manifest_sha256_required": true,
+          "canonical_order": "LEXICOGRAPHIC_OBJECT_KEY",
+          "required_fields": [
+            "object_key",
+            "sha256",
+            "bytes"
+          ]
+        },
+        "required_receipt_schema": "campaignx.first_letters_source_read_set.v1",
+        "source_change_after_read": "CONTROL_INCOMPLETE_STALE",
+        "source_role": "DISCOVERY_M7"
+      },
+      "level_set_iso_value": 0.2,
+      "metadata": [
+        {
+          "path": ".zattrs",
+          "sha256": "97e968dbbf11cc856dc57648aaaa9e6cade5e6575472dcfdeac7cfa50f546dd9"
+        },
+        {
+          "path": "0/.zarray",
+          "sha256": "bfa5674dd57fdfc8f1c1a19b48374797227ac7d27c899a0d4bdb7105c8cbe730"
+        }
+      ],
+      "role": "DISCOVERY_M7_SOURCE",
+      "shape_zyx": [
+        20974,
+        6621,
+        6621
+      ],
+      "uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/representations/predictions/surfaces/20250728140407-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+      "whole_store_digest": {
+        "sha256": null,
+        "status": "UNAVAILABLE_NOT_INVENTED"
+      }
+    },
+    "official_positive_map": {
+      "artifact_kind": "INK_PROBABILITY_MAP",
+      "bytes": 68354492,
+      "role": "PUBLIC_VISIBLE_POSITIVE_EVIDENCE_NOT_A_DISCOVERY_INPUT",
+      "s3_etag": "1006b2a83ce898938da06bbc07eca6b1-9",
+      "sha256": "d99dbd0698a41cc2106888eebc6bed76245cf5a9074a68d025066c89b982fa08",
+      "uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20250108000000-w025_2025010863/ink-detection/PHerc0139-20250108000000-2.399um-0.22m-78keV-volume-20260102150214-20260417190342-new_canon_autoresearch_recipe-tile256-stride128.tif",
+      "use_restriction": "POSITIVE_CONTROL_ATTRIBUTION_AND_DOWNSTREAM_ADJUDICATION_ONLY"
+    },
+    "public_evidence": {
+      "artifact_kind": "SCHOLARLY_PAPER_WITH_SUPPLEMENTARY_INFORMATION",
+      "artifacts": [
+        {
+          "bytes": 38794737,
+          "coverage": "MAIN_TEXT_AND_SUPPLEMENTARY_INFORMATION",
+          "role": "VERSIONED_PAPER_WITH_SUPPLEMENTARY_INFORMATION",
+          "sha256": "99d894c12970530d528d1b7559273bb783c0da4c67fabe12abe59710d321e77b",
+          "uri": "https://arxiv.org/pdf/2606.29085v1"
+        }
+      ],
+      "attribution": "Angelotti et al., Complete virtual unwrapping and reading of a rolled Herculaneum papyrus (2026)",
+      "doi": "https://doi.org/10.48550/arXiv.2606.29085",
+      "observation": "PHerc. 139 contains recovered visible title and phrase evidence; the supplementary phrase inventory includes w25.",
+      "stable_id": "arXiv:2606.29085v1",
+      "uri": "https://arxiv.org/abs/2606.29085v1",
+      "version_note": "The v1 identifier is frozen because the unversioned arXiv landing page may later point to another revision."
+    }
+  },
+  "status": "FROZEN_DEVELOPMENT_CONTROL_NOT_INDEPENDENT_VALIDATION",
+  "version_note": "1.2.0 differs from 1.1.0 in one thing: each locked model now says where a third party can obtain it. No threshold, anchor, source lock or checkpoint digest changed. Reviewing 1.1.0, ScrollPrize asked for a checkpoint others could obtain, and a digest alone is a way to detect a swapped model, not a way to get the right one."
+}

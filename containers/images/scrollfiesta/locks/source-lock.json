@@ -24,6 +24,7 @@
   "volume_cartographer": {
     "repository": "https://github.com/ScrollPrize/villa.git",
     "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "tree": "9116ebcd63f58cb723de9a028b657420235ea480",
     "required_runtime_artifacts": [
       "flatboi",
       "vc_obj2tifxyz_legacy"
@@ -65,5 +66,36 @@
       "grid_pipeline"
     ],
     "distribution": "INTERNAL_RESEARCH_ONLY"
+  },
+  "villa_python": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "tree": "9116ebcd63f58cb723de9a028b657420235ea480",
+    "same_commit_as": "volume_cartographer",
+    "trees": [
+      "volume-cartographer/scripts/spiral",
+      "lasagna"
+    ],
+    "required_file_sha256": {
+      "volume-cartographer/scripts/spiral/fit_spiral.py": "eaa0681ef61ded8ca55babf36c7e7646878f51e360071e6644cc0beac375d689",
+      "volume-cartographer/scripts/spiral/pyproject.toml": "4fc4c0a1f62c67010f8159c4a1768e5a44d380d539368b8f38862a9e33dea61a",
+      "lasagna/fit.py": "b0665bf88e98a488e3669e6e85be3a180694c7e7c5a207001e5410bae22e588e"
+    },
+    "note": "The spiral fitter and lasagna are Python at the same commit the compiled binaries come from, so they add no second source identity. They ship in their own image rather than in helena-villa: that one is a runtime with no Python ML stack by design, and torch would multiply it for binaries that never import it."
+  },
+  "villa_ink_detection": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e",
+    "tree": "3361214bcc703d2ad87be0cb8db6a58b40061e6f",
+    "branch": "merge-ink-pipelines",
+    "trees": [
+      "ink-detection"
+    ],
+    "required_file_sha256": {
+      "ink-detection/pyproject.toml": "3cb81526d500aa9d72c716b10ef16b1b6fc11567119646a59efbcd77012c3f3b",
+      "ink-detection/uv.lock": "fee27b86cd1399304d75c324c540db40ef388a526555be505c10baaa88641b04",
+      "ink-detection/koine_machines/inference/infer.py": "bfe6b3071c36f664d290f7a99b3294984250ea61a710b96138a0ee41dc1d28a8"
+    },
+    "note": "A second villa revision, recorded as one rather than folded into the first. koine_machines.inference.infer -- the runner the 9 um lane profile names -- does not exist at the volume_cartographer commit; it is on the merge-ink-pipelines branch. A branch name is not an identity, so the commit is pinned and the branch is recorded only to say where it was found."
   }
 }

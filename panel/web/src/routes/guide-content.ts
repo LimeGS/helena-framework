@@ -78,17 +78,26 @@ export const GUIDE: Record<string, PhaseGuide> = {
 
   P1: {
     purpose:
-      "You are looking for sheet surfaces inside the volume. The work is divided into " +
-      "grid cells; for each cell a seeder picks one point to start from, and " +
-      "VC3D/m7 grows a surface outward from that point until it stops. Two decisions " +
-      "matter and they are separate: which cells are worth attempting, and — inside " +
-      "a chosen cell — which point to start at.",
+      "You are looking for sheet surfaces inside the volume, and there are two ways " +
+      "to find them. A seeded grow divides the work into grid cells; for each cell a " +
+      "seeder picks one point to start from, and VC3D/m7 grows a surface outward " +
+      "from that point until it stops — so two decisions matter and they are " +
+      "separate: which cells are worth attempting, and, inside a chosen cell, which " +
+      "point to start at. A spiral fit decides neither. It is upstream's recommended " +
+      "method and it is global: given a scroll's tracks, winding point collections " +
+      "and a lasagna normal field, it fits every winding of a slab at once and writes " +
+      "one surface per winding. There is no seed, which is why it is queued from " +
+      "Phases → P1 → Run rather than planned on this page.",
     before: [
       "A scroll frozen in P0, with its scale declared.",
       "For the fleet path: a worker running with the segmentation image and a card " +
         "it can use.",
       "For supplied points: coordinates in CT-L0 voxels, from an official " +
         "segmentation, a previous run, or read off a slice by hand.",
+      "For a spiral fit: a dataset directory holding the umbilicus, the tracks, the " +
+        "winding point collections and the three lasagna volumes, and a worker " +
+        "carrying helena-villa-python with a card. The fit reads all of that and " +
+        "creates none of it.",
     ],
     steps: [
       { do: "Choose the seed source: Found in a cell, or Points I supply.",
@@ -126,6 +135,25 @@ export const GUIDE: Record<string, PhaseGuide> = {
         "says at the bottom: you are not choosing coordinates.",
     },
     controls: [
+      { name: "Grown by (Segmentation page)",
+        what: "Which backend. VC3D seeded grow is the one this form plans. The spiral " +
+              "fitter is listed and disabled here because it has no seed to plan: it " +
+              "runs from the P1 queue instead, on the spiral-fit lane, against a " +
+              "frozen profile. The other two are comparison backends with no local " +
+              "executor." },
+      { name: "Scroll, dataset, slab, scale, winding (Phases → P1 → Run)",
+        what: "The whole of what a spiral fit decides. Upstream assigns these six as " +
+              "constants at import, so the platform selects a scroll by rewriting " +
+              "them into a private copy of the script and recording the digest of " +
+              "both. Five have no default at all: a fit that inherited Scroll 1's z " +
+              "range or voxel size would produce windings that look right and belong " +
+              "to another scroll. The winding direction defaults to CW, which is " +
+              "upstream's, because the wrong sense is visibly wrong." },
+      { name: "Dry run (Phases → P1 → Run)",
+        what: "Resolves the profile, builds the binding, rewrites the six constants " +
+              "and checks the dataset holds every input the profile names — then " +
+              "stops. It is how you find out a dataset is incomplete without paying " +
+              "for a GPU lease." },
       { name: "Found in a cell / Points I supply",
         what: "The seed source. Supplied points skip the prediction entirely, so the " +
               "CT-material gate is the only screen left between a typo and hours of " +

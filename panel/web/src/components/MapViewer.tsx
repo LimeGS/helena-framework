@@ -1,4 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { boxFromDrag, coverage, pointToMap, reviewBox } from "./roiSelection";
+import type { Box } from "./roiSelection";
 
 /**
  * Probability map viewer.
@@ -88,6 +90,8 @@ export const MapViewer = memo(function MapViewer({
   height = 520,
   view: controlledView,
   onViewChange,
+  selecting = false,
+  onSelect,
 }: {
   runId: string;
   name: string;
@@ -97,6 +101,10 @@ export const MapViewer = memo(function MapViewer({
   height?: number;
   view?: View;
   onViewChange?: (v: View) => void;
+  /** Drag selects a region instead of panning. */
+  selecting?: boolean;
+  /** The region, in map pixels, as it is dragged and when it settles. */
+  onSelect?: (box: Box | null) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef = useRef<WebGL2RenderingContext | null>(null);
@@ -226,11 +234,36 @@ export const MapViewer = memo(function MapViewer({
   // ---- pan and zoom ------------------------------------------------------
   const drag = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
 
+  // ---- region selection ---------------------------------------------------
+  // The browser reports which rectangle was dragged and nothing else: the
+  // transform, the lineage and the digests are the server's to derive, and a
+  // second implementation here would be obliged to agree with the first.
+  const anchor = useRef<{ x: number; y: number } | null>(null);
+  const [selection, setSelection] = useState<Box | null>(null);
+
+  const mapPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
+    return pointToMap(e.clientX, e.clientY, canvas.getBoundingClientRect(), view, box);
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    if (selecting) {
+      anchor.current = mapPoint(e);
+      setSelection(null);
+      onSelect?.(null);
+      return;
+    }
     drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
   };
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (selecting) {
+      if (!anchor.current || !canvasRef.current) return;
+      const next = boxFromDrag(anchor.current, mapPoint(e), meta);
+      setSelection(next);
+      onSelect?.(next);
+      return;
+    }
     const d = drag.current;
     const canvas = canvasRef.current;
     if (!d || !canvas) return;
@@ -241,7 +274,10 @@ export const MapViewer = memo(function MapViewer({
       scale: view.scale,
     });
   };
-  const onPointerUp = () => (drag.current = null);
+  const onPointerUp = () => {
+    drag.current = null;
+    anchor.current = null;
+  };
 
   const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -264,11 +300,24 @@ export const MapViewer = memo(function MapViewer({
 
   if (error) return <div className="empty">{error}</div>;
 
+  // The overlay is a plain element rather than another WebGL pass: it must be
+  // crisp at every zoom, and it carries no information the shader has.
+  const overlay = selection && {
+    left: `${((selection.x0 - view.x) / box.w) * 100}%`,
+    top: `${((selection.y0 - view.y) / box.h) * 100}%`,
+    width: `${((selection.x1 - selection.x0) / box.w) * 100}%`,
+    height: `${((selection.y1 - selection.y0) / box.h) * 100}%`,
+  };
+  const verdict = selection ? reviewBox(selection, meta) : null;
+
   return (
-    <div className="mapviewer">
+    <div className="mapviewer" style={{ position: "relative" }}>
       <canvas
         ref={canvasRef}
-        style={{ height, cursor: drag.current ? "grabbing" : "grab" }}
+        style={{
+          height,
+          cursor: selecting ? "crosshair" : drag.current ? "grabbing" : "grab",
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -276,10 +325,24 @@ export const MapViewer = memo(function MapViewer({
         onWheel={onWheel}
         aria-label={`Mapa de probabilidad ${name}`}
       />
+      {overlay && (
+        <div
+          className="roi-overlay"
+          style={{ position: "absolute", pointerEvents: "none", ...overlay }}
+          aria-hidden
+        />
+      )}
       <div className="mapstatus">
         <span>
           {box.w}×{box.h} px of {meta.width}×{meta.height} · {view.scale.toFixed(1)}×
         </span>
+        {selection && (
+          <span className={verdict?.ok ? "roi-ok" : "roi-refused"}>
+            {selection.x0},{selection.y0}–{selection.x1},{selection.y1} ·{" "}
+            {(coverage(selection, meta) * 100).toFixed(1)}% of the map
+            {verdict && !verdict.ok ? ` · ${verdict.why}` : ""}
+          </span>
+        )}
         {loading && <span className="loading">loading…</span>}
         {view.scale > 1 && (
           <button onClick={() => setView({ x: 0, y: 0, scale: 1 })}>fit</button>

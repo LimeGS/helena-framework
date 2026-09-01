@@ -9,6 +9,7 @@ reach the model.
 
 from __future__ import annotations
 
+import json
 import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -204,12 +205,37 @@ def test_a_doubled_surface_is_a_bridge(gate, tmp_path: Path) -> None:
     assert receipt["seam"]["offending_triangles"] > 0
 
 
-def test_a_fold_back_self_intersection_is_rejected(gate, tmp_path: Path) -> None:
+def test_a_sheet_folded_above_the_ceiling_is_rejected(gate, tmp_path: Path) -> None:
+    """A hairpin is still a rejection -- through the area it takes, not through
+    a count. Six and a half percent of this fixture's cells are in the fold."""
     receipt = gate.certify(write_tifxyz(tmp_path / "fold", fold_back()))
-    assert receipt["seam"]["fold_back_intersections"] > 0
+
+    assert receipt["fold_back"]["pairs"] > 0
+    assert receipt["fold_back_fraction"] > receipt["fold_back"]["ceiling"]
+    assert receipt["fold_back_within_ceiling"] is False
+    assert receipt["reason"] == "FOLD_BACK_AREA_ABOVE_CEILING"
     assert receipt["geometry_qc_state"] in GEOMETRY_REJECTED_STATES
-    assert receipt["geometry_qc_state"] != "GEOMETRY_CERTIFIED"
     assert receipt["status"] == "FAIL"
+
+
+def test_a_fold_is_no_longer_a_hard_defect_on_its_own(gate, tmp_path: Path) -> None:
+    """The change this encodes. Any fold used to reject the surface, and what
+    that rejected was wrinkles: on three fitted windings of PHerc0826 the folds
+    reproduce between seeds at 17x the base rate, sit in cells that are not
+    slivers, are no likelier to fall where another lamina passes, and run in
+    components elongated along the scroll's axis. Rejecting them capped the
+    certifiable area at half a square centimetre against the four a campaign
+    asks for, and no angle separates a wrinkle from an error -- at 170 degrees
+    83 flips survive on w010.
+    """
+    receipt = gate.certify(write_tifxyz(tmp_path / "fold", fold_back()))
+
+    # Out of the seam dict, which is what feeds the shared hard-defect sum.
+    assert "fold_back_intersections" not in receipt["seam"]
+    # And the three that stay hard are the lamina-switch detectors.
+    assert set(receipt["seam"]) == {
+        "near_coincident_overlap_pairs", "interpenetration_pairs",
+        "offending_triangles", "lamina_step_discontinuity_edges"}
 
 
 def test_an_unreadable_surface_is_unmeasured_never_certified(gate, tmp_path: Path) -> None:
@@ -262,8 +288,20 @@ def test_the_hard_defect_arithmetic_is_single_sourced(gate, tmp_path: Path) -> N
     # Every metric the frozen gate parses out of seam_audit must also be
     # reported by the TIFXYZ port, or the two routes are not comparable.
     metrics = gate.measure(write_tifxyz(tmp_path / "named", clean_patch()))
-    assert set(integrity.SEAM_METRIC_NAMES) <= set(metrics["seam"])
     assert "lamina_step_discontinuity_edges" in metrics["seam"]
+
+    # Every metric the frozen gate parses is still reported, and one of them is
+    # deliberately reported elsewhere: fold-back is an area measure here, so it
+    # is not in the dict that feeds the shared sum. The divergence is the point
+    # of this change and is stated rather than discovered.
+    reported = set(metrics["seam"]) | {"fold_back_intersections"}
+    assert set(integrity.SEAM_METRIC_NAMES) <= reported
+    assert "fold_back_intersections" not in metrics["seam"]
+    assert metrics["fold_back"]["pairs"] == 0
+    # The ScrollFiesta .obj route is untouched: it passes its own dict, and the
+    # arithmetic still sums whatever it is given.
+    assert integrity.hard_defect_count(
+        {"fold_back_intersections": 3}, False) == 3
 
 
 def test_the_geometry_axis_is_orthogonal_to_physical_qc_state() -> None:
@@ -508,6 +546,8 @@ def test_ct_supported_and_geometry_rejected_can_coexist(tmp_path: Path) -> None:
         surface_id,
         "GEOMETRY_REJECTED_LAMINA_SWITCH",
         {"reason": "NON_PARALLEL_STAB_OR_STEP_DISCONTINUITY"},
+        requested_by_job_id="p2-reject", profile_id="geometry-test@1",
+        profile_sha256="6" * 64,
     )
     assert recorded["physical_qc_state"] == "CT_SUPPORTED"
     assert recorded["geometry_qc_state"] == "GEOMETRY_REJECTED_LAMINA_SWITCH"
@@ -519,7 +559,52 @@ def test_ct_supported_and_geometry_rejected_can_coexist(tmp_path: Path) -> None:
     assert row["physical_qc_state"] == "CT_SUPPORTED"
     assert row["geometry_qc_state"] == "GEOMETRY_REJECTED_LAMINA_SWITCH"
     with pytest.raises(ValueError):
-        store.record_geometry_certification(surface_id, "GEOMETRY_LOOKS_FINE")
+        store.record_geometry_certification(
+            surface_id, "GEOMETRY_LOOKS_FINE", requested_by_job_id="p2-invalid",
+            profile_id="geometry-test@1", profile_sha256="6" * 64)
+
+
+def test_geometry_certification_persists_job_lineage_and_causal_qc_promotion(tmp_path: Path) -> None:
+    store = FleetStore(tmp_path / "fleet.sqlite3")
+    store.initialize()
+    source_id = _snapshot(store)
+    task = _task(store, source_id, "cell-causal")
+    surface, artifact_set_id = _prepare_finalization(
+        store, task, _surface(source_id, "causal", "GEOMETRY_UNMEASURED"))
+    store.finalize(
+        task["task_id"], task["attempt_id"], task["lease_token"],
+        surface, artifact_set_id, "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0")
+    geometry = {
+        "schema": "campaignx.tifxyz_geometry_certification.v1",
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "measurement_complete": True,
+    }
+    recorded = store.record_geometry_certification(
+        surface["surface_id"], "GEOMETRY_CERTIFIED", geometry,
+        requested_by_job_id="p2-current-job",
+        profile_id="tifxyz-geometry-certification@1.0.0",
+        profile_sha256="6" * 64,
+    )
+    assert recorded["geometry_certified_by_job_id"] == "p2-current-job"
+    assert recorded["surface_artifact_sha256"] == surface["artifact_sha256"]
+    assert recorded["result_sha256"] == content_sha256(geometry)
+    with store.connect() as connection:
+        surface_row = connection.execute(
+            "SELECT payload_json FROM surfaces WHERE surface_id=?", (surface["surface_id"],)
+        ).fetchone()
+        qc_row = connection.execute(
+            "SELECT qc_job_id,payload_json FROM qc_jobs WHERE surface_id=?", (surface["surface_id"],)
+        ).fetchone()
+        events = [json.loads(row[0]) for row in connection.execute(
+            "SELECT payload_json FROM events WHERE event_type='GEOMETRY_CERTIFICATION_RECORDED'"
+        ).fetchall()]
+    surface_payload = json.loads(surface_row["payload_json"])
+    qc_payload = json.loads(qc_row["payload_json"])
+    assert surface_payload["geometry_certification_lineage"]["geometry_certified_by_job_id"] \
+        == "p2-current-job"
+    assert qc_payload["unblocked_by_job_id"] == "p2-current-job"
+    assert qc_payload["promotion_event_id"] == recorded["promotion_event_id"]
+    assert events[-1]["geometry_certified_by_job_id"] == "p2-current-job"
 
 
 def test_finalizer_certifies_geometry_and_records_an_unmeasured_default() -> None:
@@ -577,7 +662,17 @@ def test_finalization_certifies_a_clean_surface_and_still_enqueues_qc(tmp_path: 
     assert receipt["surface"]["geometry_qc_state"] == "GEOMETRY_CERTIFIED"
     assert receipt["geometry_blocked_qc"] is False
     assert (outcome["attempt_dir"] / "GEOMETRY_CERTIFICATION.json").is_file()
-    assert outcome["store"].claim_qc("qc-worker", 600) is not None
+    claim = outcome["store"].claim_qc("qc-worker", 600)
+    assert claim is not None
+    assert claim["payload"]["surface_artifact_sha256"] == receipt["surface"][
+        "artifact_sha256"]
+    assert claim["payload"]["source_attempt_id"] == receipt["attempt_id"]
+    assert claim["payload"]["created_geometry_certified"] is True
+    certification = receipt["surface"]["geometry_certification"]
+    assert certification["source_attempt_id"] == receipt["attempt_id"]
+    assert certification["surface_artifact_sha256"] == receipt["surface"][
+        "artifact_sha256"]
+    assert certification["result"] == receipt["geometry_certification"]
 
 
 def test_finalization_stops_a_stitched_surface_before_the_model(tmp_path: Path) -> None:

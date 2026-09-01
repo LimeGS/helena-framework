@@ -7,6 +7,7 @@
     "schema",
     "task_id",
     "attempt_id",
+    "candidate_rank",
     "selected_seed",
     "profile_id",
     "parameters",

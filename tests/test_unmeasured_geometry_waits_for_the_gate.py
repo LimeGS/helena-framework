@@ -126,8 +126,13 @@ def _certified_surface(store, scroll: str) -> tuple[str, str]:
         "artifact_uri": "s3://bucket/s", "bbox_xyz": [[0, 0, 0], [10, 10, 10]],
         "area_cm2": 1.0, "state": "QC_SCREENED",
         "physical_qc_state": "UNVALIDATED"})
-    store.record_geometry_certification(surface, "GEOMETRY_CERTIFIED",
-                                        {"schema": "test"})
+    # The verdict carries who asked for it and under which profile: this branch
+    # requires that provenance, and a certification without it is an opinion.
+    store.record_geometry_certification(
+        surface, "GEOMETRY_CERTIFIED", {"schema": "test"},
+        requested_by_job_id="p2-strand-test", profile_id="geometry-test@1",
+        profile_sha256="6" * 64,
+    )
     return snapshot, surface
 
 

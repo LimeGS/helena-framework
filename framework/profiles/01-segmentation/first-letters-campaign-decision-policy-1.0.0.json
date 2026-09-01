@@ -1,0 +1,241 @@
+{
+  "schema": "campaignx.first_letters_campaign_policy.v1",
+  "profile_id": "first-letters-campaign-decision-policy@1.0.0",
+  "status": "FROZEN_NOT_EXECUTED",
+  "ink_blind": true,
+  "allow_unvalidated": false,
+  "required_control": {
+    "schema": "campaignx.first_letters_control_manifest.v1",
+    "profile_id": "first-letters-control-policy@1.0.0",
+    "required_state": "CONTROL_PASS",
+    "freshness": "EXACT_DEPLOYED_REVISION_SOURCE_PROVIDER_MODEL_THRESHOLD_AND_PROFILE_LOCKS"
+  },
+  "discovery_inputs": [
+    "source_snapshot",
+    "grid_version",
+    "m7_provider_and_response_hashes",
+    "m7_source_and_threshold",
+    "ct_material_support_policy",
+    "cell_and_volume_clearance_policy",
+    "preflight_sampling_design",
+    "raw_post_ct_post_clearance_and_packet_candidate_counts",
+    "frozen_compute_cap",
+    "scientific_terminal_attempt_causes"
+  ],
+  "forbidden_discovery_inputs": [
+    "ink model activations or scores",
+    "P5 maps or liveness",
+    "P7 glyph or text-like screening",
+    "human readings, transcriptions or review outcomes",
+    "any lexical, letter-shape or OCR signal"
+  ],
+  "preflight_gate": {
+    "required_schema": "campaignx.segment_candidate_coverage_preflight.v1",
+    "required_bindings": [
+      "deployed_revision",
+      "P0_artifact_id_and_hash",
+      "source_snapshot",
+      "ct_lock",
+      "m7_lock",
+      "coordinate_frame",
+      "voxel_size_um",
+      "grid_version",
+      "m7_threshold",
+      "ct_material_support_policy",
+      "clearance_policy",
+      "selection_strategy",
+      "provider_response_hashes"
+    ],
+    "source_errors_are_platform_failures": true,
+    "estimated_counts_may_be_labelled_census": false
+  },
+  "task_budget": {
+    "output_schema": "campaignx.first_letters_task_budget.v1",
+    "receipt_validation": "SIGNED_CURRENT_PREFLIGHT_ONLY",
+    "queue_admission": "EXACT_HASH_SCOPE_EXECUTION_BINDINGS_AND_PLANNED_TASK_COUNT",
+    "target_detection_probability": 0.95,
+    "population_scan": {
+      "mode": "EXACT_DETERMINISTIC_STREAMING_GEOMETRY_SCAN",
+      "hard_grid_cell_limit": 262144,
+      "limit_exceeded": "CONTROL_INCOMPLETE_REQUIRE_COARSER_FROZEN_GRID"
+    },
+    "queue_execution": {
+      "planner": "cost-aware-v2",
+      "planner_model": null,
+      "prediction_space": "ct_l0_xyz",
+      "minimum_separation_voxels": 16,
+      "recenter_probe_max_candidates": 100,
+      "recenter_radius_xyz": {
+        "x": 64,
+        "y": 64,
+        "z": 64
+      },
+      "seed_probe_mode": "off",
+      "seed_probe_top_k": 2,
+      "seed_probe_generations": 12,
+      "verify_sources": true
+    },
+    "census": {
+      "sampling": "WITHOUT_REPLACEMENT",
+      "population": "N_GEOMETRICALLY_ELIGIBLE_CELLS",
+      "success_cells": "K_POST_CT_POST_CLEARANCE_USABLE_CANDIDATE_BEARING_CELLS",
+      "choose": "SMALLEST_n_SUCH_THAT_1-COMB(N-K,n)/COMB(N,n)>=0.95",
+      "zero_usable_cells": "DO_NOT_QUEUE_CURRENT_SOURCE",
+      "all_usable_cells": "ONE_TASK_UNLESS_COMPUTE_CAP_IS_ZERO"
+    },
+    "sampled_preflight": {
+      "lower_bound": "ONE_SIDED_CLOPPER_PEARSON",
+      "confidence_level": 0.95,
+      "lower_tail_alpha": 0.05,
+      "inference_assumption": "MODEL_BASED_BINOMIAL_EXCHANGEABILITY_NOT_DESIGN_BASED",
+      "positive_count_rule": "BETA_QUANTILE_0.05(successes,trials-successes+1)",
+      "zero_usable_cells": "NO_TASK_BUDGET_REQUIRE_MORE_PREFLIGHT_OR_NEW_SOURCE",
+      "sampling_design_must_be_honoured": true
+    },
+    "compute_cap": {
+      "source": "REQUIRED_FROZEN_INPUT",
+      "missing": "CONTROL_INCOMPLETE",
+      "after_clipping": "REPORT_REQUESTED_TASKS_ACHIEVED_PROBABILITY_AND_PLANNED_PERCENTAGE",
+      "manual_lower_budget": "ALLOWED_ONLY_WITH_EXPLICIT_LOWER_ACHIEVED_PROBABILITY"
+    },
+    "invalidations": [
+      "changed deployed revision",
+      "changed preflight hash",
+      "changed P0 source snapshot",
+      "changed CT or M7 lock",
+      "changed grid or threshold",
+      "changed CT material or clearance policy",
+      "changed selection strategy"
+    ]
+  },
+  "candidate_starvation": {
+    "output_schema": "campaignx.first_letters_campaign_decision.v1",
+    "minimum_scientific_terminal_attempts": 8,
+    "evaluation_block_size": 8,
+    "pause_no_m7_count": 7,
+    "pause_rule": "PAUSE_WHEN_AT_LEAST_7_OF_FIRST_8_SCIENTIFIC_TERMINAL_ATTEMPTS_HAVE_RECORDED_ZERO_RAW_M7_CANDIDATES_AND_REEVALUATE_AFTER_EACH_ADDITIONAL_BLOCK_OF_8",
+    "consecutive_zero_raw_m7_scroll_budgets": 2,
+    "cross_scroll_pause_rule": "PAUSE_WHEN_TWO_CONSECUTIVE_SCROLLS_COMPLETE_THEIR_FROZEN_BUDGETS_WITH_ZERO_RAW_M7_CANDIDATES",
+    "no_seed_counts_as_no_m7_only_when": "RECORDED_RAW_M7_CANDIDATE_COUNT_EQUALS_ZERO",
+    "excluded_from_scientific_denominator": [
+      "CANCELLED",
+      "CONFIGURATION_BLOCK",
+      "LEASE_EXHAUSTION",
+      "PUBLICATION_FAILURE",
+      "SOURCE_FAILURE",
+      "WORKER_FAILURE",
+      "FIXTURE_ONLY"
+    ],
+    "decision_states": [
+      "CONTINUE",
+      "PAUSE_CANDIDATE_STARVATION",
+      "CONTROL_INCOMPLETE",
+      "DO_NOT_QUEUE_CURRENT_SOURCE"
+    ],
+    "pause_effect": "BLOCK_NEW_P1_QUEUE_INSERTION_WITHOUT_CANCELLING_OR_REPRIORITIZING_EXISTING_WORK",
+    "resume_requires": {
+      "new_policy_version": true,
+      "at_least_one_material_change": [
+        "m7_source",
+        "calibrated_m7_threshold",
+        "grid_version",
+        "discovery_provider",
+        "authorized_seed_probe_mode",
+        "evidence_backed_clearance_policy"
+      ],
+      "planner_only_change_is_material_for_no_m7": false
+    }
+  },
+  "discovery_artifacts": {
+    "namespace": "NONCANONICAL_DISCOVERY",
+    "canonical_admission": "PROHIBITED",
+    "may_trigger_physical_qc_or_p3": false,
+    "promotion": {
+      "schema": "campaignx.first_letters_discovery_promotion_contract.v1",
+      "required_discovery_artifact": {
+        "schema": "campaignx.first_letters_discovery_artifact.v1",
+        "required_fields": [
+          "artifact_id",
+          "content_sha256",
+          "receipt_id",
+          "receipt_sha256",
+          "namespace",
+          "deployed_revision"
+        ],
+        "namespace": "NONCANONICAL_DISCOVERY"
+      },
+      "selected_candidate": {
+        "required_fields": [
+          "candidate_id",
+          "candidate_evidence_sha256",
+          "provider_response_sha256",
+          "coordinate_ct_l0_xyz",
+          "coordinate_frame"
+        ],
+        "must_resolve_inside_discovery_artifact": true
+      },
+      "lineage": {
+        "required_bindings": [
+          "parent_discovery_artifact_id",
+          "parent_discovery_artifact_sha256",
+          "parent_candidate_id",
+          "parent_candidate_evidence_sha256",
+          "promotion_receipt_sha256",
+          "new_full_grow_attempt_id"
+        ],
+        "immutable": true
+      },
+      "policy_bindings": {
+        "required": [
+          "control_receipt_id",
+          "control_receipt_sha256",
+          "preflight_receipt_id",
+          "preflight_receipt_sha256",
+          "budget_receipt_id",
+          "budget_receipt_sha256",
+          "source_snapshot_id",
+          "ct_read_set_manifest_sha256",
+          "m7_read_set_manifest_sha256",
+          "grid_version",
+          "m7_level_set_iso_value",
+          "ct_material_support_policy",
+          "clearance_policy",
+          "discovery_policy_id",
+          "growth_profile_id",
+          "deployed_revision"
+        ]
+      },
+      "admission": {
+        "mutation": "CREATE_NEW_NORMAL_FULL_GROW_ATTEMPT",
+        "reuse_discovery_artifact_as_canonical": false,
+        "require_normal_admission_gates": true,
+        "ambiguous_write": "CONTROL_INCOMPLETE_NO_RETRY_UNTIL_READBACK"
+      }
+    },
+    "acceptance_path": "ONLY_THE_NEW_CANONICAL_FULL_GROW_MAY_ENTER_UNCHANGED_GEOMETRY_PHYSICAL_QC_P3_P4_P5_P7_AND_HUMAN_REVIEW_GATES"
+  },
+  "profile_locks": [
+    {
+      "profile_id": "segmentation-planner-cost-aware-v2@1.0.0",
+      "path": "framework/profiles/01-segmentation/segmentation-planner-cost-aware-v2-1.0.0.json",
+      "sha256": "4a9a19b4c8fa02472d234bcc3141cb6784ee7ad7a9fb6833558d10c97edc61b1"
+    },
+    {
+      "profile_id": "segmentation-effort-allocation-policy-v1@1.0.0",
+      "path": "framework/profiles/01-segmentation/segmentation-effort-allocation-policy-v1-1.0.0.json",
+      "sha256": "e6dec8dd99c7f16316e136dde2ab4df0063d8395035ea0a81da1acac3f9b1cf6"
+    },
+    {
+      "profile_id": "ct-fiber-localization-gate-v3",
+      "path": "framework/profiles/validation/ct-fiber-localization-gate-v3-candidate-coverage.json",
+      "sha256": "74bb258e338c8446acdfc60c340700c6af9aa514f79921f49ec11baf073dcc6f"
+    }
+  ],
+  "non_claims": [
+    "A zero-candidate census is a no-go for the current source and policies, not evidence that the scroll contains no surface, ink, text or letters.",
+    "A sampled zero does not estimate prevalence as zero and cannot produce an invented task budget.",
+    "A starvation pause allocates compute; it does not retire a scroll or close a scientific question.",
+    "Platform failures are excluded rather than counted as negative scientific attempts.",
+    "No automated result accepts a First Letters claim; blinded human review remains required."
+  ]
+}

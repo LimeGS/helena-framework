@@ -7,8 +7,12 @@ import { useState } from "react";
  *
  * P2 and P3 were reachable only from a shell on the host: the phases worked and
  * nobody but their author could run them, which is the same as not having them.
- * They are synchronous -- minutes over a bounded backlog, not a queue -- so the
- * button waits and reports, rather than handing back a job id to go look up.
+ *
+ * They ran in this process once and are queued jobs now, claimed by a worker
+ * that already carries the runtime. This component kept reporting the old shape
+ * -- `considered N`, straight off the response -- so pressing Certify printed
+ * "considered ?" and nothing else: the queue had answered with a job id, and the
+ * one thing on screen was a question mark where the count used to be.
  */
 export function RunPhase({ endpoint, label, invalidate, sample, mission, override,
                            disabled = false, disabledReason }: {
@@ -75,14 +79,20 @@ export function RunPhase({ endpoint, label, invalidate, sample, mission, overrid
       </button>
       {disabled && disabledReason && <span className="dash">{disabledReason}</span>}
       {run.isError && <Pill kind="crit">{String(run.error)}</Pill>}
-      {outcome && (
+      {outcome && (outcome.job_id ? (
+        <span className="dash">
+          queued <code>{String(outcome.job_id)}</code>
+          {dry ? " · it will list what it would do and change nothing" : ""}
+          {" · it appears in this phase's queue below as a worker takes it"}
+        </span>
+      ) : (
         <span className="dash">
           considered {String(outcome.considered ?? "?")}
           {outcome.dry_run ? " (listed only)" : ""}
           {outcome.certified ? ` · ${JSON.stringify(outcome.certified)}` : ""}
           {outcome.flattened ? ` · ${JSON.stringify(outcome.flattened)}` : ""}
         </span>
-      )}
+      ))}
     </div>
   );
 }

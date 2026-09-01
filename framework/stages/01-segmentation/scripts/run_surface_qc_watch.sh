@@ -26,6 +26,10 @@ poll_seconds="${QC_IDLE_SECONDS:-20}"
 timeout_seconds="${QC_TIMEOUT_SECONDS:-7200}"
 lease_seconds="${QC_LEASE_SECONDS:-1800}"
 retry_delay_seconds="${QC_RETRY_DELAY_SECONDS:-300}"
+# Unset on a host that owns its cards. On one that shares them -- gpu-1 runs
+# llama.cpp on the same two 6 GiB boards -- this is what stops a claim before
+# it pays for a render it cannot finish.
+minimum_free_vram_mib="${QC_MINIMUM_FREE_VRAM_MIB:-}"
 
 case "$FLEET_DB" in
   postgres-env://*) ;;
@@ -57,7 +61,16 @@ mkdir -p "$QC_RUN_ROOT"
 printf '%s\n' "Helena Framework surface-QC supervisor starting: worker=$worker_id db=$FLEET_DB"
 
 while :; do
+  # Built as a list rather than interpolated: an empty value would become
+  # `--minimum-free-vram-mib ''`, which argparse rejects, stopping the
+  # supervisor instead of the job.
+  vram_flag=""
+  if [ -n "${minimum_free_vram_mib}" ]; then
+    vram_flag="--minimum-free-vram-mib ${minimum_free_vram_mib}"
+  fi
+  # shellcheck disable=SC2086 - vram_flag is either empty or two known words
   "$python_bin" "$script_dir/helena_segment_search_fleet.py" qc run \
+    ${vram_flag} \
     --db "$FLEET_DB" \
     --worker-id "$worker_id" \
     --run-root "$QC_RUN_ROOT" \

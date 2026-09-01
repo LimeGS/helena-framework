@@ -345,9 +345,18 @@ class OneEligibleOneRejectedExecutor:
             surface = Path(grown["surface_dir"])
             z_path = surface / "z.tif"
             z = np.asarray(tifffile.imread(z_path), dtype=np.float32)
-            z[z.shape[0] // 2 :, :] += 12.0
+            # Twelve times the grid step, not twelve voxels. The gate calls a
+            # jump a lamina switch when it exceeds `step_discontinuity_factor`
+            # (8) times the step, so a constant was only ever a defect while the
+            # fixture's step happened to be one voxel.
+            z[z.shape[0] // 2 :, :] += 12.0 * FixtureGrowExecutor.grid_step_voxels()
             tifffile.imwrite(z_path, z)
         return grown
+
+
+class AlwaysFailingProbeExecutor:
+    def execute(self, _locked_plan: dict, _attempt_dir: Path) -> dict:
+        raise RuntimeError("fixture probe worker failure")
 
 
 class RejectingV2Planner:
@@ -888,6 +897,56 @@ def test_worker_rejects_candidate_uri_drift_before_reading_a_provider(
             connection.execute("SELECT COUNT(*) FROM probe_runs").fetchone()[0]
             == 0
         )
+
+
+def test_ranked_select_rejects_before_provider_or_probe_coordinator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A persisted rank-two select task cannot read candidates or begin probing."""
+    class CountingProvider:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def discover(self, _task_value: dict) -> dict:
+            self.calls += 1
+            return {"candidates": [], "fixture": True, "ink_used": False}
+
+    coordinator_calls = 0
+
+    class ForbiddenCoordinator:
+        def __init__(self, *_args, **_kwargs) -> None:
+            nonlocal coordinator_calls
+            coordinator_calls += 1
+            raise AssertionError("ranked select must not construct a probe coordinator")
+
+    store = FleetStore(tmp_path / "ranked-select.sqlite")
+    store.initialize()
+    persisted = _task(_source(store), mode="select")
+    persisted["candidate_rank"] = 2
+    assert store.create_tasks([persisted]) == (1, 1)
+    provider = CountingProvider()
+    monkeypatch.setattr(worker_module, "SeedProbeCoordinator", ForbiddenCoordinator)
+
+    result = SegmentWorker(
+        store,
+        "probe-worker",
+        provider,
+        CostAwareSegmentationPlanner(cache_root=tmp_path / "planner-cache"),
+        FixtureGrowExecutor(),
+        tmp_path / "runs",
+        tmp_path / "artifacts",
+        "fixture-surface-qc@1.0.0",
+        lease_seconds=60,
+        seed_probe_support=True,
+    ).run_one()
+
+    assert result is not None
+    assert result["status"] == "POLICY_REJECTED"
+    assert result["reason"] == "INVALID_SEED_PROBE_TASK_CONTRACT"
+    assert provider.calls == 0
+    assert coordinator_calls == 0
+    with pytest.raises(ValueError, match="select requires candidate_rank 1"):
+        validate_seed_probe_task_contract(persisted)
 
 
 @pytest.mark.parametrize(
@@ -1907,12 +1966,13 @@ def test_corrupt_winner_materialization_stops_in_review_without_a_surface(
         seed_probe_support=True,
     ).run_one()
     assert result is not None
-    assert result["status"] == "PROBE_REVIEW_PENDING"
+    assert result["status"] == "BLOCKED_PROBE_ARTIFACT_UNAVAILABLE"
+    assert result["failure_class"] == "SOURCE_FAILURE"
     assert result["reason"] == "WINNER_ARTIFACT_MATERIALIZATION_FAILED"
     with store.connect() as connection:
         assert connection.execute(
             "SELECT state FROM tasks"
-        ).fetchone()[0] == "PROBE_REVIEW_PENDING"
+        ).fetchone()[0] == "BLOCKED_PROBE_ARTIFACT_UNAVAILABLE"
         assert connection.execute(
             "SELECT state FROM probe_runs"
         ).fetchone()[0] == "REVIEW_PENDING"
@@ -2253,6 +2313,32 @@ def test_two_eligible_select_probes_abstain_without_canonical_surface(
             == 2
         )
         assert connection.execute("SELECT COUNT(*) FROM qc_jobs").fetchone()[0] == 0
+
+
+def test_failed_probe_trials_are_operational_not_scientific_review(
+    tmp_path: Path,
+) -> None:
+    store = FleetStore(tmp_path / "failed-probes.sqlite")
+    store.initialize()
+    store.create_tasks([_task(_source(store), mode="select", top_k=2)])
+    result = SegmentWorker(
+        store,
+        "probe-worker",
+        RecordedSeedProvider(),
+        CostAwareSegmentationPlanner(cache_root=tmp_path / "planner-cache"),
+        AlwaysFailingProbeExecutor(),
+        tmp_path / "runs",
+        tmp_path / "artifacts",
+        "fixture-surface-qc@1.0.0",
+        lease_seconds=60,
+        seed_probe_support=True,
+    ).run_one()
+    assert result is not None
+    assert result["status"] == "PROBE_TECHNICAL_FAILURE"
+    assert result["failure_class"] == "WORKER_FAILURE"
+    with store.connect() as connection:
+        assert connection.execute("SELECT state FROM tasks").fetchone()[0] == (
+            "PROBE_TECHNICAL_FAILURE")
 
 
 def test_select_does_not_call_a_single_available_candidate_a_comparison() -> None:

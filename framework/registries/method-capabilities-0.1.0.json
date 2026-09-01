@@ -272,7 +272,7 @@
       "notes": [
         "A campaign may independently forbid an otherwise resolution-compatible scan because of contamination or holdout policy.",
         "Reproduced on 2026-07-28 at r = 0.885 against the community's published map for this recipe on PHerc0139 20250108000000-w025, with their CT, their mesh, their runner and this checkpoint -- whose sha256 and size are byte-identical to scrollprize/ink_canonical_2um. It took two corrections: routing the lane to this recipe's own runner, and --flip-normals on the render. One window of one segment, so this is a reproduction and not a validation of the method.",
-    "This recipe ships its own runner and the registry named the generic one. They are not interchangeable: the generic runner normalises clip(0,200)/200 and resamples the depth axis, and this recipe divides by 255 with no clip and takes consecutive layers. Measured 2026-07-28 against the community's published map for this very recipe on PHerc0139 20250108000000-w025, on ground where our render matches theirs at r=0.98: the generic runner's map correlates r=0.079. ink-canonical-2um-screening@1.0.0 stays on record with the wrong adapter because its hash is in receipts; @1.1.0 is the lane to route."
+        "This recipe ships its own runner and the registry named the generic one. They are not interchangeable: the generic runner normalises clip(0,200)/200 and resamples the depth axis, and this recipe divides by 255 with no clip and takes consecutive layers. Measured 2026-07-28 against the community's published map for this very recipe on PHerc0139 20250108000000-w025, on ground where our render matches theirs at r=0.98: the generic runner's map correlates r=0.079. ink-canonical-2um-screening@1.0.0 stays on record with the wrong adapter because its hash is in receipts; @1.1.0 is the lane to route."
       ],
       "recommended_policy": "Do not route the current 8.64/9.362 um targets to this model by default. Use only on compatible high-resolution scans or a separately validated resampling profile.",
       "source_url": "https://huggingface.co/scrollprize/ink_canonical_2um",
@@ -548,6 +548,510 @@
       "stage_id": "03-ink",
       "training_or_reference_domain": [
         "approximately 32 um CT, nnU-Net folds 0-2"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "config_driven": true,
+        "device": "cuda",
+        "input": "a geometry-certified TIFXYZ surface plus the CT volume it was grown from",
+        "output": "TIFXYZ"
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/02-flattening/flatten.py",
+      "method_id": "lasagna-flatten@1.0.0",
+      "method_kind": "GRADIENT_DESCENT_SURFACE_FLATTENING",
+      "notes": [
+        "Lives at the volume_cartographer source-lock commit 05dcf0349356bc833670d61e5eca00be58376e35 already pinned for the villa image, so it adds no second source identity.",
+        "The tutorial names configs/flatten_fast_nofilter.json, which does not exist at that commit; the profile uses flatten_fast.json, the nearest config that does.",
+        "Not yet reachable from the shipped villa image: Containerfile.villa copies only volume-cartographer, and lasagna is a sibling directory of the same tree with its own GPU Python dependencies."
+      ],
+      "recommended_policy": "Select per run against vc_flatten, never as the default, until a frozen reference control compares the two on this corpus. Both engines write a TIFXYZ and pass through the same certification gate and area-ratio floor, so the comparison is like for like.",
+      "source_url": "https://github.com/ScrollPrize/villa/tree/main/lasagna",
+      "stage_id": "02-flattening",
+      "training_or_reference_domain": [
+        "Herculaneum CT"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "First registered ink lane whose training scale matches the campaign's own 8.64/9.362 um targets. The 3D-DINO lane needs 3.6x/3.90x linear upsampling to reach its model scale, which creates no new spatial information; a native ~9 um render feeds this lane with no resampling at all.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only.",
+        "The checkpoint digest e635558a... was read from the upstream repository's own LFS metadata for hybrid_3d2d-seed42/step-075000.pth (138360039 bytes), not asserted from a filename.",
+        "One checkpoint of seven along one of two seed trajectories. The model card states different steps behave differently on different segments, so this entry names a checkpoint rather than a method whose behaviour is settled.",
+        "The runner is not at the volume_cartographer source-lock commit: koine_machines lives on villa's merge-ink-pipelines branch, pinned in the lane profile at 3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e. It is not reachable from any shipped image yet.",
+        "Measured on gpu-1 on 2026-08-23 by loading the checkpoint: it asks for in_chans=17 and preprocessing=tifxyz_robust, not the 21 the model card's '17 of the 21 slices' reads like. That sentence describes the training jitter; the checkpoint is the authority on input depth, the same rule this registry applies to a digest over a filename."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "gpu_required": true,
+        "input": "umbilicus, surface tracks, winding point collections and a lasagna normal/grad-mag field",
+        "output": "one TIFXYZ per winding",
+        "surface_prior": "tracks and point collections rather than a seed"
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": null,
+      "local_adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py with repin.py beside it",
+      "method_id": "spiral-fitter@0.1.0",
+      "method_kind": "GLOBAL_WINDING_SPIRAL_FIT",
+      "notes": [
+        "Upstream calls it their most powerful surface-recovery method and now recommends it; the tutorial's own fallback when it fails in a difficult region is GrowPatch, which is what seed-grow already does.",
+        "At the pinned commit fit_spiral.py is a research script, not a tool: no argparse, nine FIT_SPIRAL_* environment variables, and settings only through FIT_SPIRAL_CONFIG_OVERRIDES, whose 105 accepted keys upstream validates against its own default_config.",
+        "The scroll is not among those keys: dataset_path, scroll_name, z_begin/z_end, voxel_size_um and spiral_outward_sense are module-level constants assigned at import. It is selected here by rewriting those six assignments into a private copy of the script, located in the parse tree rather than by text, and read back before the run. The image keeps the bytes its source lock verified; the receipt carries the digest of the script before and after, and refuses the run if a constant is absent, shadowed or computed.",
+        "The adapter parses upstream's accepted keys out of the script with ast rather than importing it -- import executes module-level code that resolves dataset paths and opens Zarr groups -- and rejects an unknown override before a GPU is claimed instead of after.",
+        "Runs from the P1 queue on the spiral-fit lane, through framework/stages/01-segmentation/scripts/run_spiral_fit.py, in helena-villa-python -- the image that carries scripts/spiral and its Python dependencies. helena-villa is compiled binaries and cannot run it; a worker in the wrong runtime refuses by name before the lease.",
+        "Each fitted winding is published to the fleet's artifact store and registered with import_surface, the same route a grown surface takes, so P2's geometry certification and the lamina gate apply unchanged."
+      ],
+      "recommended_policy": "Select per run against vc3d-m7-seed-grow, never as the default, until a frozen reference control compares the two on this corpus. Its per-winding TIFXYZ enters the same P2 certification gate as a grown surface, so the comparison is like for like. A scroll being selectable is not evidence the fit is good on it: upstream's validation is on their own example.",
+      "source_url": "https://github.com/ScrollPrize/villa/tree/main/volume-cartographer/scripts/spiral",
+      "stage_id": "01-segmentation",
+      "training_or_reference_domain": [
+        "Herculaneum CT",
+        "PHercParis4 upstream example"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "5d0896899092f312299c988de5861a5b6d3669112ee2a4976e2ecf44d4fe3664",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step10000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-010000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "c72023e13ea466fe1e579ed012eb209b909d79b501b7e1839a27c58ee6f5c6e4",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step20000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-020000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "ade09944cd02f02fb9a25a135b6a9097366e47813abb18d91ddc4da919535d86",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step30000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-030000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "f1e2101df567a431d3f39d17503316483084bace64cba55ef9671e5ea24ea76a",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step40000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-040000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "c16c75db4c6ea75b929c4db82437098d0a4ca0f3779c77e3aabc228f52ea2238",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step50000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-050000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "63cad1fb689a575662b6cc367635ec968ec488b219af12aff0497781488070ab",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed42-step60000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed42/step-060000.pth (138360039 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "2c08d9e1f833f345cfb7ab2543069829d96e918a668d263099a0972dc5dceeeb",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step10000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-010000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "b89b2ebcf49d71712c6c38631eec2306966c1602e80aa6f32a1d6123b0bdf1c9",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step20000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-020000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "4d9b6487b7c6b4f2a1d5a7b57cba37c8b0ccee259c74d9b6b04008cc52597b4a",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step30000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-030000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "e0b9ec7e5e9cb7caf6c9689bd35159285bb82c629f63e5ec83cb220e8d659978",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step40000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-040000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "c3c55191dad99849696c980aa7abaf6305514a91d6b8ba898e1e0dbb50eb3ea4",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step50000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-050000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "bf229faf754da3f1fc3026a3f9a9649341aeb3feb7bc89099cad31c55525d270",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step60000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-060000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
+      ],
+      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
+    },
+    {
+      "input_contract": {
+        "input": "OME-Zarr surface volume at ~9 um isotropic",
+        "isotropic_required": true,
+        "model_family": "hybrid_3d2d",
+        "output": "uint8 tiled TIFF, converted to probability.npy",
+        "physical_resampling_required": false,
+        "training_pixel_um": 9.6
+      },
+      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
+      "known_checkpoint_sha256": "2aeaa85a35ef28d7bc7bf3e848c4a6a91385e9132710927fdba41133c4ecb28f",
+      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+      "method_id": "ink-9um-hybrid-3d2d-seed43-step75000@1.0.0",
+      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
+      "notes": [
+        "Checkpoint hybrid_3d2d-seed43/step-075000.pth (138360231 bytes) of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of one training run. The digest was read from the upstream repository's own LFS metadata, not asserted from a filename.",
+        "Registered as its own method because the model card states different steps behave differently on different segments. A step is therefore a method whose behaviour has to be measured, not a version of a settled one.",
+        "The canonical screening lane remains ink-9um-hybrid-3d2d@1.0.0 (seed 42, step 75000). This entry exists to be compared against it and is not a substitute for it: its integration status is deliberately not DEFAULT.",
+        "These models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0. Any downstream screen calibrated against a 0 floor is reading a different quantity. The display rescale (p - 0.25) / 0.5 the model card gives is for viewing only."
+      ],
+      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it.",
+      "source_url": "https://huggingface.co/scrollprize/ink_9um",
+      "stage_id": "03-ink",
+      "training_or_reference_domain": [
+        "PHerc0139",
+        "Scroll1667",
+        "PHercParis4",
+        "PHerc0814",
+        "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
       ],
       "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
     }

@@ -30,6 +30,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+
+# The repository root, so the shared device resolver is importable from a
+# script launched by path. `auto` has to mean the same thing in every runner or
+# it is six defaults again, wearing one word.
+_ROOT = Path(__file__).resolve()
+while _ROOT != _ROOT.parent and not (_ROOT / "framework").is_dir():
+    _ROOT = _ROOT.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from framework.contracts.host_probe import resolve_device  # noqa: E402
 import numpy as np
 from PIL import Image
 
@@ -274,7 +284,8 @@ def main() -> int:
     parser.add_argument("--stride", type=int, default=128)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--min-valid-ratio", type=float, default=1.0)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="auto",
+                        help="auto (the card if this host has one), cpu, or cuda[:N] to require one")
     parser.add_argument(
         "--inference-dtype",
         choices=("float32", "float16"),
@@ -294,6 +305,12 @@ def main() -> int:
     parser.add_argument("--source-slice-um", type=float, required=True)
     parser.add_argument("--model-revision", required=True)
     args = parser.parse_args()
+
+    # Resolve the device before anything expensive: an explicit `cuda` on a host
+    # with no card is refused here rather than several minutes into a load, and
+    # `auto` becomes the word the receipt can stand behind.
+    _device = resolve_device(args.device)
+    args.device = _device["device"]
 
     if args.stride <= 0 or args.stride > EXPECTED_TILE:
         raise ValueError("stride must be in [1,256]")
@@ -392,6 +409,7 @@ def main() -> int:
         },
         "inference": {
             "device": args.device,
+            "device_selection": _device,
             "dtype": args.inference_dtype,
             "stride": args.stride,
             "batch_size": args.batch_size,

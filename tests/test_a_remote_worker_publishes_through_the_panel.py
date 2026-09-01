@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import hashlib
 import importlib
+import io
 import json
 import sys
+import tarfile
 from pathlib import Path
 
 import pytest
@@ -71,6 +73,14 @@ def store(panel):
 
     client, token, _ = panel
     return PanelArtifactStore("https://panel.invalid/helena", token=token, session=client)
+
+
+def _tarball(directory: Path) -> bytes:
+    """What PanelArtifactStore.stage sends: the directory, gzipped."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        archive.add(directory, arcname=".")
+    return buffer.getvalue()
 
 
 @pytest.fixture()
@@ -212,6 +222,81 @@ def test_a_machine_token_opens_the_artifact_endpoints_and_nothing_else(panel):
         )
 
 
+def test_a_machine_token_deletes_probe_evidence_and_nothing_else(panel):
+    """The store it can write to is not the store it can empty.
+
+    `delete_probe` is the one delete a worker makes, and its client refuses a
+    URI outside /probes/ -- on the worker, which is the host whose token is the
+    thing at risk. Without the same rule on the panel, a credential lifted off
+    any GPU box deletes every published surface in the fleet.
+    """
+    client, token, artifacts = panel
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for key in ("helena/probes/PHerc0826/run-1/trial-1/" + "a" * 64,
+                "probes/PHerc0826/run-1/trial-1/" + "a" * 64):
+        (artifacts / key).mkdir(parents=True)
+        response = client.delete(f"/api/artifacts/{key}", headers=headers)
+        assert response.status_code == 200, (
+            f"a worker could not retire its own probe at {key}: {response.text}")
+        assert not (artifacts / key).exists()
+
+    kept = artifacts / "helena/surfaces/PHerc0826/s-1"
+    kept.mkdir(parents=True)
+    (kept / "surface.tif").write_bytes(b"published")
+    for key in ("helena/surfaces/PHerc0826/s-1",
+                "helena/staging/attempt-1",
+                # A probes/ directory arbitrarily deep inside the published
+                # tree is not a probe namespace, which is why the rule is
+                # shallow rather than "probes appears somewhere".
+                "helena/surfaces/PHerc0826/probes"):
+        response = client.delete(f"/api/artifacts/{key}", headers=headers)
+        assert response.status_code == 403, (
+            f"a machine token deleted {key}, which is not probe evidence: "
+            f"{response.status_code}")
+    assert (kept / "surface.tif").read_bytes() == b"published"
+
+
+def test_the_delete_rule_reads_the_resolved_path_not_the_key(panel):
+    """On the resolver, for the reason the traversal test is.
+
+    Both of these have `probes` as their first component and neither is probe
+    evidence -- and neither can be sent through the client to prove it: httpx
+    normalises the `..` away before the request leaves, and a test that posts
+    it is asserting about a different path than the one it wrote down.
+    """
+    import panel.app as app_module
+
+    _, _, artifacts = panel
+    surface = artifacts / "helena/surfaces/PHerc0826/s-1"
+    surface.mkdir(parents=True)
+    (artifacts / "probes-link").symlink_to(artifacts / "helena/surfaces")
+
+    for key in ("probes/../helena/surfaces/PHerc0826/s-1",
+                "probes-link/PHerc0826/s-1"):
+        assert not app_module._machine_may_delete(app_module._artifact_path(key)), (
+            f"{key!r} passed the probe-namespace rule and is a published "
+            "surface; the rule is reading the key rather than the real path")
+
+
+def test_a_person_still_deletes_what_a_worker_may_not(panel):
+    """The rule is about the credential, not the path.
+
+    Retiring a surface is somebody with a session doing something deliberate
+    and audited. Narrowing the worker must not narrow them too, or the fix is
+    an outage wearing a boundary's clothes.
+    """
+    client, _, artifacts = panel
+    doomed = artifacts / "helena/surfaces/PHerc0826/s-2"
+    doomed.mkdir(parents=True)
+
+    assert client.post("/api/session", json={
+        "username": "someone", "password": "a-long-enough-password"}).status_code == 200
+    response = client.delete("/api/artifacts/helena/surfaces/PHerc0826/s-2")
+    assert response.status_code == 200, response.text
+    assert not doomed.exists()
+
+
 def test_a_key_cannot_escape_the_artifact_root(panel):
     """Tested on the resolver, not through a URL.
 
@@ -254,3 +339,99 @@ def test_an_encoded_traversal_is_refused_over_http(panel):
     response = client.put("/api/artifacts/helena/%2e%2e%2f%2e%2e%2fescaped",
                           content=b"x", headers=headers)
     assert response.status_code != 200, "an encoded traversal was accepted"
+
+
+def test_an_archive_may_not_carry_what_the_manifest_does_not_name(store, surface, tmp_path):
+    """Verification answered a narrower question than it was read as.
+
+    Every file the manifest named was checked byte for byte -- and anything
+    else that arrived in the archive was extracted beside them and never looked
+    at. "This is what the manifest describes" was true about a directory
+    holding more than the manifest describes.
+    """
+    import io
+    import tarfile
+
+    manifest = _manifest(surface)
+    published = store.publish_probe(
+        surface, "PHerc0826", "run-9", "trial-9", "set-9", manifest)
+
+    smuggled = io.BytesIO()
+    with tarfile.open(fileobj=smuggled, mode="w:gz") as archive:
+        for name in (*manifest["files"], "ARTIFACT_SET.json"):
+            source = surface / name
+            if source.is_file():
+                archive.add(source, arcname=name)
+        extra = tarfile.TarInfo("run_me.py")
+        payload = b"# anything at all\n"
+        extra.size = len(payload)
+        archive.addfile(extra, io.BytesIO(payload))
+
+    real_get = store.session.get
+
+    def smuggling_get(*args, **kwargs):
+        response = real_get(*args, **kwargs)
+        response._content = smuggled.getvalue()
+        return response
+
+    # On the session object rather than the store, whose `session` is a
+    # read-only property.
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(store.session, "get", smuggling_get)
+    try:
+        with pytest.raises(RuntimeError, match="does not name"):
+            store.materialize_probe(
+                published["artifact_uri"], tmp_path / "back", manifest)
+    finally:
+        monkeypatch.undo()
+
+
+def test_a_machine_token_stages_and_promotes_and_writes_nothing_else(panel, surface):
+    """A worker publishes; it does not overwrite what is published.
+
+    Every operation PanelArtifactStore performs is a PUT into staging/ or
+    probes/, a server-side copy from staging into surfaces/ or layers/, a read,
+    or a probe delete. The endpoints allowed all of it anywhere -- so a token
+    lifted off any GPU host could PUT its own bytes straight over a published
+    surface.
+    """
+    client, token, artifacts = panel
+    headers = {"Authorization": f"Bearer {token}"}
+    body = _tarball(surface)
+
+    assert client.put("/api/artifacts/helena/staging/attempt-1",
+                      content=body, headers=headers).status_code == 200
+    assert client.put("/api/artifacts/helena/probes/PHerc0826/r/t/" + "a" * 64,
+                      content=body, headers=headers).status_code == 200
+
+    for key in ("helena/surfaces/PHerc0826/s-1", "helena/layers/p4-1",
+                "helena/anywhere-else"):
+        refused = client.put(f"/api/artifacts/{key}", content=body, headers=headers)
+        assert refused.status_code == 403, (
+            f"a machine token wrote directly to {key}: {refused.status_code}")
+
+    # Promotion is how those names are reached, and only from staging.
+    assert client.post("/api/artifacts/helena/surfaces/PHerc0826/s-1",
+                       json={"copy_from": "helena/staging/attempt-1"},
+                       headers=headers).status_code == 200
+    published = artifacts / "helena/surfaces/PHerc0826/s-1"
+    assert published.is_dir()
+
+    # And a promotion may not source what is already published, or it becomes
+    # the overwrite the rule above just refused.
+    (artifacts / "helena/surfaces/PHerc0826/s-2").mkdir(parents=True)
+    laundered = client.post("/api/artifacts/helena/surfaces/PHerc0826/s-3",
+                            json={"copy_from": "helena/surfaces/PHerc0826/s-2"},
+                            headers=headers)
+    assert laundered.status_code == 403, laundered.status_code
+
+
+def test_a_person_still_writes_wherever_they_mean_to(panel, surface):
+    """The rule is about the credential. Narrowing the worker must not narrow
+    the operator holding a session."""
+    client, _, artifacts = panel
+    assert client.post("/api/session", json={
+        "username": "someone", "password": "a-long-enough-password"}).status_code == 200
+    assert client.put("/api/artifacts/helena/surfaces/PHerc0826/by-hand",
+                      content=_tarball(surface)).status_code == 200
+    assert (artifacts / "helena/surfaces/PHerc0826/by-hand").is_dir()

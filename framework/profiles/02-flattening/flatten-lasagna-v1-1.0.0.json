@@ -1,0 +1,31 @@
+{
+  "schema": "campaignx.flattening_profile.v1",
+  "profile_id": "flatten-lasagna-v1@1.0.0",
+  "name": "Lasagna gradient-descent flattening",
+  "stage": "02-flattening",
+  "status": "EXPERIMENTAL_NOT_DEFAULT",
+  "engine": "lasagna",
+  "method": "lasagna/fit.py: staged gradient-descent fit of a flattening map, GPU only",
+  "configs": [
+    "configs/flatten_fast.json"
+  ],
+  "device": "cuda",
+  "downscale": 1.0,
+  "source": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "path": "lasagna",
+    "note": "The same commit the volume_cartographer source lock already pins, so this engine adds no second source identity to keep true."
+  },
+  "notes": {
+    "configs": "Paths are resolved inside lasagna's own checkout and passed as bare positionals, which is how fit.py's cli_json.split_cfg_argv distinguishes a config from a flag. The upstream tutorial names configs/flatten_fast_nofilter.json; that file does not exist at the pinned commit, and flatten_fast.json is the nearest one that does. It leaves flatten_filter_source_angles on, which is the difference the tutorial's name refers to.",
+    "device": "cuda. Unlike vc_flatten this engine is not runnable on CPU in any practical time, so a CPU host is a scheduling constraint rather than a slower run.",
+    "downscale": "1.0, against lasagna's own default of 4.0. The point of P3 is a sheet whose pixels still address CT voxels; downscaling throws away exactly that correspondence, the same reason the ABF++ profile sets downsample to 1.",
+    "status": "EXPERIMENTAL_NOT_DEFAULT because no frozen reference control has been run against this engine on this corpus. vc_flatten stays the default until one has."
+  },
+  "non_claims": [
+    "no A/B against vc_flatten has been run on this corpus; this profile exists so that comparison can be made, and records nothing about which engine is better",
+    "these are upstream's flatten_fast settings, frozen for comparability rather than tuned",
+    "a sheet this engine produces is subject to the same area-ratio floor and the same certification gate as any other; selecting it changes the flattener and nothing else"
+  ]
+}

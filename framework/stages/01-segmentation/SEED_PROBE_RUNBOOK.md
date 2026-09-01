@@ -37,9 +37,54 @@ win or used in the select benchmark.
 
 Probe artifacts are noncanonical and live only under
 `probes/<sample>/<run>/<trial>/<artifact-sha256>`. They never enter `surfaces`,
-canonical `artifact_sets`, or downstream QC. A selected winner is materialized,
-hash-checked, resumed into a normal full grow, and only that full grow can be
-promoted.
+canonical `artifact_sets`, or downstream QC. Under the Task 6 successor
+contract, a selected winner authorizes a fresh ordinary normal full-grow child.
+It is not a resume: the child may use only the selected integral coordinate and
+the frozen normal-grow locks, never probe artifact bytes, a checkpoint, or a
+partial discovery grow. Only the fresh child's canonical artifact can proceed.
+
+## Task 6 discovery-isolation contract
+
+Task 6 adds bounded discovery authority without enabling production steering.
+Production `select` remains dormant until the Task 9 current control/readiness/wave gate
+is present and matches the active successor-policy
+chain, deployed revision, readiness receipt, and wave receipt. A benchmark
+approval, environment flag, or stored discovery winner is insufficient on its
+own. Until Task 9 supplies that gate, retain shadow and isolated-benchmark
+evidence only; do not create production adaptive or promotion work.
+
+Every probe execution spends from one common mission compute ledger. Baseline,
+alternative-source, historical exact import, and adaptive work all reserve the
+same fixed `2 x 12 x 1 = 24` probe-generation units per item before dispatch.
+Reservation and the corresponding immutable work binding commit together.
+Cancelled, failed, or abstained work does not release units. Missing or
+ambiguous historical evidence blocks new discovery compute; it is never
+estimated. A request without a complete reservation and work-binding readback
+must not dispatch, claim, or execute.
+
+Experimental sources are separate, versioned arms with exact source, model,
+resolution, threshold, transform, grid, policy, and cohort locks. Never combine scores across scales or experimental arms.
+Report each arm's candidate union,
+intersection, unique yield, post-gate survival, and compute separately. An
+adaptive proposal is ink-blind, deterministic, limited to one generation and
+eight neighbouring cells, and may persist only through the common ledger after
+Task 9 authorizes the active wave.
+
+Content-informed inputs are prohibited. Discovery and adaptive decisions must
+not consume P5/P7 outputs, ink-model activations, glyph or text-like scores,
+human readings, transcriptions, review outcomes, or any other content signal.
+All controlled authorities, tasks, claims, workers, finalizers, imports, QC
+queues, and downstream phase admissions require `allow_unvalidated=false`.
+
+Discovery artifacts are never directly canonicalized. The shared canonical-
+lineage guard rejects discovery namespace, artifact identity, probe URI,
+parent-lineage, and contradictory evidence at direct import; P1 finalization;
+P2; physical QC; P3; P4; P5; P7; and P8 queue, worker, materialization, merge,
+and registration boundaries. Promotion atomically records immutable authority,
+creates exactly one fresh child, and terminalizes the parent as
+`DISCOVERY_PROMOTED`. Any ambiguous commit requires exact authority/child/
+parent readback before a control decision; no automatic repair or retry is
+safe.
 
 ## Admission controls
 
@@ -55,6 +100,8 @@ closed when no recently reported capable worker exists.
 `select` additionally requires all of:
 
 - `HELENA_ENABLE_SEED_PROBE_SELECT=1`, set only after benchmark approval; and
+- the exact Task 9 current control/readiness/wave gate for the active
+  `first-letters-search@1.1.0` successor chain; and
 - a `campaignx.source_content_lock.v1` receipt that binds lowercase SHA-256
   manifests to the exact immutable-version CT and m7 URIs the worker will read;
   and

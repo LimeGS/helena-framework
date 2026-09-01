@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -46,10 +47,9 @@ def test_p7_reads_the_timesformer_aggregate_not_a_window_or_stability_map(tmp_pa
     (tmp_path / "center-016_offset-00.npy").write_bytes(b"window")
     (tmp_path / "stability_std.npy").write_bytes(b"stability")
 
-    resolved = ink_worker.resolve_screened_map(
-        Store(screening(tmp_path)), p7_job(), tmp_path / "fetch")
-
-    assert resolved == str(aggregate)
+    with pytest.raises(RuntimeError, match="lacks exact probability-map content binding"):
+        ink_worker.resolve_screened_map(
+            Store(screening(tmp_path)), p7_job(), tmp_path / "fetch")
 
 
 def test_p7_preserves_the_legacy_canonical_name_when_both_exist(tmp_path):
@@ -57,10 +57,9 @@ def test_p7_preserves_the_legacy_canonical_name_when_both_exist(tmp_path):
     legacy.write_bytes(b"legacy")
     (tmp_path / "mean_probability.npy").write_bytes(b"aggregate")
 
-    resolved = ink_worker.resolve_screened_map(
-        Store(screening(tmp_path)), p7_job(), tmp_path / "fetch")
-
-    assert resolved == str(legacy)
+    with pytest.raises(RuntimeError, match="lacks exact probability-map content binding"):
+        ink_worker.resolve_screened_map(
+            Store(screening(tmp_path)), p7_job(), tmp_path / "fetch")
 
 
 def test_p7_selects_the_timesformer_aggregate_after_verified_fetch(tmp_path):
@@ -70,7 +69,7 @@ def test_p7_selects_the_timesformer_aggregate_after_verified_fetch(tmp_path):
                  "stability_std.npy"):
         (source / name).write_bytes(name.encode())
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
-    from fleet.common import file_sha256
+    from fleet.common import content_sha256, file_sha256
 
     files = {
         name: {"sha256": file_sha256(source / name),
@@ -78,18 +77,49 @@ def test_p7_selects_the_timesformer_aggregate_after_verified_fetch(tmp_path):
         for name in ("mean_probability.npy", "center-016_offset-00.npy",
                      "stability_std.npy")
     }
-    (source / "ARTIFACT_SET.json").write_text(json.dumps({
-        "schema": "campaignx.ink_probability_map.v1", "files": files,
-    }))
+    manifest = {"schema": "campaignx.ink_probability_map.v1",
+                "job_id": "p5-real", "files": files,
+                "artifact_sha256": content_sha256(files)}
+    (source / "ARTIFACT_SET.json").write_text(json.dumps(manifest))
     upstream = screening(tmp_path / "gone")
-    upstream["result"]["probability_map"] = {"artifact_uri": str(source)}
+    upstream["result"]["probability_map"] = {
+        "artifact_uri": str(source), "artifact_sha256": content_sha256(files),
+        "manifest_sha256": content_sha256(manifest),
+        "objects": [{"object_key": name, "sha256": row["sha256"],
+                     "bytes": row["size_bytes"]} for name, row in files.items()]}
+    job = p7_job()
+    job["parameters"].update({
+        "probability_map_artifact_sha256": content_sha256(files),
+        "probability_map_manifest_sha256": content_sha256(manifest)})
 
     destination = tmp_path / "fetched"
     resolved = ink_worker.resolve_screened_map(
-        Store(upstream), p7_job(), destination)
+        Store(upstream), job, destination)
 
-    assert resolved == str(destination / "mean_probability.npy")
+    assert resolved["path"] == str(destination / "mean_probability.npy")
     assert (destination / "mean_probability.npy").read_bytes() == b"mean_probability.npy"
+
+
+def test_p7_rejects_a_substituted_manifest_even_at_the_same_uri(tmp_path):
+    source = tmp_path / "published"
+    source.mkdir()
+    (source / "mean_probability.npy").write_bytes(b"substitute")
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.common import content_sha256, file_sha256
+    files = {"mean_probability.npy": {"sha256": file_sha256(
+        source / "mean_probability.npy"), "size_bytes": 10}}
+    manifest = {"schema": "campaignx.ink_probability_map.v1", "job_id": "p5-real",
+                "files": files, "artifact_sha256": content_sha256(files)}
+    (source / "ARTIFACT_SET.json").write_text(json.dumps(manifest))
+    upstream = screening(tmp_path / "gone")
+    upstream["result"]["probability_map"] = {
+        "artifact_uri": str(source), "artifact_sha256": "a" * 64,
+        "manifest_sha256": "b" * 64, "objects": []}
+    job = p7_job()
+    job["parameters"].update({"probability_map_artifact_sha256": "a" * 64,
+                              "probability_map_manifest_sha256": "b" * 64})
+    with pytest.raises(RuntimeError, match="manifest/content mismatch"):
+        ink_worker.resolve_screened_map(Store(upstream), job, tmp_path / "fetch")
 
 
 def test_p7_refuses_to_guess_between_unnamed_arrays(tmp_path):
@@ -100,7 +130,7 @@ def test_p7_refuses_to_guess_between_unnamed_arrays(tmp_path):
         ink_worker.resolve_screened_map(
             Store(screening(tmp_path)), p7_job(), tmp_path / "fetch")
 
-    assert "no canonical probability map" in str(refused.value)
+    assert "lacks exact probability-map content binding" in str(refused.value)
 
 
 def test_p7_records_a_scientific_fail_as_an_explicit_valid_outcome(tmp_path):
@@ -149,8 +179,49 @@ class RunStore:
     def heartbeat(self, *args, **kwargs):
         return None
 
+    def note(self, *args, **kwargs):
+        return None
+
     def finish(self, job_id, token, *, state, result):
         self.finished = {"state": state, "result": result}
+
+
+def test_p7_worker_event_binds_roi_bbox_and_verified_scale(tmp_path, monkeypatch):
+    class EventStore(RunStore):
+        def __init__(self):
+            super().__init__()
+            self.events = []
+
+        def note(self, job_id, event_type, payload):
+            self.events.append((job_id, event_type, payload))
+
+    monkeypatch.setattr(ink_worker, "resolve_screened_map", lambda *_args, **_kwargs: {
+        "path": "/tmp/map.npy", "artifact_sha256": "a" * 64,
+        "manifest_sha256": "b" * 64, "objects": []})
+    monkeypatch.setattr(ink_worker, "runner_for", lambda _job: "vet-map")
+    monkeypatch.setattr(ink_worker, "command_for",
+                        lambda *_args, **_kwargs: ["vet-map"])
+    monkeypatch.setattr(ink_worker.subprocess, "run", lambda *_args, **_kwargs:
+                        SimpleNamespace(returncode=1, stdout="", stderr="failed"))
+    store = EventStore()
+    job = {
+        "job_id": "p7-current", "lease_token": "lease", "phase": "P7",
+        "sample_id": "PHerc0139",
+        "parameters": {
+            "screening_of": "p5-current", "bbox": "20,30,120,130",
+            "px_um": 7.91, "roi_receipt_sha256": "6" * 64,
+        },
+    }
+    ink_worker.run_job(store, job, runs_root=tmp_path, timeout=10)
+    assert store.events[0][0:2] == ("p7-current", "rendered_from")
+    assert store.events[0][2] == {
+        "kind": "probability_map", "screened_by": "p5-current",
+        "probability_map_artifact_sha256": "a" * 64,
+        "probability_map_manifest_sha256": "b" * 64,
+        "roi_receipt_sha256": "6" * 64, "bbox": "20,30,120,130",
+        "px_um": 7.91,
+        "non_claim": "a screen is a verdict about shape, not a reading",
+    }
 
 
 def test_worker_stores_a_p7_refutation_in_the_job_result(tmp_path, monkeypatch):
@@ -169,21 +240,35 @@ def test_worker_stores_a_p7_refutation_in_the_job_result(tmp_path, monkeypatch):
     monkeypatch.setattr(ink_worker, "runner_for", lambda job: runner)
     monkeypatch.setattr(
         ink_worker, "command_for",
-        lambda job, runner, output_dir: [sys.executable, str(Path(runner))],
+        lambda job, runner, output_dir, upstream_root=None: [
+            sys.executable, str(Path(runner))],
     )
+    monkeypatch.setattr(ink_worker, "resolve_screened_map", lambda *_args, **_kwargs: {
+        "path": "/tmp/fetched-map.npy", "artifact_sha256": "a" * 64,
+        "manifest_sha256": "b" * 64, "objects": []})
     store = RunStore()
     job = {
         "job_id": "p7-real",
         "lease_token": "lease",
         "phase": "P7",
         "sample_id": "PHerc826",
-        "parameters": {"map_path": "/unused.npy", "bbox": "0,0,1,1", "px_um": 7.91},
+        "parameters": {
+            "screening_of": "p5-real",
+            "probability_map_artifact_sha256": "a" * 64,
+            "probability_map_manifest_sha256": "b" * 64,
+            "bbox": "0,0,1,1", "px_um": 7.91,
+        },
     }
 
     ink_worker.run_job(store, job, runs_root=runs, timeout=10)
 
-    assert store.finished["state"] == "succeeded"
+    assert store.finished["state"] == "succeeded", store.finished["result"]
     assert store.finished["result"]["adjudication"]["verdict"] == "FAIL"
+    assert store.finished["result"]["probability_map_input"] == {
+        "screened_by": "p5-real",
+        "artifact_sha256": "a" * 64,
+        "manifest_sha256": "b" * 64,
+    }
 
 
 def test_p5_is_not_successful_when_its_probability_map_cannot_be_published(
@@ -203,7 +288,8 @@ def test_p5_is_not_successful_when_its_probability_map_cannot_be_published(
     monkeypatch.setattr(ink_worker, "runner_for", lambda job: runner)
     monkeypatch.setattr(
         ink_worker, "command_for",
-        lambda job, runner, output_dir: [sys.executable, str(Path(runner))],
+        lambda job, runner, output_dir, upstream_root=None: [
+            sys.executable, str(Path(runner))],
     )
     monkeypatch.setattr(ink_worker, "record_artifact", lambda *args, **kwargs: None)
 

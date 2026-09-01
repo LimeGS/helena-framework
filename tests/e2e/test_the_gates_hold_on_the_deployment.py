@@ -148,7 +148,8 @@ def test_the_queue_refuses_a_backend_it_cannot_dispatch(panel):
 
     with pytest.raises(PanelError) as refusal:
         panel.call("POST", "/api/segmentation/runs", {
-            "sample_id": SCROLL, "backend": "scrollfiesta",
+            "sample_id": SCROLL, "mission_id": MISSION,
+            "backend": "scrollfiesta",
             "reason": "end-to-end check that this is refused",
             "max_tasks": 1,
         })

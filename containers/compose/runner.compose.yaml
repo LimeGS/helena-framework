@@ -2,7 +2,8 @@
 #
 # Two of them now, and the difference is entirely in the tag each carries:
 #
-#   swisspost-1  builds, deploys and smoke-tests. Tag `swisspost-1`.
+#   work-3       builds, deploys and smoke-tests. Tag `work-3`.
+#                (the same machine as the old `swisspost-1` tag, renamed)
 #   gpu-1        the heavy end-to-end stage, which needs the cards. Tag `gpu-1`.
 #
 #   HELENA_RUNNER_NAME=gpu-1 docker compose -p helena-ci \
@@ -11,7 +12,7 @@
 # Each needs its OWN runner created in the UI. Registering a second manager with
 # the first one's token does not make a second runner -- it makes another
 # manager of the same one, sharing its tag, and gpu-1 would start claiming
-# deploy jobs meant for swisspost-1.
+# deploy jobs meant for work-3.
 #
 # Then register it once, with a runner authentication token from
 # Settings -> CI/CD -> Runners in the project:

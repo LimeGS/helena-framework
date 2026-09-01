@@ -1,8 +1,10 @@
 import { Fragment, useState } from "react";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMission, useSubject } from "../mission";
 import { Card, Empty, Info, Pill, queryGate } from "../components/Bits";
 import { useResizableColumns } from "../components/Table";
+import { ImportSurface } from "../components/ImportSurface";
 
 /**
  * P1, organised around the three things somebody actually does here:
@@ -10,6 +12,13 @@ import { useResizableColumns } from "../components/Table";
  *   Runs       what was attempted, and what each attempt produced
  *   Segments   what exists — every surface, however it got here
  *   New run    start one, choosing which upstream output it reads
+ *   Import     put a surface grown elsewhere into the catalogue
+ *
+ * Import is the fourth because the inbound half of "however it got here" had
+ * no door a person could use: registering a URI needs bytes already published
+ * and hashed somewhere, and the artifact endpoint wants a tar and a machine
+ * token. The Segments tab has always counted imported surfaces; until now
+ * nothing on this panel could produce one.
  *
  * The tab bar is not here. These sit on the phase page's one bar beside
  * Profiles, and the active one arrives as a prop: two levels of tabs made the
@@ -36,7 +45,13 @@ import { useResizableColumns } from "../components/Table";
  * bookkeeping wearing the costume of a task.
  */
 
-type Backend = { id: string; name: string; adoptable: boolean; note: string };
+type Backend = {
+  id: string; name: string; adoptable: boolean; note: string;
+  /** Where a backend that is not planned as a grow is run instead. Present
+   *  means "runnable, elsewhere" -- which is a different answer from the two
+   *  this list used to have. */
+  runs_from?: { phase: string; lane: string; profile_id: string };
+};
 type Configures = {
   field: string; label: string; type: "select" | "text" | "list";
   options?: string[]; suggestions?: string[]; note: string;
@@ -106,14 +121,30 @@ type ProbeOptions = {
   };
   note: string; caveat: string;
 };
-type Job = "runs" | "segments" | "new";
+type Job = "runs" | "segments" | "new" | "import";
 type Segment = {
   surface_id: string; sample_id: string | null; area_cm2: number | null;
   state: string; physical_qc_state: string | null; geometry_qc_state: string;
+  lamina_qc_state: string;
+  seed_agreement_state: string;
+  /** The normal component's median, in microns. The one number a cell holds:
+   *  it answers at what depth the ink is sampled. Everything else — the
+   *  lateral, the percentiles, and what the normalisation divided by — is in
+   *  the surface's detail, where there is room to name the divisor. */
+  seed_agreement_normal_um: number | null;
+  lamina_assessment: {
+    reason?: string; median_thickness_um?: number | null;
+    clean_fraction?: number; bimodality?: number | null;
+  } | null;
   artifact_uri: string | null; artifact_sha256: string | null;
   created_at: string | null; attempt_id: string | null;
   origin: "GROWN_HERE" | "IMPORTED"; source_catalog: string | null;
-  human_review: { verdict: string; note: string | null; by: string; at: string } | null;
+  human_review: {
+    verdict: string; note: string | null; by: string; at: string;
+    // Which route the fleet had already put the surface on when the verdict was
+    // recorded. A verdict filed without it is one nobody can read back.
+    surface_routing?: { route: string | null; advisory: string } | null;
+  } | null;
 };
 
 const KIND: Record<string, "ok" | "crit" | "run" | "warn" | "neg"> = {
@@ -121,6 +152,7 @@ const KIND: Record<string, "ok" | "crit" | "run" | "warn" | "neg"> = {
   FAILED: "crit", GROW_FAILED: "crit", CANCELLED: "neg", POLICY_REJECTED: "neg",
   RUNNING: "run", LEASED: "run", PENDING: "warn", NO_SEED: "warn",
   PROBE_REVIEW_PENDING: "warn", PROBE_REJECTED_ALL: "neg",
+  BLOCKED_PROBE_ARTIFACT_UNAVAILABLE: "crit", PROBE_TECHNICAL_FAILURE: "crit",
 };
 
 /**
@@ -137,7 +169,8 @@ const KIND: Record<string, "ok" | "crit" | "run" | "warn" | "neg"> = {
 const STATE_ORDER = [
   "QC_PENDING", "PROBE_REVIEW_PENDING", "NO_SEED",
   "RETRYABLE_SOURCE_UNAVAILABLE",
-  "BLOCKED_SOURCE_UNAVAILABLE", "LEASE_EXPIRED", "POLICY_REJECTED", "GROW_FAILED",
+  "BLOCKED_SOURCE_UNAVAILABLE", "BLOCKED_PROBE_ARTIFACT_UNAVAILABLE",
+  "PROBE_TECHNICAL_FAILURE", "LEASE_EXPIRED", "POLICY_REJECTED", "GROW_FAILED",
   "PROBE_REJECTED_ALL",
 ];
 
@@ -170,12 +203,20 @@ function readable(detail: unknown): string {
   if (typeof detail === "string") return detail;
   if (detail && typeof detail === "object") {
     const d = detail as Record<string, unknown>;
-    const parts = [d.detail, d.why].filter((x) => typeof x === "string") as string[];
+    const parts = [d.detail, d.why, d.how].filter((x) => typeof x === "string") as string[];
     if (parts.length) {
       const known = Array.isArray(d.known) ? d.known : null;
       return parts.join(" — ")
         + (known ? ` Registered: ${known.join(", ")}.` : "");
     }
+    // What a failed subprocess actually said. The bootstrap reports its refusals
+    // as a Python traceback in `stderr_tail`, and reading only `detail` put "the
+    // fleet bootstrap refused this request" on screen while the sentence that
+    // named the cause -- `unknown samples requested: ['PHerc0139']` -- sat one
+    // field away. The last non-empty line is the exception itself.
+    const stderr = typeof d.stderr_tail === "string" ? d.stderr_tail : "";
+    const last = stderr.trimEnd().split("\n").filter((line) => line.trim()).pop();
+    if (last) return last.trim();
   }
   return JSON.stringify(detail);
 }
@@ -441,6 +482,21 @@ export default function Segmentation(
         </Card>
       )}
 
+      {job === "import" && (
+        <Card title="Import surface"
+              note="grown elsewhere, recorded here with its authorship">
+          <ImportSurface
+            sample={subject}
+            missionId={missionId}
+            onDone={() => {
+              // Straight to Segments. The question after importing is whether
+              // it is in the catalogue, and this is the table that answers it.
+              onSwitch("segments");
+            }}
+          />
+        </Card>
+      )}
+
       {job === "new" && (
         <Card title="New run">
           <NewRun
@@ -565,7 +621,15 @@ function SegmentTable({ segments }: { segments: Segment[] }) {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ verdict }),
       });
-      if (!r.ok) throw new Error(readable((await r.json()).detail));
+      const saved = await r.json();
+      if (!r.ok) throw new Error(readable(saved.detail));
+      // Said at the moment the verdict is recorded, because afterwards it is
+      // just another APPROVED in a table: a surface the router sent to
+      // SMALL_SURFACE_DIAGNOSTIC was never offered the standard path, and
+      // approving 0.0198 cm2 of papyrus means nothing like approving five
+      // square centimetres of it.
+      if (saved.surface_routing?.route === "SMALL_SURFACE_DIAGNOSTIC")
+        window.alert(saved.surface_routing.advisory);
       client.invalidateQueries({ queryKey: ["segmentation"] });
     } catch (e) {
       window.alert(String(e));
@@ -586,6 +650,8 @@ function SegmentTable({ segments }: { segments: Segment[] }) {
             <th>Area cm²</th>
             <th className="l">CT support</th>
             <th className="l">Geometry</th>
+            <th className="l">Lamina</th>
+            <th className="l">Seeds</th>
             <th className="l">Review</th>
             <th className="l">VC3D</th>
           </tr>
@@ -625,10 +691,74 @@ function SegmentTable({ segments }: { segments: Segment[] }) {
                 </Pill>
               </td>
               <td className="l">
+                {/* The third axis: whether the CT resolves one sheet under this
+                    surface or two welded together. Geometry can certify a mesh
+                    that is a plausible sheet over a slab -- it says so in its
+                    own non-claims -- and this is the question that decides
+                    whether rendering is worth its cost. */}
+                <span title={s.lamina_assessment?.reason
+                        ?? "the lamina gate has not run on this surface"}>
+                  <Pill kind={s.lamina_qc_state === "LAMINA_SINGLE_SHEET" ? "ok"
+                            : s.lamina_qc_state === "LAMINA_FUSED" ? "crit"
+                            : "warn"}>
+                    {s.lamina_qc_state.replace("LAMINA_", "").replaceAll("_", " ").toLowerCase()}
+                  </Pill>
+                </span>
+                {typeof s.lamina_assessment?.median_thickness_um === "number" && (
+                  <span className="dash">
+                    {" "}{s.lamina_assessment.median_thickness_um.toFixed(0)} µm
+                  </span>
+                )}
+              </td>
+              <td className="l">
+                {/* The fifth judgement, and the only one that is not about this
+                    surface: how far a second run of the same fit landed from
+                    it. It sits here rather than folded into geometry because it
+                    can contradict it — on w015 the most tangled band of the
+                    patch had the *best* agreement between seeds — and because
+                    two runs converge on the same wrong surface when the failure
+                    is in the data rather than the optimization.
+
+                    The state and one number, nothing else. The decomposition,
+                    the percentiles and what the normalisation divided by are in
+                    the surface's own detail: four scannable columns beside a
+                    cell of four numbers is a table you cannot sweep. */}
+                <span title={
+                  s.seed_agreement_state === "SEED_UNPAIRED"
+                    ? "one seed, so no error bar — which is not the same as a "
+                      + "small one, and cannot be defended"
+                    : s.seed_agreement_state === "SEED_OVERRIDE_DID_NOT_TAKE"
+                    ? "the two runs came out identical, so the seed never "
+                      + "reached the optimizer — this metric is the one that "
+                      + "fails upward"
+                    : "how far a second run of the same fit landed: "
+                      + "reproducibility, not correctness"}>
+                  {/* Neutral, not green: a measured pair is a measurement and
+                      not a pass. The only red one is the seed that never took,
+                      because that reads as perfect reproducibility. */}
+                  <Pill kind={s.seed_agreement_state === "SEED_AGREEMENT_MEASURED"
+                              ? "none"
+                            : s.seed_agreement_state === "SEED_OVERRIDE_DID_NOT_TAKE"
+                              ? "crit" : "neg"}>
+                    {s.seed_agreement_state === "SEED_UNPAIRED" ? "sin pareja"
+                     : s.seed_agreement_state === "SEED_AGREEMENT_MEASURED"
+                       ? "paired" : s.seed_agreement_state
+                           .replace("SEED_", "").replaceAll("_", " ").toLowerCase()}
+                  </Pill>
+                </span>
+                {typeof s.seed_agreement_normal_um === "number" && (
+                  <span className="dash">
+                    {" "}{s.seed_agreement_normal_um.toFixed(0)} µm normal
+                  </span>
+                )}
+              </td>
+              <td className="l">
                 <select value={s.human_review?.verdict ?? ""}
                         disabled={saving === s.surface_id}
                         title={s.human_review
                           ? `${s.human_review.verdict} by ${s.human_review.by} at ${s.human_review.at}`
+                            + (s.human_review.surface_routing?.advisory
+                               ? ` — ${s.human_review.surface_routing.advisory}` : "")
                           : "a person's opinion, which is not P2's verdict"}
                         onChange={(e) => review(s.surface_id, e.target.value)}>
                   <option value="">—</option>
@@ -1034,6 +1164,8 @@ function NewRun({ backends, planners, reads, sample, missionId, onDone }: {
         options: { flag: string; field: string; kind: string; label: string;
                    group: string; note: string; choices?: string[] }[];
         probe?: ProbeOptions;
+        source?: { sample: string | null; growable: boolean;
+                   growable_scrolls: string[]; note: string };
         growth: { note: string;
                   parameters: { name: string; range: string; default: unknown }[] };
       };
@@ -1042,6 +1174,11 @@ function NewRun({ backends, planners, reads, sample, missionId, onDone }: {
   });
 
   const chosen = backends.find((b) => b.id === backend);
+  // A scroll the frozen catalog does not name has no m7 prediction to seed on,
+  // so no configuration of this form can produce a run for it. Said here, before
+  // the button, because the queue used to be the one that found out.
+  const source = knobs.data?.source;
+  const notGrowable = source ? source.growable === false : false;
   const probeConfig = knobs.data?.probe;
   const probeCanSelect = (
     planner === "cost-aware-v2" || planner === "deterministic-v2"
@@ -1204,7 +1341,14 @@ function NewRun({ backends, planners, reads, sample, missionId, onDone }: {
             {backends.map((b) => (
               <option key={b.id} value={b.id} disabled={!b.adoptable}
                       title={b.note}>
-                {b.name}{b.adoptable ? "" : " — not yet working"}
+                {b.name}
+                {/* Three answers, not two. One is not adoptable because it
+                    failed its control or has no local code; the spiral fitter
+                    is neither -- it runs, and it is not planned as a grow, so
+                    saying "not yet working" of it would be false. */}
+                {b.adoptable ? ""
+                  : b.runs_from ? ` — runs from ${b.runs_from.phase}`
+                  : " — not yet working"}
               </option>
             ))}
           </select>
@@ -1215,7 +1359,17 @@ function NewRun({ backends, planners, reads, sample, missionId, onDone }: {
                  onChange={(e) => setMaxTasks(Number(e.target.value))} />
         </label>
       </div>
-      {chosen && !chosen.adoptable && <p className="hint">{chosen.note}</p>}
+      {chosen && !chosen.adoptable && (
+        <p className="hint">
+          {chosen.note}
+          {chosen.runs_from && (
+            <> Queue it under <Link to={`/phase/${chosen.runs_from.phase}`}>
+              {chosen.runs_from.phase}
+            </Link>, on the {chosen.runs_from.lane} lane, against{" "}
+            {chosen.runs_from.profile_id}.</>
+          )}
+        </p>
+      )}
 
       {/* The seed is what P1 decides -- only the volume comes from P0 -- so it
           gets the room a decision needs rather than a dropdown among dropdowns.
@@ -1501,13 +1655,22 @@ function NewRun({ backends, planners, reads, sample, missionId, onDone }: {
         </>
       )}
 
+      {notGrowable && (
+        <p className="formerror">
+          {covers} cannot be grown here: {source?.note}
+          {" "}Use <b>Import surface</b> for it, or cover one of{" "}
+          {(source?.growable_scrolls ?? []).join(", ")}.
+        </p>
+      )}
+
       <div className="controls">
         <input className="search" value={reason}
                placeholder={needsReason
                  ? "why this backend, given it is not adoptable…"
                  : "what you are trying (optional, kept with the run)"}
                onChange={(e) => setReason(e.target.value)} />
-        <button disabled={queue.isPending || !inputValid || (needsReason && !reason.trim())
+        <button disabled={queue.isPending || notGrowable || !inputValid
+                          || (needsReason && !reason.trim())
                           || (seedFrom === "discovered"
                               && ((seedProbeMode === "select" && !probeCanSelect)
                                 || seedProbeTopK < (probeConfig?.top_k.minimum ?? 1)

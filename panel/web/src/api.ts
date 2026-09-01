@@ -172,6 +172,115 @@ export const useMapMeta = (runId: string | undefined, name: string | undefined) 
     staleTime: FOREVER,
   });
 
+/**
+ * P5's own output, from the queue rather than from the receipt index.
+ *
+ * `useRuns` above reads /api/runs, which indexes the legacy CX_RUNS receipt
+ * tree. A screening queued through the fleet keeps its verdict in the job row
+ * and writes its map into the directory the worker named, so that index cannot
+ * see it -- and until these existed the only way to look at one was to open a
+ * shell on the GPU host and render the array by hand.
+ */
+export type InkRun = {
+  job_id: string;
+  sample_id: string;
+  /** P5 takes the surface it screens as a parameter; a run entered from a
+   *  public layer stack names none, and that absence is real. */
+  surface_id: string | null;
+  /** What the job was pointed at, as it was pointed at it. Not the lineage. */
+  input: { kind: string; value: string } | null;
+  profile_id: string | null;
+  state: string;
+  mission_id: string | null;
+  attempts: number | null;
+  max_attempts: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+  runtime_seconds: number | null;
+  /** The one block every ink lane produces identically. p50, p99 and the
+   *  spread between them live in `metrics`; the TimeSformer lane writes no
+   *  `statistics` at all, so this is the only place they are always found. */
+  liveness: Liveness | null;
+  statistics: Record<string, number> | null;
+  checkpoint_sha256: string | null;
+  map_shape_yx: [number, number] | null;
+  output_dir: string | null;
+  /** The arrays this host can read. Empty is the ordinary state of a panel
+   *  that is not the machine that ran the job. */
+  maps: string[];
+  published: {
+    artifact_uri: string | null;
+    artifact_sha256: string | null;
+    manifest_sha256: string | null;
+    files: number | null;
+  } | null;
+  error: string | null;
+  refused: string | null;
+};
+
+/** The stretch the server applied, so the page can say so rather than imply it. */
+export type InkMapDisplay = {
+  height: number;
+  width: number;
+  valid_pixels: number;
+  invalid_pixels: number;
+  normalisation: string;
+  low_percentile: number;
+  high_percentile: number;
+  low_value: number | null;
+  high_value: number | null;
+  flat: boolean;
+  min?: number;
+  max?: number;
+  note: string;
+};
+
+export type InkRunDetail = InkRun & {
+  selected_map: string | null;
+  display: InkMapDisplay | null;
+  display_error: string | null;
+  receipt: Record<string, any> | null;
+  receipt_path: string | null;
+  receipt_unavailable: string | null;
+  /** `physical_normalization` as the worker wrote it. It names `p4_job_id`
+   *  only when the render it read was a P4 job of this control plane. */
+  lineage: Record<string, any> | null;
+  /** What the worker resolved the named stack to, noted before the render
+   *  started. The only lineage a run without a control binding has. */
+  rendered_from: Record<string, any> | null;
+  profile: Profile | null;
+  probability_map: Record<string, any> | null;
+};
+
+const scopeQuery = (sample?: string | null, mission?: string | null) => {
+  const q = new URLSearchParams();
+  if (sample) q.set("sample", sample);
+  if (mission) q.set("mission", mission);
+  return q.size ? `?${q}` : "";
+};
+
+export const useInkRuns = (sample?: string | null, mission?: string | null) =>
+  useQuery({
+    queryKey: ["ink-maps", sample ?? "", mission ?? ""],
+    queryFn: () => get<{ available: boolean; reason?: string; runs: InkRun[];
+                         non_claims?: string[] }>(
+      "/api/ink/maps" + scopeQuery(sample, mission)),
+    // A queue moves while you watch it, and a screening takes minutes.
+    refetchInterval: 15_000,
+    staleTime: 8000,
+  });
+
+export const useInkRun = (jobId: string | null | undefined, name?: string | null) =>
+  useQuery({
+    queryKey: ["ink-map", jobId ?? "", name ?? ""],
+    queryFn: () => get<InkRunDetail>(
+      `/api/ink/maps/${encodeURIComponent(jobId!)}`
+      + (name ? `?map=${encodeURIComponent(name)}` : "")),
+    enabled: Boolean(jobId),
+    // A receipt is written once. Only the row above it can still change.
+    staleTime: FOREVER,
+  });
+
 export const useLanes = () =>
   useQuery({
     queryKey: ["lanes"],
@@ -212,6 +321,11 @@ export type ScrollIndex = {
   fetched_at: number;
 };
 export type EnvSetting = {
+  /** Present and true when a `secret` setting has a value on the server.
+   *  The value itself never arrives: it is redacted in `/api/config`, because
+   *  masking it with an input of type "password" left the credential one GET
+   *  away from anybody who could log in. */
+  value_present?: boolean;
   name: string;
   value: string;
   default: string;
@@ -270,6 +384,9 @@ export type Job = {
   max_attempts: number;
   output_dir: string | null;
   result: Record<string, any> | null;
+  // The newest line the job wrote, carried by the heartbeat that renews its
+  // lease. Absent until a worker has claimed it and it has said something.
+  progress?: { line: string; source: string; at: string } | null;
   created_by: string;
   created_at: string;
   updated_at: string;

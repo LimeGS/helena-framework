@@ -39,6 +39,44 @@ def read_optional_json(path: Path | None) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def read_stage_json(path: Path | None) -> dict[str, Any] | None:
+    try:
+        return read_optional_json(path)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return None
+
+
+def manifest_binds_local_file(
+    root: Path | None,
+    path: Path | None,
+    manifest: dict[str, Any] | None,
+) -> bool:
+    if root is None or path is None or manifest is None:
+        return False
+    rows = manifest.get("files")
+    if not isinstance(rows, list):
+        return False
+    try:
+        relative_path = str(path.relative_to(root))
+        local_size = path.stat().st_size
+        local_sha256 = file_sha256(path)
+    except (OSError, ValueError):
+        return False
+    matches = [
+        row
+        for row in rows
+        if isinstance(row, dict) and row.get("path") == relative_path
+    ]
+    if len(matches) != 1:
+        return False
+    row = matches[0]
+    return (
+        type(row.get("size_bytes")) is int
+        and row["size_bytes"] == local_size
+        and row.get("sha256") == local_sha256
+    )
+
+
 def latest_attempt(qc_run_root: Path | None, qc_job_id: str | None) -> Path | None:
     if qc_run_root is None or not qc_job_id:
         return None
@@ -70,6 +108,15 @@ def stage_evidence(
     stability = first_match(scientific, "INK_STABILITY_ANALYSIS.json")
     gate = first_match(scientific, "CT_FIBER_GATE_EVALUATION.json")
     evidence = first_match(scientific, "EVIDENCE_MANIFEST.json")
+    screening_payload = read_stage_json(inference)
+    liveness = (
+        screening_payload.get("liveness")
+        if isinstance(screening_payload, dict)
+        else None
+    )
+    liveness_verdict = liveness.get("verdict") if isinstance(liveness, dict) else None
+    liveness_reason = liveness.get("reason") if isinstance(liveness, dict) else None
+    evidence_payload = read_stage_json(evidence)
     retained = None
     if gate:
         gate_value = read_optional_json(gate)
@@ -90,6 +137,13 @@ def stage_evidence(
             evidence_sha256 == expected_evidence_sha256
             if evidence_sha256 and expected_evidence_sha256
             else None
+        ),
+        "screening_liveness_verdict": liveness_verdict,
+        "screening_liveness_reason": liveness_reason,
+        "screening_receipt_manifest_bound": manifest_binds_local_file(
+            scientific,
+            inference,
+            evidence_payload,
         ),
     }
 
@@ -127,6 +181,8 @@ def next_required_step(
     if qc_state == "FAILED":
         return "RESOLVE_FAILED_QC_JOB"
     if qc_state == "COMPLETED":
+        if outcome == "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY":
+            return "SELECT_DIFFERENT_SURFACE_SCREEN_INSUFFICIENT"
         if outcome == "CT_SUPPORTED_RETAINED_FOR_REVIEW":
             return "HUMAN_VISUAL_INTERPRETATION"
         if outcome == "CT_INSUFFICIENT_NO_COMMON_VALID_PIXELS":

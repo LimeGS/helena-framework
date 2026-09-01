@@ -54,5 +54,7 @@ panel/audit/
 workspace/surfaces/
 workspace/campaigns/
 workspace/archive/
+# Control receipts, stamped by a run against a specific deployment's state.
+workspace/receipts/
 vendor/
 .local/

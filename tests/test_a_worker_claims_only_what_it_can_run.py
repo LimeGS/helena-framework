@@ -144,7 +144,139 @@ def test_cpu_p8_worker_carries_column_atlas_python_runtime() -> None:
     requirements = (
         ROOT / "framework/stages/01-segmentation/fleet/requirements-worker.txt"
     ).read_text()
-    containerfile = (ROOT / "containers/images/Containerfile.worker").read_text()
+    containerfile = (ROOT / "containers/images/Containerfile.worker-cpp").read_text()
 
     assert "Pillow==12.3.0" in requirements
     assert "import PIL" in containerfile
+
+
+# -- the same failure, through the runtime rather than the phase -------------
+#
+# Three lanes need an image their claiming worker may not be running. The
+# worker already refuses those at execution, by name, which is a good message
+# and a burned attempt: on a host running both a general ink worker and the
+# 9 um one, the general worker wins the race, refuses, and the job is failed
+# before the worker that could have run it ever polls. Observed exactly that on
+# gpu-1 -- p5-4a8e0ba41a784d, claimed by gpu-1-ink0, failed on its only attempt
+# while gpu-1-ink9um sat idle ten seconds away.
+#
+# So this is the same fix as `phases`, one column over: what a worker cannot
+# run, it does not claim.
+
+
+class Batch(Recorder):
+    """A cursor with rows to hand out."""
+
+    def __init__(self, rows: list[tuple]) -> None:
+        super().__init__()
+        self.rows = rows
+
+    def fetchall(self):
+        # The lease-recycling statement runs first and expects no rows; the
+        # candidate SELECT is the one that wants these.
+        if self.statements and self.statements[-1][0].lstrip().startswith("SELECT"):
+            return self.rows
+        return []
+
+
+def candidate(job_id: str, profile_id: str | None, parameters: dict) -> tuple:
+    # job_id, sample_id, profile_id, parameters, attempts, max_attempts,
+    # phase, component, mission_id
+    return (job_id, "PHerc0332", profile_id, parameters, 0, 3, "P5", None, None)
+
+
+def candidates_for(runtime, rows):
+    store = InkJobStore("postgresql://unused")
+    batch = Batch(rows)
+    store._connect = lambda: Connection(batch)  # noqa: SLF001
+    return store._runnable_candidate(rows, runtime)  # noqa: SLF001
+
+
+def test_a_worker_skips_a_lane_that_declares_another_image() -> None:
+    nine_um = candidate("p5-9um", "ink-9um-hybrid-3d2d-screening@1.0.0", {})
+    ordinary = candidate("p5-plain", None, {})
+
+    picked = candidates_for("helena-worker-gpu", [nine_um, ordinary])
+
+    assert picked is not None and picked[0] == "p5-plain", (
+        "the general worker claimed the 9 um job it cannot run")
+
+
+def test_the_worker_that_carries_the_image_takes_it() -> None:
+    nine_um = candidate("p5-9um", "ink-9um-hybrid-3d2d-screening@1.0.0", {})
+
+    assert candidates_for("helena-ink-9um", [nine_um])[0] == "p5-9um"
+
+
+def test_a_specialist_worker_leaves_the_ordinary_work_alone() -> None:
+    """The other direction, which was backwards.
+
+    A job that declares no image needs the ordinary one. The rule was "anything
+    that does not need a *different* image", so the 9 um worker -- built around
+    one lane's frozen environment -- claimed canonical and timesformer runs and
+    failed each in about two seconds, while the worker that could run them sat
+    idle beside it.
+    """
+    ordinary = candidate("p5-plain", None, {})
+    canonical = candidate("p5-canon", "ink-canonical-2um-screening@1.1.0", {})
+
+    assert candidates_for("helena-ink-9um", [ordinary, canonical]) is None
+
+
+def test_a_specialist_still_takes_its_own_lane_from_a_mixed_queue() -> None:
+    ordinary = candidate("p5-plain", None, {})
+    nine_um = candidate("p5-9um", "ink-9um-hybrid-3d2d-screening@1.0.0", {})
+
+    picked = candidates_for("helena-ink-9um", [ordinary, nine_um])
+
+    assert picked is not None and picked[0] == "p5-9um"
+
+
+def test_which_images_count_as_specialist_comes_from_the_lanes() -> None:
+    """Read from the declarations routing already uses, so a new lane with its
+    own image is a specialist the moment it is registered -- not when somebody
+    remembers to add it to a list here."""
+    from job_store import lane_runtime_images
+
+    images = lane_runtime_images()
+    assert "helena-ink-9um" in images
+    assert "helena-worker-gpu" not in images
+
+
+def test_a_queue_holding_only_another_runtime_s_work_hands_out_nothing() -> None:
+    """None, not the job. The job waits for the worker that can run it rather
+    than being consumed by one that cannot."""
+    nine_um = candidate("p5-9um", "ink-9um-hybrid-3d2d-screening@1.0.0", {})
+
+    assert candidates_for("helena-worker-gpu", [nine_um]) is None
+
+
+def test_an_unlabelled_worker_still_claims_everything() -> None:
+    """Same reasoning as phases: a single-runtime deployment has no routing to
+    do, and a worker that does not know its own image must not strand a queue.
+    require_runtime stays the backstop at execution."""
+    nine_um = candidate("p5-9um", "ink-9um-hybrid-3d2d-screening@1.0.0", {})
+
+    assert candidates_for(None, [nine_um])[0] == "p5-9um"
+
+
+def test_the_claim_asks_for_more_than_one_candidate() -> None:
+    """It has to look past the first row to skip one. A LIMIT of 1 makes the
+    filter above unreachable for any queue whose head is another runtime's."""
+    sql, args = claim_with(["P5"])
+
+    assert "LIMIT %s" in sql, "the candidate count is hard-coded"
+    assert any(isinstance(a, int) and a > 1 for a in args), (
+        f"the claim still asks for one row: {args}")
+
+
+def test_the_worker_tells_the_queue_which_image_it_is() -> None:
+    """The filter is on the queue; a worker that knows its image and does not
+    say so leaves it switched off, which is how this was already true of
+    require_runtime and still burned a job."""
+    worker = (ROOT / "framework/stages/03-ink/fleet/ink_worker.py").read_text()
+    call = worker[worker.index("job = store.claim("):]
+    call = call[:call.index("except")]      # the whole call, parens and all
+
+    assert "runtime=RUNTIME_IMAGE" in call, (
+        "the worker claims without saying which image it is")

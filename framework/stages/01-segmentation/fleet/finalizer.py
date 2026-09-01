@@ -48,8 +48,17 @@ def load_geometry_gate() -> ModuleType | None:
     return module
 
 
-def certify_surface_geometry(surface_dir: Path) -> dict[str, Any]:
+def certify_surface_geometry(surface_dir: Path, *,
+                             voxel_um: float | None = None) -> dict[str, Any]:
     """Run the geometry gate before the surface can be queued for the model.
+
+    `voxel_um` is the scroll's own scale, and passing it is what makes the
+    gate's lengths lengths. Three of its thresholds are counts of cells and
+    voxels standing in for physical distances -- four cells of grid separation
+    is 480 um of sheet on the corpus it was calibrated against and 731 um on a
+    fitted winding -- and without the scale it falls back to those counts and
+    records that it did. Every caller here has the number; it used to be the
+    lamina gate's alone.
 
     This is the gate that never existed: until now `GROW_SUCCEEDED` reached the
     ink model with nothing between it and TimeSformer but a sha256 and a file
@@ -71,7 +80,7 @@ def certify_surface_geometry(surface_dir: Path) -> dict[str, Any]:
             "this is a broken deployment, not an unmeasurable surface, and "
             "recording it as GEOMETRY_UNMEASURED would hide it")
     try:
-        receipt = module.certify(Path(surface_dir))
+        receipt = module.certify(Path(surface_dir), voxel_um=voxel_um)
     except Exception as failure:  # noqa: BLE001 - unmeasured is a real verdict
         return {
             "schema": "campaignx.tifxyz_geometry_certification.v1",
@@ -98,9 +107,8 @@ def inspect_tifxyz(surface_dir: Path, voxel_size_um: float, sample_limit: int = 
     # cannot be negative in the CT-L0 frame. Treating those finite sentinels as
     # geometry fabricates long triangles, inflates area/bounds and poisons the
     # spatial duplicate index.
-    valid = np.logical_and.reduce([
-        np.isfinite(array) & (array >= 0.0) for array in arrays
-    ])
+    mesh = triangulate_tifxyz_grid(np.stack(arrays, axis=-1))
+    valid = mesh["valid_vertices"]
     if int(valid.sum()) < 4:
         raise ValueError("TIFXYZ has fewer than four finite coordinates")
     points = np.stack([array[valid] for array in arrays], axis=1)
@@ -110,22 +118,54 @@ def inspect_tifxyz(surface_dir: Path, voxel_size_um: float, sample_limit: int = 
     sampled = points[sample_indices]
     # Sum each valid triangle independently. A cell on a mask boundary may
     # retain one real triangle even when its other triangle touches a sentinel.
-    p = np.stack(arrays, axis=-1)
-    v00, v10, v01, v11 = p[:-1, :-1], p[1:, :-1], p[:-1, 1:], p[1:, 1:]
-    first_valid = valid[:-1, :-1] & valid[1:, :-1] & valid[:-1, 1:]
-    second_valid = valid[1:, 1:] & valid[1:, :-1] & valid[:-1, 1:]
-    first = 0.5 * np.linalg.norm(np.cross(v10 - v00, v01 - v00), axis=-1)
-    second = 0.5 * np.linalg.norm(np.cross(v11 - v10, v01 - v10), axis=-1)
-    area_voxel2 = float(np.sum(first[first_valid]) + np.sum(second[second_valid]))
+    triangles = mesh["vertices"][mesh["faces"]]
+    area_voxel2 = float(np.sum(
+        0.5 * np.linalg.norm(np.cross(
+            triangles[:, 1] - triangles[:, 0],
+            triangles[:, 2] - triangles[:, 0]), axis=-1)))
     area_cm2 = area_voxel2 * float(voxel_size_um) ** 2 / 100_000_000.0
     return {
         "shape": list(arrays[0].shape),
         "finite_coordinate_count": int(valid.sum()),
-        "valid_triangle_count": int(first_valid.sum() + second_valid.sum()),
+        "valid_triangle_count": int(len(mesh["faces"])),
         "invalid_coordinate_policy": "FINITE_AND_NONNEGATIVE_CT_L0",
         "bbox_xyz": [low.tolist(), high.tolist()],
         "sample_points": sampled.tolist(),
         "area_cm2": area_cm2,
+    }
+
+
+def triangulate_tifxyz_grid(xyz: Any) -> dict[str, Any]:
+    """Triangulate a TIFXYZ grid with the finalizer's frozen anti-diagonal.
+
+    Every cell uses `(v00,v10,v01)` and `(v10,v11,v01)`. Each triangle is
+    retained independently so a mask boundary cannot discard its valid half.
+    """
+    import numpy as np
+
+    points = np.asarray(xyz, dtype=np.float64)
+    if points.ndim != 3 or points.shape[2] != 3 or min(points.shape[:2]) < 2:
+        raise ValueError("TIFXYZ coordinates must have shape (y>=2,x>=2,3)")
+    valid = np.isfinite(points).all(axis=2) & (points >= 0.0).all(axis=2)
+    height, width = points.shape[:2]
+    faces: list[tuple[int, int, int]] = []
+    ordinals: list[int] = []
+    for y in range(height - 1):
+        for x in range(width - 1):
+            v00, v10 = y * width + x, (y + 1) * width + x
+            v01, v11 = y * width + x + 1, (y + 1) * width + x + 1
+            cell_ordinal = (y * (width - 1) + x) * 2
+            if valid[y, x] and valid[y + 1, x] and valid[y, x + 1]:
+                faces.append((v00, v10, v01))
+                ordinals.append(cell_ordinal)
+            if valid[y + 1, x] and valid[y + 1, x + 1] and valid[y, x + 1]:
+                faces.append((v10, v11, v01))
+                ordinals.append(cell_ordinal + 1)
+    return {
+        "vertices": points.reshape(-1, 3),
+        "faces": np.asarray(faces, dtype=np.int64).reshape(-1, 3),
+        "triangle_ordinals": np.asarray(ordinals, dtype=np.int64),
+        "valid_vertices": valid,
     }
 
 
@@ -151,8 +191,9 @@ def finalize_surface(
 ) -> dict[str, Any]:
     if not qc_profile_id or "@" not in qc_profile_id:
         raise ValueError("finalization requires a versioned semantic QC profile ID")
-    inspection = inspect_tifxyz(surface_dir, float(task["source"]["voxel_size_um"]))
-    geometry = certify_surface_geometry(surface_dir)
+    voxel_um = float(task["source"]["voxel_size_um"])
+    inspection = inspect_tifxyz(surface_dir, voxel_um)
+    geometry = certify_surface_geometry(surface_dir, voxel_um=voxel_um)
     write_json_atomic(attempt_dir / "GEOMETRY_CERTIFICATION.json", geometry)
     # Historical/imported fixtures may not carry the generation channel, so it
     # cannot be made retroactively mandatory here.  Every current VC3D executor
@@ -214,12 +255,19 @@ def finalize_surface(
             "geometry_qc_state", DEFAULT_GEOMETRY_QC_STATE
         ),
         "geometry_certification": {
+            "schema": geometry.get("schema"),
             "geometry_qc_state": geometry.get("geometry_qc_state"),
             "reason": geometry.get("reason"),
             "hard_defects_observed": geometry.get("hard_defects_observed"),
             "resolution_limited": geometry.get("resolution_limited"),
             "receipt_path": str(attempt_dir / "GEOMETRY_CERTIFICATION.json"),
             "receipt_sha256": content_sha256(geometry),
+            "result": geometry,
+            "result_sha256": content_sha256(geometry),
+            "profile_id": "tifxyz-geometry-certification@1.0.0",
+            "profile_sha256": content_sha256(geometry.get("policy") or {}),
+            "source_attempt_id": task["attempt_id"],
+            "surface_artifact_sha256": artifact_sha,
         },
         "task_id": task["task_id"],
         "attempt_id": task["attempt_id"],

@@ -15,13 +15,15 @@ from pathlib import Path
 
 import pytest
 
+from control_manifest import IN_FORCE_ID, IN_FORCE_PATH  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))
 
 import ink_worker  # noqa: E402
 from job_store import JobRejected, command_for, validate_parameters  # noqa: E402
 
-P5 = {"checkpoint": "/models/gp-scroll1/model.ckpt", "upstream_dir": "/models/gp-scroll1",
+P5 = {"checkpoint": "/models/gp-scroll1/model.ckpt",
       "source_pixel_um": 9.362}
 
 
@@ -115,13 +117,134 @@ def test_the_slice_pitch_comes_from_the_render_rather_than_a_person(tmp_path):
     either rescales the other by 8.4% in silence. But when the render is named
     it is not a guess -- P4 recorded the scale it sampled at and the step it
     took along the normal."""
-    job = {"parameters": {"source_pixel_um": 9.362}}
+    # Lateral spacing is independently derived from flattened geometry and may
+    # differ from CT depth spacing. It must not leak into this formula.
+    job = {"parameters": {"source_pixel_um": 8.5}}
     assert ink_worker.slice_pitch_from_render(
-        job, {"parameters": {"scale": 1.0, "slice_step": 1.0}}) == 9.362
+        job, {"parameters": {"source_voxel_um": 9.362,
+                             "scale": 1.0, "slice_step": 1.0}}) == 9.362
     # Two voxels between slices is twice the pitch, which is the case that makes
     # "the pixel size" the wrong answer.
     assert ink_worker.slice_pitch_from_render(
-        job, {"parameters": {"scale": 1.0, "slice_step": 2.0}}) == 18.724
+        job, {"parameters": {"source_voxel_um": 9.362,
+                             "scale": 1.0, "slice_step": 2.0}}) == 18.724
     # Nothing to derive it from stays nothing: the adapter's refusal is the
     # right outcome, and inventing a number here would defeat it.
     assert ink_worker.slice_pitch_from_render({"parameters": {}}, {}) is None
+
+
+def test_control_fetch_binds_every_source_slice_and_exact_p4_artifact(
+        tmp_path):
+    import json
+
+    import numpy
+    import tifffile
+
+    source = tmp_path / "published"
+    source.mkdir()
+    for index in range(33):
+        tifffile.imwrite(source / f"{index}.tif",
+                         numpy.full((4, 4), index, dtype=numpy.uint16))
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.common import content_sha256, file_sha256
+
+    files = {
+        f"{index}.tif": {
+            "sha256": file_sha256(source / f"{index}.tif"),
+            "size_bytes": (source / f"{index}.tif").stat().st_size,
+        }
+        for index in range(33)
+    }
+    artifact_sha = content_sha256(files)
+    manifest = {
+        "schema": "campaignx.layer_stack_artifact_set.v1",
+        "job_id": "p4-control", "files": files,
+        "artifact_sha256": artifact_sha,
+    }
+    (source / "ARTIFACT_SET.json").write_text(json.dumps(manifest))
+    objects = [
+        {"object_key": name, "sha256": row["sha256"], "bytes": row["size_bytes"]}
+        for name, row in files.items()]
+    metric = {
+        "schema": "campaignx.first_letters_p3_p4_lateral_metric.v1",
+        "status": "PROVEN", "lateral_pixel_um": 8.5,
+    }
+    metric["receipt_sha256"] = content_sha256(metric)
+    render = {
+        "job_id": "p4-control", "phase": "P4", "state": "succeeded",
+        "parameters": {"source_voxel_um": 9.362, "scale": 1.0, "slice_step": 1.0},
+        "result": {"lateral_metric": metric, "layer_stack": {
+            "artifact_uri": str(source), "artifact_sha256": artifact_sha,
+            "manifest_sha256": content_sha256(manifest),
+            "files": 33, "objects": objects,
+            "slice_indices": list(range(33)),
+        }},
+    }
+    job = {"sample_id": "PHerc0139", "parameters": {
+        "layer_stack": "p4-control", "source_pixel_um": 8.5,
+        "source_slice_um": 9.362,
+    }}
+    ink_worker.resolve_layer_stack(Store(render), job, tmp_path / "fetched")
+    assert job["_source_layer_stack"]["p4_job_id"] == "p4-control"
+    assert job["_source_layer_stack"]["artifact_sha256"] == artifact_sha
+    assert job["_source_layer_stack"]["objects"] == objects
+    assert job["_source_layer_stack"]["manifest_sha256"] == content_sha256(manifest)
+
+
+def test_control_fetch_rejects_a_substituted_p4_manifest(tmp_path):
+    import json
+
+    import numpy
+    import tifffile
+
+    source = tmp_path / "published"
+    source.mkdir()
+    for index in range(33):
+        tifffile.imwrite(source / f"{index}.tif",
+                         numpy.full((2, 2), index, dtype=numpy.uint16))
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.common import content_sha256, file_sha256
+    files = {f"{index}.tif": {
+        "sha256": file_sha256(source / f"{index}.tif"),
+        "size_bytes": (source / f"{index}.tif").stat().st_size,
+    } for index in range(33)}
+    manifest = {"schema": "campaignx.layer_stack_artifact_set.v1",
+                "job_id": "p4-control", "files": files,
+                "artifact_sha256": content_sha256(files)}
+    (source / "ARTIFACT_SET.json").write_text(json.dumps(manifest))
+    objects = [{"object_key": name, "sha256": row["sha256"],
+                "bytes": row["size_bytes"]} for name, row in files.items()]
+    metric = {"schema": "campaignx.first_letters_p3_p4_lateral_metric.v1",
+              "status": "PROVEN", "lateral_pixel_um": 8.5}
+    metric["receipt_sha256"] = content_sha256(metric)
+    policy = json.loads(IN_FORCE_PATH.read_text())
+    locks = policy["source_locks"]
+    source_lock = {
+        "control_profile_id": policy["profile_id"],
+        "control_profile_sha256": content_sha256(policy),
+        "ct_lock_sha256": content_sha256(locks["ct"]),
+        "m7_lock_sha256": content_sha256(locks["m7"]),
+    }
+    binding = {
+        "control_p0_artifact_id": "p0-control",
+        "control_p0_artifact_sha256": "1" * 64,
+        "control_p0_selection_version": "selection-control",
+        "control_source_snapshot_id": "source-control",
+        "control_source_content_lock": source_lock,
+        "control_source_content_lock_sha256": content_sha256(source_lock),
+        "control_policy_sha256": content_sha256(policy),
+    }
+    render = {"job_id": "p4-control", "phase": "P4", "state": "succeeded",
+              "parameters": {**binding, "source_voxel_um": 9.362, "scale": 1.0,
+                             "slice_step": 1.0},
+              "result": {**binding, "lateral_metric": metric, "layer_stack": {
+                  "artifact_uri": str(source),
+                  "artifact_sha256": manifest["artifact_sha256"],
+                  "manifest_sha256": "f" * 64,
+                  "files": 33, "objects": objects}}}
+    job = {"sample_id": "PHerc0139", "parameters": {**binding,
+        "layer_stack": "p4-control", "source_pixel_um": 8.5,
+        "source_slice_um": 9.362}}
+
+    with pytest.raises(RuntimeError, match="manifest digest"):
+        ink_worker.resolve_layer_stack(Store(render), job, tmp_path / "fetched")

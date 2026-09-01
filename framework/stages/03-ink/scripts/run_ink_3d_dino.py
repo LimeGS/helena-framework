@@ -14,6 +14,16 @@ from pathlib import Path
 from typing import Any
 
 
+# The repository root, so the shared device resolver is importable from a
+# script launched by path. `auto` has to mean the same thing in every runner or
+# it is six defaults again, wearing one word.
+_ROOT = Path(__file__).resolve()
+while _ROOT != _ROOT.parent and not (_ROOT / "framework").is_dir():
+    _ROOT = _ROOT.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from framework.contracts.host_probe import resolve_device  # noqa: E402
+
 METHOD_ID = "ink-3d-dino-guided@1.0.0"
 PROFILE_RELATIVE_PATH = Path(
     "framework/profiles/03-ink/ink-3d-dino-guided-diagnostic-1.0.0.json"
@@ -225,7 +235,8 @@ def main() -> int:
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--villa-python-root", type=Path, required=True)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="auto",
+                        help="auto (the card if this host has one), cpu, or cuda[:N] to require one")
     parser.add_argument(
         "--on-degenerate",
         choices=("fail", "warn"),
@@ -237,6 +248,12 @@ def main() -> int:
     parser.add_argument("--projection-output", type=Path)
     parser.add_argument("--receipt", type=Path, required=True)
     args = parser.parse_args()
+
+    # Resolve the device before anything expensive: an explicit `cuda` on a host
+    # with no card is refused here rather than several minutes into a load, and
+    # `auto` becomes the word the receipt can stand behind.
+    _device = resolve_device(args.device)
+    args.device = _device["device"]
 
     profile, profile_identity = load_execution_profile(
         args.profile, repo_root=args.repo_root
@@ -281,6 +298,7 @@ def main() -> int:
             "villa_revision": revision,
             "torch_version": torch.__version__,
             "device": args.device,
+            "device_selection": _device,
             "torch_compiler_compatibility_patch": compatibility_patch,
         },
         "non_claims": [

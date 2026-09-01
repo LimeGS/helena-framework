@@ -1,0 +1,54 @@
+{
+  "schema": "campaignx.small_surface_routing_policy.v1",
+  "profile_id": "small-surface-routing@1.0.0",
+  "policy_version": "1.0.0",
+  "status": "FROZEN",
+  "ink_blind": true,
+  "minimum_area_cm2": 0.1,
+  "minimum_area_rationale": "The floor effort allocation already refuses to spend against. Reusing it means the routing introduces no new scientific threshold; it only decides what happens to the surfaces that were already below one.",
+  "routes": {
+    "STANDARD_QC_PENDING": "At or above the floor. Physical QC and the canonical downstream path proceed exactly as before this policy existed.",
+    "SMALL_SURFACE_DIAGNOSTIC": "Below the floor. The artifact and its geometry certificate are preserved as diagnostic evidence. The surface does not enter the physical-QC queue, P3, or any canonical downstream stage."
+  },
+  "explicit_non_claims": [
+    "SMALL_SURFACE_DIAGNOSTIC is not a finding of no ink.",
+    "SMALL_SURFACE_DIAGNOSTIC is not a geometry rejection and does not alter the geometry verdict.",
+    "SMALL_SURFACE_DIAGNOSTIC is not a physical-QC verdict and no physical-QC outcome may be written from it."
+  ],
+  "promotion": {
+    "in_place": "PROHIBITED",
+    "route": "NEW_VERSIONED_GROW_OR_RESUME_ATTEMPT",
+    "requirement": "The resumed attempt must produce a new surface that independently measures at or above the floor and passes every standard geometry and physical-QC gate on its own evidence.",
+    "original_surface": "REMAINS_DIAGNOSTIC_PERMANENTLY"
+  },
+  "receipt": {
+    "schema": "campaignx.small_surface_routing_receipt.v1",
+    "immutable": true,
+    "digest_covers": [
+      "surface_id",
+      "route",
+      "measured_area_cm2",
+      "minimum_area_cm2",
+      "policy_version",
+      "profile_id",
+      "measurement",
+      "read_set",
+      "preserved",
+      "is_absence_evidence"
+    ]
+  },
+  "public_fields": [
+    "schema",
+    "surface_id",
+    "route",
+    "measured_area_cm2",
+    "minimum_area_cm2",
+    "policy_version",
+    "profile_id",
+    "preserved",
+    "is_absence_evidence",
+    "ink_claim",
+    "why",
+    "receipt_sha256"
+  ]
+}

@@ -19,22 +19,6 @@ x-common: &common
       target: /artifacts
 
 services:
-  vc3d:
-    <<: *common
-    profiles: ["gpu"]
-    build:
-      context: ../images
-      dockerfile: Containerfile.vc3d
-      additional_contexts:
-        vc3d_runtime: ${VC3D_RUNTIME_CONTEXT:?set_a_directory_containing_only_vc3d-runtime.tgz}
-      args:
-        BASE_IMAGE: ${VC3D_BASE_IMAGE:?must_be_pinned_by_digest}
-        BUILD_COMMIT: ${BUILD_COMMIT:-unknown}
-        SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
-        FRAMEWORK_VERSION: ${HELENA_RUNTIME_VERSION:-0.2.0}
-    image: ${VC3D_IMAGE:-helena-vc3d:${HELENA_RUNTIME_VERSION:-0.2.0}}
-    gpus: all
-
   scrollfiesta:
     <<: *common
     profiles: ["cpu"]

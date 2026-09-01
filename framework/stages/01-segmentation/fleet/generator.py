@@ -6,9 +6,10 @@ import heapq
 import itertools
 import json
 import math
+import re
 import sqlite3
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 from .common import content_sha256, file_sha256, read_json, stable_id, utc_now
 from .seed_probe import (
@@ -33,6 +34,8 @@ DEFAULT_ENVELOPE = {
     "maximum_candidate_count": 8,
     "ink_used": False,
 }
+
+FIRST_LETTERS_CONTROL_POLICY_ID = "first-letters-control-policy@1.3.0"
 
 # Resume-compatible full growth for a seed-probe winner.  The probe fixes every
 # topology-affecting parameter; Cost-Aware remains the outer router and may
@@ -75,6 +78,50 @@ SEED_PROBE_CONTINUATION_ENVELOPE = {
     "maximum_candidate_count": 8,
     "ink_used": False,
 }
+
+
+def _validate_candidate_rank(candidate_rank: object) -> int:
+    """Reject an invalid requested M7 rung before any queue/source work."""
+    if (
+        not isinstance(candidate_rank, int)
+        or isinstance(candidate_rank, bool)
+        or candidate_rank < 1
+    ):
+        raise ValueError("candidate_rank must be a positive integer")
+    return candidate_rank
+
+
+def canonical_grid_neighbors(
+    grid_spec: dict[str, Any], cell_id: str,
+) -> list[str]:
+    """Return reviewed face-neighbor topology in deterministic XYZ order."""
+
+    if (not isinstance(grid_spec, dict)
+            or grid_spec.get("schema") != "campaignx.canonical_grid_spec.v1"
+            or grid_spec.get("topology_id") !=
+                "AXIS_ALIGNED_FACE_NEIGHBORS_V1"):
+        raise ValueError("ADAPTIVE_GRID_TOPOLOGY_UNAVAILABLE")
+    shape = grid_spec.get("shape_indices_xyz")
+    if (not isinstance(shape, list) or len(shape) != 3
+            or any(isinstance(value, bool) or not isinstance(value, int)
+                   or value < 1 for value in shape)):
+        raise ValueError("ADAPTIVE_GRID_TOPOLOGY_UNAVAILABLE")
+    match = re.fullmatch(r"r(\d{5})c(\d{5})a(\d{5})", str(cell_id))
+    if match is None:
+        raise ValueError("adaptive parent cell ID is not canonical")
+    coordinate = tuple(int(value) for value in match.groups())
+    if any(value >= shape[index] for index, value in enumerate(coordinate)):
+        raise ValueError("adaptive parent cell is outside the canonical grid")
+    result: list[str] = []
+    for delta in (
+        (-1, 0, 0), (1, 0, 0),
+        (0, -1, 0), (0, 1, 0),
+        (0, 0, -1), (0, 0, 1),
+    ):
+        neighbor = tuple(coordinate[index] + delta[index] for index in range(3))
+        if all(0 <= neighbor[index] < shape[index] for index in range(3)):
+            result.append("r%05dc%05da%05d" % neighbor)
+    return result
 
 
 def probe_uri(uri: str, *, timeout: float = 10.0) -> dict[str, Any]:
@@ -183,8 +230,31 @@ def bootstrap_sources(store: FleetStore, eligible_path: Path,
                     "is a different set of seeds, so this needs a new source rather "
                     "than a silent change under the old one.")
         result[sample_id] = store.register_snapshot(payload)
+    # A scroll the frozen catalog does not carry, but this control plane already
+    # holds a source for.
+    #
+    # The catalog names the thirteen scrolls a campaign was frozen around. It is
+    # not the list of scrolls that may be worked on -- PHerc0139, the development
+    # control, is deliberately absent from it and its CT and m7 addresses come
+    # from the control manifest instead. Refusing on absence alone made P1 the
+    # one phase that could not run for it: `unknown samples requested`, raised
+    # after the panel had already resolved a snapshot carrying the very m7 volume
+    # a grow would read.
+    #
+    # So the catalog is asked first and the registered snapshot second, which is
+    # the resolution order P3 already uses. A name with neither is still refused,
+    # because that is the case the message actually describes.
+    for sample_id in sorted((samples or set()) - set(result)):
+        registered = [row for row in store.snapshots({sample_id})
+                      if row.get("ct_uri") and row.get("m7_uri")]
+        if registered:
+            result[sample_id] = registered[0]["source_snapshot_id"]
     if samples and set(result) != samples:
-        raise ValueError(f"unknown samples requested: {sorted(samples - set(result))}")
+        raise ValueError(
+            f"unknown samples requested: {sorted(samples - set(result))}. "
+            "A scroll needs a CT volume and an m7 surface prediction to grow "
+            "from, and this one is in neither the frozen eligible catalog nor "
+            "the registered sources on this control plane.")
     return result
 
 
@@ -264,6 +334,90 @@ def _axis_centers(size: int, radius: int, step: int, volume_edge_margin: int) ->
     return centers
 
 
+def bounded_preflight_grid_design(
+    shape_xyz: list[int], *, query_radius: int, grid_step: int,
+    volume_edge_margin: int, hard_cell_limit: int,
+) -> dict[str, Any]:
+    """Choose at most 4096 deterministic grid indices without scanning the grid.
+
+    A flattened equal-interval sample aliases badly with a row-major mixed
+    radix: for a 1000 x 2 x 2 grid an even interval can keep one low-order
+    residue forever.  The bounded design instead walks a rank-1 lattice whose
+    stride is coprime to the full population.  Because every low-order radix
+    product divides the population, the walk cycles all of its residues before
+    repeating while a stride near N/n spans the long axes.  At most ``n``
+    ordinals and three axes are materialized.
+    """
+    if hard_cell_limit < 1 or hard_cell_limit > 4096:
+        raise ValueError("preflight hard_cell_limit must be 1..4096")
+    axes = [_axis_centers(int(size), query_radius, grid_step, volume_edge_margin)
+            for size in shape_xyz]
+    lengths = [len(axis) for axis in axes]
+    total = math.prod(lengths)
+    count = min(total, hard_cell_limit)
+    if total <= hard_cell_limit:
+        indices = list(itertools.product(*(range(length) for length in lengths)))
+        kind = "CENSUS"
+        ordinal_stride = 1
+        ordinal_offset = 0
+        ordinal_rule = "lexicographic mixed-radix enumeration"
+    else:
+        # Fixed golden-ratio rotation rather than N/count: a prefix of a
+        # near-N/count walk can cover only the first half of a 1-D population
+        # when its nearest coprime is one.  This irrational rotation's rational
+        # integer approximation is independent of the requested prefix length,
+        # so every bounded prefix stays spread across the cyclic population.
+        golden_numerator = 6_180_339_887_498_949
+        golden_denominator = 10_000_000_000_000_000
+        target_stride = max(1, (
+            total * golden_numerator + golden_denominator // 2
+        ) // golden_denominator)
+        ordinal_stride = None
+        for distance in range(total + 1):
+            for candidate in (target_stride - distance, target_stride + distance):
+                if (0 < candidate < total and math.gcd(candidate, total) == 1):
+                    ordinal_stride = candidate
+                    break
+            if ordinal_stride is not None:
+                break
+        if ordinal_stride is None:  # total > count >= 1 means total is at least two
+            raise RuntimeError("could not construct a coprime preflight lattice")
+        ordinal_offset = ordinal_stride // 2
+        ordinals = [
+            (ordinal_offset + index * ordinal_stride) % total
+            for index in range(count)
+        ]
+        indices = []
+        for ordinal in ordinals:
+            remainder = ordinal
+            values = [0, 0, 0]
+            for axis in (2, 1, 0):
+                values[axis] = remainder % lengths[axis]
+                remainder //= lengths[axis]
+            indices.append(tuple(values))
+        kind = "ESTIMATE"
+        ordinal_rule = (
+            "unflatten((floor(stride/2)+i*stride) mod N), "
+            "stride nearest round(N/phi) with gcd(stride,N)=1"
+        )
+    axis_bin_counts: list[list[int]] = []
+    for axis, centers in enumerate(axes):
+        counts = [0, 0, 0, 0]
+        for center in centers:
+            bucket = min(3, max(0, int(center * 4 / int(shape_xyz[axis]))))
+            counts[bucket] += 1
+        axis_bin_counts.append(counts)
+    grid_bins = {
+        tuple(index): math.prod(axis_bin_counts[axis][index[axis]] for axis in range(3))
+        for index in itertools.product(range(4), repeat=3)
+        if all(axis_bin_counts[axis][index[axis]] for axis in range(3))
+    }
+    return {"measurement_kind": kind, "total_grid_cells": total,
+            "axes": axes, "indices": indices, "grid_bin_counts": grid_bins,
+            "ordinal_stride": ordinal_stride, "ordinal_offset": ordinal_offset,
+            "ordinal_rule": ordinal_rule}
+
+
 def generate_tasks_for_snapshot(
     store: FleetStore,
     snapshot: dict[str, Any],
@@ -290,6 +444,7 @@ def generate_tasks_for_snapshot(
     created_by: str | None = None,
     mission_id: str | None = None,
     p0_selection_version: str | None = None,
+    p0_selection_sha256: str | None = None,
     p0_artifact_id: str | None = None,
     p0_artifact_sha256: str | None = None,
     p0_resolved_by: str | None = None,
@@ -301,7 +456,33 @@ def generate_tasks_for_snapshot(
     # Offer cells that clearance would skip, so a run can grow m7's ranked
     # alternatives on ground that already produced a surface.
     reconsider_covered: bool = False,
+    population_count_out: dict[str, int] | None = None,
+    population_bins_out: dict[tuple[int, int, int], int] | None = None,
+    population_cell_observer: Callable[[str], None] | None = None,
+    bounded_preflight_indices: list[tuple[int, int, int]] | None = None,
+    campaign_budget_admission: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    candidate_rank = _validate_candidate_rank(candidate_rank)
+    if campaign_budget_admission is not None:
+        queue_execution = (
+            campaign_budget_admission.get("execution_bindings") or {}
+        ).get("queue_execution")
+        if isinstance(queue_execution, dict):
+            bound_envelope = queue_execution.get("parameter_envelope")
+            if not isinstance(bound_envelope, dict):
+                raise ValueError(
+                    "campaign budget admission has no parameter envelope")
+            if (parameter_envelope is not None
+                    and parameter_envelope != bound_envelope):
+                raise ValueError(
+                    "generator parameter envelope differs from campaign budget")
+            if candidate_rank != queue_execution.get("candidate_rank", 1):
+                raise ValueError(
+                    "generator candidate rank differs from campaign budget")
+            if reconsider_covered != queue_execution.get("reconsider_covered", False):
+                raise ValueError(
+                    "generator covered-cell policy differs from campaign budget")
+            parameter_envelope = copy.deepcopy(bound_envelope)
     if grid_step < query_radius * 2:
         raise ValueError("grid_step must be at least twice query_radius")
     if max_tasks < 1:
@@ -329,6 +510,15 @@ def generate_tasks_for_snapshot(
     normalized_probe = (
         normalize_seed_probe_policy(seed_probe) if seed_probe is not None else None
     )
+    if (
+        normalized_probe is not None
+        and normalized_probe["mode"] == "select"
+        and candidate_rank != 1
+    ):
+        raise ValueError(
+            "seed-probe select requires candidate_rank 1; its continuation "
+            "has one persisted winner"
+        )
     if (
         normalized_probe is not None
         and normalized_probe["mode"] == "select"
@@ -418,12 +608,27 @@ def generate_tasks_for_snapshot(
         if int(ct_material_support_gate["minimum_nonzero_voxels"]) < 1:
             raise ValueError("ct_material_support_gate minimum_nonzero_voxels must be positive")
     axes = [_axis_centers(size, query_radius, grid_step, volume_edge_margin) for size in shape]
+    if population_count_out is not None:
+        population_count_out.clear()
+        population_count_out["total_grid_cells"] = math.prod(len(axis) for axis in axes)
+        population_count_out["geometrically_eligible_cells"] = 0
+    if population_bins_out is not None:
+        population_bins_out.clear()
     if any(not axis for axis in axes):
         if benchmark_authorization is not None:
             raise ValueError(
                 "preregistered benchmark cohort does not fit the frozen grid"
             )
         return []
+    if bounded_preflight_indices is not None:
+        if len(bounded_preflight_indices) > 4096 or len(bounded_preflight_indices) > max_tasks:
+            raise ValueError("bounded preflight indices exceed the hard task cap")
+        if len(bounded_preflight_indices) != len(set(bounded_preflight_indices)):
+            raise ValueError("bounded preflight indices must be distinct")
+        if any(len(index) != 3 or any(value < 0 or value >= len(axes[axis])
+                                      for axis, value in enumerate(index))
+               for index in bounded_preflight_indices):
+            raise ValueError("bounded preflight index is outside the frozen grid")
     benchmark_cell_order: list[str] | None = None
     benchmark_cell_ids: set[str] | None = None
     if benchmark_authorization is not None:
@@ -442,6 +647,21 @@ def generate_tasks_for_snapshot(
                 "for this sample"
             )
         benchmark_cell_ids = set(benchmark_cell_order)
+    campaign_cell_order: list[str] | None = None
+    campaign_cell_ids: set[str] | None = None
+    if campaign_budget_admission is not None:
+        if benchmark_authorization is not None or bounded_preflight_indices is not None:
+            raise ValueError(
+                "campaign probability prefix cannot be combined with another "
+                "frozen cohort")
+        campaign_cell_order = list(
+            campaign_budget_admission.get("prefix_cell_ids") or [])
+        if (campaign_budget_admission.get("mission_id") != mission_id
+                or campaign_budget_admission.get("sample_id") != snapshot.get("sample_id")
+                or len(campaign_cell_order) != max_tasks
+                or len(campaign_cell_order) != len(set(campaign_cell_order))):
+            raise ValueError("campaign budget admission differs from generation scope")
+        campaign_cell_ids = set(campaign_cell_order)
     known = store.surfaces_for_snapshot(snapshot["source_snapshot_id"])
     bboxes = [surface["bbox_xyz"] for surface in known]
     if selection_strategy not in {"max-clearance-v1", "stratified-clearance-v1"}:
@@ -452,8 +672,13 @@ def generate_tasks_for_snapshot(
     benchmark_selected: dict[
         str, tuple[float, tuple[int, int, int], list[float]]
     ] = {}
+    campaign_selected: dict[
+        str, tuple[float, tuple[int, int, int], list[float]]
+    ] = {}
     bucket_side = max(1, math.ceil(max_tasks ** (1.0 / 3.0)))
-    for indices in itertools.product(*(range(len(axis)) for axis in axes)):
+    index_rows = (bounded_preflight_indices if bounded_preflight_indices is not None
+                  else itertools.product(*(range(len(axis)) for axis in axes)))
+    for indices in index_rows:
         center = [float(axes[axis][indices[axis]]) for axis in range(3)]
         gap = min((point_bbox_gap(center, bbox) for bbox in bboxes), default=float("inf"))
         # A candidate can lie query_radius voxels away from the cell centre.
@@ -476,6 +701,17 @@ def generate_tasks_for_snapshot(
         # that has to be asked for rather than inherited.
         if guaranteed_gap < clearance and not reconsider_covered:
             continue
+        if population_count_out is not None:
+            population_count_out["geometrically_eligible_cells"] += 1
+        if population_bins_out is not None:
+            spatial_bin = tuple(
+                min(3, max(0, int(center[axis] * 4 / shape[axis])))
+                for axis in range(3)
+            )
+            population_bins_out[spatial_bin] = population_bins_out.get(spatial_bin, 0) + 1
+        cell_id = "r%05dc%05da%05d" % indices
+        if population_cell_observer is not None:
+            population_cell_observer(cell_id)
         finite_gap = guaranteed_gap if math.isfinite(guaranteed_gap) else float(max(shape))
         # Lower lexical indices win exact score ties, regardless of traversal/runtime.
         # Ordinarily the largest clearance wins: the fleet spreads into open
@@ -488,11 +724,14 @@ def generate_tasks_for_snapshot(
         ordering_gap = -finite_gap if reconsider_covered else finite_gap
         rank_key = (ordering_gap, tuple(-index for index in indices), center)
         if benchmark_cell_ids is not None:
-            cell_id = "r%05dc%05da%05d" % indices
             if cell_id in benchmark_cell_ids:
                 benchmark_selected[cell_id] = rank_key
             continue
-        if selection_strategy == "max-clearance-v1":
+        if campaign_cell_ids is not None:
+            if cell_id in campaign_cell_ids:
+                campaign_selected[cell_id] = rank_key
+            continue
+        if selection_strategy == "max-clearance-v1" or bounded_preflight_indices is not None:
             if len(heap) < max_tasks:
                 heapq.heappush(heap, rank_key)
             elif rank_key > heap[0]:
@@ -516,7 +755,17 @@ def generate_tasks_for_snapshot(
         selected = [
             benchmark_selected[cell_id] for cell_id in benchmark_cell_order
         ]
-    elif selection_strategy == "max-clearance-v1":
+    elif campaign_cell_order is not None:
+        missing = [cell_id for cell_id in campaign_cell_order
+                   if cell_id not in campaign_selected]
+        if missing:
+            raise ValueError(
+                "campaign probability-prefix cells are no longer eligible under "
+                f"the frozen grid/source constraints: {missing}")
+        # Exact frozen prefix order.  Clearance is still an eligibility gate and
+        # recorded priority, but never a ranking input for the controlled cohort.
+        selected = [campaign_selected[cell_id] for cell_id in campaign_cell_order]
+    elif selection_strategy == "max-clearance-v1" or bounded_preflight_indices is not None:
         selected = sorted(heap, key=lambda item: (-item[0], tuple(-value for value in item[1])))
     else:
         # One top clearance cell per coarse spatial bucket, then deterministic
@@ -579,7 +828,7 @@ def generate_tasks_for_snapshot(
                     "center": dict(zip("xyz", [int(value) for value in center], strict=True)),
                     "radius": {axis: query_radius for axis in "xyz"},
                 },
-                "max_candidates": 8,
+                "max_candidates": int(task_envelope["maximum_candidate_count"]),
                 "minimum_separation_voxels": 16,
                 "minimum_cell_interior_clearance_voxels": candidate_interior_clearance,
                 "minimum_volume_interior_clearance_voxels": volume_edge_margin,
@@ -592,6 +841,7 @@ def generate_tasks_for_snapshot(
             "planner_contract_version": (
                 "v2"
                 if candidate_selection_policy == "adaptive-geometry-history-v2"
+                or candidate_rank != 1
                 or (
                     normalized_probe is not None
                     and normalized_probe["mode"] == "select"
@@ -618,6 +868,7 @@ def generate_tasks_for_snapshot(
             # this is the dict a worker claims and reads; the run summary also
             # carries it and reaches nobody.
             "candidate_rank": int(candidate_rank),
+            "reconsider_covered": bool(reconsider_covered),
             **({"planner_model": planner_model} if planner_model else {}),
             # Why somebody asked for this run, carried on the task itself.
             # The launcher says the reason is "kept with the run" and it was kept
@@ -639,12 +890,17 @@ def generate_tasks_for_snapshot(
             # this says which selection chose them.
             **({"p0_selection_version": p0_selection_version}
                if p0_selection_version else {}),
+            **({"p0_selection_sha256": p0_selection_sha256}
+               if p0_selection_sha256 else {}),
             **({"p0_artifact_id": p0_artifact_id} if p0_artifact_id else {}),
             **({"p0_artifact_sha256": p0_artifact_sha256}
                if p0_artifact_sha256 else {}),
             **({"p0_resolved_by": p0_resolved_by} if p0_resolved_by else {}),
             "ink_used": False,
         })
+    if campaign_budget_admission is not None:
+        from .campaign_decision import bind_campaign_budget_to_tasks  # noqa: PLC0415
+        return bind_campaign_budget_to_tasks(tasks, campaign_budget_admission)
     return tasks
 
 
@@ -763,6 +1019,7 @@ def generate_manual_tasks(
     created_by: str | None = None,
     mission_id: str | None = None,
     p0_selection_version: str | None = None,
+    p0_selection_sha256: str | None = None,
     p0_artifact_id: str | None = None,
     p0_artifact_sha256: str | None = None,
     p0_resolved_by: str | None = None,
@@ -793,13 +1050,18 @@ def generate_manual_tasks(
     gate still asks the raw scan whether there is material there, and for a
     manual seed that is the only screen left, because the prediction was skipped.
     """
+    candidate_rank = _validate_candidate_rank(candidate_rank)
     shape = [int(value) for value in snapshot["shape_xyz"]]
     known = store.surfaces_for_snapshot(snapshot["source_snapshot_id"])
     bboxes = [surface["bbox_xyz"] for surface in known]
     tasks: list[dict[str, Any]] = []
     for index, point in enumerate(points, start=1):
         try:
-            centre = {axis: int(round(float(point[axis]))) for axis in "xyz"}
+            # Manual seeds are provenance, not grid-cell approximations.  Keep
+            # the submitted CT-L0 coordinate exactly (including its fractional
+            # surface coordinate) instead of silently rounding it to a nearby
+            # voxel before it reaches the task and receipt.
+            centre = {axis: float(point[axis]) for axis in "xyz"}
         except (KeyError, TypeError, ValueError):
             raise ValueError(f"point {index} needs numeric x, y and z: {point!r}") from None
         for position, axis in enumerate("xyz"):
@@ -814,10 +1076,17 @@ def generate_manual_tasks(
         gap = min((point_bbox_gap(ordered, bbox) for bbox in bboxes), default=float("inf"))
         finite_gap = gap if math.isfinite(gap) else float(max(shape))
         # Stable across resubmissions of the same point, so uploading a file
-        # twice does not queue the same growth twice.
+        # twice does not queue the same growth twice.  Preserve the historical
+        # integer serialization for whole-voxel points: exact fractional
+        # provenance must not cause every previously queued integer seed to gain
+        # a one-time new identity merely because 4000 became 4000.0 in JSON.
+        identity_centre = {
+            axis: int(value) if value.is_integer() else value
+            for axis, value in centre.items()
+        }
         candidate_id = "manual-" + stable_id(
             "manual-seed",
-            {"source_snapshot_id": snapshot["source_snapshot_id"], **centre},
+            {"source_snapshot_id": snapshot["source_snapshot_id"], **identity_centre},
         )[:16]
         # The point is the cell, not the grid square it lands in.
         #
@@ -882,7 +1151,10 @@ def generate_manual_tasks(
                    if ct_material_support_gate else {}),
             },
             "candidate_selection_policy": "score-cell-volume-clearance-v1",
-            "planner_contract_version": "v1",
+            "planner_contract_version": (
+                "v2" if candidate_rank != 1 or str(planner or "").endswith("-v2")
+                else "v1"
+            ),
             **({"planner": planner} if planner else {}),
             # The rung of m7's ordering this task grows. On the task, because
             # this is the dict a worker claims and reads; the run summary also
@@ -902,6 +1174,15 @@ def generate_manual_tasks(
             # of the machines could be worked out at all.
             **({"created_by": created_by} if created_by else {}),
             "mission_id": mission_id or "unfiled",
+            **({
+                "first_letters_control": {
+                    "check": "PIPELINE_CONTROL",
+                    "profile_id": FIRST_LETTERS_CONTROL_POLICY_ID,
+                    "seed_origin": "human",
+                    "allow_unvalidated": False,
+                }
+            } if policy_version == FIRST_LETTERS_CONTROL_POLICY_ID
+                 or policy_version.startswith("first-letters-control@1.0.0-") else {}),
             # Which P0 selection this task reads. The snapshot already carries
             # the CT and m7 URIs, the frame, the scale and the manifest hash;
             # this says which selection chose them.
@@ -914,6 +1195,37 @@ def generate_manual_tasks(
             "ink_used": False,
         })
     return tasks
+
+
+def _current_bootstrap_snapshots(
+    rows: Iterable[dict[str, Any]], sources: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Resolve each current catalog source to its stored immutable snapshot."""
+    snapshots_by_id: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        source_snapshot_id = str(row["source_snapshot_id"])
+        if source_snapshot_id in snapshots_by_id:
+            raise ValueError(
+                f"source snapshot id {source_snapshot_id!r} appears more than once"
+            )
+        snapshots_by_id[source_snapshot_id] = row
+
+    snapshots: list[dict[str, Any]] = []
+    for sample_id, source_snapshot_id in sorted(sources.items()):
+        snapshot = snapshots_by_id.get(source_snapshot_id)
+        if snapshot is None:
+            raise ValueError(
+                f"current source snapshot {source_snapshot_id!r} for "
+                f"{sample_id!r} is absent"
+            )
+        row_sample_id = str(snapshot.get("sample_id") or "")
+        if row_sample_id != sample_id:
+            raise ValueError(
+                f"source snapshot {source_snapshot_id!r} belongs to "
+                f"{row_sample_id!r} not {sample_id!r}"
+            )
+        snapshots.append(snapshot)
+    return snapshots
 
 
 def bootstrap_queue(
@@ -942,11 +1254,15 @@ def bootstrap_queue(
     created_by: str | None = None,
     mission_id: str | None = None,
     p0_selection_version: str | None = None,
+    p0_selection_sha256: str | None = None,
     p0_artifact_id: str | None = None,
     p0_artifact_sha256: str | None = None,
     p0_resolved_by: str | None = None,
     verify_sources: bool = True,
     seed_probe: dict[str, Any] | None = None,
+    seed_probe_top_k: int = 2,
+    seed_probe_generations: int = 12,
+    parameter_envelope: dict[str, Any] | None = None,
     benchmark_execution_authorization: dict[str, Any] | None = None,
     # Which rung of m7's ordering each task should grow. 1 is what every run has
     # always done; a higher rank reaches the candidates a proposal would
@@ -954,14 +1270,53 @@ def bootstrap_queue(
     # keeps its behaviour.
     candidate_rank: int = 1,
     reconsider_covered: bool = False,
+    campaign_budget_admission: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    candidate_rank = _validate_candidate_rank(candidate_rank)
+    if campaign_budget_admission is not None:
+        expected = (
+            campaign_budget_admission.get("execution_bindings") or {}
+        ).get("queue_execution")
+        if not isinstance(expected, dict):
+            raise ValueError("controlled task budget has no queue execution binding")
+        normalized = (
+            normalize_seed_probe_policy(seed_probe)
+            if seed_probe is not None else None
+        )
+        actual = {
+            "parameter_envelope": copy.deepcopy(
+                parameter_envelope
+                if parameter_envelope is not None
+                else expected.get("parameter_envelope")),
+            "planner": planner,
+            "planner_model": planner_model,
+            "prediction_space": "ct_l0_xyz",
+            "minimum_separation_voxels": 16,
+            "recenter_probe_max_candidates": recenter_probe_max_candidates,
+            "recenter_radius_xyz": copy.deepcopy(
+                recenter_radius_xyz or {"x": 64, "y": 64, "z": 64}),
+            "seed_probe_mode": (
+                normalized.get("mode") if normalized is not None else "off"),
+            "seed_probe_top_k": seed_probe_top_k,
+            "seed_probe_generations": seed_probe_generations,
+            "candidate_rank": candidate_rank,
+            "reconsider_covered": reconsider_covered,
+            "verify_sources": verify_sources,
+        }
+        if actual != expected:
+            raise ValueError(
+                "bootstrap queue execution differs from campaign budget")
+        parameter_envelope = copy.deepcopy(expected["parameter_envelope"])
     store.initialize()
     sources = bootstrap_sources(store, eligible_path, samples, verify=verify_sources)
     catalog_counts = import_catalog(store, catalog_path, sources)
     catalog_sha = file_sha256(catalog_path)
     generated: dict[str, dict[str, int]] = {}
     unreachable: dict[str, Any] = {}
-    snapshots = store.snapshots(samples)
+    snapshots = _current_bootstrap_snapshots(store.snapshots(samples), sources)
+    if campaign_budget_admission is not None and len(snapshots) != 1:
+        raise ValueError(
+            "a controlled task budget requires exactly one selected source snapshot")
     if benchmark_execution_authorization is not None:
         benchmark_execution_authorization = (
             normalize_seed_probe_benchmark_execution_authorization(
@@ -1029,6 +1384,7 @@ def bootstrap_queue(
             max_tasks=max_tasks_per_sample,
             grid_version=grid_version,
             policy_version=policy_version,
+            parameter_envelope=parameter_envelope,
             candidate_selection_policy=candidate_selection_policy,
             planner=planner,
             planner_model=planner_model,
@@ -1040,6 +1396,7 @@ def bootstrap_queue(
             created_by=created_by,
             mission_id=mission_id,
             p0_selection_version=p0_selection_version,
+            p0_selection_sha256=p0_selection_sha256,
             p0_artifact_id=p0_artifact_id,
             p0_artifact_sha256=p0_artifact_sha256,
             p0_resolved_by=p0_resolved_by,
@@ -1049,6 +1406,7 @@ def bootstrap_queue(
             ),
             candidate_rank=candidate_rank,
             reconsider_covered=reconsider_covered,
+            campaign_budget_admission=campaign_budget_admission,
         )
         inserted, seen = store.create_tasks(tasks)
         generated[snapshot["sample_id"]] = {"generated": seen, "inserted": inserted}
@@ -1076,15 +1434,20 @@ def bootstrap_queue(
             # The worker reads this off the task and sets it on the planner it
             # builds, so a rank asked for at the API reaches the host.
             "candidate_rank": int(candidate_rank),
+            "reconsider_covered": bool(reconsider_covered),
             "planner_model": planner_model,
             "candidate_selection_policy": candidate_selection_policy,
             "planner_contract_version": (
                 "v2"
                 if candidate_selection_policy == "adaptive-geometry-history-v2"
+                or candidate_rank != 1
                 else "v1"
             ),
         },
         "policy_version": policy_version,
+        "campaign_budget_receipt_sha256": (
+            campaign_budget_admission.get("receipt_sha256")
+            if campaign_budget_admission is not None else None),
         "ink_used": False,
         "status": store.status(),
     }

@@ -23,7 +23,7 @@
 #        --output-file requirements.surface-qc.lock requirements.surface-qc.txt'
 #
 # Once `requirements.surface-qc.lock` exists, whitelist it in .dockerignore,
-# COPY it in Containerfile.surface-qc and install with
+# COPY it in Containerfile.gpu-runtime and install with
 # `pip install --require-hashes --no-deps -r ...lock`. Until then the integrity
 # guarantee is the digest-pinned parent image plus the exact `==` pins below,
 # which fixes the versions but not the artifact bytes.

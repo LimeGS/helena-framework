@@ -41,6 +41,9 @@ def main() -> int:
     # process list or a shell history just to run a test.
     ap.add_argument("--password", default=os.environ.get("HELENA_PANEL_PASSWORD"))
     ap.add_argument("--scroll", default="PHerc0826")
+    ap.add_argument("--mission", required=True,
+                    help="the mission this smoke run belongs to; work does not "
+                         "exist outside one")
     ap.add_argument("--volume-cache", default="/srv/helena/cache/pherc826-9362",
                     help="where the renderer stages streamed chunks, as the "
                          "worker sees it")
@@ -88,7 +91,8 @@ def main() -> int:
     points = [dict(zip("xyz", (int(v) for v in group.split(","))))
               for group in arguments.seeds.split(";")]
     queued = panel.call("POST", "/api/segmentation/manual-seeds", {
-        "sample_id": arguments.scroll, "policy_version": policy,
+        "sample_id": arguments.scroll, "mission_id": arguments.mission,
+        "policy_version": policy,
         "points": points, "note": "api-only smoke test"})
     print(f"  inserted {queued.get('inserted')} task(s) under policy {policy}")
 
@@ -146,7 +150,8 @@ def main() -> int:
                          "that succeeded")
     surface = rows[0]["surface_id"]
     job = panel.call("POST", "/api/jobs", {
-        "sample_id": arguments.scroll, "phase": "P4", "parameters": {
+        "sample_id": arguments.scroll, "phase": "P4",
+        "mission_id": arguments.mission, "parameters": {
             "lane": "vc-render-tifxyz",
             "volume": arguments.volume_cache,
             "remote_url": arguments.volume_url,

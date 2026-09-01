@@ -1,0 +1,204 @@
+# syntax=docker/dockerfile:1.7
+#
+# The villa Python that runs on a GPU: the spiral fitter (P1) and lasagna (P3).
+#
+# Both are Python at the commit Containerfile.villa already compiles the binaries
+# from, so this adds no second source identity. They share one image rather than
+# getting one each: lasagna's own third-party imports are torch and numpy, which
+# the spiral project's declared dependencies already bring, and two images would
+# duplicate a multi-gigabyte torch layer to no end.
+#
+# They are not in helena-villa for the reason that image states about its own
+# toolchain: it is a runtime, and a compiled binary that never imports torch
+# should not carry it. Anything needing both mounts both.
+#
+#
+# The base is deliberately minimal, not a CUDA image. uv installs the
+# interpreter and the dependencies, and PyPI's linux torch wheels carry their
+# own CUDA runtime as nvidia-* packages, so this needs glibc, ca-certificates
+# and a python3 for the source-lock check below. Basing it on one of the
+# platform's application images would inherit a second torch and several
+# gigabytes to run code that never imports the first one.
+# Source arrives at the commit the source lock pins, cloned here.
+#
+# It used to be handed in as the named build context ``villa_src``, on the
+# grounds that "a build that clones is a build whose output depends on the day
+# it ran". That is right about cloning a *branch* and wrong about cloning a
+# commit: what makes a fetch unreproducible is the moving reference, not the
+# network. Containerfile.villa made the same move first, for the same reason --
+# a build nobody outside this fleet could run.
+#
+# The stage is named ``villa_src`` on purpose. BuildKit lets a build context
+# replace a same-named stage, so `--build-context villa_src=<checkout>` still
+# wins over the clone and every existing caller keeps working. Renaming it
+# turns those callers into clones of a commit they did not choose.
+ARG BASE_IMAGE
+ARG GIT_IMAGE=alpine/git:2.47.2
+
+# -------------------------------------------------------------------- fetch --
+FROM ${GIT_IMAGE} AS clone
+ARG VILLA_REPOSITORY=https://github.com/ScrollPrize/villa.git
+ARG VILLA_COMMIT
+ARG VILLA_TREE
+RUN test -n "${VILLA_COMMIT}" -a -n "${VILLA_TREE}" || { \
+      echo "VILLA_COMMIT and VILLA_TREE are required: they are what makes this fetch reproducible" >&2; \
+      exit 2; \
+    }
+WORKDIR /src
+# By commit, never by branch: the only form that does not depend on what the
+# default branch points at today.
+RUN git init -q . \
+ && git remote add origin "${VILLA_REPOSITORY}" \
+ && git fetch -q --depth 1 origin "${VILLA_COMMIT}" \
+ && git checkout -q FETCH_HEAD
+# The commit says which bytes were asked for; the tree says which arrived. The
+# lock has carried this hash without anything checking it until now.
+RUN got="$(git rev-parse HEAD^{tree})"; \
+    if [ "$got" != "${VILLA_TREE}" ]; then \
+      echo "villa tree is ${got}, the lock pins ${VILLA_TREE}." >&2; \
+      echo "The commit resolved but its content is not what was recorded." >&2; \
+      exit 3; \
+    fi
+RUN rm -rf /src/.git
+
+# The repository at the stage's own root, because that is where a build context
+# would put it.
+FROM scratch AS villa_src
+COPY --from=clone /src /
+
+FROM ${BASE_IMAGE} AS build
+ARG VILLA_COMMIT
+ARG VILLA_TREE
+ARG DEBIAN_FRONTEND=noninteractive
+RUN test -n "${VILLA_COMMIT}" -a -n "${VILLA_TREE}" || { \
+      echo "VILLA_COMMIT and VILLA_TREE build-args are required: an unrecorded source identity makes the receipt unverifiable" >&2; \
+      exit 2; \
+    }
+
+# A C compiler, for the build stage only. Not every dependency ships a wheel:
+# spiral depends on posix-ipc, which has none and compiles from source, so a
+# base with no `cc` fails the resolve rather than the run. The toolchain stays
+# here and never reaches the runtime stage, for the reason Containerfile.villa
+# states about its own: a compiler in a production image is attack surface that
+# never executes.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+# uv arrives as a context rather than an install script, the same way
+# Containerfile.scrollfiesta-src and Containerfile.worker-cpp take it. It also
+# provides the interpreter: the spiral project declares requires-python >= 3.14,
+# which no current distribution ships, and letting uv fetch exactly that is
+# better than pinning a base image to a Python nobody else here needs.
+COPY --from=uv_context uv /usr/local/bin/uv
+
+COPY --from=villa_src volume-cartographer/scripts/spiral /opt/villa/spiral
+COPY --from=villa_src lasagna /opt/villa/lasagna
+
+# The files the adapters were written against, checked here rather than trusted.
+# A silent upstream edit under the same commit is not something a build should
+# discover at run time, and the profile's own behaviour depends on fit_spiral.py
+# still declaring `default_config` the way the adapter parses it.
+COPY --from=repo containers/images/scrollfiesta/locks/source-lock.json /tmp/source-lock.json
+RUN python3 - <<'PY'
+import hashlib, json, sys
+lock = json.load(open('/tmp/source-lock.json'))['villa_python']
+roots = {
+    'volume-cartographer/scripts/spiral': '/opt/villa/spiral',
+    'lasagna': '/opt/villa/lasagna',
+}
+bad = []
+for declared, digest in lock['required_file_sha256'].items():
+    for prefix, root in roots.items():
+        if declared.startswith(prefix + '/'):
+            path = root + declared[len(prefix):]
+            break
+    else:
+        bad.append(f'{declared}: not under a copied tree'); continue
+    try:
+        actual = hashlib.sha256(open(path, 'rb').read()).hexdigest()
+    except OSError as exc:
+        bad.append(f'{declared}: {exc}'); continue
+    if actual != digest:
+        bad.append(f'{declared}: {actual} != {digest}')
+if bad:
+    print('source-lock mismatch:', *bad, sep='\n  ', file=sys.stderr)
+    sys.exit(3)
+print('source lock verified for', len(lock['required_file_sha256']), 'files')
+PY
+
+# Upstream's own dependency list, not a restatement of it. The spiral project
+# ships a pyproject; lasagna ships none at this commit, and its third-party
+# imports are torch and numpy, which this environment already contains. That
+# expectation is checked below rather than assumed.
+WORKDIR /opt/villa/spiral
+ENV UV_PROJECT_ENVIRONMENT=/opt/villa/venv \
+    UV_PYTHON_INSTALL_DIR=/opt/villa/python \
+    UV_LINK_MODE=copy
+RUN uv sync --no-dev
+
+# ------------------------------------------------------------------ runtime --
+FROM ${BASE_IMAGE} AS runtime
+ARG BASE_IMAGE
+ARG BUILD_COMMIT=unknown
+ARG VILLA_COMMIT
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.4.1
+LABEL org.opencontainers.image.title="helena-villa-python" \
+      org.opencontainers.image.description="Helena Framework spiral fitter and lasagna runtime" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.helena.villa.commit="${VILLA_COMMIT}"
+
+COPY --from=build /opt/villa /opt/villa
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=villa-python \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    VILLA_SPIRAL_ROOT=/opt/villa/spiral \
+    VILLA_LASAGNA_ROOT=/opt/villa/lasagna \
+    VILLA_PYTHON=/opt/villa/venv/bin/python \
+    PATH=/opt/villa/venv/bin:${PATH} \
+    WANDB_MODE=disabled
+
+# Both entrypoints, checked here rather than at run time. A missing dependency
+# otherwise surfaces as a fleet attempt that fails after claiming a lease and
+# burning a retry -- the same reason Containerfile.villa checks its binaries.
+#
+# fit_spiral.py cannot be imported to test it: its module level resolves dataset
+# paths and opens Zarr groups. What is checked is what the adapter depends on --
+# that it still parses and still declares default_config -- plus that the
+# packages it imports are installed.
+RUN /opt/villa/venv/bin/python - <<'PY'
+import ast, importlib.util, sys
+
+spiral = '/opt/villa/spiral/fit_spiral.py'
+tree = ast.parse(open(spiral).read())
+if not any(
+    isinstance(n, ast.Assign)
+    and any(getattr(t, 'id', None) == 'default_config' for t in n.targets)
+    for n in tree.body
+):
+    sys.exit('fit_spiral.py no longer declares a module-level default_config; '
+             'the spiral adapter parses it and would refuse every run')
+
+missing = [m for m in ('torch', 'numpy', 'zarr', 'tifffile', 'scipy')
+           if importlib.util.find_spec(m) is None]
+if missing:
+    sys.exit(f'the spiral environment is missing {missing}; lasagna/fit.py '
+             'imports torch and numpy and shares this environment')
+print('spiral: default_config present; shared deps installed')
+PY
+
+# lasagna is checked by compiling it, which resolves syntax and nothing else --
+# importing fit.py runs argparse construction against sibling modules that
+# expect a working directory. Its third-party imports are covered above.
+RUN /opt/villa/venv/bin/python -m py_compile /opt/villa/lasagna/fit.py \
+ && echo "lasagna: fit.py compiles"
+
+WORKDIR /workspace/campaign-x
+CMD ["sh"]

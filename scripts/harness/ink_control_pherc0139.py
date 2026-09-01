@@ -57,7 +57,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import sys
 import time
 import urllib.error
 import urllib.request
@@ -113,6 +112,9 @@ def main() -> int:
     parser.add_argument("--panel", required=True)
     parser.add_argument("--user", required=True)
     parser.add_argument("--password", default=os.environ.get("HELENA_PANEL_PASSWORD"))
+    parser.add_argument("--mission", required=True,
+                        help="the mission this control belongs to; work does "
+                             "not exist outside one")
     parser.add_argument("--mesh-window", required=True,
                         help="the cropped tifxyz, as the worker sees it")
     parser.add_argument("--cache", default="/srv/helena/cache/pherc0139-2399")
@@ -129,6 +131,7 @@ def main() -> int:
     print(f"P4  rendering their surface from their CT ({SLICES} slices)")
     render = panel.call("POST", "/api/jobs", {
         "sample_id": "PHerc0139", "phase": "P4",
+        "mission_id": arguments.mission,
         "parameters": {"lane": "vc-render-tifxyz",
                        "segmentation": arguments.mesh_window,
                        "volume": arguments.cache, "remote_url": VOLUME,
@@ -151,6 +154,7 @@ def main() -> int:
     print("\nP5  the recipe their map names, on our render")
     ink = panel.call("POST", "/api/jobs", {
         "sample_id": "PHerc0139", "phase": "P5",
+        "mission_id": arguments.mission,
         "profile_id": "ink-canonical-2um-screening@1.0.0",
         "parameters": {"layer_stack": render["job_id"],
                        "checkpoint": arguments.checkpoint,

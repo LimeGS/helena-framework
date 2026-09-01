@@ -17,7 +17,34 @@ name: helena-segment
 
 services:
   segment:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.1}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    # 0:0 here and 1000:1000 in the ink and platform files, deliberately.
+    #
+    # These two run helena-worker-cpp, whose interpreter uv installed under /root
+    # at mode 0700: as any other user Python cannot read its own stdlib and
+    # dies with `No module named 'encodings'` before reaching main(). The
+    # entrypoint also ran `mkdir -p $ARTIFACT_ROOT` on an s3:// URL, which
+    # root created as a junk directory and a normal user simply cannot.
+    #
+    # Both are fixed in Containerfile.worker-cpp and worker-entrypoint.sh, and
+    # neither takes effect until those images are rebuilt. Flipping this
+    # default before that happens is how these four containers spent a few
+    # minutes crash-looping. Flip it once a rebuilt image has been checked:
+    #
+    #   docker run --rm --user 1000:1000 --entrypoint sh helena-worker-cpp:<tag> \
+    #     -c 'python3 -c "print(1)"'
+    user: "${HELENA_RUN_AS:-0:0}"
+    security_opt:
+      - no-new-privileges:true
     container_name: helena-segment
     # unless-stopped rather than a supervisor: docker starts it at boot, and a
     # worker that dies mid-task leaves its lease to expire, which the fleet
@@ -57,7 +84,34 @@ services:
   # queue does not care which container claims a row, only that the runtime
   # behind it is real.
   fleet-runner:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker:${HELENA_VERSION:-0.21.1}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    # 0:0 here and 1000:1000 in the ink and platform files, deliberately.
+    #
+    # These two run helena-worker-cpp, whose interpreter uv installed under /root
+    # at mode 0700: as any other user Python cannot read its own stdlib and
+    # dies with `No module named 'encodings'` before reaching main(). The
+    # entrypoint also ran `mkdir -p $ARTIFACT_ROOT` on an s3:// URL, which
+    # root created as a junk directory and a normal user simply cannot.
+    #
+    # Both are fixed in Containerfile.worker-cpp and worker-entrypoint.sh, and
+    # neither takes effect until those images are rebuilt. Flipping this
+    # default before that happens is how these four containers spent a few
+    # minutes crash-looping. Flip it once a rebuilt image has been checked:
+    #
+    #   docker run --rm --user 1000:1000 --entrypoint sh helena-worker-cpp:<tag> \
+    #     -c 'python3 -c "print(1)"'
+    user: "${HELENA_RUN_AS:-0:0}"
+    security_opt:
+      - no-new-privileges:true
     container_name: helena-fleet-runner
     restart: unless-stopped
     logging:
@@ -68,6 +122,10 @@ services:
       - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
     environment:
       HELENA_WORKER_PHASES: ${HELENA_FLEET_RUNNER_PHASES:-P2,P3,P8}
+      # Which image this worker actually is, so a lane that declares it needs
+      # another one is refused by name before it costs a lease. The spiral
+      # fitter's P1 lane declares helena-villa-python, which this is not.
+      HELENA_RUNTIME_IMAGE: ${HELENA_RUNTIME_IMAGE:-helena-worker-cpp}
       # One connection string with two names: the segment side calls it
       # FLEET_DB, the job queue calls it CX_DB. Mapped here rather than adding a
       # second copy to the env file, where the two would drift.
@@ -83,6 +141,65 @@ services:
       --worker-id ${HELENA_SEGMENT_HOST_ID}-fleet-runner
       --runs-root ${HELENA_FLEET_RUNS:-/ssd/campaignx/runs}
       --poll-seconds 10
+
+  # Candidate preflights, which used to run inside the panel's HTTP handler and
+  # returned 503 there. The measurement asks M7 through the seed service, and the
+  # panel has no service and no token -- the entrypoint mints both per container.
+  # So the work runs here, behind the same entrypoint, for the same reason the
+  # segmentation worker does.
+  #
+  # Read-only and ink-blind: it measures candidate availability and writes
+  # nothing but its receipt to the control plane.
+  preflight:
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    # 0:0 here and 1000:1000 in the ink and platform files, deliberately.
+    #
+    # These two run helena-worker-cpp, whose interpreter uv installed under /root
+    # at mode 0700: as any other user Python cannot read its own stdlib and
+    # dies with `No module named 'encodings'` before reaching main(). The
+    # entrypoint also ran `mkdir -p $ARTIFACT_ROOT` on an s3:// URL, which
+    # root created as a junk directory and a normal user simply cannot.
+    #
+    # Both are fixed in Containerfile.worker-cpp and worker-entrypoint.sh, and
+    # neither takes effect until those images are rebuilt. Flipping this
+    # default before that happens is how these four containers spent a few
+    # minutes crash-looping. Flip it once a rebuilt image has been checked:
+    #
+    #   docker run --rm --user 1000:1000 --entrypoint sh helena-worker-cpp:<tag> \
+    #     -c 'python3 -c "print(1)"'
+    user: "${HELENA_RUN_AS:-0:0}"
+    security_opt:
+      - no-new-privileges:true
+    container_name: helena-preflight
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    network_mode: host
+    env_file:
+      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+    environment:
+      HELENA_WORKER_KIND: preflight
+      # Its own service on its own port. Every container starts one, and with
+      # host networking the port is shared across the machine: two on 18080 and
+      # only one holds it, which is how a previous run got 401s from workers
+      # that all believed they had a service.
+      MCP_PORT: ${HELENA_PREFLIGHT_MCP_PORT:-18081}
+      WORKER_ID: ${HELENA_SEGMENT_HOST_ID:?set it to this machine's name}-preflight
+    command: >-
+      --watch
+      --max-jobs 0
+      --poll-seconds ${HELENA_PREFLIGHT_POLL_SECONDS:-10}
+      --lease-seconds ${HELENA_PREFLIGHT_LEASE_SECONDS:-900}
 
 volumes:
   # The panel's artifact volume, not one of this stack's own.

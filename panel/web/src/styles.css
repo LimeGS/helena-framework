@@ -530,6 +530,17 @@ th.pick, td.pick { width:34px; padding-right:0; }
   background:var(--sunk); font-size:0.6562rem; color:var(--ink-mid); overflow-x:auto; }
 .gateerror { font-size:0.75rem; color:var(--crit); }
 
+.linklike { background:none; border:none; padding:0; margin:0; font:inherit;
+  color:var(--accent); cursor:pointer; text-decoration:underline; }
+.linklike:disabled { color:var(--ink-faint); text-decoration:none; cursor:default; }
+
+/* A control run's own narration, in full -- every line it posted, not a
+   summary of it. A boundary that ran an hour with no visible output is
+   exactly the case a truncated or paraphrased log would still fail. */
+.progresslog { max-height:20rem; overflow-y:auto; white-space:pre-wrap;
+  margin-top:0.5rem; padding:0.5625rem; background:var(--sunk);
+  font-size:0.6562rem; color:var(--ink-mid); }
+
 /* A refusal, in full.
    It used to be rendered in a Pill -- an inline badge with nowrap -- so a
    two-sentence explanation became one long line clipped at the card's edge, and
@@ -940,3 +951,182 @@ label.inline input[type=text], label.inline input:not([type]) { width:4.5rem; }
 .apitable { width: 100%; border-collapse: collapse; margin: .4rem 0 .6rem; }
 .apitable th { text-align: left; font-weight: normal; color: var(--ink-faint); }
 .apitable th, .apitable td { padding: .18rem .6rem .18rem 0; }
+
+/* The import form reuses the run launcher's rows -- it is the same kind of
+   thing, a short form ending in one button -- so only the file list is new. */
+.filelist { list-style:none; margin:0; padding:0 0.875rem 0.75rem;
+            font-size:0.7188rem; }
+.filelist li { display:flex; gap:0.4rem; align-items:baseline; }
+.filelist code { font-family:var(--mono); }
+.importsurface input[type="file"] { font-size:0.7188rem; max-width:100%; }
+
+/* The queue's live column. A progress bar is wide and monospaced or its
+   columns jitter on every refresh, and it must not be allowed to push the
+   Result column off the table -- so it is capped and clipped rather than
+   wrapped, and the whole line stays readable on hover. */
+td.doing { max-width: 34rem; }
+td.doing code { font-family: var(--mono); font-size: 0.6875rem;
+                display: inline-block; max-width: 100%; overflow: hidden;
+                text-overflow: ellipsis; white-space: nowrap;
+                vertical-align: bottom; }
+
+/* The pages P9 rendered. Thumbnails on a grid rather than a list of filenames:
+   what a reader wants from this phase is to look at them, and a name like
+   `07_w049.png` is not a page. Each links to the full-size plate. */
+.plates { display: grid; gap: 0.75rem; grid-template-columns:
+          repeat(auto-fill, minmax(9rem, 1fr)); }
+.plates .plate { display: flex; flex-direction: column; gap: 0.25rem;
+                 text-decoration: none; color: var(--ink-mid); }
+.plates .plate img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+                     background: var(--panel); border: 1px solid var(--rule); }
+.plates .plate:hover img { border-color: var(--accent); }
+
+/* ---- handbook -------------------------------------------------------------
+   Two columns: a sidebar that stays, and one page at a time. The old guide was
+   four tabs of one long scroll each, which stopped working at about thirty
+   kilobytes -- "where is the thing about lanes" became scroll and hope.
+
+   The measure is capped at 74 characters. Documentation is read, not scanned,
+   and a line that crosses a wide monitor is a line the eye loses on the way
+   back. */
+.hb { display:grid; grid-template-columns:16rem minmax(0,1fr); gap:0;
+      border:1px solid var(--rule); background:var(--panel);
+      min-height:32rem; }
+.hb-nav { border-right:1px solid var(--rule); background:var(--sunk);
+          padding:0.75rem; overflow-y:auto; max-height:calc(100vh - 9rem);
+          position:sticky; top:0; }
+.hb-filter { width:100%; box-sizing:border-box; font-family:var(--mono);
+             font-size:0.75rem; padding:0.375rem 0.5rem; margin-bottom:0.75rem;
+             background:var(--panel); color:var(--ink);
+             border:1px solid var(--rule); }
+.hb-none { font-size:0.75rem; color:var(--ink-faint); margin:0 0 0.75rem; }
+.hb-section { margin-bottom:0.875rem; }
+.hb-section h2 { font-family:var(--mono); font-size:0.6563rem; font-weight:600;
+                 letter-spacing:.09em; text-transform:uppercase;
+                 color:var(--ink-faint); margin:0 0 0.3125rem; }
+.hb-section ul { list-style:none; margin:0; padding:0; }
+.hb-link { display:block; width:100%; text-align:left; background:none;
+           border:0; cursor:pointer; font-size:0.8125rem; line-height:1.35;
+           padding:0.25rem 0.4375rem; color:var(--ink-mid);
+           border-left:2px solid transparent; }
+.hb-link:hover { color:var(--ink); background:var(--panel); }
+.hb-link[aria-current] { color:var(--ink); font-weight:600;
+                         background:var(--panel);
+                         border-left-color:var(--accent); }
+/* The current page's own headings, inline under it. A second column for a
+   table of contents costs more width than it earns on a laptop. */
+.hb-outline { list-style:none; margin:0.125rem 0 0.375rem; padding:0 0 0 0.75rem;
+              border-left:1px solid var(--rule); }
+.hb-outline a { display:block; font-size:0.75rem; line-height:1.4;
+                padding:0.0625rem 0.375rem; color:var(--ink-faint);
+                text-decoration:none; }
+.hb-outline a:hover { color:var(--accent); }
+
+.hb-page { padding:1.5rem 2rem 4rem; overflow-y:auto;
+           max-height:calc(100vh - 9rem); }
+.hb-page > * { max-width:74ch; }
+.hb-head { border-bottom:1px solid var(--rule); padding-bottom:0.875rem;
+           margin-bottom:1.25rem; }
+.hb-crumb { font-family:var(--mono); font-size:0.6563rem; letter-spacing:.09em;
+            text-transform:uppercase; color:var(--ink-faint); margin:0 0 0.25rem; }
+.hb-head h1 { font-size:1.5rem; line-height:1.2; margin:0 0 0.375rem; }
+.hb-summary { font-size:0.9375rem; color:var(--ink-mid); margin:0;
+              line-height:1.5; }
+.hb-page p { line-height:1.6; margin:0 0 0.875rem; }
+.hb-page li { line-height:1.55; margin-bottom:0.3125rem; }
+.hb-page h2.hb-h { font-size:1.125rem; margin:1.75rem 0 0.625rem;
+                   padding-top:0.375rem; border-top:1px solid var(--rule); }
+.hb-page h3.hb-h { font-size:0.9375rem; margin:1.25rem 0 0.5rem; }
+/* The anchor appears on hover: every heading is linkable, and a row of #
+   marks down the page is noise until somebody wants one. */
+.hb-anchor { margin-left:0.4375rem; color:var(--ink-faint); opacity:0;
+             text-decoration:none; font-weight:400; }
+.hb-h:hover .hb-anchor { opacity:1; }
+.hb-anchor:hover { color:var(--accent); }
+.hb-page code { font-family:var(--mono); font-size:0.8125em;
+                background:var(--sunk); padding:0.0625rem 0.25rem;
+                border:1px solid var(--rule); }
+.hb-code { font-family:var(--mono); font-size:0.75rem; line-height:1.5;
+           background:var(--sunk); border:1px solid var(--rule);
+           padding:0.75rem 0.875rem; overflow-x:auto; margin:0 0 0.875rem; }
+.hb-code code { background:none; border:0; padding:0; font-size:inherit; }
+
+/* Tables and code get more room than prose. 74 characters is the measure that
+   makes a paragraph readable and it is the wrong bound for a five-column table,
+   which then scrolls inside a box narrower than the page for no reason. They
+   still scroll rather than widening the page: a table that pushes the layout
+   turns every paragraph above it into a line you have to pan to finish. */
+.hb-page > .hb-tablewrap, .hb-page > .hb-code, .hb-page > .hb-figure {
+  max-width:min(100%, 104ch);
+}
+.hb-tablewrap { overflow-x:auto; margin:0 0 0.875rem; }
+.hb-table { border-collapse:collapse; width:100%; font-size:0.8125rem; }
+.hb-table th, .hb-table td { border:1px solid var(--rule); text-align:left;
+                             padding:0.3125rem 0.5rem; vertical-align:top; }
+.hb-table th { background:var(--sunk); font-family:var(--mono);
+               font-size:0.6875rem; letter-spacing:.04em; }
+
+/* Four tones, and the vocabulary is closed in the build script -- an unknown
+   one is a build error rather than an unstyled grey box nobody notices. */
+.hb-callout { border:1px solid var(--rule); border-left-width:3px;
+              padding:0.625rem 0.875rem; margin:0 0 0.875rem;
+              background:var(--sunk); }
+.hb-callout b { display:block; font-family:var(--mono); font-size:0.6563rem;
+                letter-spacing:.09em; text-transform:uppercase;
+                margin-bottom:0.25rem; }
+.hb-callout p { margin:0; font-size:0.875rem; }
+.hb-note { border-left-color:var(--idle); }
+.hb-note b { color:var(--idle); }
+.hb-trap { border-left-color:var(--crit); background:var(--crit-soft); }
+.hb-trap b { color:var(--crit); }
+.hb-cost { border-left-color:var(--accent); background:var(--accent-soft); }
+.hb-cost b { color:var(--accent); }
+.hb-certification { border-left-color:var(--ok); background:var(--ok-soft); }
+.hb-certification b { color:var(--ok); }
+
+.hb-figure { margin:0 0 1.25rem; }
+.hb-figure img { max-width:100%; border:1px solid var(--rule); display:block; }
+.hb-figure figcaption { font-size:0.75rem; color:var(--ink-faint);
+                        margin-top:0.375rem; line-height:1.45; }
+
+/* On a narrow screen the sidebar becomes a strip above the page rather than a
+   drawer: a drawer needs a button, a state and a trap for the focus ring, and
+   this is a list of links. */
+@media (max-width: 60rem) {
+  .hb { grid-template-columns:1fr; }
+  .hb-nav { position:static; border-right:0; border-bottom:1px solid var(--rule);
+            max-height:14rem; }
+  .hb-page { padding:1rem 1.125rem 2.5rem; max-height:none; }
+  .hb-outline { display:none; }
+}
+
+/* --------------------------------------------------------------------------
+   P5 output: the probability map, and the column headers that sort it.
+   -------------------------------------------------------------------------- */
+
+/* The dark ground is load-bearing rather than decorative. The server renders
+   validity into the alpha channel, so a pixel no tile covered is transparent --
+   and on the Parchment theme that would show through as white, which reads as
+   the brightest thing on the map instead of the absence it is. */
+.inkmap { background:#12151a; padding:0.625rem; }
+.inkmap img { display:block; width:100%; height:auto; border:1px solid var(--rule);
+              image-rendering:auto; }
+
+/* The right-hand column of the inspector. `.rail` would have been the obvious
+   class and is the sticky sidebar's; this is a stack of cards. */
+.inspector { display:flex; flex-direction:column; gap:0.75rem; }
+
+/* The row whose detail is open below. Marked with the accent rather than with
+   `.diff`, which is the red one and reads as a failure. */
+tbody tr.is-open td { background:var(--accent-soft); }
+tbody tr.is-open td:first-child { box-shadow:inset 2px 0 0 var(--accent); }
+
+.colsort { background:none; border:0; padding:0; margin:0; font:inherit;
+           letter-spacing:inherit; text-transform:inherit; color:inherit;
+           cursor:pointer; display:inline-flex; align-items:center; gap:0.25rem; }
+.colsort:hover { color:var(--ink); }
+.colsort:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.colsort-on { color:var(--accent); }
+/* Present but quiet: a column that can be sorted says so before it is clicked,
+   and a header row of arrows says nothing. */
+.colsort-off { color:var(--rule-strong); font-size:0.5rem; }

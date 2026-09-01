@@ -1,0 +1,99 @@
+# P1 for the backend that is a fit rather than a grow.
+#
+#   docker compose --env-file /etc/helena/segment.env \
+#                  -f containers/compose/spiral.compose.yaml up -d
+#
+# Its own file rather than a service in segment.compose.yaml, and not a compose
+# profile inside it either: an enabled profile brings up the profiled service
+# *and* every unprofiled one, so a second project would have started a second
+# copy of the segmentation worker, the fleet runner and the preflight beside
+# this. Two workers claiming the same tasks is not a deployment detail.
+#
+# It reads the segment stack's env file, because it is the same fleet: the same
+# artifact volume, the same runs directory, the same control plane. What
+# differs is that it needs a card -- a fit is GPU work where a seeded grow here
+# is not -- and that it carries a different runtime.
+name: helena-spiral
+
+services:
+  spiral:
+    # The CPU worker carrying the spiral lane at /opt/lanes/spiral, which is one
+    # image now rather than a second built on top of it. The default named
+    # helena-villa-python-worker until that image stopped existing -- the deploy
+    # always sets the variable, so nothing broke, and running this file by hand
+    # got a name nothing builds.
+    image: ${HELENA_SPIRAL_IMAGE:-helena-worker-cpp:local}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    # 0:0 here and 1000:1000 in the ink and platform files, deliberately.
+    #
+    # These two run helena-worker-cpp, whose interpreter uv installed under /root
+    # at mode 0700: as any other user Python cannot read its own stdlib and
+    # dies with `No module named 'encodings'` before reaching main(). The
+    # entrypoint also ran `mkdir -p $ARTIFACT_ROOT` on an s3:// URL, which
+    # root created as a junk directory and a normal user simply cannot.
+    #
+    # Both are fixed in Containerfile.worker-cpp and worker-entrypoint.sh, and
+    # neither takes effect until those images are rebuilt. Flipping this
+    # default before that happens is how these four containers spent a few
+    # minutes crash-looping. Flip it once a rebuilt image has been checked:
+    #
+    #   docker run --rm --user 1000:1000 --entrypoint sh helena-worker-cpp:<tag> \
+    #     -c 'python3 -c "print(1)"'
+    user: "${HELENA_RUN_AS:-0:0}"
+    security_opt:
+      - no-new-privileges:true
+    container_name: helena-spiral
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    network_mode: host
+    env_file:
+      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+    environment:
+      HELENA_WORKER_PHASES: P1
+      # The lane the worker carries, not the image it runs as: the P1 lane
+      # declares helena-villa-python, and a worker calling itself
+      # helena-villa-python-worker would refuse its own job.
+      HELENA_RUNTIME_IMAGE: ${HELENA_SPIRAL_RUNTIME:-helena-villa-python}
+      # One connection string with two names, mapped here for the reason
+      # segment.compose.yaml gives: the segment side calls it FLEET_DB and the
+      # job queue calls it CX_DB, and a second copy in the env file would drift.
+      CX_DB: ${FLEET_DB:?set FLEET_DB in the segment env file}
+    gpus:
+      - driver: nvidia
+        device_ids: ["${HELENA_SPIRAL_DEVICE:-0}"]
+        capabilities: [gpu]
+    volumes:
+      - ${HELENA_SEGMENT_ARTIFACTS:?set HELENA_SEGMENT_ARTIFACTS to helena-artifacts, or to a scratch directory when publishing to s3}:/artifacts
+      # Job output: receipts and logs, at the same path the other workers use so
+      # a path in a job row means one thing on this host.
+      - ${HELENA_FLEET_RUNS:-/ssd/campaignx/runs}:${HELENA_FLEET_RUNS:-/ssd/campaignx/runs}
+      # The fitter's inputs: an umbilicus, tracks, winding point collections and
+      # the three lasagna volumes, per scroll. Same path inside and out, so the
+      # dataset_path recorded on a job means one thing on this host.
+      - ${HELENA_SPIRAL_DATASETS:-/ssd/campaignx/spiral}:${HELENA_SPIRAL_DATASETS:-/ssd/campaignx/spiral}
+    entrypoint: ["python3", "/workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py"]
+    command: >-
+      --host-id ${HELENA_SEGMENT_HOST_ID:?set it to this machine's name}
+      --worker-id ${HELENA_SEGMENT_HOST_ID}-spiral
+      --runs-root ${HELENA_FLEET_RUNS:-/ssd/campaignx/runs}
+      --poll-seconds 15
+      --job-timeout ${HELENA_SPIRAL_JOB_TIMEOUT:-86400}
+
+volumes:
+  # The panel's artifact volume, not one of this stack's own -- external for the
+  # reason segment.compose.yaml states: without it compose creates
+  # `helena-spiral_helena-artifacts`, an empty volume with a similar name, and
+  # every fitted winding is published where nothing else looks.
+  helena-artifacts:
+    external: true
+    name: ${HELENA_ARTIFACTS_VOLUME:-helena-artifacts}

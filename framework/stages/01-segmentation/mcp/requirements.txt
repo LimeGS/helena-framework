@@ -1,0 +1,18 @@
+# What the packaged MCP needs beyond the standard library.
+#
+# server.py says "Standard library only" and is; seed_candidates.py beside it
+# imports numpy inside five functions, so the module imports cleanly and fails
+# at the first seed search instead. A bundle carries these two files and no
+# dependency closure, so anything here has to be installed by whoever unpacks
+# it -- Containerfile.vc3d does, and test_the_vc3d_bundle_can_be_built_from_source
+# checks this list against the imports actually present rather than trusting it.
+#
+# Versions match the ones the rest of the fleet already installs -- ink pins
+# numpy, surface-qc pins scipy -- because two versions of either in one fleet is
+# a difference that shows up as an array behaving differently on one host.
+#
+# Both are imported inside functions, not at the top of the file. That is why
+# neither was noticed by reading the imports, and why the check walks the tree.
+numpy==2.1.2
+scipy==1.14.1
+zarr==3.1.6

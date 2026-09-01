@@ -76,7 +76,12 @@ def report_once(dsn: str, host_id: str, disk: str | None) -> str:
                 "WHERE host_id=%s",
                 (json.dumps(merged, sort_keys=True), host_id))
             if cursor.rowcount == 0:
-                return f"no host row named {host_id!r}; register it to see this"
+                # Where, not just what. This ran every minute on a fresh
+                # install, saying a row was missing and leaving no way to find
+                # out how one is made -- the reader has the panel open and no
+                # reason to guess that Configuration holds a Hosts tab.
+                return (f"no host row named {host_id!r}; add it under "
+                        f"Configuration -> Hosts in the panel to see this")
     return (f"{state.get('cores', '?')} cores, "
             f"{state.get('ram_free_gb', '?')}/{state.get('ram_total_gb', '?')} GB RAM, "
             f"{state.get('disk_free_gb', '?')} GB free on "

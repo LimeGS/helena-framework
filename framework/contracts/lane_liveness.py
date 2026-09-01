@@ -27,6 +27,60 @@ MIN_STD = 0.02                 # standard deviation on valid pixels
 MAX_FRACTION_NEAR_HALF = 0.90  # fraction landing within NEAR_HALF of 0.5
 NEAR_HALF = 0.05
 
+# The three thresholds above all read the distribution of values, and a
+# distribution cannot tell salt-and-pepper noise from strokes. Measured on
+# PHerc826: the 9 um lane's brightest 1% formed 332 connected components with a
+# median size of one pixel -- on the public positive control, 10,957 components,
+# also median one -- while the TimeSformer lane on the same surface formed 18
+# components with a median of 579. Both passed every gate above with room to
+# spare, because their histograms are similar and their spatial character is
+# not. Ink is strokes; a map whose bright pixels are individually isolated is
+# reporting per-pixel noise whatever its spread.
+#
+# Reported rather than enforced, deliberately. What counts as too fragmented
+# depends on the render's scale, and a threshold picked from two lanes on one
+# scroll would be exactly the kind of post-hoc number this platform refuses
+# elsewhere. The measurement goes in the receipt so the question can be asked;
+# turning it into a gate needs calibration against maps that are known good.
+MIN_STRUCTURED_COMPONENT_PX = 10
+
+
+def _spatial_character(probability: np.ndarray, valid: np.ndarray | None) -> dict:
+    """How the brightest pixels sit together, which the percentiles cannot say.
+
+    Two maps with the same histogram can be strokes or static. This reports the
+    connected components of the top 1% -- how many, how big -- so a receipt
+    carries the difference. It states nothing about ink: a map can be
+    well-structured and structured around a crack.
+    """
+    try:
+        from scipy import ndimage  # noqa: PLC0415
+    except ImportError:
+        # A lane whose image does not carry scipy still gets a liveness verdict;
+        # it just gets one without this. Silence here would be worse than the
+        # absence, so the receipt says which it is.
+        return {"spatial_character": "unmeasured: scipy is not available here"}
+
+    array = np.asarray(probability, dtype=np.float64)
+    mask = np.ones(array.shape, bool) if valid is None else np.asarray(valid, bool)
+    mask = mask & np.isfinite(array)
+    if mask.sum() < 1000:
+        return {"spatial_character": "unmeasured: too few valid pixels"}
+
+    top = mask & (array >= np.percentile(array[mask], 99.0))
+    labels, count = ndimage.label(top)
+    if count == 0:
+        return {"top1_components": 0}
+    sizes = np.bincount(labels.ravel())[1:]
+    structured = sizes >= MIN_STRUCTURED_COMPONENT_PX
+    return {
+        "top1_components": int(count),
+        "top1_median_component_px": int(np.median(sizes)),
+        "top1_largest_component_px": int(sizes.max()),
+        "top1_share_in_components_over_%dpx" % MIN_STRUCTURED_COMPONENT_PX:
+            round(float(sizes[structured].sum() / max(sizes.sum(), 1)), 4),
+    }
+
 
 def assess_liveness(probability: np.ndarray, *, valid: np.ndarray | None = None) -> dict:
     """Classify a probability map as ALIVE, DEGENERATE or EMPTY.
@@ -64,6 +118,7 @@ def assess_liveness(probability: np.ndarray, *, valid: np.ndarray | None = None)
         "fraction_near_half": near_half,
         "valid_pixels": int(values.size),
     }
+    metrics.update(_spatial_character(probability, valid))
     if failures:
         return {
             "verdict": "DEGENERATE",

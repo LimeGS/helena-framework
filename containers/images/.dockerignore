@@ -4,8 +4,8 @@
 #
 # Every Containerfile, and every file a Containerfile COPYs, must be whitelisted
 # below. `campaignx-surface-qc:0.1.1` ran QC in production while
-# Containerfile.surface-qc and requirements.surface-qc.txt (COPYed at
-# Containerfile.surface-qc:25) were both excluded by the `*` rule, which made
+# Containerfile.gpu-runtime and requirements.surface-qc.txt (COPYed at
+# Containerfile.gpu-runtime:25) were both excluded by the `*` rule, which made
 # that image unbuildable from this repository. See FIX-16.
 #
 # Do not whitelist a path that does not exist in this directory: compose.yaml,
@@ -16,9 +16,9 @@
 !Containerfile.panel
 !Containerfile.ink
 !requirements.ink.txt
-!Containerfile.ink-worker
+!Containerfile.worker-gpu
 !requirements.ink-worker.txt
-!Containerfile.surface-qc
+!Containerfile.gpu-runtime
 !requirements.surface-qc.txt
 !Containerfile.qc
 !Containerfile.orchestrator

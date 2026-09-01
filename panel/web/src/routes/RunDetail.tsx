@@ -118,7 +118,7 @@ export default function RunDetail() {
             </div>
             <div className={`link ${run.contract_ok ? "" : "bad"}`}>
               <span className="k">Normalization</span>
-              <span className="v">{run.normalization || "no declarada"}</span>
+              <span className="v">{run.normalization || "not declared"}</span>
             </div>
             <div className="link">
               <span className="k">Receipt</span>

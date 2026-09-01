@@ -1,0 +1,79 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "ink-9um-hybrid-3d2d-seed43-step75000-screening@1.0.0",
+  "method_id": "ink-9um-hybrid-3d2d-seed43-step75000@1.0.0",
+  "checkpoint_sha256": "2aeaa85a35ef28d7bc7bf3e848c4a6a91385e9132710927fdba41133c4ecb28f",
+  "pinned_source_revision": "3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e",
+  "adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+  "input_contract": {
+    "modality": "OME-Zarr surface volume",
+    "model_type": "local-3d-stem-into-2d-unet",
+    "model_family": "hybrid_3d2d",
+    "patch_size_y_x": [
+      128,
+      128
+    ],
+    "slices": 17,
+    "training_pixel_um": 9.6,
+    "training_slice_um": 9.6,
+    "isotropic_required": true,
+    "physical_resampling_required": false,
+    "normalization": "rebuilt from the checkpoint by upstream's own inference code, not restated here",
+    "normalization_provenance": [
+      "the model card states checkpoints embed their training config and inference rebuilds the model and its normalization from the checkpoint automatically",
+      "this lane therefore declares no normalization of its own; restating one would be a second copy of a fact the checkpoint already carries, free to drift from it",
+      "Measured on gpu-1 on 2026-08-23 by loading the checkpoint: the runner reports 'Configured model source=koine_machines.training.train roi_size=128 in_chans=17 preprocessing=tifxyz_robust' and selects 17 source layers. The model card's '17 of the 21 slices' describes the training jitter, not the input depth; 21 would be a claim the checkpoint itself contradicts."
+    ],
+    "scale_note": "Trained on public 2.399 um volumes pooled to ~9.6 um isotropic (level-2 XY, 4x z mean-pooling) plus 5 native 9.362 um PHerc0139 segments. A native ~9 um render runs with no resampling; a 2.4 um source must be pooled first with upstream's scripts/prepare_9um_isotropic_input.py and is not the same input.",
+    "training_scrolls": [
+      "PHerc0139",
+      "Scroll1667",
+      "PHercParis4",
+      "PHerc0814"
+    ],
+    "preprocessing": "tifxyz_robust"
+  },
+  "output_contract": {
+    "maps": [
+      "probability.npy"
+    ],
+    "upstream_output": "uint8 tiled TIFF",
+    "receipt": "INK_PROFILE_RECEIPT.json",
+    "coordinate_space": "native source surface plane",
+    "no_ink_floor": 0.25,
+    "comparability": [
+      "these models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0; any screen that treats 0 as no-ink is reading a different quantity than this lane emits",
+      "the model card's display rescale (p - 0.25) / 0.5 is for viewing only and must not be applied before a quantitative read",
+      "not comparable with the 2 um or timesformer lanes: different scale, different training corpus, different no-ink floor",
+      "one checkpoint of seven along one of two seed trajectories; the model card states different steps behave differently on different segments, so a single step is not the method",
+      "measured no-ink floor on public data: p50=0.259, which is the 0.25 the model card describes; a map whose p50 is 0.000 is empty, not no-ink"
+    ]
+  },
+  "default_execution": {
+    "overlap": 0.5,
+    "blend_mode": "hann",
+    "direction": "both",
+    "batch_size": 1,
+    "layer_start": null,
+    "layer_end": null,
+    "compile": false
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "non_claims": [
+      "a probability map is a routing signal, not proof of ink, letters, or text",
+      "no control has been run for this lane on this corpus; it is registered so that control can be run, and asserts nothing about precision or recall here",
+      "the layer window is deliberately unpinned: upstream defaults both bounds to None and the models are z-offset sensitive, so a window belongs in a campaign's own calibrated profile rather than invented here"
+    ]
+  },
+  "notes": {
+    "direction": "both, which emits a forward and a reverse map. The surface-normal direction that faces the ink is a measurement, and running one direction only assumes an answer this lane has no way to check.",
+    "blend_mode": "hann explicitly rather than upstream's 'auto', which resolves to constant without overlap and Hann otherwise. Pinning it means the receipt records the window that ran instead of a rule about which window would be chosen.",
+    "checkpoint": "hybrid_3d2d-seed43/step-075000.pth, 138360231 bytes. The digest was read from the upstream model repository's own LFS metadata, not asserted from a filename.",
+    "pinned_source_revision": "The inference entrypoint koine_machines.inference.infer is not present at the volume_cartographer source-lock commit; it lives on villa's merge-ink-pipelines branch, recorded here so the adapter's runner has an identity.",
+    "compile": "false. torch.compile's Inductor backend JIT-compiles kernels and needs a C compiler at run time; helena-ink-9um deliberately has none, because a compiler in a production image is attack surface that never executes. Measured on gpu-1: with compilation on, the run dies with 'InductorError: Failed to find C compiler' after the model is already resident. A deployment whose image does carry a toolchain can set this true.",
+    "batch_size": "1, which is upstream's own default. The tutorial suggests 4 and this profile carried that over; measured on gpu-1 on 2026-08-23 against the model card's plain command on the public PHerc0139 w043 volume, 4 empties the map -- 0.43% non-zero at pyramid level 3, and 0.00% at full resolution after 11,006 patches and twelve minutes per direction. It exits 0 and writes a file of the right shape. --direction both and --blend-mode hann were bisected in the same run and are bit-identical to the plain command, so they stay.",
+    "comparison": "One checkpoint of the fourteen scrollprize/ink_9um publishes: two seeds by seven steps of a single training run. It exists as its own profile so that a run against it is comparable to a run against any other -- same recipe, same preprocessing, one declared difference. The canonical screening lane is ink-9um-hybrid-3d2d-screening@1.0.0 (seed 42, step 75000); this one is for measuring against it and is not a substitute for it."
+  }
+}

@@ -117,10 +117,19 @@ def test_ci_publishes_the_image_it_tested() -> None:
     thing every host trusts."""
     build = CI[CI.index("build the panel image:"):]
     build = build[: build.index("\n# ---")]
-    assert "docker push $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA" in build
+    # One reference, computed once. It used to be the literal
+    # $HELENA_REGISTRY/helena-panel:$SHA repeated at every step, which broke the
+    # moment the registry was empty: the empty value interpolated to
+    # "/helena-panel:$SHA", not a valid reference, and the build died on its own
+    # tag. The property this test is for is unchanged -- what is pushed is what
+    # was opened and looked inside.
+    assert 'docker push "$panel_image"' in build
+    assert "$panel_image" in build[: build.index("docker push")]
     # The push is last: the import check and the bundle check come first.
     assert build.index("import panel.app") < build.index("docker push")
     assert build.index("UserGuide") < build.index("docker push")
+    # And it is skipped rather than attempted when there is nowhere to push to.
+    assert 'if [ -n "$HELENA_REGISTRY" ]; then' in build[build.index("docker push") - 200:]
 
 
 def test_the_deployed_tag_names_a_commit() -> None:
@@ -141,13 +150,30 @@ def test_every_job_names_the_image_the_build_produced() -> None:
     """
     import re
 
-    referenced = set(re.findall(r"docker (?:run --rm|push|image inspect)\s+(\S*helena-panel:\S+)", CI))
+    # Every step now names $panel_image rather than repeating the tag, which is
+    # what stops one occurrence from being missed. So the check moved up a
+    # level: nothing may name the image any other way, and the two jobs that
+    # compute the reference -- build and deploy, separate shells -- must compute
+    # it identically, or they are two names again wearing one variable.
+    referenced = set(re.findall(
+        r"docker (?:run --rm|push|image inspect)\s+\"?(\$?\S*?helena-panel:\S+|\$panel_image)\"?", CI))
     assert referenced, "no job references the panel image any more"
     for name in referenced:
-        assert name.startswith("$HELENA_REGISTRY/"), (
-            f"{name} is not the name the build job tags, so this step runs an "
-            "image that was never produced"
+        assert name == "$panel_image", (
+            f"{name} names the image directly instead of the reference the job "
+            "computed, so it can drift from what the build tagged"
         )
+
+    computations = re.findall(r'panel_image="([^"]+)"', CI)
+    assert len(computations) >= 2, "the reference is computed in fewer jobs than use it"
+    assert len(set(computations)) == 2, (
+        f"the panel image is computed {len(set(computations))} different ways: "
+        f"{sorted(set(computations))}; build and deploy must agree"
+    )
+    assert set(computations) == {
+        "$HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA",
+        "helena-panel:$CI_COMMIT_SHA",
+    }, "the with-registry and without-registry forms are not the expected pair"
 
 
 def test_the_deploy_asks_for_the_tag_the_pipeline_publishes() -> None:
@@ -163,10 +189,19 @@ def test_the_deploy_asks_for_the_tag_the_pipeline_publishes() -> None:
     assert "manifests/$commit_full" in DEPLOY, (
         "the existence check asks the registry about a tag CI never publishes"
     )
-    assert "$CI_COMMIT_SHA" in CI and "$CI_COMMIT_SHORT_SHA" not in CI.split(
-        "docker push")[0].split("-t $HELENA_REGISTRY")[-1], (
-        "the pipeline stopped tagging with the full hash"
-    )
+    # Asked of the computation rather than of a text window. The old form split
+    # the file on "-t $HELENA_REGISTRY", and when the tag became a computed
+    # $panel_image that split matched nothing, so the window silently became the
+    # whole pipeline -- including BUILD_COMMIT=$CI_COMMIT_SHORT_SHA, which is a
+    # build argument and was never the tag.
+    computations = re.findall(r'panel_image="([^"]+)"', CI)
+    assert computations, "the pipeline no longer computes a panel image name"
+    for form in computations:
+        assert form.endswith(":$CI_COMMIT_SHA"), (
+            f"the panel image is tagged {form}; CI must publish the full hash "
+            "because that is the tag the deploy asks the registry for"
+        )
+        assert "$CI_COMMIT_SHORT_SHA" not in form
 
 
 def test_an_image_is_only_built_where_one_is_wanted() -> None:
@@ -198,20 +233,37 @@ def test_a_job_that_needs_the_host_is_pinned_to_it() -> None:
     import yaml
 
     parsed = yaml.safe_load(CI)
+    assert parsed["variables"]["HELENA_CI_RUNNER"] == "work-3"
+    rules = parsed["workflow"]["rules"]
+    # By content, not by position: a rule added ahead of this one is how the
+    # fork refusal arrived, and pinning the index made that read as staging
+    # losing its runner.
+    assert {
+        "if": '$CI_COMMIT_BRANCH == "staging"',
+        "variables": {"HELENA_CI_RUNNER": "gpu-1"},
+    } in rules
+    assert rules[-1] == {"when": "always"}
+    # And the refusal comes first, because a later `when: always` would take a
+    # fork's pipeline before it is ever reached. Every runner here carries the
+    # host's Docker socket.
+    assert rules[0]["when"] == "never"
+    assert "$CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID" in rules[0]["if"]
     for name, host in (
-        ("deploy to swisspost-1", "swisspost-1"),
-        ("smoke on swisspost-1", "swisspost-1"),
+        ("deploy to work-3", "work-3"),
+        ("smoke on work-3", "work-3"),
         ("deploy to gpu-1", "gpu-1"),
         ("smoke on gpu-1", "gpu-1"),
         ("heavy", "gpu-1"),
-        ("build the panel image", "swisspost-1"),
     ):
         assert parsed[name].get("tags") == [host], (
             f"{name} is not pinned to {host}"
         )
-    # unit tests is pinned too, but for a different reason: its image is built
-    # on that runner's daemon and pushed nowhere, so it exists on one machine.
-    assert parsed["unit tests"].get("tags") == ["swisspost-1"]
+    # These jobs share a daemon-local CI image and need a Docker socket. The
+    # pipeline selects one host for all three before any job is scheduled.
+    for name in ("build the ci image", "unit tests", "build the panel image"):
+        assert parsed[name].get("tags") == ["$HELENA_CI_RUNNER"], (
+            f"{name} does not use the pipeline's CI runner affinity"
+        )
     # frontend needs only a public image and stays unpinned, or it queues behind
     # a single machine for no reason.
     assert not parsed["frontend"].get("tags"), (
@@ -220,7 +272,7 @@ def test_a_job_that_needs_the_host_is_pinned_to_it() -> None:
 
 
 def test_each_branch_deploys_to_exactly_one_host() -> None:
-    """development is swisspost-1 and staging is gpu-1, and neither is both.
+    """development is work-3 and staging is gpu-1, and neither is both.
 
     A job whose rules let it run on both branches would deploy one branch's code
     to the other's machine on whichever pipeline ran second.
@@ -229,8 +281,8 @@ def test_each_branch_deploys_to_exactly_one_host() -> None:
 
     parsed = yaml.safe_load(CI)
     expected = {
-        "deploy to swisspost-1": "development",
-        "smoke on swisspost-1": "development",
+        "deploy to work-3": "development",
+        "smoke on work-3": "development",
         "deploy to gpu-1": "staging",
         "smoke on gpu-1": "staging",
     }
@@ -259,8 +311,8 @@ def test_every_job_that_touches_a_deployment_proves_it_is_on_that_host() -> None
         )
     # And each concrete job has to say which host it means, or the guard above
     # compares against an empty string and passes anywhere.
-    for name in ("deploy to swisspost-1", "deploy to gpu-1",
-                 "smoke on swisspost-1", "smoke on gpu-1", "heavy"):
+    for name in ("deploy to work-3", "deploy to gpu-1",
+                 "smoke on work-3", "smoke on gpu-1", "heavy"):
         assert parsed[name]["variables"].get("HELENA_DEPLOY_HOST"), (
             f"{name} does not name the host it is allowed to touch"
         )
@@ -298,7 +350,7 @@ def test_the_deploy_is_one_script_called_with_a_profile() -> None:
         "the deploy does not call the script that holds the service list"
     )
     assert "$HELENA_PROFILE" in steps, "the profile is not passed"
-    for name, profile in (("deploy to swisspost-1", "nogpu"),
+    for name, profile in (("deploy to work-3", "nogpu"),
                           ("deploy to gpu-1", "gpu")):
         assert parsed[name]["variables"]["HELENA_PROFILE"] == profile
 
@@ -326,9 +378,15 @@ def test_a_machine_with_no_card_is_not_asked_to_reserve_one() -> None:
     stop = script.index('if [ "$profile" = nogpu ]')
     after = script[stop:]
     assert "exit 0" in after[:400], "the nogpu profile does not stop"
+    # Comments stripped first: what must not appear before the exit is a stack
+    # being *started*, and a comment naming a compose file starts nothing. The
+    # search is over text, so without this it cannot tell the two apart and
+    # prose explaining the GPU layout reads as a card reservation.
+    code = "\n".join(line for line in script[:stop].splitlines()
+                     if not line.lstrip().startswith("#"))
     # The GPU stacks must all come after that exit.
     for gpu_only in ("ink.compose.yaml", "surface-qc.compose.yaml"):
-        assert gpu_only not in script[:stop], (
+        assert gpu_only not in code, (
             f"{gpu_only} reserves a card and is started before the nogpu exit"
         )
     # host-report is the exception: it runs on both, and the overlay is what
@@ -386,8 +444,12 @@ def test_the_suite_does_not_reinstall_its_dependencies_every_push() -> None:
     # Built locally and never pushed: the job that uses it runs on that same
     # daemon, and a registry round-trip for three gigabytes undoes the saving.
     assert "docker push" not in " ".join(prepare["script"])
-    assert unit.get("tags") == ["swisspost-1"], (
-        "the image exists only on that runner's daemon, so the job must run there"
+    assert prepare.get("tags") == ["$HELENA_CI_RUNNER"], (
+        "the image builder does not use the pipeline's CI runner affinity"
+    )
+    assert unit.get("tags") == prepare.get("tags"), (
+        "the image exists only on its builder's daemon, so producer and consumer "
+        "must use the same runner affinity"
     )
 
 
@@ -411,7 +473,7 @@ def test_the_ci_image_installs_only_the_requirements_before_the_copy() -> None:
 def test_the_ci_image_does_not_accumulate_forever() -> None:
     """One 2.5 GB image per pipeline, kept for good, is a host that fills up.
 
-    It did. Twenty-three of them plus their build cache took swisspost-1 to zero
+    It did. Twenty-three of them plus their build cache took work-3 to zero
     bytes free, and every pipeline after that failed inside apt-get with a
     message about /var/cache/apt rather than about disk -- so the cause looked
     like a broken base image for as long as nobody ran df.

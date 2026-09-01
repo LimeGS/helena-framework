@@ -1,0 +1,329 @@
+{
+  "schema": "ink-weight-manifest-v1",
+  "version": "0.1.0",
+  "generated_from": "the HuggingFace paths-info API, which reports each file's own LFS metadata. No digest here was computed from a downloaded copy, so a download that matches proves the copy is upstream's, not that two of our own copies agree.",
+  "models_root_note": "destination is relative to CX_MODELS. Upstream layout is preserved under a per-repository directory so that the fourteen ink_9um checkpoints stay individually addressable as ink_9um/hybrid_3d2d-seedNN/step-NNNNNN.pth.",
+  "entries": [
+    {
+      "repo": "scrollprize/PHerc.1667-iteration-0",
+      "upstream_path": "last.ckpt",
+      "destination": "PHerc.1667-iteration-0/last.ckpt",
+      "size_bytes": 1008820953,
+      "sha256": "212312371c60f93bd1a7d7359c87134390f3aa9b498a6de82753a871f26ebbed",
+      "methods": [
+        "pherc1667-cross-segment-iteration0@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/PHerc.1667-iteration-0",
+      "upstream_path": "model.safetensors",
+      "destination": "PHerc.1667-iteration-0/model.safetensors",
+      "size_bytes": 333531996,
+      "sha256": "62c43b98f55c169ae874c684a59953b5ce1cb45140129107f861501cce3edaef",
+      "methods": [
+        "pherc1667-cross-segment-iteration0@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/PHerc.1667-iteration-5",
+      "upstream_path": "last.ckpt",
+      "destination": "PHerc.1667-iteration-5/last.ckpt",
+      "size_bytes": 1008820953,
+      "sha256": "2c99b5ef73331363a9c42296fbea8a114c73fa5eedcddd6d0b33a0924b14685f",
+      "methods": [
+        "pherc1667-iteration5@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/PHerc.1667-iteration-5",
+      "upstream_path": "model.safetensors",
+      "destination": "PHerc.1667-iteration-5/model.safetensors",
+      "size_bytes": 333531996,
+      "sha256": "9920d4338e51d38b241cbf48392610be0519e4e19c2e9d987ccfc2e78bd3301b",
+      "methods": [
+        "pherc1667-iteration5@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/fiber_ink_4class_selfdistill",
+      "upstream_path": "p4_4class_ddp8_20260526_step029000.pth",
+      "destination": "fiber_ink_4class_selfdistill/p4_4class_ddp8_20260526_step029000.pth",
+      "size_bytes": 2260148109,
+      "sha256": "feef7fad198c5c53ede4193cf2686a515be574beb110cc957bd7984b52085bf2",
+      "methods": [
+        "fiber-ink-4class-selfdistill@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink-coverage-32um",
+      "upstream_path": "fold_0/checkpoint_final.pth",
+      "destination": "ink-coverage-32um/fold_0/checkpoint_final.pth",
+      "size_bytes": 469484439,
+      "sha256": "d695c61b96c71fe90ccd331446358ba732f74210ae87e1f74426104e97a26390",
+      "methods": [
+        "ink-coverage-32um@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink-coverage-32um",
+      "upstream_path": "fold_1/checkpoint_final.pth",
+      "destination": "ink-coverage-32um/fold_1/checkpoint_final.pth",
+      "size_bytes": 469484503,
+      "sha256": "363b4dd503972e2666e240ed0a1f33c9227fd5e28f8d9879f92d8dca0297607f",
+      "methods": [
+        "ink-coverage-32um@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink-coverage-32um",
+      "upstream_path": "fold_2/checkpoint_final.pth",
+      "destination": "ink-coverage-32um/fold_2/checkpoint_final.pth",
+      "size_bytes": 469484439,
+      "sha256": "ba3e5e61e8641701cee7289c11d7fdcb90b3de9b58304fb7bc5614e0d7040e05",
+      "methods": [
+        "ink-coverage-32um@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_3d_dino_guided",
+      "upstream_path": "ckpt_064000.pth",
+      "destination": "ink_3d_dino_guided/ckpt_064000.pth",
+      "size_bytes": 1703137755,
+      "sha256": "71f78c0a4e9e3daa2b86608c0be0416d051879b27e68a73b4bfeda1775421825",
+      "methods": [
+        "ink-3d-dino-guided@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_3d_dino_guided",
+      "upstream_path": "ckpt_077000.pth",
+      "destination": "ink_3d_dino_guided/ckpt_077000.pth",
+      "size_bytes": 1703137755,
+      "sha256": "20d9b54824bc23af7a0d4b06da2f40de9fa445cbe6f210b7304b281669137f51",
+      "methods": [
+        "ink-3d-dino-guided@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_3d_dino_guided",
+      "upstream_path": "ckpt_78k_fullsup.pth",
+      "destination": "ink_3d_dino_guided/ckpt_78k_fullsup.pth",
+      "size_bytes": 1703138075,
+      "sha256": "5a148c2c1bb730bfa683f2b3e3cdfc2000424003605e42300b527ff90118b303",
+      "methods": [
+        "ink-3d-dino-guided@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-010000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-010000.pth",
+      "size_bytes": 138360039,
+      "sha256": "5d0896899092f312299c988de5861a5b6d3669112ee2a4976e2ecf44d4fe3664",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-020000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-020000.pth",
+      "size_bytes": 138360039,
+      "sha256": "c72023e13ea466fe1e579ed012eb209b909d79b501b7e1839a27c58ee6f5c6e4",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-030000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-030000.pth",
+      "size_bytes": 138360039,
+      "sha256": "ade09944cd02f02fb9a25a135b6a9097366e47813abb18d91ddc4da919535d86",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-040000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-040000.pth",
+      "size_bytes": 138360039,
+      "sha256": "f1e2101df567a431d3f39d17503316483084bace64cba55ef9671e5ea24ea76a",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-050000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-050000.pth",
+      "size_bytes": 138360039,
+      "sha256": "c16c75db4c6ea75b929c4db82437098d0a4ca0f3779c77e3aabc228f52ea2238",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-060000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-060000.pth",
+      "size_bytes": 138360039,
+      "sha256": "63cad1fb689a575662b6cc367635ec968ec488b219af12aff0497781488070ab",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed42/step-075000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed42/step-075000.pth",
+      "size_bytes": 138360039,
+      "sha256": "e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-010000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-010000.pth",
+      "size_bytes": 138360231,
+      "sha256": "2c08d9e1f833f345cfb7ab2543069829d96e918a668d263099a0972dc5dceeeb",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-020000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-020000.pth",
+      "size_bytes": 138360231,
+      "sha256": "b89b2ebcf49d71712c6c38631eec2306966c1602e80aa6f32a1d6123b0bdf1c9",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-030000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-030000.pth",
+      "size_bytes": 138360231,
+      "sha256": "4d9b6487b7c6b4f2a1d5a7b57cba37c8b0ccee259c74d9b6b04008cc52597b4a",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-040000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-040000.pth",
+      "size_bytes": 138360231,
+      "sha256": "e0b9ec7e5e9cb7caf6c9689bd35159285bb82c629f63e5ec83cb220e8d659978",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-050000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-050000.pth",
+      "size_bytes": 138360231,
+      "sha256": "c3c55191dad99849696c980aa7abaf6305514a91d6b8ba898e1e0dbb50eb3ea4",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-060000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-060000.pth",
+      "size_bytes": 138360231,
+      "sha256": "bf229faf754da3f1fc3026a3f9a9649341aeb3feb7bc89099cad31c55525d270",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_9um",
+      "upstream_path": "hybrid_3d2d-seed43/step-075000.pth",
+      "destination": "ink_9um/hybrid_3d2d-seed43/step-075000.pth",
+      "size_bytes": 138360231,
+      "sha256": "2aeaa85a35ef28d7bc7bf3e848c4a6a91385e9132710927fdba41133c4ecb28f",
+      "methods": [
+        "ink-9um-hybrid-3d2d@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/ink_canonical_2um",
+      "upstream_path": "r152_3ddec_v2_l5_epoch13.ckpt",
+      "destination": "canonical/r152.ckpt",
+      "size_bytes": 1549556213,
+      "sha256": "36dd0de84b7b7aa6590184192c7415466cd8a1ba7c1e59f42c6373846373c3e0",
+      "methods": [
+        "ink-canonical-2um@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/resnet50_3um_01122024",
+      "upstream_path": "model.safetensors",
+      "destination": "resnet50_3um_01122024/model.safetensors",
+      "size_bytes": 342867728,
+      "sha256": "052670ea5013e1fa67b009e28d4d9d7e63e006ff4c705a43cd90f72f4f5f7b76",
+      "methods": [
+        "resnet50-3um-01122024@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/resnet50_7.9um_scroll1_frags",
+      "upstream_path": "model.safetensors",
+      "destination": "resnet50_7.9um_scroll1_frags/model.safetensors",
+      "size_bytes": 342867728,
+      "sha256": "fa00728db74d714769960dd77e9911a0e0938b3f272933c153632b5bed543c34",
+      "methods": [
+        "resnet50-7.9um-scroll1-frags@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/surface_m7_nnunet",
+      "upstream_path": "fold_0/checkpoint_best.pth",
+      "destination": "surface_m7_nnunet/fold_0/checkpoint_best.pth",
+      "size_bytes": 820473701,
+      "sha256": "17465b77591b794638e671f1a9f79c4cf1e79821f302e6fc235e3725e5da7d7e",
+      "methods": [
+        "surface-m7-nnunet@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/timesformer_GP_scroll1",
+      "upstream_path": "model.safetensors",
+      "destination": "timesformer_GP_scroll1/model.safetensors",
+      "size_bytes": 151853128,
+      "sha256": "490a98f9491e1180274ed3a0c0a9c611d73a0109c0e0c0fbba1097562a972488",
+      "methods": [
+        "timesformer-gp-scroll1@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/timesformer_large_scroll1_01122024",
+      "upstream_path": "model.safetensors",
+      "destination": "timesformer_large_scroll1_01122024/model.safetensors",
+      "size_bytes": 336694640,
+      "sha256": "c85dd722aad3734476dd6d8f14fae7a249a0a3c019fbd68f894558ae381e3e9d",
+      "methods": [
+        "timesformer-large-scroll1-01122024@1.0.0"
+      ]
+    },
+    {
+      "repo": "scrollprize/timesformer_scroll5_27112024",
+      "upstream_path": "timesformer_scroll5_27112024_20241108111522_epoch=19.ckpt",
+      "destination": "timesformer_scroll5_27112024/timesformer_scroll5_27112024_20241108111522_epoch=19.ckpt",
+      "size_bytes": 455711244,
+      "sha256": "3c6b0b4d1b766a69cef2ba86b51574d91c71dded7fa4d9ec7435a1a95c61320f",
+      "methods": [
+        "timesformer-scroll5-pherc172@1.0.0",
+        "timesformer-scroll5-27112024@1.0.0"
+      ]
+    }
+  ]
+}

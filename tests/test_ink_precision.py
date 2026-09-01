@@ -10,7 +10,9 @@ T4a (double uint8 quantization)
     training grid, so both operators exist precisely to create intermediate
     grey values -- and both roundings destroyed them, on a signal whose useful
     contrast is a handful of levels.  The model never wanted uint8: ``infer_map``
-    feeds it ``clamp(0,200)/255`` as float32.  The float32 chain is a different
+    feeds it ``clamp(0,200)/200`` as float32 -- the divisor is the clip value,
+    not 255, which is what upstream's A.ToFloat(max_value=CFG.max_clip_value)
+    means.  The float32 chain is a different
     numeric result, so it ships as a new lane profile (@1.1.0) and leaves the
     frozen @1.0.0 path reproducible.
 

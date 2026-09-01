@@ -445,6 +445,74 @@ export const AREAS: Area[] = [
     ],
   },
   {
+    page: "InkMaps",
+    title: "P5 — Maps",
+    purpose:
+      "What the ink detector actually produced: every P5 job the fleet queue has run, " +
+      "and the probability map each one wrote. The Runs tab beside it indexes the " +
+      "legacy receipt tree on disk, which cannot see a screening queued through the " +
+      "fleet — until this existed those maps were reachable only over ssh.",
+    controls: [
+      {
+        name: "Filter box",
+        kind: "filter",
+        what: "Narrows the table by job id, scroll, surface or lane.",
+        when: "Once more than a screenful of screenings has accumulated.",
+        recommend:
+          "Type the lane when you are comparing one detector against itself across " +
+          "scrolls, and the surface when you are asking what has been tried on one patch.",
+      },
+      {
+        name: "State and verdict pickers",
+        kind: "dropdown",
+        what:
+          "Keeps only jobs in one queue state, or only maps carrying one liveness " +
+          "verdict.",
+        when: "Verdict first, nearly always.",
+        recommend:
+          "DEGENERATE is the one to look at. It says the map carries no decision — an " +
+          "untrained head, a collapsed output, or an input far outside what the lane " +
+          "was trained on — so nothing downstream may screen it. It is not a finding " +
+          "about ink, in either direction.",
+      },
+      {
+        name: "Column headers",
+        kind: "button",
+        what: "Sorts the table on that column; a second press reverses it.",
+        when: "Sort on spread when you are looking for lanes that have gone flat.",
+        recommend:
+          "p50, p99 and spread come from the liveness block, which is the only set of " +
+          "numbers every ink lane writes. The statistics block in the receipt is " +
+          "richer and two of the four lanes do not write one.",
+      },
+      {
+        name: "Job id",
+        kind: "button",
+        what:
+          "Opens that run: the map drawn as a picture, beside its own receipt, its " +
+          "liveness verdict, its checkpoint digest and what it consumed.",
+        when: "Whenever a number in the table needs explaining.",
+        recommend:
+          "Read the line under the picture before reading the picture. The map is " +
+          "drawn on a percentile stretch of its own values, so brightness says nothing " +
+          "about how one map compares to another — a map with no signal and a map with " +
+          "signal fill the same range of greys.",
+      },
+      {
+        name: "Array picker",
+        kind: "dropdown",
+        what: "Draws one of the other arrays the run wrote instead of the aggregate.",
+        when:
+          "Only the TimeSformer lane has any: per-window maps and a stability map " +
+          "beside the mean.",
+        recommend:
+          "Leave it on the aggregate. The windows and the stability map are evidence " +
+          "about the aggregate and are not interchangeable with it — the aggregate is " +
+          "the map P7 adjudicates.",
+      },
+    ],
+  },
+  {
     page: "RunDetail",
     title: "A single run",
     purpose:

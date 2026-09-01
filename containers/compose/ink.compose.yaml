@@ -21,11 +21,52 @@
 # of each other. Slots may share a card -- rendering is mostly IO -- but two
 # detectors will not both fit in 6 GiB, which is why this is a decision per host
 # rather than a number this file picks.
+#
+# The 9 um detector is a slot too, and this is the whole of it:
+#
+#   HELENA_INK_SLOT=9um HELENA_INK_DEVICE=0 \
+#   HELENA_INK_IMAGE=helena-worker-gpu:local \
+#   HELENA_RUNTIME_IMAGE=helena-ink-9um \
+#   HELENA_INK_PHASES=P5 \
+#     docker compose -p helena-ink-9um --env-file /etc/helena/ink.env \
+#       -f containers/compose/ink.compose.yaml up -d
+#
+# No second file, because nothing about the service differs -- same worker, same
+# queue, same mounts. What differs is which image it is and which image it says
+# it is, and both were already variables. HELENA_RUNTIME_IMAGE must name the
+# lane image the worker carries rather than the composed image it runs as: the
+# lane declares `helena-ink-9um`, and a worker labelled helena-worker-gpu
+# would refuse its own job by name.
+#
+# The two are one suffix apart and both mistakes have now been made:
+#
+#   * HELENA_INK_IMAGE=helena-ink-9um crash-looped for 27 hours reporting
+#     `can't open file '.../ink_worker.py'`. The lane image carries /opt/villa
+#     and no repository; it answers that itself now, naming both variables.
+#   * HELENA_RUNTIME_IMAGE=helena-worker-gpu is the quiet one -- the worker
+#     starts, refuses every 9 um job by name, and looks idle. It refuses to
+#     start at all now.
+#
+# Note also `container_name: helena-ink-${HELENA_INK_SLOT}`: with SLOT=9um the
+# container is called helena-ink-9um whichever image is inside it, so the name
+# is no evidence about which one that is.
 name: helena-ink
 
 services:
   ink:
-    image: ${HELENA_INK_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.21.1}}
+    image: ${HELENA_INK_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.22.0}}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    user: "${HELENA_RUN_AS:-1000:1000}"
+    security_opt:
+      - no-new-privileges:true
     container_name: helena-ink-${HELENA_INK_SLOT:-0}
     restart: unless-stopped
       # A ceiling, because this host has already lost PostgreSQL to a full
@@ -42,6 +83,19 @@ services:
       # plates are composed from the official ink maps, which is a download and
       # an image pipeline -- the same runtime the rest of these need.
       HELENA_WORKER_PHASES: ${HELENA_INK_PHASES:-P4,P5,P7,P9}
+      # Which image this worker actually is, so a lane that declares it needs
+      # another one is refused by name before it costs a lease and a render.
+      # Three lanes now do: the 9 um detector, lasagna and the spiral fitter,
+      # whose dependencies cannot share an environment with this one. Unset,
+      # the check stays quiet rather than refusing work on an unlabelled host.
+      HELENA_RUNTIME_IMAGE: ${HELENA_RUNTIME_IMAGE:-helena-worker-gpu}
+      # Where the vendored upstream architecture lives on this host. Two P5
+      # lanes import their model code from it -- one on sys.path, one on
+      # PYTHONPATH -- and it used to arrive as a job parameter, which made the
+      # import path of the model something whoever queued the job chose. Unset,
+      # those two lanes refuse here instead of importing from wherever a
+      # request pointed; every other lane is unaffected.
+      HELENA_INK_UPSTREAM_ROOT: ${HELENA_INK_UPSTREAM_ROOT:-}
     env_file:
       - ${HELENA_INK_ENV:-/etc/helena/ink.env}
       # Credentials the panel does not yet hold. Once they are set from the
@@ -69,6 +123,14 @@ services:
       # artifact volume by default.  Without this mount, /artifacts is merely
       # the worker container's writable layer and disappears on recreation.
       - ${HELENA_INK_ARTIFACTS:-helena-artifacts}:/artifacts
+      # The vendored upstream is NOT mounted here. It is needed by two P5 lanes
+      # and by no other, HELENA_INK_UPSTREAM_ROOT is empty on a host that runs
+      # neither, and compose has no way to leave a list entry out -- a default
+      # would have meant binding some placeholder path on every host that does
+      # not use it. A deployment that runs those lanes adds the mount beside
+      # this one, at the same path inside and out so the variable means one
+      # thing in the container and in a receipt. Without it the two lanes
+      # refuse by name at startup and everything else is unaffected.
     command:
       - python3
       - /workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py

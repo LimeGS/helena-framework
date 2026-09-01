@@ -24,6 +24,20 @@ class InsufficientGpuMemoryError(RuntimeError):
         self.receipt = receipt
 
 
+def task6_seed_argv(locked_plan: dict[str, Any]) -> list[str]:
+    """Return the exact VC3D seed argv without numeric coercion."""
+
+    from .seed_probe import coordinate_sha256_v1, validate_task6_coordinate
+
+    seed = validate_task6_coordinate(
+        locked_plan.get("selected_seed_ct_l0_xyz"), require_integral=True
+    )
+    digest = coordinate_sha256_v1(seed)
+    if locked_plan.get("selected_seed_sha256") != digest:
+        raise ValueError("Task 6 executor coordinate hash drift")
+    return ["--seed", str(seed[0]), str(seed[1]), str(seed[2])]
+
+
 GPU_OOM_MARKERS = (
     "cuda out of memory",
     "cuda error: out of memory",
@@ -244,7 +258,32 @@ def resolve_execution_rng(locked_plan: dict[str, Any]) -> dict[str, Any]:
 
 
 class FixtureGrowExecutor:
-    """Creates a tiny valid TIFXYZ strictly for contract/smoke testing."""
+    """Creates a valid TIFXYZ strictly for contract/smoke testing."""
+
+    # Half the fixture's span, in CT-L0 voxels.
+    #
+    # It used to be 32, which at ~9.4 um/voxel is a 0.6 mm square: about 0.0035
+    # square centimetres, well under the 0.10 cm2 effort floor. Once the size
+    # gate exists, a fixture that small routes SMALL_SURFACE_DIAGNOSTIC, so the
+    # contract tests that mean to exercise the QC lease would instead have been
+    # exercising the diagnostic path while still claiming to cover the other.
+    #
+    # 200 voxels of half-span is 400 across: 0.14 cm2, comfortably above the
+    # floor with the same grid, the same triangle count, and the same file
+    # sizes. The grid step grows to about 6.3 voxels, still well inside the
+    # gate's 16-voxel resolution limit, so no verdict moves.
+    _HALF_SPAN_VOXELS = 200.0
+    _GRID_POINTS = 64
+
+    @classmethod
+    def grid_step_voxels(cls) -> float:
+        """The fixture's grid step, for fixtures that inject a defect into it.
+
+        A lamina-switch defect is a step discontinuity, and the gate judges one
+        relative to the grid step -- so a test that injects a fixed jump is
+        really injecting a multiple of this, and needs to be told when it moves.
+        """
+        return 2.0 * cls._HALF_SPAN_VOXELS / (cls._GRID_POINTS - 1)
 
     def execute(self, locked_plan: dict[str, Any], attempt_dir: Path) -> dict[str, Any]:
         started_at_utc = utc_now()
@@ -255,11 +294,27 @@ class FixtureGrowExecutor:
         surface_dir = attempt_dir / "surface"
         surface_dir.mkdir(parents=True, exist_ok=False)
         seed = locked_plan["selected_seed"]
-        axis = np.linspace(-32.0, 31.0, 64, dtype=np.float32)
+        half = self._HALF_SPAN_VOXELS
+        # Centred on the seed where the seed is at least a half-span from the
+        # origin, and slid clear of it where it is not.
+        #
+        # A negative coordinate is the TIFXYZ invalid sentinel, so a surface
+        # that straddled the origin would lose those vertices and come out
+        # smaller than the floor it was widened to clear -- quietly, and only
+        # for seeds near a volume edge. Sliding keeps the full area and keeps
+        # distinct seeds distinct: two seeds inside the half-span still differ
+        # in z, which is well outside the duplicate detector's tolerance.
+        def _centre(value: Any) -> float:
+            return half + max(float(value) - half, 0.0)
+
+        axis = np.linspace(-half, half, self._GRID_POINTS, dtype=np.float32)
         xx, yy = np.meshgrid(axis, axis, indexing="xy")
-        x = xx + float(seed["x"])
-        y = yy + float(seed["y"])
-        z = np.full_like(x, float(seed["z"])) + 0.01 * xx
+        x = xx + _centre(seed["x"])
+        y = yy + _centre(seed["y"])
+        # The z tilt spans a hundredth of the half-span, so z needs no slide
+        # beyond keeping it off the sentinel.
+        z = np.full_like(
+            x, max(float(seed["z"]), 0.01 * half)) + 0.01 * xx
         for name, value in (("x.tif", x), ("y.tif", y), ("z.tif", z)):
             tifffile.imwrite(surface_dir / name, value)
         # GrowPatch continuation reads this channel to determine the generation
@@ -376,12 +431,17 @@ class VC3DGrowExecutor:
         }
         write_json_atomic(profile_path, profile)
         seed = locked_plan["selected_seed"]
+        seed_arguments = (
+            task6_seed_argv(locked_plan)
+            if "selected_seed_ct_l0_xyz" in locked_plan
+            else ["--seed", *(str(int(seed[axis])) for axis in "xyz")]
+        )
         command = [
             str(self.binary),
             "--volume", str(locked_plan["source"]["m7_uri"]),
             "--target-dir", str(surface_dir),
             "--params", str(profile_path),
-            "--seed", *(str(int(seed[axis])) for axis in "xyz"),
+            *seed_arguments,
             "--segment-name", f"fleet-{locked_plan['attempt_id']}",
         ]
         command += optional_grow_flags(parameters, locked_plan)

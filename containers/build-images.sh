@@ -4,7 +4,7 @@
 #   containers/build-images.sh [repo-root] [registry]
 #
 # One build, one digest, every host pulls the same bytes. Before this, each host
-# built its own: `helena-worker:local` was 2.8 GB on one machine and 5.38 GB
+# built its own: `helena-worker-cpp:local` was 2.8 GB on one machine and 5.38 GB
 # on another, same tag, different image, and nothing compared them.
 #
 # The panel and the phase runtime are built from the repository root because
@@ -17,7 +17,7 @@ context="${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
 # them from the daemon that built them. Pass one, or set HELENA_REGISTRY,
 # to tag for a push.
 registry="${2:-${HELENA_REGISTRY:-}}"
-# Empty registry means local tags: `helena-panel:0.21.1`, which is exactly what
+# Empty registry means local tags: `helena-panel:0.22.0`, which is exactly what
 # the compose files default to. With one set, everything is prefixed and pushed.
 if [ -n "$registry" ]; then prefix="$registry/"; else prefix=""; fi
 # The version, from the one file that holds it. A commit hash is an identity
@@ -35,7 +35,7 @@ test -f "$context/panel/web/dist/index.html" || {
 # name : containerfile : base image
 set -- \
   "panel:Containerfile.panel:${PANEL_BASE_IMAGE:-python:3.11-slim}" \
-  "ink-worker:Containerfile.ink-worker:${PHASE_BASE_IMAGE:-${prefix}helena-surface-qc:0.1.1}" \
+  "ink-worker:Containerfile.worker-gpu:${PHASE_BASE_IMAGE:-${prefix}helena-gpu-runtime:0.1.1}" \
   "backup:Containerfile.backup:${BACKUP_BASE_IMAGE:-postgres:16-alpine}"
 
 for spec in "$@"; do
@@ -60,18 +60,21 @@ for spec in "$@"; do
 done
 
 # The worker is built with contexts rather than from the tree.
-echo "building ${prefix}helena-worker:$tag"
+echo "building ${prefix}helena-worker-cpp:$tag"
 BUILD_COMMIT="$commit" sh "$context/containers/build-worker.sh" \
-  "$context" "${prefix}helena-worker:$tag"
-docker tag "${prefix}helena-worker:$tag" "${prefix}helena-worker:latest"
+  "$context" "${prefix}helena-worker-cpp:$tag"
+docker tag "${prefix}helena-worker-cpp:$tag" "${prefix}helena-worker-cpp:latest"
 
 echo
 # Nothing is pushed without somewhere to push to. A clone-and-build has no
 # registry and needs none: compose reads the tags out of the local daemon.
 if [ -n "$registry" ]; then
+  # The version tag only. `latest` stays on this daemon, where it is a
+  # convenience for whoever is building; pushed, it is a moving name in a
+  # registry several hosts pull from, and two hosts that pulled it a week
+  # apart run different code while both report the same image.
   for name in panel ink-worker backup worker; do
     docker push "${prefix}helena-$name:$tag"
-    docker push "${prefix}helena-$name:latest"
   done
 else
   echo "no registry given: images are tagged locally and not pushed"

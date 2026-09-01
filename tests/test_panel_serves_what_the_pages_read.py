@@ -15,11 +15,17 @@ where a page that lies is most expensive.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
+import threading
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 
 pytest.importorskip("fastapi", reason="panel dependencies are in panel/.venv")
 pytest.importorskip("httpx", reason="starlette's TestClient needs httpx")
@@ -83,6 +89,710 @@ def test_queueing_a_replan_is_closed_too(anonymous):
     assert response.status_code == 401
 
 
+def test_candidate_preflight_is_closed_without_a_session(anonymous):
+    response = anonymous.post("/api/segmentation/preflight", json={
+        "sample_id": "PHerc0358", "mission_id": "m",
+        "grid_version": "grid@1.0.0", "policy_version": "policy@1.0.0",
+    })
+    assert response.status_code == 401
+
+
+def test_campaign_resume_identity_comes_from_the_authenticated_session(app_module):
+    proposal = {
+        "schema": "campaignx.first_letters_campaign_resume_authorization.v1",
+        "mission_id": "first-letters",
+        "prior_sample_id": "PHerc358",
+        "new_sample_id": "PHerc358",
+        "prior_policy_version": "search-v1",
+        "new_policy_version": "search-v2",
+        "prior_admission_sha256": "1" * 64,
+        "new_admission_sha256": "2" * 64,
+        "prior_decision_receipt_sha256": "3" * 64,
+        "material_changes": [],
+        "authorized_by": "caller-forged-admin",
+        "authentication_context": {
+            "mechanism": "HELENA_AUTHENTICATED_PANEL_SESSION",
+            "principal": "caller-forged-admin",
+            "session_fingerprint_sha256": "7" * 64,
+            "request_method": "POST",
+            "request_path": "/api/segmentation/runs",
+        },
+    }
+    proposal["authorization_evidence_sha256"] = (
+        app_module._canonical_document_sha256({
+            "schema": "campaignx.first_letters_resume_authorization_evidence.v1",
+            **{key: proposal[key] for key in (
+                "mission_id", "prior_sample_id", "new_sample_id",
+                "prior_policy_version", "new_policy_version",
+                "prior_admission_sha256", "new_admission_sha256",
+                "prior_decision_receipt_sha256", "material_changes",
+                "authorized_by", "authentication_context",
+            )},
+        })
+    )
+    proposal["authorization_sha256"] = (
+        app_module._canonical_document_sha256(proposal))
+    request = SimpleNamespace(
+        state=SimpleNamespace(username="tester"),
+        cookies={"helena_session": "test-session-token"},
+    )
+    bound = app_module._bind_panel_campaign_resume_authorization(
+        proposal, request)
+    assert bound["authorized_by"] == "tester"
+    assert bound["authentication_context"]["principal"] == "tester"
+    recorded = {}
+
+    class TrustedStore:
+        def register_campaign_resume_principal_attestation(
+            self, authorization, *, authenticated_principal,
+        ):
+            recorded.update({
+                "authorization": authorization,
+                "authenticated_principal": authenticated_principal,
+            })
+            return authorization
+
+    app_module._attest_panel_campaign_resume_authorization(
+        bound, request, TrustedStore())
+    assert recorded == {
+        "authorization": bound,
+        "authenticated_principal": "tester",
+    }
+    with pytest.raises(app_module.HTTPException) as anonymous_error:
+        app_module._attest_panel_campaign_resume_authorization(
+            bound, SimpleNamespace(
+                state=SimpleNamespace(username=None), cookies={}),
+            TrustedStore())
+    assert anonymous_error.value.status_code == 403
+
+
+def test_candidate_preflight_models_are_discriminated_and_reject_unknown_fields(app_module):
+    common = {
+        "scope": "FULL_GRID", "sample_id": "PHerc0358", "mission_id": "m",
+        "expected_p0_artifact_id": "p0", "expected_p0_artifact_sha256": "a" * 64,
+        "expected_source_snapshot_id": "source", "expected_source_content_lock_sha256": "b" * 64,
+        "catalog_snapshot_sha256": "c" * 64,
+        "grid_version": "grid@1.0.0", "policy_version": "preflight@1.0.0",
+        "grid_step": 1024, "query_radius": 128, "cell_clearance": 0,
+        "volume_clearance": 128, "candidate_interior_clearance": 32,
+        "selection_strategy": "stratified-clearance-v1",
+        "candidate_selection_policy": "score-cell-volume-clearance-v1",
+        "seed_region_policy": "fixed-v1", "m7_threshold": 0.2,
+        "packet_candidate_limit": 8, "maximum_cells": 256, "parallelism": 2,
+        "provider": "vc3d-mcp",
+        "ct_material_support_gate": {"policy": "ome-zarr-nearby-material-v1",
+          "level": 5, "radius_l0_voxels": 192, "minimum_nonzero_voxels": 1},
+    }
+    model = app_module.SegmentationCandidateCoveragePreflightRequest(**common)
+    assert model.scope == "FULL_GRID"
+    with pytest.raises(ValidationError):
+        app_module.SegmentationCandidateCoveragePreflightRequest(**common, secret="leak")
+
+
+def test_candidate_preflight_relational_bounds_and_provider_fail_as_conflict(
+    app_module, monkeypatch
+):
+    monkeypatch.setattr(app_module, "require_write_sample", lambda *_args: "PHerc358")
+    for update in ({"provider": "unknown"}, {"grid_step": 128, "query_radius": 128},
+                   {"volume_clearance": 64, "query_radius": 128},
+                   {"ct_material_support_gate": {"policy": "unknown"}}):
+        body = _candidate_preflight_body(app_module).model_copy(update=update)
+        with pytest.raises(app_module.HTTPException) as refusal:
+            app_module._resolve_candidate_preflight_binding(body)
+        assert refusal.value.status_code == 409
+
+
+def _candidate_preflight_body(app_module):
+    return app_module.SegmentationCandidateCoveragePreflightRequest(**{
+        "scope": "FULL_GRID", "sample_id": "PHerc0358", "mission_id": "m",
+        "expected_p0_artifact_id": "p0", "expected_p0_artifact_sha256": "a" * 64,
+        "expected_source_snapshot_id": "source", "expected_source_content_lock_sha256": "b" * 64,
+        "catalog_snapshot_sha256": "c" * 64,
+        "grid_version": "grid@1.0.0", "policy_version": "preflight@1.0.0",
+        "grid_step": 1024, "query_radius": 128, "cell_clearance": 0,
+        "volume_clearance": 128, "candidate_interior_clearance": 32,
+        "selection_strategy": "stratified-clearance-v1",
+        "candidate_selection_policy": "score-cell-volume-clearance-v1",
+        "seed_region_policy": "fixed-v1", "m7_threshold": 0.2,
+        "packet_candidate_limit": 8, "maximum_cells": 256, "parallelism": 2,
+        "provider": "vc3d-mcp",
+        "ct_material_support_gate": {"policy": "ome-zarr-nearby-material-v1",
+          "level": 5, "radius_l0_voxels": 192, "minimum_nonzero_voxels": 1},
+    })
+
+
+def test_identical_candidate_preflight_is_atomically_refused_while_running(
+    app_module, tmp_path, monkeypatch
+):
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet import candidate_preflight
+    from fleet.common import content_sha256
+
+    body = _candidate_preflight_body(app_module)
+    binding = {"artifact_id": "p0", "artifact_sha256": "a" * 64,
+      "source_snapshot_id": "source", "source_content_lock_sha256": "b" * 64,
+      "p0_selection_version": "selection", "selection_sha256": "d" * 64,
+      "snapshot_sha256": "e" * 64}
+    snapshot = {"source_snapshot_id": "source"}
+    monkeypatch.setattr(app_module, "_resolve_candidate_preflight_binding",
+                        lambda _body: ("PHerc358", tmp_path, snapshot, dict(binding)))
+    monkeypatch.setattr(app_module, "_deployed_revision", lambda: "1" * 40)
+    monkeypatch.setattr(app_module, "fleet_store_read_only", lambda: object())
+    entered, release = threading.Event(), threading.Event()
+
+    def blocked(*_args, **_kwargs):
+        entered.set()
+        assert release.wait(2)
+        private = {"schema": "campaignx.segment_candidate_coverage_preflight.v1",
+                   "receipt_sha256": "f" * 64, "generated_at_utc": "now"}
+        public = {"schema": "campaignx.segment_candidate_coverage_preflight.sanitized.v1",
+                  "private_receipt_sha256": "f" * 64, "receipt_sha256": content_sha256({})}
+        return {"private_receipt": private, "sanitized_receipt": public}
+
+    monkeypatch.setattr(candidate_preflight, "run_candidate_coverage_preflight", blocked)
+    monkeypatch.setattr(candidate_preflight, "persist_candidate_preflight_receipt_pair",
+                        lambda _private_path, _public_path, private, public: {
+                          "private_receipt": private, "sanitized_receipt": public})
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(app_module._run_candidate_preflight_api, body)
+        assert entered.wait(2)
+        with pytest.raises(app_module.HTTPException) as refused:
+            app_module._run_candidate_preflight_api(body)
+        assert refused.value.status_code == 409
+        release.set()
+        assert future.result().status_code == 200
+    assert app_module._run_candidate_preflight_api(body).status_code == 200
+
+
+def test_candidate_preflight_lock_excludes_a_separate_process(
+    app_module, tmp_path
+):
+    handle = app_module._acquire_segmentation_preflight_lock(tmp_path, "identity")
+    lock_path = tmp_path / ".locks" / "segmentation-preflight" / "identity.lock"
+    script = ("import fcntl,sys; h=open(sys.argv[1],'a+'); "
+              "\ntry: fcntl.flock(h.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)"
+              "\nexcept BlockingIOError: raise SystemExit(7)")
+    blocked = subprocess.run([sys.executable, "-c", script, str(lock_path)], check=False)
+    assert blocked.returncode == 7
+    app_module._release_segmentation_preflight_lock(handle)
+    acquired = subprocess.run([sys.executable, "-c", script, str(lock_path)], check=False)
+    assert acquired.returncode == 0
+
+
+def test_candidate_preflight_refuses_p0_change_after_probe_before_persisting(
+    app_module, tmp_path, monkeypatch
+):
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet import candidate_preflight
+
+    body = _candidate_preflight_body(app_module)
+    binding = {"artifact_id": "p0", "artifact_sha256": "a" * 64,
+      "source_snapshot_id": "source", "source_content_lock_sha256": "b" * 64,
+      "p0_selection_version": "selection", "selection_sha256": "d" * 64,
+      "snapshot_sha256": "e" * 64}
+    calls = 0
+
+    def resolve(_body):
+        nonlocal calls
+        calls += 1
+        changed = {**binding, "p0_selection_version": "changed"} if calls == 2 else binding
+        return "PHerc358", tmp_path, {"source_snapshot_id": "source"}, dict(changed)
+
+    monkeypatch.setattr(app_module, "_resolve_candidate_preflight_binding", resolve)
+    monkeypatch.setattr(app_module, "_deployed_revision", lambda: "1" * 40)
+    monkeypatch.setattr(app_module, "fleet_store_read_only", lambda: object())
+    monkeypatch.setattr(candidate_preflight, "run_candidate_coverage_preflight",
+                        lambda *_args, **_kwargs: {"private_receipt": {"receipt_sha256": "f" * 64},
+                                                  "sanitized_receipt": {}})
+    with pytest.raises(app_module.HTTPException) as refusal:
+        app_module._run_candidate_preflight_api(body)
+    assert refusal.value.status_code == 409
+    assert not list(tmp_path.rglob("*.json"))
+
+
+def test_candidate_preflight_resolver_verifies_selected_p0_bytes_and_snapshot(
+    app_module, tmp_path, monkeypatch
+):
+    lock = {"schema": "campaignx.source_content_lock.v1",
+      "status": "VERIFIED_IMMUTABLE", "verification_method": "fixture-sha256-v1",
+      "verified_at_utc": "2026-08-02T00:00:00Z",
+      "ct_uri": "fixture://ct?versionId=ct-version-0001", "ct_sha256": "1" * 64,
+      "ct_version_id": "ct-version-0001",
+      "m7_uri": "fixture://m7?versionId=m7-version-0001", "m7_sha256": "2" * 64,
+      "m7_version_id": "m7-version-0001"}
+    snapshot = {"source_snapshot_id": "source", "sample_id": "PHerc358",
+      "ct_uri": lock["ct_uri"], "ct_sha256": lock["ct_sha256"],
+      "m7_uri": lock["m7_uri"], "m7_sha256": lock["m7_sha256"],
+      "shape_xyz": [64, 64, 64], "voxel_size_um": 9.362,
+      "coordinate_frame": "ct_l0_xyz", "m7_threshold": 0.2,
+      "source_content_lock": lock}
+    document = {**{key: snapshot[key] for key in (
+      "ct_uri", "ct_sha256", "m7_uri", "m7_sha256", "shape_xyz", "voxel_size_um",
+      "coordinate_frame", "m7_threshold", "source_snapshot_id", "source_content_lock")},
+      "sample_id": "PHerc0358"}
+    path = tmp_path / "p0.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    actual_sha = app_module.artifact_contract.content_hash(path)[0]
+    catalog = tmp_path / "geometry.sqlite"
+    catalog.write_bytes(b"frozen geometry catalog")
+    monkeypatch.setattr(app_module, "GEOMETRY_CATALOG", catalog)
+    body = _candidate_preflight_body(app_module).model_copy(update={
+      "expected_p0_artifact_sha256": actual_sha,
+      "expected_source_content_lock_sha256": app_module._canonical_document_sha256(lock),
+      "catalog_snapshot_sha256": app_module._path_sha256(catalog),
+    })
+    choices = {app_module.artifact_contract.selection_key("P0", "PHerc0358"): "p0"}
+    selection = {"version_id": "selection", "choices": choices,
+                 "content_sha256": app_module.artifact_contract.selection_hash(choices)}
+    monkeypatch.setattr(app_module, "require_write_sample",
+                        lambda *_args: "PHerc358")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module.artifact_contract, "current_selection",
+                        lambda _directory: selection)
+    monkeypatch.setattr(app_module.artifact_contract, "get",
+                        lambda _directory, _artifact: {"phase": "P0",
+                          "sample_id": "PHerc0358", "path": str(path),
+                          "content_sha256": actual_sha})
+    monkeypatch.setattr(app_module, "fleet_store_read_only",
+                        lambda: type("Store", (), {"snapshots": lambda _self, _samples: [snapshot]})())
+    sample, _, resolved, binding = app_module._resolve_candidate_preflight_binding(body)
+    assert sample == "PHerc358" and resolved == snapshot
+    assert binding["artifact_sha256"] == actual_sha
+    selection["content_sha256"] = "0" * 64
+    with pytest.raises(app_module.HTTPException) as refusal:
+        app_module._resolve_candidate_preflight_binding(body)
+    assert refusal.value.status_code == 409
+
+
+def test_candidate_preflight_command_is_complete_and_redacts_the_database(
+    app_module, tmp_path
+):
+    body = _candidate_preflight_body(app_module)
+    command = app_module._candidate_preflight_command(
+        body, {"artifact_id": "p0", "artifact_sha256": "a" * 64,
+               "p0_selection_version": "selection",
+               "selection_sha256": "d" * 64,
+               "source_content_lock_sha256": "b" * 64},
+        "1" * 40, tmp_path / "private.json", tmp_path / "public.json")
+    assert "[REDACTED_CX_DB]" in command
+    assert not any("password" in value.lower() for value in command)
+    for required in ("--source-snapshot-id", "--p0-artifact-sha256",
+                     "--p0-selection-sha256", "--source-content-lock-sha256",
+                     "--catalog-snapshot-sha256",
+                     "--code-revision", "--private-output", "--sanitized-output"):
+        assert required in command
+
+
+def test_hash_named_preflight_receipts_are_create_once_and_content_equal(
+    app_module, tmp_path
+):
+    path = tmp_path / ("a" * 64 + ".private.json")
+    value = {"schema": "example.v1", "receipt_sha256": "a" * 64}
+    app_module._write_preflight_receipt(path, value, private=True)
+    first = path.read_bytes()
+    first_stat = path.stat()
+    app_module._write_preflight_receipt(path, value, private=True)
+    assert path.read_bytes() == first
+    assert path.stat().st_ino == first_stat.st_ino
+    with pytest.raises(app_module.HTTPException) as collision:
+        app_module._write_preflight_receipt(path, {**value, "changed": True}, private=True)
+    assert collision.value.status_code == 409
+
+
+def test_preflight_store_is_read_only_but_normal_store_still_initializes(
+    app_module, tmp_path, monkeypatch
+):
+    calls = []
+
+    class FakeStore:
+        def initialize(self):
+            calls.append("initialize")
+
+        def verify_read_only_schema(self):
+            calls.append("verify")
+
+    fake = FakeStore()
+    import fleet.store_factory as factory
+    monkeypatch.setattr(app_module, "DSN", str(tmp_path / "existing.sqlite"))
+    (tmp_path / "existing.sqlite").touch()
+    monkeypatch.setattr(factory, "open_fleet_store", lambda _dsn: fake)
+    monkeypatch.setattr(factory, "open_fleet_store_read_only", lambda _dsn: fake,
+                        raising=False)
+    assert app_module.fleet_store() is fake
+    assert calls == ["initialize"]
+    calls.clear()
+    assert app_module.fleet_store_read_only() is fake
+    assert calls == []
+
+
+def test_preflight_store_does_not_create_an_absent_sqlite_database(
+    app_module, tmp_path, monkeypatch
+):
+    missing = tmp_path / "missing.sqlite"
+    monkeypatch.setattr(app_module, "DSN", str(missing))
+    with pytest.raises(app_module.HTTPException) as refusal:
+        app_module.fleet_store_read_only()
+    assert refusal.value.status_code == 409
+    assert not missing.exists()
+
+
+def test_coverage_marks_latest_tampered_preflight_invalid_without_falling_back(
+    app_module, tmp_path, monkeypatch
+):
+    root = tmp_path / "evidence" / "segmentation-preflight" / "PHerc0358"
+    root.mkdir(parents=True)
+    private = {"schema": "campaignx.segment_candidate_coverage_preflight.v1",
+      "scientific_core": {"schema": "core.v1", "funnel": {"cells_surveyed": 8}},
+      "generated_at_utc": "2026-08-02T00:00:00Z"}
+    private["receipt_sha256"] = app_module._canonical_document_sha256(private["scientific_core"])
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet.candidate_preflight import sanitize_candidate_coverage_receipt
+    value = sanitize_candidate_coverage_receipt(private)
+    (root / f"{private['receipt_sha256']}.private.json").write_text(
+      json.dumps(private), encoding="utf-8")
+    (root / f"{private['receipt_sha256']}.sanitized.json").write_text(
+      json.dumps(value), encoding="utf-8")
+    tampered = {**value, "funnel": {"cells_surveyed": 999}}
+    tampered_path = root / "z-tampered.sanitized.json"
+    tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module, "read_scope", lambda *_args: {"PHerc358"})
+    monkeypatch.setattr(app_module, "fleet_store", lambda: type("Store", (), {
+      "coverage": lambda _self, _sample, mission_id=None: {
+        "schema": "campaignx.segment_coverage.v1", "grids": [], "volumes": [],
+        "non_claims": []}})())
+    response = app_module.api_coverage(sample="PHerc0358", mission="first-letters")
+    body = json.loads(response.body)
+    assert body["candidate_preflight"]["evidence_status"] == "INVALID"
+    assert "funnel" not in body["candidate_preflight"]
+    assert "candidate_coordinates_xyz" not in body["candidate_preflight"]
+
+
+def test_coverage_exposes_immutable_campaign_pause_even_with_no_queue_rows(
+    app_module, monkeypatch,
+):
+    receipt = {
+        "schema": "campaignx.first_letters_campaign_decision.v1",
+        "decision": "PAUSE_CANDIDATE_STARVATION",
+        "mission_id": "first-letters",
+        "policy_version": "search-v1",
+        "no_m7_numerator": 7,
+        "scientific_terminal_denominator": 8,
+        "excluded_attempt_count": 1,
+        "excluded_attempts": [{
+            "task_id": "task-source", "attempt_id": "attempt-source",
+            "reason": "SOURCE_FAILURE",
+        }],
+        "trigger_attempt_ids": [f"attempt-{index}" for index in range(7)],
+        "receipt_sha256": "d" * 64,
+        "allowed_next_actions": [
+            "CREATE_MATERIALLY_CHANGED_VERSIONED_STRATEGY",
+            "CLOSE_CAMPAIGN",
+        ],
+    }
+    active = {
+        "schema": "campaignx.first_letters_campaign_active_decision.v1",
+        "decision": "CONTINUE",
+        "evidence_status": "IN_PROGRESS",
+        "mission_id": "first-letters",
+        "policy_version": "search-v2",
+        "policy_chain": ["search-v1", "search-v2"],
+        "evaluation_kind": "ACTIVE_SCIENTIFIC_TERMINAL_BLOCK",
+        "evaluation_index": 1,
+        "scientific_terminal_attempt_count": 0,
+        "no_m7_numerator": 0,
+        "scientific_terminal_denominator": 8,
+        "excluded_attempt_count": 0,
+        "excluded_attempts": [],
+        "trigger_attempt_ids": [],
+        "state_sha256": "e" * 64,
+        "allowed_next_actions": ["QUEUE_NEXT_BOUND_WAVE", "CLOSE_CAMPAIGN"],
+    }
+
+    class Store:
+        def coverage(self, _sample, mission_id=None):
+            assert mission_id == "first-letters"
+            return {
+                "schema": "campaignx.segment_coverage.v1",
+                "grids": [], "volumes": [], "non_claims": [],
+            }
+
+        def campaign_decisions(self, *, mission_id, policy_version=None):
+            assert mission_id == "first-letters"
+            assert policy_version is None
+            return [receipt]
+
+        def campaign_active_decision(self, *, mission_id):
+            assert mission_id == "first-letters"
+            return active
+
+    monkeypatch.setattr(app_module, "read_scope", lambda *_args: {"PHerc358"})
+    monkeypatch.setattr(app_module, "fleet_store", lambda: Store())
+    monkeypatch.setattr(
+        app_module, "_latest_candidate_preflight_evidence",
+        lambda *_args: None,
+    )
+    response = app_module.api_coverage(
+        sample="PHerc0358", mission="first-letters")
+    body = json.loads(response.body)
+    assert body["grids"] == []
+    assert body["campaign_decisions"] == [receipt]
+    assert body["active_campaign_decision"] == active
+
+
+def test_valid_candidate_preflight_is_current_or_stale_from_live_binding(
+    app_module, tmp_path, monkeypatch
+):
+    root = tmp_path / "evidence" / "segmentation-preflight" / "PHerc0358"
+    root.mkdir(parents=True)
+    bindings = {key: None for key in (
+      "p0_artifact_id", "p0_artifact_sha256", "p0_selection_version",
+      "p0_selection_sha256", "catalog_snapshot_sha256", "source_snapshot_id",
+      "source_content_lock_sha256", "ct_sha256", "m7_sha256", "coordinate_frame",
+      "voxel_size_um", "m7_threshold", "grid_version", "policy_version", "provider",
+      "candidate_selection_policy", "seed_region_policy", "selection_strategy",
+      "maximum_cells", "shape_xyz", "source_snapshot_sha256",
+      "normalized_request_sha256", "code_revision")}
+    bindings["sample_id"] = "PHerc358"
+    bindings["mission_id"] = "first-letters"
+    for key in ("p0_artifact_sha256", "p0_selection_sha256",
+                "catalog_snapshot_sha256", "source_content_lock_sha256", "ct_sha256",
+                "m7_sha256", "source_snapshot_sha256", "normalized_request_sha256"):
+        bindings[key] = "a" * 64
+    bindings["code_revision"] = "1" * 40
+    bindings["shape_xyz"] = [1, 1, 1]
+    funnel = {key: 0 for key in (
+      "total_grid_cells", "grid_cells_in_design_sample",
+      "geometrically_eligible_cells_estimate", "geometrically_eligible_sampled_cells",
+      "cells_attempted", "cells_surveyed_successfully", "cells_failed_source",
+      "cells_with_raw_m7_candidates", "raw_m7_candidates", "post_ct_candidates",
+      "post_cell_clearance_candidates", "post_volume_clearance_candidates",
+      "packet_retained_candidates")}
+    funnel["geometrically_eligible_cells"] = 0
+    core = {
+      "schema": "campaignx.segment_candidate_coverage_preflight.scientific_core.v1",
+      "status": "COMPLETE", "measurement_kind": "CENSUS", "sampling_design": {
+        "name": "census", "measurement_kind": "CENSUS", "population_grid_cells": 0,
+        "sampled_grid_cells": 0, "inclusion_fraction": 1.0,
+        "ordinal_rule": "lexicographic", "ordinal_stride": 1, "ordinal_offset": 0,
+        "sampled_index_sha256": "a" * 64, "cell_order_sha256": "b" * 64},
+      "planned_sampling_percentage": 100.0,
+      "achieved_successful_sampling_percentage": 100.0,
+      "sample_id": "PHerc358", "source_snapshot_id": "source", "bindings": bindings,
+      "gates": {}, "funnel": funnel, "no_candidate_causes": {},
+      "score_statistics": {}, "cell_clearance_statistics": {},
+      "volume_clearance_statistics": {}, "spatial_bins": [],
+      "candidate_coordinates_xyz": [], "state_mutation": "NONE",
+      "growth_allowed": False, "ink_used": False, "non_claim": "not absence",
+      "normalized_request": {"sample_id": "PHerc358", "mission_id": "first-letters"},
+      "cell_outcomes": [],
+      "m7_read_set_manifest_sha256": [], "ct_read_set_manifest_sha256": [],
+    }
+    private = {"schema": "campaignx.segment_candidate_coverage_preflight.v1",
+               "scientific_core": core,
+               **{key: core[key] for key in core if key not in {
+                 "schema", "cell_outcomes", "m7_read_set_manifest_sha256",
+                 "ct_read_set_manifest_sha256"}}}
+    private["receipt_sha256"] = app_module._canonical_document_sha256(core)
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet.candidate_preflight import sanitize_candidate_coverage_receipt
+    import fleet.candidate_preflight as candidate_module
+    public = sanitize_candidate_coverage_receipt(private)
+    prefix = private["receipt_sha256"]
+    (root / f"{prefix}.private.json").write_text(json.dumps(private), encoding="utf-8")
+    (root / f"{prefix}.sanitized.json").write_text(json.dumps(public), encoding="utf-8")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module, "_candidate_preflight_current_binding_status",
+                        lambda *_args: ("CURRENT", "all frozen bindings match"), raising=False)
+    monkeypatch.setattr(candidate_module, "validate_candidate_preflight_receipt_pair",
+                        lambda private, public: (private, public))
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "CURRENT"
+    monkeypatch.setattr(app_module, "_candidate_preflight_current_binding_status",
+                        lambda *_args: ("STALE", "P0 selection changed"), raising=False)
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "STALE"
+    assert loaded["evidence_status_reason"] == "P0 selection changed"
+    (root / f"{prefix}.private.json").unlink()
+    (root / f"{prefix}.sanitized.json").unlink()
+    core["sample_id"] = "PHerc9999"
+    core["bindings"]["sample_id"] = "PHerc9999"
+    private["sample_id"] = "PHerc9999"
+    private["bindings"]["sample_id"] = "PHerc9999"
+    private["receipt_sha256"] = app_module._canonical_document_sha256(core)
+    public = sanitize_candidate_coverage_receipt(private)
+    prefix = private["receipt_sha256"]
+    (root / f"{prefix}.private.json").write_text(json.dumps(private), encoding="utf-8")
+    (root / f"{prefix}.sanitized.json").write_text(json.dumps(public), encoding="utf-8")
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "INVALID"
+    assert "different mission or sample" in loaded["evidence_status_reason"]
+    assert "funnel" not in loaded
+    (root / f"{prefix}.private.json").unlink()
+    (root / f"{prefix}.sanitized.json").unlink()
+    core["sample_id"] = "PHerc358"
+    core["bindings"]["sample_id"] = "PHerc358"
+    core["bindings"]["mission_id"] = "other-mission"
+    core["normalized_request"] = {
+      "sample_id": "PHerc358", "mission_id": "other-mission"}
+    private["sample_id"] = "PHerc358"
+    private["bindings"] = core["bindings"]
+    private["normalized_request"] = core["normalized_request"]
+    private["receipt_sha256"] = app_module._canonical_document_sha256(core)
+    public = sanitize_candidate_coverage_receipt(private)
+    prefix = private["receipt_sha256"]
+    (root / f"{prefix}.private.json").write_text(json.dumps(private), encoding="utf-8")
+    (root / f"{prefix}.sanitized.json").write_text(json.dumps(public), encoding="utf-8")
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "INVALID"
+    assert "different mission or sample" in loaded["evidence_status_reason"]
+    assert "funnel" not in loaded
+
+
+def test_candidate_preflight_rejects_unhashed_top_level_scientific_mutation(
+    app_module, tmp_path, monkeypatch
+):
+    root = tmp_path / "evidence" / "segmentation-preflight" / "PHerc0358"
+    root.mkdir(parents=True)
+    core = {"schema": "core.v1", "bindings": {"mission_id": "first-letters"},
+            "funnel": {"cells_surveyed": 8}}
+    private = {"schema": "campaignx.segment_candidate_coverage_preflight.v1",
+               "scientific_core": core, "bindings": {"mission_id": "tampered"},
+               "funnel": {"cells_surveyed": 999}}
+    private["receipt_sha256"] = app_module._canonical_document_sha256(core)
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet.candidate_preflight import sanitize_candidate_coverage_receipt
+    public = sanitize_candidate_coverage_receipt(private)
+    prefix = private["receipt_sha256"]
+    (root / f"{prefix}.private.json").write_text(json.dumps(private), encoding="utf-8")
+    (root / f"{prefix}.sanitized.json").write_text(json.dumps(public), encoding="utf-8")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module, "_candidate_preflight_current_binding_status",
+                        lambda *_args: ("CURRENT", "all frozen bindings match"))
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "INVALID"
+    assert "funnel" not in loaded and "bindings" not in loaded
+
+
+def test_candidate_preflight_latest_nondict_json_is_invalid_not_a_500(
+    app_module, tmp_path, monkeypatch
+):
+    root = tmp_path / "evidence" / "segmentation-preflight" / "PHerc0358"
+    root.mkdir(parents=True)
+    (root / "latest.sanitized.json").write_text("[]", encoding="utf-8")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "INVALID" and "funnel" not in loaded
+
+
+@pytest.mark.parametrize("core", [
+    {"schema": "unsupported.core.v9", "bindings": {}, "funnel": {}},
+    {"schema": "campaignx.segment_candidate_coverage_preflight.scientific_core.v1",
+     "bindings": {}},
+])
+def test_candidate_preflight_rejects_signed_unsupported_or_incomplete_core(
+    app_module, tmp_path, monkeypatch, core
+):
+    root = tmp_path / "evidence" / "segmentation-preflight" / "PHerc0358"
+    root.mkdir(parents=True)
+    private = {"schema": "campaignx.segment_candidate_coverage_preflight.v1",
+               "scientific_core": core,
+               **{key: value for key, value in core.items() if key != "schema"}}
+    private["receipt_sha256"] = app_module._canonical_document_sha256(core)
+    stage = ROOT / "framework/stages/01-segmentation"
+    if str(stage) not in sys.path:
+        sys.path.insert(0, str(stage))
+    from fleet.candidate_preflight import sanitize_candidate_coverage_receipt
+    public = sanitize_candidate_coverage_receipt(private)
+    prefix = private["receipt_sha256"]
+    (root / f"{prefix}.private.json").write_text(json.dumps(private), encoding="utf-8")
+    (root / f"{prefix}.sanitized.json").write_text(json.dumps(public), encoding="utf-8")
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module, "_candidate_preflight_current_binding_status",
+                        lambda *_args: ("CURRENT", "all frozen bindings match"))
+    loaded = app_module._latest_candidate_preflight_evidence("first-letters", "PHerc0358")
+    assert loaded["evidence_status"] == "INVALID" and "funnel" not in loaded
+
+
+def test_candidate_preflight_current_status_rechecks_p0_source_catalog_and_code(
+    app_module, tmp_path, monkeypatch
+):
+    lock = {"schema": "campaignx.source_content_lock.v1", "status": "VERIFIED_IMMUTABLE"}
+    snapshot = {"sample_id": "PHerc358", "source_snapshot_id": "source",
+      "ct_sha256": "1" * 64, "m7_sha256": "2" * 64,
+      "m7_uri": "fixture://m7",
+      "coordinate_frame": "ct_l0_xyz", "voxel_size_um": 9.362,
+      "m7_threshold": 0.2, "shape_xyz": [3, 4, 5], "source_content_lock": lock}
+    p0_path = tmp_path / "p0.json"
+    p0_path.write_text(json.dumps({"source_snapshot_id": "source"}), encoding="utf-8")
+    p0_sha = app_module.artifact_contract.content_hash(p0_path)[0]
+    catalog = tmp_path / "catalog.sqlite"
+    catalog.write_bytes(b"catalog")
+    choices = {app_module.artifact_contract.selection_key("P0", "PHerc0358"): "p0"}
+    selection = {"version_id": "selection", "choices": choices,
+                 "content_sha256": app_module.artifact_contract.selection_hash(choices)}
+    record = {"phase": "P0", "path": str(p0_path), "content_sha256": p0_sha}
+    monkeypatch.setattr(app_module, "GEOMETRY_CATALOG", catalog)
+    monkeypatch.setattr(app_module, "mission_directory", lambda _mission: tmp_path)
+    monkeypatch.setattr(app_module.artifact_contract, "current_selection",
+                        lambda _directory: selection)
+    monkeypatch.setattr(app_module.artifact_contract, "get",
+                        lambda _directory, _artifact: record)
+    monkeypatch.setattr(app_module, "fleet_store_read_only", lambda: type("Store", (), {
+      "snapshots": lambda _self, _samples: [snapshot]})())
+    monkeypatch.setattr(app_module, "_deployed_revision", lambda: "1" * 40)
+    bindings = {"sample_id": "PHerc358", "mission_id": "first-letters",
+      "p0_artifact_id": "p0",
+      "p0_artifact_sha256": p0_sha, "p0_selection_version": "selection",
+      "p0_selection_sha256": selection["content_sha256"],
+      "catalog_snapshot_sha256": app_module._path_sha256(catalog),
+      "source_snapshot_id": "source",
+      "source_content_lock_sha256": app_module._canonical_document_sha256(lock),
+      "ct_sha256": "1" * 64, "m7_sha256": "2" * 64,
+      "m7_uri_sha256": hashlib.sha256(b"fixture://m7").hexdigest(),
+      "coordinate_frame": "ct_l0_xyz", "voxel_size_um": 9.362,
+      "m7_threshold": 0.2, "shape_xyz": [3, 4, 5],
+      "source_snapshot_sha256": app_module._canonical_document_sha256(snapshot),
+      "code_revision": "1" * 40}
+    assert app_module._candidate_preflight_current_binding_status(
+      "first-letters", "PHerc0358", bindings)[0] == "CURRENT"
+    bindings["sample_id"] = "PHerc9999"
+    status, reason = app_module._candidate_preflight_current_binding_status(
+      "first-letters", "PHerc0358", bindings)
+    assert status == "STALE" and "sample_id" in reason
+    bindings["sample_id"] = "PHerc358"
+    selection["version_id"] = "changed"
+    status, reason = app_module._candidate_preflight_current_binding_status(
+      "first-letters", "PHerc0358", bindings)
+    assert status == "STALE" and "p0_selection_version" in reason
+
+
+def test_p0_can_freeze_the_exact_registered_target_snapshot_for_preflight(
+    app_module, monkeypatch
+):
+    lock = {"schema": "campaignx.source_content_lock.v1", "status": "VERIFIED_IMMUTABLE"}
+    row = {"sample_id": "PHerc358", "source_snapshot_id": "source",
+      "ct_uri": "https://ct/version-1", "m7_uri": "https://m7/version-1",
+      "m7_threshold": 0.2, "shape_xyz": [3, 4, 5], "voxel_size_um": 9.362,
+      "coordinate_frame": "ct_l0_xyz", "source_content_lock": lock}
+    monkeypatch.setattr(app_module, "fleet_store_read_only", lambda: type("Store", (), {
+      "snapshots": lambda _self, _samples: [row]})())
+    resolved = app_module._locked_catalog_snapshot_for_p0("PHerc0358", {
+      "ct_uri": row["ct_uri"], "m7_uri": row["m7_uri"], "m7_threshold": 0.2,
+      "shape_xyz": [3, 4, 5], "voxel_size_um": 9.362})
+    assert resolved == row
+
+
 # --------------------------------------------------------------------------
 # The parameter schema, which is what the form draws itself from
 # --------------------------------------------------------------------------
@@ -110,7 +820,11 @@ def test_the_pairs_that_must_be_exactly_one_travel_with_the_schema(client):
     """Neither is required and exactly one must be there, which "required"
     cannot express -- so the browser must not have to know it separately."""
     p5 = client.get("/api/phases/P5/parameters").json()
-    assert {"tiff_dir", "layer_stack"} == set(p5["exactly_one_of"][0]["names"])
+    # Three ways of naming one input. `surface_volume` was added so a control
+    # can queue a ready OME-Zarr from the open-data bucket, which is what lets
+    # it be reproduced without a credential.
+    assert ({"tiff_dir", "layer_stack", "surface_volume"}
+            == set(p5["exactly_one_of"][0]["names"]))
 
 
 def test_a_phase_with_nothing_to_queue_says_so(client):
@@ -254,9 +968,24 @@ def test_seed_probe_select_is_scoped_to_receipt_samples(
     assert "outside the approved benchmark scope" in unauthorized["reason"]
 
 
+def a_mission_for(client, sample: str, mission_id: str = "probe") -> str:
+    """A real mission holding one scroll.
+
+    Queueing work needs one now -- it is the project that contains the run --
+    and the checks each of these tests is actually about sit behind that.
+    Without it they would pass on the mission refusal and never reach the lane,
+    the probe mode or the missing control plane they claim to test.
+    """
+    created = client.post("/api/missions", json={
+        "mission_id": mission_id, "name": mission_id, "scrolls": [sample]})
+    assert created.status_code in (201, 409), created.text
+    return mission_id
+
+
 def test_seed_probe_select_refuses_a_lane_it_would_steer(client):
     response = client.post("/api/segmentation/runs", json={
         "sample_id": "PHerc0826",
+        "mission_id": a_mission_for(client, "PHerc0826"),
         "planner": "opencode-v2",
         "seed_probe_mode": "select",
     })
@@ -267,6 +996,7 @@ def test_seed_probe_select_refuses_a_lane_it_would_steer(client):
 def test_seed_probe_shadow_does_not_restrict_the_planner_lane(client):
     response = client.post("/api/segmentation/runs", json={
         "sample_id": "PHerc0826",
+        "mission_id": a_mission_for(client, "PHerc0826"),
         "planner": "opencode-v2",
         "seed_probe_mode": "shadow",
     })
@@ -277,8 +1007,11 @@ def test_seed_probe_shadow_does_not_restrict_the_planner_lane(client):
 
 
 def test_a_replan_needs_a_control_plane_rather_than_failing_late(client):
-    response = client.post("/api/segmentation/replan",
-                           json={"grid_version": "replan-x", "policy_version": "replan-x"})
+    response = client.post(
+        "/api/segmentation/replan",
+        json={"grid_version": "replan-x", "policy_version": "replan-x",
+              "sample_id": "PHerc0826",
+              "mission_id": a_mission_for(client, "PHerc0826")})
     assert response.status_code == 409
     assert "control plane" in response.json()["detail"]
 

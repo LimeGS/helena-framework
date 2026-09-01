@@ -8,7 +8,10 @@ reimplementation that breaks the fleet quietly.
 from __future__ import annotations
 
 import json
+import hashlib
+import http.server
 import sys
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -21,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 sys.path.insert(0, str(ROOT / "framework" / "stages" / "01-segmentation" / "mcp"))
 import seed_candidates as seeds  # noqa: E402
+import server as mcp_server  # noqa: E402
 
 URI = "s3://bucket/PHerc0139/surface-m7-L0-th0.2.zarr"
 
@@ -51,6 +55,184 @@ def test_a_region_with_no_prediction_returns_nothing_rather_than_failing():
     """This is the NO_SEED case, and it is not an error: the model says there
     is no sheet there, which is an answer."""
     assert seeds.find_candidates(empty(), region(), prediction_uri=URI) == []
+
+
+def test_real_mcp_service_returns_the_actual_zarr_metadata_and_chunk_read_inventory(tmp_path):
+    """Removing the production store tracker must remove this evidence."""
+    zarr = pytest.importorskip("zarr")
+    target = tmp_path / "surface-m7-L0-th0.2.zarr"
+    group = zarr.open_group(str(target), mode="w", zarr_format=2)
+    group.attrs["multiscales"] = [{"datasets": [{"path": "0"}]}]
+    data = np.zeros((16, 16, 16), dtype=np.uint8)
+    data[4, 5, 6] = 220
+    group.create_array("0", data=data, chunks=(8, 8, 8), compressor=None)
+
+    result = mcp_server.Service(tmp_path).find_seed_candidates({
+        "prediction_uri": URI,
+        "prediction_space": "ct_l0_xyz",
+        "region": region(size=8),
+        "max_candidates": 2,
+        "minimum_separation_voxels": 1,
+        "threshold": 0.2,
+    })
+
+    receipt = result["source_read_set"]
+    assert receipt["schema"] == "campaignx.first_letters_source_read_set.v1"
+    keys = [row["object_key"] for row in receipt["objects"]]
+    assert keys == sorted(set(keys))
+    assert ".zattrs" in keys
+    assert "0/.zarray" in keys
+    assert any(key.startswith("0/") and not key.endswith(".zarray") for key in keys)
+    for row in receipt["objects"]:
+        payload = (target / row["object_key"]).read_bytes()
+        assert row["bytes"] == len(payload)
+        assert row["sha256"] == hashlib.sha256(payload).hexdigest()
+    canonical = json.dumps(
+        receipt["objects"], sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False,
+    ).encode()
+    assert receipt["canonical_manifest_sha256"] == hashlib.sha256(canonical).hexdigest()
+
+
+def test_production_mcp_reads_zarr_v2_through_remote_http_store_with_ranges(tmp_path):
+    zarr = pytest.importorskip("zarr")
+    target = tmp_path / "remote.zarr"
+    group = zarr.open_group(str(target), mode="w", zarr_format=2)
+    group.attrs["multiscales"] = [{"datasets": [{"path": "0"}]}]
+    data = np.zeros((16, 16, 16), dtype=np.uint8)
+    data[4, 5, 6] = 220
+    group.create_array("0", data=data, chunks=(8, 8, 8), compressor=None)
+    requests = []
+
+    class RangeHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(tmp_path), **kwargs)
+
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):  # noqa: N802
+            requests.append((self.path, self.headers.get("Range")))
+            return super().do_GET()
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), RangeHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/remote.zarr"
+        result = mcp_server.Service(None).find_seed_candidates({
+            "prediction_uri": url, "prediction_space": "ct_l0_xyz",
+            "region": region(size=8), "max_candidates": 2,
+            "minimum_separation_voxels": 1, "threshold": 0.2,
+        })
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+    assert result["candidate_count"] == 1
+    receipt = result["source_read_set"]
+    assert {".zattrs", "0/.zarray"} <= {
+        row["object_key"] for row in receipt["objects"]}
+    assert requests
+    assert any(path.endswith("0/.zarray") for path, _header in requests)
+    for row in receipt["objects"]:
+        if "#range=" not in row["object_key"]:
+            payload = (target / row["object_key"]).read_bytes()
+            assert row["sha256"] == hashlib.sha256(payload).hexdigest()
+
+
+def test_production_fsspec_store_records_actual_http_partial_ranges(tmp_path):
+    zarr = pytest.importorskip("zarr")
+    target = tmp_path / "remote-range.zarr"
+    group = zarr.open_group(str(target), mode="w", zarr_format=2)
+    group.create_array("0", data=np.zeros((4, 4, 4), dtype=np.uint8), chunks=(2, 2, 2))
+    requests = []
+
+    class RangeHandler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(tmp_path), **kwargs)
+
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):  # noqa: N802
+            header = self.headers.get("Range")
+            requests.append((self.path, header))
+            if not header:
+                return super().do_GET()
+            start_text, end_text = header.removeprefix("bytes=").split("-", 1)
+            start, end = int(start_text), int(end_text)
+            path = Path(self.translate_path(self.path))
+            payload = path.read_bytes()[start:end + 1]
+            self.send_response(206)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Content-Range", f"bytes {start}-{end}/{path.stat().st_size}")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), RangeHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/remote-range.zarr"
+        from zarr.abc.store import RangeByteRequest
+        from zarr.core.buffer import default_buffer_prototype
+        from zarr.core.sync import sync
+        store, tracker = mcp_server.prediction_store_with_read_set(url)
+        value = sync(store.get(
+            "0/.zarray", default_buffer_prototype(),
+            RangeByteRequest(start=1, end=8)))
+        repeated = sync(store.get(
+            "0/.zarray", default_buffer_prototype(),
+            RangeByteRequest(start=1, end=8)))
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+    expected = (target / "0/.zarray").read_bytes()[1:8]
+    assert value.to_bytes() == expected
+    assert repeated.to_bytes() == expected
+    assert any(header == "bytes=1-7" for _path, header in requests)
+    assert tracker.receipt()["objects"] == [{
+        "object_key": "0/.zarray#range=1:8",
+        "sha256": hashlib.sha256(expected).hexdigest(), "bytes": len(expected),
+        "byte_range": {"kind": "range", "start": 1, "end": 8},
+    }]
+
+
+def test_prediction_open_forces_v2_and_refuses_consolidated_only_substitution(tmp_path):
+    zarr = pytest.importorskip("zarr")
+    v3 = tmp_path / "v3.zarr"
+    zarr.open_array(str(v3), mode="w", shape=(4, 4, 4), chunks=(2, 2, 2), zarr_format=3)
+    with pytest.raises(Exception):
+        mcp_server.open_prediction_with_read_set(str(v3), None)
+
+    consolidated = tmp_path / "consolidated-only.zarr"
+    group = zarr.open_group(str(consolidated), mode="w", zarr_format=2)
+    group.attrs["multiscales"] = [{"datasets": [{"path": "0"}]}]
+    group.create_array("0", data=np.zeros((4, 4, 4), dtype=np.uint8), chunks=(2, 2, 2))
+    zarr.consolidate_metadata(str(consolidated))
+    (consolidated / "0/.zarray").unlink()
+    with pytest.raises(Exception):
+        mcp_server.open_prediction_with_read_set(str(consolidated), None)
+
+
+def test_range_receipts_use_a_stable_numeric_identity_not_object_repr():
+    from zarr.abc.store import RangeByteRequest
+
+    class Payload:
+        def to_bytes(self):
+            return b"abc"
+
+    tracker = mcp_server.PredictionReadTracker()
+    tracker.record("0/0", Payload(), RangeByteRequest(start=2, end=5))
+    row = tracker.receipt()["objects"][0]
+    assert row == {
+        "object_key": "0/0#range=2:5", "sha256": hashlib.sha256(b"abc").hexdigest(),
+        "bytes": 3, "byte_range": {"kind": "range", "start": 2, "end": 5},
+    }
 
 
 def test_it_finds_what_is_above_threshold():

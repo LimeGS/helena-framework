@@ -42,6 +42,9 @@ ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 
 ARG BUILD_COMMIT=unknown
+# The full hash as well as the short one: the label is for whoever inspects
+# the image, and the process inside needs to name its own revision exactly.
+ARG BUILD_REVISION=unknown
 ARG FRAMEWORK_VERSION=0.2.0
 LABEL org.opencontainers.image.title="helena-panel" \
       org.opencontainers.image.description="Helena Framework control panel" \
@@ -49,6 +52,7 @@ LABEL org.opencontainers.image.title="helena-panel" \
       org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
       org.opencontainers.image.base.name="${BASE_IMAGE}"
 
+ENV CX_DEPLOYED_REVISION=${BUILD_REVISION}
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     CAMPAIGN_X_STAGE=panel \

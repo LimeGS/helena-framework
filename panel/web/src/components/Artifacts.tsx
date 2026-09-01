@@ -426,6 +426,44 @@ export function ProducedArtifacts({ phase, sample }: { phase: string; sample: st
     onSuccess: () => client.invalidateQueries({ queryKey: ["produced"] }),
   });
 
+  // What the mission currently reads, so a row can say more than "superseded"
+  // and the choice can be made here. It used to be made three navigations away,
+  // under Configuration, while the table that shows it sits on the phase that
+  // registered it -- and the queue refuses work until it has been used.
+  const [reason, setReason] = useState("");
+  const selection = useQuery({
+    queryKey: ["selection", missionId],
+    enabled,
+    queryFn: async () => {
+      const r = await fetch(`/api/missions/${missionId}/selection`);
+      if (!r.ok) throw new Error(String(r.status));
+      return (await r.json()) as { current?: { choices: Record<string, string> } };
+    },
+    staleTime: 15_000,
+  });
+
+  const choose = useMutation({
+    mutationFn: async (picked: Artifact) => {
+      // The whole map, never a patch: one entry moving on its own would make
+      // "what was selected then" unanswerable.
+      const choices = { ...(selection.data?.current?.choices ?? {}) };
+      choices[`${picked.phase}/${picked.sample_id}`] = picked.artifact_id;
+      const r = await fetch(`/api/missions/${missionId}/selection`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choices, reason }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(typeof body.detail === "string"
+        ? body.detail : JSON.stringify(body.detail));
+      return body;
+    },
+    onSuccess: () => {
+      setReason("");
+      client.invalidateQueries({ queryKey: ["produced"] });
+      client.invalidateQueries({ queryKey: ["selection"] });
+    },
+  });
+
   const produced = useQuery({
     queryKey: ["produced", missionId, phase, sample ?? ""],
     enabled,
@@ -494,13 +532,26 @@ export function ProducedArtifacts({ phase, sample }: { phase: string; sample: st
                   <td>{a.file_count}</td>
                   <td>{bytes(a.total_bytes)}</td>
                   <td className="l">
-                    {a.selected ? <Pill kind="ok">selected</Pill>
-                                : <Pill kind="none">superseded</Pill>}
+                    {a.selected ? <Pill kind="ok">selected</Pill> : (
+                      <>
+                        <Pill kind="none">superseded</Pill>{" "}
+                        <button className="linky" disabled={choose.isPending}
+                                onClick={() => choose.mutate(a)}>
+                          use this
+                        </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div className="controls">
+            <input className="search" value={reason}
+                   placeholder="why this one — kept with the selection"
+                   onChange={(e) => setReason(e.target.value)} />
+          </div>
+          {choose.isError && <p className="formerror">{String(choose.error)}</p>}
         </div>
       )}
     </Card>

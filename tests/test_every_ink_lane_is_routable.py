@@ -56,12 +56,15 @@ def test_a_routable_lane_builds_a_command_its_adapter_accepts(profile_id):
     except JobRejected:
         return
     parameters = {"tiff_dir": "/stack", "checkpoint": "/models/m.safetensors",
-                  "upstream_dir": "/models", "source_pixel_um": 9.362,
+                  "source_pixel_um": 9.362,
                   "config": "/c.json", "villa_python_root": "/villa",
                   "input_manifest": "/m.json"}
+    # The worker's, not the job's: two of these lanes import their model code
+    # from it, and where that code lives is a fact about the host.
     argv = command_for({"phase": "P5", "profile_id": profile_id,
                         "sample_id": "PHerc826", "parameters": parameters},
-                       runner=str(ROOT / adapter), output_dir="/runs/p5-1")
+                       runner=str(ROOT / adapter), output_dir="/runs/p5-1",
+                       upstream_root="/opt/villa/ink-detection")
     source = (ROOT / adapter).read_text()
     for token in argv:
         if token.startswith("--"):

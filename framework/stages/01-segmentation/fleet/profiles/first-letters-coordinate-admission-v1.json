@@ -1,0 +1,14 @@
+{
+  "schema": "campaignx.first_letters_coordinate_admission_policy.v1",
+  "policy_id": "first-letters-coordinate-admission@1.0.0",
+  "rule_id": "REJECT_NONINTEGRAL_FOR_PROMOTION_V1",
+  "coordinate_schema": "campaignx.ct_l0_xyz_coordinate.v1",
+  "coordinate_frame": "ct_l0_xyz",
+  "serialized_shape": "JSON_ARRAY_LENGTH_THREE_X_Y_Z",
+  "raw_items": "FINITE_JSON_NUMBER",
+  "promotion_items": "JSON_INTEGER_EXCLUDING_BOOLEAN",
+  "nonintegral_action": "REJECT_WITHOUT_COERCION",
+  "ct_terminal": "CT_NOT_RUN_NONINTEGRAL_COORDINATE",
+  "clearance_terminal": "CLEARANCE_NOT_RUN_DUE_TO_CT",
+  "allow_unvalidated": false
+}

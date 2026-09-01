@@ -1,0 +1,101 @@
+# syntax=docker/dockerfile:1.7
+# The runtime that claims ink-fleet jobs: P4 rendering, P5 inference, P7
+# screening, P8 wrap order.
+#
+# Built on helena-gpu-runtime rather than helena-ink because P4's default
+# lane is a VC3D binary and the ink image has none -- and helena-gpu-runtime
+# is already the composition of the frozen TimeSformer runtime with the verified
+# VC3D bundle, which is exactly the union the four phases need. Building on it
+# means the model the worker runs is the same model, byte for byte, that QC was
+# validated with.
+#
+# No ink worker had ever run anywhere before this image existed: the ink image
+# has no psycopg, so the worker died on `import psycopg` before reaching a job,
+# and the queue accumulated work nobody claimed.
+# Lanes arrive as a build argument and land at /opt/lanes/<name>. This file has
+# two targets: `runtime` for a host with no lane, `with_lane` for one that has
+# it.
+#
+# There used to be a second Containerfile per lane, each copying its lane over
+# the finished worker. Every one produced a full second copy: gpu-1 stored a
+# 7.83 GB ink worker and a 16.5 GB ink-9um worker whose only difference was one
+# directory. Two targets in one file give the same conditionality without the
+# second image -- BuildKit does not build the lane stage when it is not asked
+# for, so a host without the lane image never needs to have it.
+ARG BASE_IMAGE
+ARG LANE_IMAGE=scratch
+
+FROM ${LANE_IMAGE} AS lane
+
+FROM ${BASE_IMAGE} AS runtime
+
+ARG BUILD_COMMIT=unknown
+ARG FRAMEWORK_VERSION=0.2.0
+LABEL org.opencontainers.image.title="helena-worker-gpu" \
+      org.opencontainers.image.description="Helena Framework ink-fleet worker runtime (P4/P5/P7/P8)" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=ink-worker \
+    CAMPAIGN_X_REPO=/workspace/campaign-x
+WORKDIR /workspace/campaign-x
+
+COPY containers/images/requirements.ink-worker.txt /opt/campaignx/requirements.ink-worker.txt
+RUN python3 -m pip install --no-cache-dir \
+      -r /opt/campaignx/requirements.ink-worker.txt
+
+# The code is copied in, not mounted. Mounting a checkout means an image plus a
+# directory that has to be kept in step, on every host, by hand -- and an rsync
+# of that directory is one --delete away from removing live data, which is how
+# this project lost its panel accounts.
+#
+# Only what the phases read: contracts, profiles, the frozen catalog, and the
+# fleet code. Not the vendored renderers or anyone else's runtime.
+COPY framework /workspace/campaign-x/framework
+COPY scripts /workspace/campaign-x/scripts
+COPY workspace/catalog /workspace/campaign-x/workspace/catalog
+
+# The checkpoints, the run directory and the credentials still arrive as mounts:
+# those are state and secrets, and neither belongs in an image.
+CMD ["python3", "/workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py"]
+
+# --------------------------------------------------------------------- lane --
+# The 9 um lane, whole: its interpreter, its virtualenv and upstream's source.
+#
+# /opt/lanes/ink-9um and not /opt/villa, which is where every lane used to land.
+# One path meant two lanes could not sit in one image, which is the entire
+# reason there were four worker images for two workers. Consumers reach it by
+# the variables below, so the move costs nothing.
+FROM runtime AS with_lane
+ARG LANE_IMAGE
+LABEL org.helena.lane.image="${LANE_IMAGE}"
+COPY --from=lane /opt/villa /opt/lanes/ink-9um
+
+ENV HELENA_INK_9UM_PYTHON=/opt/lanes/ink-9um/ink-venv/bin/python \
+    VILLA_INK_ROOT=/opt/lanes/ink-9um/ink-detection \
+    PYTHONPATH=/opt/lanes/ink-9um/ink-detection
+
+# Both halves, checked here rather than at run time: a worker that can claim a
+# job but not run it burns a lease to find out, and one that can run the lane
+# but not claim never gets a job at all.
+#
+# The repository half is checked first because that is the half that went
+# missing: this was once built on helena-gpu-runtime, which carries psycopg and
+# so passed every other check, and no repository -- the container crash-looped
+# for 27 hours on `can't open file '.../ink_worker.py'`.
+RUN set -eu; \
+    test -f /workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py \
+      || { echo "BASE_IMAGE carries no repository at /workspace/campaign-x, so" >&2; \
+           echo "the composed image cannot run a worker:" >&2; \
+           echo "  $BASE_IMAGE" >&2; exit 3; }; \
+    python3 -c "import psycopg" \
+      || { echo "the worker half cannot reach the queue: psycopg is absent" >&2; exit 3; }; \
+    /opt/lanes/ink-9um/ink-venv/bin/python -m koine_machines.inference.infer --help >/dev/null \
+      || { echo "the lane half does not start" >&2; exit 3; }; \
+    echo "both halves start"
+
+WORKDIR /workspace/campaign-x
+CMD ["python3", "/workspace/campaign-x/framework/stages/03-ink/fleet/ink_worker.py"]

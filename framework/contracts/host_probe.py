@@ -126,3 +126,78 @@ def cpu_and_memory() -> dict:
         pass
     return out
 
+
+
+def resolve_device(requested: str | None = None) -> dict:
+    """Which compute device this run uses, and how that was decided.
+
+    Every runner in this platform that takes a device defaulted to ``cuda``,
+    unconditionally. That is a fine default on the two hosts that have cards and
+    a crash on any host that does not, so "supports both" was true of the flag
+    and false of the program.
+
+    Three answers, and the difference between them is the point:
+
+    ``auto`` -- or nothing at all -- is "the card if this host has one, the CPU
+    if it does not". It is what a job should carry when nobody cared, and it is
+    now the default.
+
+    An explicit ``cuda`` is a requirement, not a preference. A run that asked
+    for a card and did not get one is refused here rather than finishing on the
+    CPU some hours later at a cost nobody agreed to -- upstream measured the
+    seeded grow's own CUDA path at 40x *slower* than its CPU one, so "the other
+    device" is not a detail that can be swapped in silently.
+
+    An explicit ``cpu`` is honoured on any host, including one with a card.
+
+    The return value is what a receipt should record: the device actually used,
+    not the word the caller wrote. `auto` in a receipt says nothing about where
+    the work ran.
+    """
+
+    asked = (requested or "auto").strip().lower()
+    available, detail = _cuda_available()
+    if asked in ("", "auto"):
+        return {
+            "device": "cuda" if available else "cpu",
+            "requested": "auto",
+            "cuda_available": available,
+            "reason": ("this host offers a card" if available
+                       else f"this host offers no card: {detail}"),
+        }
+    if asked == "cpu":
+        return {"device": "cpu", "requested": "cpu", "cuda_available": available,
+                "reason": "the run asked for the CPU"}
+    if not asked.startswith("cuda"):
+        raise ValueError(
+            f"device must be 'auto', 'cpu' or start with 'cuda'; got {requested!r}")
+    if not available:
+        raise RuntimeError(
+            f"this run asked for {asked} and this host has no usable card: "
+            f"{detail}. Queue it with device 'auto' to let the worker decide, "
+            "or 'cpu' to say plainly that the CPU is acceptable here.")
+    return {"device": asked, "requested": asked, "cuda_available": True,
+            "reason": "the run asked for a card and this host has one"}
+
+
+def _cuda_available() -> tuple[bool, str]:
+    """Whether torch can actually reach a card, said without importing torch
+    when it is absent.
+
+    Asked of torch rather than of nvidia-smi: a driver on the host says nothing
+    about whether this container was given a device, and every consumer of this
+    answer is a torch program.
+    """
+
+    try:
+        import torch  # noqa: PLC0415
+    except ImportError as absent:
+        return False, f"torch is not installed here ({absent})"
+    try:
+        if not torch.cuda.is_available():
+            return False, "torch reports no CUDA device"
+        if torch.cuda.device_count() < 1:
+            return False, "torch reports zero CUDA devices"
+    except Exception as failure:  # noqa: BLE001 - a broken driver is "no card"
+        return False, f"asking torch for a device raised {type(failure).__name__}: {failure}"
+    return True, f"{torch.cuda.device_count()} device(s)"

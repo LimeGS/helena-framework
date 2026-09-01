@@ -51,8 +51,16 @@ reproduce, audit and build on.**
 curl -fsSL https://raw.githubusercontent.com/LimeGS/helena-framework/main/install.sh | sh
 ```
 
-Needs Docker and a few GB. Puts the panel on `https://localhost:8800`; see
-[Deploying](#deploying) for the first account and for workers.
+It asks what this machine should be — the panel alone, or the panel plus CPU or
+GPU workers — and puts the panel on `https://localhost:8800`. `--panel`,
+`--cpu`, `--gpu` or `HELENA_INSTALL` answer ahead of time; with no terminal to
+ask on it installs the panel, which runs no phase. See [Deploying](#deploying)
+for the first account. **Needs** `git`, Docker with **Compose v2**, port 8800,
+and 6 GB free *where Docker stores images* (`docker info --format
+'{{.DockerRootDir}}'` — often not `$HOME`); the user running it must reach the
+daemon, so `sudo usermod -aG docker "$USER"` and a new login, or run it under
+`sudo`. **Not** needed: Node, Python, CUDA, a GPU — the frontend compiles inside
+the image build and the panel runs on CPU.
 
 ---
 
@@ -84,16 +92,22 @@ worker.
 
 P2 and P6 are gates, not transformations.
 
+Several phases have more than one way of doing the work, and the choice is a
+**lane** the job records rather than a setting somebody remembers: P1 grows a
+surface or fits a spiral through the whole scroll, P4 renders through tifxyz or
+bridges a legacy PPM onto a newer rescan, and P5 has five adapters across 23
+profiles and 32 pinned checkpoints. A run names its lane, so two results are
+comparable or visibly not.
+
 <p align="center">
   <img src="docs/screenshots/p5-ink-detection.png"
        alt="P5 ink detection: runs with their lane, normalization, contract match and liveness verdict"
        width="900">
 </p>
 
-P5 above, on a real deployment. Each run names the lane that produced it and the
-normalization it used; `MATCHES` is the profile contract holding, and `ALIVE` is
-the liveness verdict — the column that exists so a uniform map cannot pass as a
-result.
+P5 on a real deployment. Each run names its lane and normalization; `MATCHES` is
+the profile contract holding, `ALIVE` the liveness verdict — the column that
+exists so a uniform map cannot pass as a result.
 
 ## How that is enforced
 
@@ -126,25 +140,19 @@ source.
 
 ## Deploying
 
-The Quickstart line above clones, builds and starts the stack, checking first
-what is illegible from inside Docker: a full disk otherwise surfaces as
-`apt-get` exiting 100 about `/var/cache/apt`, a compose v1 shim as a YAML error
-about a valid key. It refuses outright on a machine that already runs a
-Helena stack: the compose project is named the same either way, so `up` would
-recreate the existing one rather than start a second.
+The Quickstart line clones, builds and starts what you chose, checking first
+what is illegible from inside Docker: a full disk surfaces as `apt-get` exiting
+100 about `/var/cache/apt`, a compose v1 shim as a YAML error about a valid key,
+a busy port only after the build. It refuses a machine that already runs Helena
+— or merely still has its volumes, which outlive `compose down` and, if written
+by another user, fail from inside uvicorn as `PermissionError` on the
+certificate. `HELENA_ADOPT_VOLUMES=1` proceeds anyway.
 
-Read it before you run it; it is short, and `curl -fsSLO` then `less` is the
-better habit. The two commands it wraps are no secret:
-
-```bash
-git clone https://github.com/LimeGS/helena-framework.git helena && cd helena
-docker compose -f containers/compose/platform.compose.yaml up -d
-```
-
-PostgreSQL, the control plane and the panel on `https://localhost:8800`, TLS
-self-signed on first boot. The panel image is built from the checkout on first
-run — there is no published image to pull, so expect a few minutes the first
-time and seconds after that.
+Read it before you run it; `curl -fsSLO` then `less` is the better habit. What
+it wraps is no secret: `git clone`, `docker compose -f
+containers/compose/platform.compose.yaml up -d` for the panel, and
+`containers/deploy-platform.sh nogpu|gpu` for workers. Nothing is published, so
+every image is built where it runs.
 
 Then claim the first account. Opening the panel offers a form for it; from a
 shell on that host:
@@ -155,34 +163,36 @@ curl -sk https://localhost:8800/api/session/bootstrap \
   -d '{"username":"you","password":"at-least-ten-characters"}'
 ```
 
-`-k` because the certificate is self-signed on first boot; the start-up log
-prints its fingerprint if you would rather check it. This endpoint answers only
-on loopback and closes permanently once an account exists — being first through
-the door is not a way in. Every account after that is made in the panel, under
-**Users**; there are no roles, so an account is the whole boundary.
+`-k` because the certificate is self-signed; the log prints its fingerprint.
+That endpoint answers only on loopback and closes permanently once an account
+exists — being first through the door is not a way in. Later accounts are made
+under **Users**; there are no roles, so an account is the whole boundary.
 
-**Object storage is optional and off by default.** Artifacts go to a volume on
-the panel host; set `HELENA_BACKUP_S3` and the AWS variables only for off-site
-copies. A worker sharing the panel's host writes into that volume directly, and
-one on another machine publishes to it over HTTP.
+**Object storage is optional and off by default** — artifacts go to a volume on
+the panel host, and `HELENA_BACKUP_S3` is only for off-site copies.
 
 ### Workers
 
-The panel is the control plane and the queue; phases need workers, and P5 needs
-a CUDA device. On the host that will do the work:
+Phases need workers and P5 needs a CUDA device.
 
 ```bash
 containers/deploy-platform.sh nogpu   # segmentation, flattening, reconstruction
 containers/deploy-platform.sh gpu     # adds ink detection and surface QC
 ```
 
-Worker images are built on the host that runs them — they are gigabytes on a
-CUDA base and the registry round trip is not worth it. The script brings up
-every stack and then verifies each container against the image it built.
+On first run the deploy writes `config/*.env` from the templates, never touching
+what you put there: in the checkout, git-ignored, yours to delete — nothing
+privileged, nothing left in `/etc`. Object-storage credentials go on the panel
+instead, so a worker starts from a database URL alone.
 
-A worker not on the panel's host needs a machine token: mint one under **Users →
-Machine tokens** and set `HELENA_PANEL_TOKEN`. Such a token reaches the artifact
-endpoints and nothing else, and is revocable individually.
+Neither profile needs anything external: the deploy builds what it runs, Volume
+Cartographer **compiled from source** — cloned at the commit its lock pins and
+checked against that commit's tree hash. Expect an hour or two, and more for
+`gpu`. `provision-host.sh` is for a *second* machine joining an existing fleet.
+
+A worker off the panel's host needs a machine token: mint one under **Users →
+Machine tokens** and set `HELENA_PANEL_TOKEN`. It reaches the artifact endpoints
+and nothing else, revocable on its own.
 
 ---
 
@@ -192,25 +202,22 @@ endpoints and nothing else, and is revocable individually.
        width="900">
 </p>
 
-Surfaces from P1, with the four judgements kept apart: where it came from, whether
-the CT supports it, whether the geometry certified, and what a person said. A
-surface can be `CERTIFIED` and `UNVALIDATED` at once — they answer different
-questions.
+Surfaces from P1 with the four judgements kept apart: origin, CT support,
+geometry verdict, human review. A surface can be `CERTIFIED` and `UNVALIDATED`
+at once — they answer different questions.
 
 ## Where to look next
 
 Everything else is in the panel, under **Documentation**:
 
-- **Tutorial** — one pass through all ten phases: what to press, how long each
+- **Tutorial** — one pass through all ten phases: what to press, how long it
   takes, how to tell it worked.
-- **User guide** — every control on every page: what it does, when to reach for
-  it, what to leave it on.
-- **Developer reference** — contracts, profiles, receipts, naming and versioning,
-  and how to put your own tool into a phase.
+- **User guide** — every control on every page, and when to leave it alone.
+- **Developer reference** — contracts, profiles, receipts, versioning, and how
+  to put your own tool into a phase.
 - **API reference** — the HTTP surface, from the routes themselves.
-- **[PHerc0826 golden run](docs/golden-runs/pherc0826-2026-08-01/README.md):**
-  a sanitized end-to-end evidence dossier covering the production merge,
-  physical QC, flattening, rendering, ink screening and negative review outcome.
+- **[PHerc0826 golden run](docs/golden-runs/pherc0826-2026-08-01/README.md)** —
+  an end-to-end evidence dossier, merge through ink screening to a negative.
 
 Those are generated partly from the contracts the code runs on, so they cannot
 drift from the deployment in front of you — which is why this file is short.
@@ -231,9 +238,14 @@ tests/                 the suite; runs without a deployment
 ## Contributing
 
 ```bash
-python -m pytest tests/ -q --ignore=tests/e2e   # no deployment needed
-cd panel/web && npm ci && npx vitest run        # frontend
+containers/run-tests.sh tests/ -q --ignore=tests/e2e   # as CI runs it
+cd panel/web && npm ci && npx vitest run               # frontend
 ```
+
+Not `pytest` directly: without a database eighty-odd tests skip silently, and
+without a registry configured a build script takes a branch it never takes on
+the runner. Both have shipped failures that were green locally. The script
+builds the CI image, starts a throwaway postgres and runs the suite in it.
 
 The suite is the specification. Tests are named after the failure they prevent,
 and the docstring says what went wrong and why the check is shaped as it is —

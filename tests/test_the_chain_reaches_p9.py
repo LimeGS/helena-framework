@@ -51,9 +51,19 @@ def test_every_queueable_phase_describes_its_parameters(phase):
 
 def test_a_screen_may_name_the_screening_it_is_about():
     clean = validate_parameters(
-        {"screening_of": "p5-01facc430f694c", "bbox": "0,0,64,64", "px_um": 2.399}, "P7")
+        {"screening_of": "p5-01facc430f694c",
+         "probability_map_artifact_sha256": "a" * 64,
+         "probability_map_manifest_sha256": "b" * 64,
+         "bbox": "0,0,64,64", "px_um": 2.399}, "P7")
     assert clean["screening_of"] == "p5-01facc430f694c"
     assert "map_path" not in clean
+
+
+def test_a_named_screening_without_exact_map_identity_is_refused():
+    with pytest.raises(JobRejected, match="exact P5 probability-map identity"):
+        validate_parameters(
+            {"screening_of": "p5-01facc430f694c",
+             "bbox": "0,0,64,64", "px_um": 2.399}, "P7")
 
 
 def test_naming_both_a_path_and_a_screening_is_refused(tmp_path):
