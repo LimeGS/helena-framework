@@ -138,6 +138,19 @@ LABEL org.helena.lane.image="${LANE_IMAGE}"
 # lasagna beside it.
 COPY --from=lane /opt/villa /opt/lanes/spiral
 
+# The virtualenv was built at /opt/villa, and both its interpreter symlink and
+# the `home` in pyvenv.cfg are absolute. Moving the tree leaves bin/python
+# dangling, which sh reports as "not found" -- naming the symlink rather than
+# the target it could not follow, which is the confusing half. The interpreter
+# came along in the same copy, so repoint at where it landed.
+RUN set -eu; \
+    lane=/opt/lanes/spiral; \
+    interp="$(cd "$lane"/python/*/bin && pwd)"; \
+    ln -sfn "$interp/python3" "$lane/venv/bin/python"; \
+    ln -sfn "$interp/python3" "$lane/venv/bin/python3"; \
+    sed -i "s|^home = .*|home = $interp|" "$lane/venv/pyvenv.cfg"
+
+
 ENV VILLA_PYTHON=/opt/lanes/spiral/venv/bin/python \
     VILLA_SPIRAL_ROOT=/opt/lanes/spiral/spiral \
     VILLA_LASAGNA_ROOT=/opt/lanes/spiral/lasagna \

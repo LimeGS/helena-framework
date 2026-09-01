@@ -17,7 +17,7 @@ name: helena-segment
 
 services:
   segment:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.1}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -84,7 +84,7 @@ services:
   # queue does not care which container claims a row, only that the runtime
   # behind it is real.
   fleet-runner:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.1}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -151,7 +151,7 @@ services:
   # Read-only and ink-blind: it measures candidate availability and writes
   # nothing but its receipt to the control plane.
   preflight:
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.22.1}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
