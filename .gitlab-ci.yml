@@ -4,7 +4,7 @@
 # Two branches, two deployments
 # ---------------------------------------------------------------------------
 #
-#   development  ->  swisspost-1   the whole platform, no GPU
+#   development  ->  work-3   the whole platform, no GPU
 #   staging      ->  gpu-1         the whole platform, with the cards
 #
 # They are separate deployments, not one environment behind another. Each has
@@ -23,7 +23,7 @@
 # both deploy jobs call that one script with a profile -- so "the platform"
 # is defined in one place instead of being whatever a job happened to name.
 #
-# It used to be one service. `deploy to swisspost-1` pulled the panel and
+# It used to be one service. `deploy to work-3` pulled the panel and
 # nothing else, and the manual script's `all` covered three of six projects, so
 # ink, backup and host-report sat six commits behind through several releases
 # while every signal said the deploy had succeeded.
@@ -39,14 +39,15 @@
 # `frontend` is untagged: it needs a container and nothing else, so it runs
 # wherever there is capacity.
 #
-# The tests and the panel image build are tagged `swisspost-1` regardless of
-# which branch is being built. They do not touch a deployment, and running them
-# there keeps unit tests off a machine whose cards are usually busy. The unit
-# job additionally has to be there: its image is built on that runner's own
-# daemon in the prepare stage and exists in no registry.
+# The CI image, tests, and panel image build share `HELENA_CI_RUNNER`: it is
+# `work-3` by default and `gpu-1` for staging. They do not touch a
+# deployment, and non-staging work keeps unit tests off a machine whose cards
+# are usually busy. The unit job additionally has to use the selected runner:
+# its image is built on that runner's own daemon in the prepare stage and exists
+# in no registry.
 #
 # The deploy and smoke jobs are tagged for the host they are about --
-# `swisspost-1` from development, `gpu-1` from staging -- and each proves it is
+# `work-3` from development, `gpu-1` from staging -- and each proves it is
 # on that machine before doing anything. The tag is a request; the check is the
 # proof. Untagged, they landed on whichever runner answered first, so a push
 # either deployed or did not, depending on nothing.
@@ -63,17 +64,51 @@
 # The mount grants nothing the socket did not already grant -- it is root on the
 # host -- but it is real and it is named here rather than left to be discovered.
 #
-# Anyone who can push to `development` can run commands on swisspost-1, and
+# Anyone who can push to `development` can run commands on work-3, and
 # anyone who can push to `staging` can run them on gpu-1. Protect both branches.
+#
+# Two things follow from that and are enforced rather than left as advice:
+#
+#   * a merge request from a fork gets no pipeline here at all (workflow rules
+#     below), because opening one is not the same permission as pushing;
+#   * a merge request pipeline builds the panel image but never publishes it.
+#     The registry tag is the commit sha and a published tag is not rebuilt, so
+#     an MR that pushed its own bytes for a sha it was then fast-forward merged
+#     as would have had them deployed unexamined.
+#
+# What is left, and cannot be fixed in this file: the test jobs run on the same
+# socket-bearing runner as the deploy jobs, because they need the image that
+# runner built. Separating them needs a second, socket-less runner registered
+# for the test stage -- a runner-configuration change, not a pipeline one.
 #
 # No CI/CD variables are required. Two are optional, and turn the smoke stage
 # from skipping to asserting:
 #
 #   HELENA_E2E_USER, HELENA_PANEL_PASSWORD
 
+workflow:
+  rules:
+    # A merge request from a fork does not get this project's runners. Every
+    # runner here carries the host's Docker socket, its network and /etc/helena,
+    # so a pipeline is root on work-3 or gpu-1 -- which is a deliberate trade
+    # for people who can already push here, and not one to extend to whoever
+    # can open a merge request. GitLab sends fork pipelines to the fork's own
+    # runners by default; this refuses the case where that default is changed,
+    # rather than depending on it staying set.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" &&
+          $CI_MERGE_REQUEST_SOURCE_PROJECT_ID != $CI_PROJECT_ID
+      when: never
+    - if: $CI_COMMIT_BRANCH == "staging"
+      variables:
+        HELENA_CI_RUNNER: "gpu-1"
+    - when: always
+
 stages: [prepare, test, build, deploy, verify]
 
 variables:
+  # Docker-daemon-coupled jobs must share one runner. staging uses its deploy
+  # host; all other pipelines retain the CPU runner by default.
+  HELENA_CI_RUNNER: "work-3"
   # Both deployments serve on their own host's loopback, so this is the same
   # string for each -- the difference is which machine the job runs on.
   STAGING_URL: "https://127.0.0.1:8800"
@@ -135,12 +170,12 @@ variables:
 # COPYied before the install, so Docker's layer cache makes this a no-op unless
 # one of them changed. Measured at 0 seconds unchanged, 167 when they change.
 #
-# Never pushed. The job that uses it runs on this same machine, and a registry
-# round-trip for three gigabytes would undo the saving.
+# Never pushed. The job that uses it resolves the same pipeline-selected runner,
+# and a registry round-trip for three gigabytes would undo the saving.
 build the ci image:
   stage: prepare
   image: docker:27-cli
-  tags: [swisspost-1]
+  tags: ["$HELENA_CI_RUNNER"]
   script:
     - |
       docker info > /dev/null 2>&1 || {
@@ -151,7 +186,7 @@ build the ci image:
         --build-arg BUILD_COMMIT=$CI_COMMIT_SHORT_SHA
         -t helena-ci:$CI_COMMIT_SHA .
     # One 2.5 GB image per pipeline, kept forever, is a host that fills up. It
-    # did: twenty-three of these plus their build cache took swisspost-1 to zero
+    # did: twenty-three of these plus their build cache took work-3 to zero
     # bytes free, and every pipeline after that failed inside apt-get with a
     # message about /var/cache/apt rather than about disk.
     #
@@ -166,6 +201,56 @@ build the ci image:
       docker builder prune -f --filter until=168h > /dev/null 2>&1 || true
       echo "helena-ci images kept: $(docker images -q helena-ci | sort -u | wc -l)"
 
+# The database the suite tests against, on this host, on a port of its own.
+#
+# Not a GitLab `services:` container: this runner gives every container it
+# starts the host's network, so a service gets no per-build network and its
+# alias resolves nowhere -- which is how 89 tests spent weeks failing with
+# `could not translate host name "postgres" to address`.
+#
+# And not the host's PostgreSQL either, which is the platform's own and listens
+# on 127.0.0.1:55432. A probe that went looking for "a PostgreSQL around here"
+# found exactly that one. The test suite creates schemas, runs migrations and
+# drops databases; pointing it at the deployment's own server is a way to lose
+# the deployment. So this is a separate container, with a database name the
+# platform does not have, on a port the platform does not use: a connection that
+# somehow lands on the wrong server fails to find the database rather than
+# succeeding somewhere it should not be.
+#
+# It outlives the pipeline on purpose -- starting PostgreSQL is eight seconds
+# every push otherwise -- and holds nothing anyone needs: each test makes its
+# own uuid-named schema and drops it.
+ci postgres:
+  stage: prepare
+  image: docker:27-cli
+  tags: ["$HELENA_CI_RUNNER"]
+  script:
+    - *on_its_host
+    - |
+      if [ -z "$(docker ps -q -f name=^helena-ci-postgres$)" ]; then
+        docker rm -f helena-ci-postgres > /dev/null 2>&1 || true
+        docker run -d --name helena-ci-postgres --restart unless-stopped \
+          -e POSTGRES_DB=helena_ci_tests \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD=throwaway \
+          -p 127.0.0.1:55433:5432 \
+          --health-cmd "pg_isready -U postgres -d helena_ci_tests" \
+          --health-interval 5s --health-retries 12 \
+          postgres:16-alpine > /dev/null
+      fi
+    # Ready means accepting connections, not "the container exists". The unit
+    # job starts within seconds of this one and a server still doing initdb
+    # refuses every one of them.
+    - |
+      for _ in $(seq 1 30); do
+        docker exec helena-ci-postgres pg_isready -U postgres -d helena_ci_tests \
+          > /dev/null 2>&1 && exit 0
+        sleep 2
+      done
+      echo "helena-ci-postgres never became ready"
+      docker logs --tail 30 helena-ci-postgres
+      exit 1
+
 # ---------------------------------------------------------------------------
 # test
 # ---------------------------------------------------------------------------
@@ -175,12 +260,22 @@ build the ci image:
 # regression at the moment it is most expensive to hear about it.
 unit tests:
   stage: test
-  # Everything preinstalled. Tagged because the image is built on that runner's
-  # own daemon and is not in any registry -- which is the point, see the prepare
-  # stage. Measured: 284 seconds to 131.
+  # Everything preinstalled. Tagged for the pipeline-selected runner because the
+  # image is built on that runner's own daemon and is not in any registry --
+  # which is the point, see the prepare stage. Measured: 284 seconds to 131.
   image: helena-ci:$CI_COMMIT_SHA
-  tags: [swisspost-1]
+  tags: ["$HELENA_CI_RUNNER"]
+  # A throwaway PostgreSQL, because 89 of these tests were skipping without one
+  # and nobody could see it: postgres_store, the real migration, the failpoints
+  # and the concurrency parity -- the parts that only mean anything against a
+  # server -- so that file sat at 23 % coverage while its tests sat unrun.
+  #
+  # The server the `ci postgres` job owns, named rather than discovered. The
+  # discovery version asked "is there a PostgreSQL around here" and found the
+  # platform's own, which is not a server a migration test may be pointed at.
+  needs: ["build the ci image", "ci postgres"]
   variables:
+    HELENA_TEST_DSN: "postgresql://postgres:throwaway@127.0.0.1:55433/helena_ci_tests"
     # The QC adapter records which code produced a piece of evidence, and takes
     # it from a Git checkout when nothing tells it otherwise. Inside the job
     # container the checkout belongs to another user, so git refuses it as
@@ -188,6 +283,30 @@ unit tests:
     # the right refusal in the wrong place. CI knows the commit; telling it is
     # the answer the adapter already offers.
     HELENA_QC_CODE_COMMIT: $CI_COMMIT_SHA
+    # The same answer for the same question, asked by the panel rather than the
+    # adapter: a control preflight binds the revision it ran under, and without
+    # this it refuses with "cannot bind the deployed code revision". Measured:
+    # eighteen of the newly-running tests fail on exactly that, and pass with it.
+    CX_DEPLOYED_REVISION: $CI_COMMIT_SHA
+  before_script:
+    # A server that is up is not a server that is ready, and the suite's first
+    # database test is three seconds after this job starts.
+    - |
+      python - <<'WAIT'
+      import os, socket, sys, time
+
+      host, port = "127.0.0.1", 55433
+      deadline = time.time() + 60
+      while time.time() < deadline:
+          try:
+              with socket.create_connection((host, port), timeout=2):
+                  sys.exit(0)
+          except OSError:
+              time.sleep(2)
+      print(f"nothing accepted a connection on {host}:{port}; "
+            "see the `ci postgres` job", file=sys.stderr)
+      sys.exit(1)
+      WAIT
   script:
     # e2e is excluded here on purpose: it needs a deployment, and there is not
     # one yet at this point in the pipeline. It runs in `verify`, after deploy.
@@ -198,6 +317,29 @@ unit tests:
       junit: report.xml
     expire_in: 1 week
 
+lint:
+  stage: test
+  # The same image the unit tests use, so the linter is the one the lockfile
+  # pins rather than whatever a fresh container resolves to.
+  image: helena-ci:$CI_COMMIT_SHA
+  tags: ["$HELENA_CI_RUNNER"]
+  # E9 and F821 only, and that is a deliberate floor rather than a first step
+  # towards style checking. They are the two that mean the code is broken: a
+  # file that does not parse, and a name that does not exist. Everything else
+  # flake8 reports here -- 109 findings the day this was added, mostly unused
+  # imports -- is untidiness, and a gate that fails on untidiness on day one is
+  # a gate somebody disables in week two.
+  #
+  # Both are at zero. That is what makes this a gate and not a report: it can
+  # only go red because somebody added one.
+  #
+  # vendored code is excluded because it is not ours to fix.
+  script:
+    - >-
+      python -m flake8 --select=E9,F821 --max-line-length=200
+      --exclude=.venv,node_modules,.git,__pycache__,panel/.venv,framework/vendored
+      framework panel scripts tests
+
 frontend:
   stage: test
   image: node:22.23.1-alpine3.23
@@ -207,6 +349,24 @@ frontend:
   before_script:
     - cd panel/web && npm ci --no-audit --no-fund
   script:
+    # The handbook is Markdown under docs/handbook and a generated module beside
+    # the routes. Regenerating it here and refusing a difference is what keeps
+    # the two from drifting: an edit to the generated file is reverted by the
+    # next build, and this says so at once rather than at the next deploy.
+    # Regenerated and compared by digest rather than by `git diff`: this image
+    # is node:alpine and has no git in it, so the diff was a command-not-found
+    # every time -- a check that failed for a reason unrelated to what it
+    # checks, which is worse than no check.
+    - |
+      before=$(sha256sum src/routes/handbook-content.ts | cut -d' ' -f1)
+      npm run handbook
+      after=$(sha256sum src/routes/handbook-content.ts | cut -d' ' -f1)
+      if [ "$before" != "$after" ]; then
+        echo "handbook-content.ts does not match docs/handbook." >&2
+        echo "Run 'npm run handbook' in panel/web and commit the result." >&2
+        exit 1
+      fi
+      echo "handbook: generated module matches its Markdown"
     - npx tsc --noEmit
     - npx vitest run
     # The same build the image performs. Failing here names the cause in ten
@@ -218,13 +378,13 @@ frontend:
 # ---------------------------------------------------------------------------
 
 # Proof that a clean checkout produces a working image, which is exactly what
-# the deploy job asks swisspost-1 to do. Doing it here means a broken
+# the deploy job asks its branch-selected runner to do. Doing it here means a broken
 # Containerfile is caught before anything is touched on the host, rather than
 # halfway through `compose up` with the old container already gone.
 build the panel image:
   stage: build
-  # It builds with the host's Docker socket.
-  tags: [swisspost-1]
+  # It builds with the pipeline-selected runner's Docker socket.
+  tags: ["$HELENA_CI_RUNNER"]
   image: docker:27-cli
   # The host's daemon, through the socket the runner mounts.
   #
@@ -242,12 +402,12 @@ build the panel image:
     - |
       docker info > /dev/null 2>&1 || {
         echo "No Docker daemon: this job is not on the deploy host's runner."
-        echo "Disable shared runners for this project, or tag the swisspost-1"
-        echo "runner and pin this job to it."
+        echo "Disable shared runners for this project, or tag the selected"
+        echo "runner and pin this job to its pipeline affinity."
         exit 1
       }
     # Already published means already built. Both branches build the same
-    # commit on this same runner, and a second build of it is not the same
+    # commit on this pipeline's selected runner, and a second build of it is not the same
     # bytes -- Docker builds are not reproducible by default. The second push
     # re-pointed the tag while a container elsewhere kept running the first,
     # so one commit named two different images and "this tag is those exact
@@ -255,33 +415,66 @@ build the panel image:
     #
     # An image is built once per commit or not at all.
     - |
-      if curl -sf -o /dev/null \
+      if [ -n "$HELENA_REGISTRY" ]; then
+        panel_image="$HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA"
+      else
+        panel_image="helena-panel:$CI_COMMIT_SHA"
+      fi
+      echo "panel image: $panel_image"
+      # Already published means already built. Only askable when there is a
+      # registry, and only answerable when curl exists -- docker:27-cli has
+      # none, so this probe was failing silently and every pipeline rebuilt.
+      # Absence of an answer is not an answer, so it says which it is.
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        echo "merge request pipeline: building, whatever the registry holds."
+      elif [ -z "$HELENA_REGISTRY" ]; then
+        echo "no registry configured; building locally without publishing"
+      elif ! command -v curl >/dev/null 2>&1; then
+        echo "curl absent; cannot tell if this commit is published, so building"
+      elif curl -sf -o /dev/null \
            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.v2+json' \
            "https://${HELENA_REGISTRY%%/*}/v2/helena/helena-panel/manifests/$CI_COMMIT_SHA"; then
         echo "helena-panel:$CI_COMMIT_SHA is already published; not building it again"
-        docker pull -q "$HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA"
+        docker pull -q "$panel_image"
         exit 0
       fi
     # Tagged by commit, so the deploy runs a named build rather than whatever
     # `latest` happened to mean when the container restarted.
     - docker build -f containers/images/Containerfile.panel
         --build-arg BUILD_COMMIT=$CI_COMMIT_SHORT_SHA
-        -t $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA .
-    - docker run --rm $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA
+        --build-arg BUILD_REVISION=$CI_COMMIT_SHA
+        -t $panel_image .
+    - docker run --rm $panel_image
         python3 -c "import panel.app"
     # The frontend is built inside the image now, so prove the pages are in the
     # bundle. A stale source tree once produced an image whose Python half was
     # current and whose pages were weeks old, and every other signal said fine.
     - |
       for page in UserGuide ApiReference DeveloperReference; do
-        docker run --rm $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA \
+        docker run --rm $panel_image \
           sh -c "ls /workspace/campaign-x/panel/web/dist/assets | grep -q $page" \
           || { echo "$page is missing from the built frontend"; exit 1; }
       done
       echo "the built frontend carries its documentation pages"
     # Pushed only once it has been opened and looked inside. A registry tag is
     # the thing other hosts will trust, so nothing reaches it unexamined.
-    - docker push $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA
+    #
+    # And never from a merge request. The tag is the commit sha, and the job
+    # above skips building when that tag already exists -- so an MR that
+    # published its own bytes for a sha, and was then fast-forward merged, left
+    # the deploy pulling the MR's image instead of rebuilding the branch. What
+    # review approved was the diff; what would have run is whatever that
+    # pipeline's Containerfile and tree produced. Building here still proves
+    # the image builds and starts, which is what the MR case is for.
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        echo "merge request pipeline: built and checked, not published."
+        echo "The branch pipeline publishes, after the merge."
+      elif [ -n "$HELENA_REGISTRY" ]; then
+        docker push "$panel_image"
+      else
+        echo "no registry configured; the image stays on this runner's daemon"
+      fi
 
 # ---------------------------------------------------------------------------
 # deploy
@@ -322,18 +515,24 @@ build the panel image:
       done
       wget -q --no-check-certificate -O /dev/null "$STAGING_URL/" \
         || { echo "the panel did not answer within five minutes"; exit 1; }
-    - docker image inspect $HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA
+    - |
+      if [ -n "$HELENA_REGISTRY" ]; then
+        panel_image="$HELENA_REGISTRY/helena-panel:$CI_COMMIT_SHA"
+      else
+        panel_image="helena-panel:$CI_COMMIT_SHA"
+      fi
+      docker image inspect "$panel_image" \
         --format 'deployed {{index .Config.Labels "org.opencontainers.image.revision"}}'
 
-deploy to swisspost-1:
+deploy to work-3:
   extends: .deploy
-  tags: [swisspost-1]
+  tags: [work-3]
   variables:
-    HELENA_DEPLOY_HOST: "swisspost-1"
+    HELENA_DEPLOY_HOST: "work-3"
     HELENA_PROFILE: "nogpu"
   environment:
     name: development
-    url: https://swisspost-1:8800
+    url: https://work-3:8800
   rules:
     - if: $CI_COMMIT_BRANCH == "development"
 
@@ -378,21 +577,27 @@ deploy to gpu-1:
     # skip outside the declared list fails the job, and a run where nothing
     # passed fails too.
     HELENA_E2E_NO_SKIP: "1"
+    # The scroll this run's mission selects. It was only ever set on the heavy
+    # job, so `$HELENA_E2E_SCROLL` expanded to nothing here and the mission was
+    # created with no scrolls at all -- which nobody saw, because the test that
+    # needs one skipped for want of a campaign binding. With the binding in
+    # place it stopped skipping and refused the P1 wave for the wrong reason:
+    # "has no scrolls" instead of the campaign blocker it exists to check.
+    HELENA_E2E_SCROLL: "PHerc0826"
     HELENA_E2E_USER: "ci-$CI_PIPELINE_ID"
     # The suite defaults to a mission called `test`, and defaulting to something
     # that has to already exist is the same failure as defaulting to somebody
     # having set a password: it works on the deployment it was written against
-    # and nowhere else. swisspost-1 was rebuilt from nothing and had no such
+    # and nowhere else. work-3 was rebuilt from nothing and had no such
     # mission, so every phase-summary call came back 404 and fourteen tests
     # errored in setup pointing at the panel rather than at the gap.
     #
     # The job makes what it needs, exactly as it does for its account.
     HELENA_E2E_MISSION: "ci-$CI_PIPELINE_ID"
   before_script:
-    # py3-pytest from the distribution rather than pip: the image is Alpine and
-    # a pip install there needs --break-system-packages, which quietly did
-    # nothing the first time and left the job with no pytest at all.
-    - apk add --no-cache python3 py3-pytest > /dev/null
+    # No interpreter installed here on purpose. Everything this job runs in
+    # Python runs in a container that already has the right one: the setup below
+    # in the panel's, the suite itself in helena-ci's. See the script.
     - *on_its_host
     # The account this run will use, made for this run and deleted after it.
     #
@@ -416,31 +621,84 @@ deploy to gpu-1:
       from framework.contracts import auth
       auth.create_user(Path('/state/auth'), os.environ['U'], os.environ['P'], by='ci')
       "
-    # The mission this run works in. Through the contract inside the container,
-    # the same way this job makes its account -- the HTTP route is TLS and needs
-    # a session, and neither is worth arranging to write one file.
+    # The mission this run works in, campaign-bound.
+    #
+    # It used to be written with `mission.create` and no binding, which is a
+    # perfectly good mission and the wrong one for this job: four of these tests
+    # verify the campaign gates -- readiness, blockers, the small-surface
+    # diagnostic, the refusal of a P1 wave -- and a mission with no campaign
+    # binding makes all four skip. They had never actually run, because
+    # collection aborted on an import before reaching them; the moment the suite
+    # started working they turned into failures, correctly, since a verification
+    # job that skips reports success without looking.
+    #
+    # Through the HTTP route rather than the contract, because the binding is
+    # the panel's to derive: the policy id, the hash of its bytes and the
+    # deployed revision come from the running deployment, and a second copy of
+    # that derivation here is a second thing to keep true.
     - |
       docker exec -e M="$HELENA_E2E_MISSION" -e S="$HELENA_E2E_SCROLL" \
+        -e U="$HELENA_E2E_USER" -e P="$HELENA_PANEL_PASSWORD" \
         "$HELENA_PANEL_CONTAINER" python3 -c "
       import os, sys
-      sys.path.insert(0, '/workspace/campaign-x')
-      from pathlib import Path
-      from framework.contracts import mission
-      runs = Path(os.environ.get('CX_RUNS', '/runs'))
+      sys.path.insert(0, '/workspace/campaign-x/scripts/harness')
+      from panel_client import Panel, PanelError
+      panel = Panel('https://localhost:8800', trust='/state/tls/panel.crt')
+      panel.sign_in(os.environ['U'], os.environ['P'])
       try:
-          mission.create(runs, mission_id=os.environ['M'],
-                         name='smoke ' + os.environ['M'],
-                         scrolls=[os.environ['S']],
-                         description='created by the smoke stage')
-          print('mission', os.environ['M'], 'created')
-      except mission.MissionError as already:
-          print('mission already present:', already)
+          panel.call('POST', '/api/missions', {
+              'mission_id': os.environ['M'],
+              'name': 'smoke ' + os.environ['M'],
+              'scrolls': [os.environ['S']],
+              'description': 'created by the smoke stage',
+              'campaign_kind': 'FIRST_LETTERS_DISCOVERY',
+          })
+          print('mission', os.environ['M'], 'created (campaign-bound)')
+      except PanelError as refused:
+          if refused.status != 400:
+              raise
+          print('mission already present:', str(refused)[:120])
       "
   script:
-    - python3 -m pytest tests/e2e -q -rs
+    # Run inside the image the rest of the suite already runs in, rather than on
+    # the Alpine executor.
+    #
+    # The suite "needs only pytest and the standard library" stopped being true:
+    # the control module imports numpy and tifffile at module scope, and an
+    # ImportError during collection aborts the whole run, so this job verified
+    # zero tests and reported it as a failure to import. `py3-numpy` fixed the
+    # first one and the second appeared; tifffile is not an Alpine package, and
+    # pip in `docker:27-cli` is itself broken (its pyexpat does not match the
+    # image's expat). Chasing imports one at a time was the wrong move -- the
+    # dependency set the tests need is the one helena-ci already has.
+    #
+    # Host networking because the panel listens on this host's loopback, and the
+    # HELENA_* variables because the account and mission were made out here.
+    #
+    # Copied in rather than bind-mounted. `$CI_PROJECT_DIR` is a path inside this
+    # executor container, and `-v` is read by the host's daemon, which has no
+    # such path -- it would have mounted a new empty directory and collected no
+    # tests at all.
+    # `grep '^HELENA_'` matched any *line* beginning with HELENA_, and `env`
+    # prints multi-line values raw -- so a commit message with a line starting
+    # `HELENA_REGISTRY ...` became a variable named after half a sentence, and
+    # docker refused the file: "variable '...' contains whitespaces". A CI job
+    # that fails on the prose in a commit message is a job nobody can predict.
+    # Require the shape of an assignment: a name, then =, and nothing else.
+    - env | grep -E '^HELENA_[A-Za-z0-9_]+=' > /tmp/e2e.env
+    - |
+      set -e
+      docker create --name "e2e-$CI_JOB_ID" --network host \
+        --env-file /tmp/e2e.env -w /src \
+        "helena-ci:$CI_COMMIT_SHA" python -m pytest tests/e2e -q -rs > /dev/null
+      # `/.` copies the contents. `-w /src` has already created the directory,
+      # and copying the directory itself into an existing one nests it.
+      docker cp "$CI_PROJECT_DIR/." "e2e-$CI_JOB_ID:/src"
+      docker start -a "e2e-$CI_JOB_ID"
   after_script:
     # Always, including when the suite failed: a deployment must not accumulate
-    # an account per pipeline.
+    # an account, a mission or a stopped container per pipeline.
+    - docker rm -f "e2e-$CI_JOB_ID" > /dev/null 2>&1 || true
     - |
       docker exec -e U="$HELENA_E2E_USER" "$HELENA_PANEL_CONTAINER" python3 -c "
       import os, shutil, sys
@@ -475,12 +733,12 @@ deploy to gpu-1:
       " || echo "could not remove $HELENA_E2E_MISSION; remove it by hand"
 
 
-smoke on swisspost-1:
+smoke on work-3:
   extends: .smoke
-  tags: [swisspost-1]
-  needs: ["deploy to swisspost-1"]
+  tags: [work-3]
+  needs: ["deploy to work-3"]
   variables:
-    HELENA_DEPLOY_HOST: "swisspost-1"
+    HELENA_DEPLOY_HOST: "work-3"
   rules:
     - if: $CI_COMMIT_BRANCH == "development"
 
@@ -538,7 +796,7 @@ heavy:
     HELENA_E2E_USER: "ci-heavy-$CI_PIPELINE_ID"
     HELENA_DEPLOY_HOST: "gpu-1"
   before_script:
-    - apk add --no-cache python3 py3-pytest > /dev/null
+    # Same as the smoke job: nothing Python runs on the executor itself.
     - *on_its_host
     - export HELENA_E2E_VOLUME_URL="$(docker exec helena-postgres psql -U campaignx -d campaignx -tAc
         "select ct_uri from segment_source_snapshots where ct_uri like 'https%' limit 1" | tr -d '[:space:]')"
@@ -554,8 +812,27 @@ heavy:
       auth.create_user(Path('/state/auth'), os.environ['U'], os.environ['P'], by='ci')
       "
   script:
-    - python3 -m pytest tests/e2e -q -rs -k "render_is_verified or detector_reads"
+    # Same image and the same copy-in as the smoke job above, for the same
+    # reasons.
+    # `grep '^HELENA_'` matched any *line* beginning with HELENA_, and `env`
+    # prints multi-line values raw -- so a commit message with a line starting
+    # `HELENA_REGISTRY ...` became a variable named after half a sentence, and
+    # docker refused the file: "variable '...' contains whitespaces". A CI job
+    # that fails on the prose in a commit message is a job nobody can predict.
+    # Require the shape of an assignment: a name, then =, and nothing else.
+    - env | grep -E '^HELENA_[A-Za-z0-9_]+=' > /tmp/e2e.env
+    - |
+      set -e
+      docker create --name "e2e-$CI_JOB_ID" --network host \
+        --env-file /tmp/e2e.env -w /src \
+        "helena-ci:$CI_COMMIT_SHA" \
+        python -m pytest tests/e2e -q -rs -k "render_is_verified or detector_reads" > /dev/null
+      # `/.` copies the contents. `-w /src` has already created the directory,
+      # and copying the directory itself into an existing one nests it.
+      docker cp "$CI_PROJECT_DIR/." "e2e-$CI_JOB_ID:/src"
+      docker start -a "e2e-$CI_JOB_ID"
   after_script:
+    - docker rm -f "e2e-$CI_JOB_ID" > /dev/null 2>&1 || true
     - |
       docker exec -e U="$HELENA_E2E_USER" "$HELENA_PANEL_CONTAINER" python3 -c "
       import os, sys

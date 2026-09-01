@@ -3,7 +3,30 @@
   "profile_id": "tifxyz-geometry-gate-probe-v1",
   "gate": {
     "path": "framework/stages/04-validation/scripts/helena_tifxyz_geometry_gate.py",
-    "sha256": "a0d561b64ab1be16dc274a0d5633fe37d7efe6c5b052742a3f374f8e0030bb5a"
+    "sha256": "f209a23de37504c879feb70b2bfb1cae17ef070e202d8435f23a88799ae55ac6",
+    "repins": [
+      {
+        "from_sha256": "a0d561b64ab1be16dc274a0d5633fe37d7efe6c5b052742a3f374f8e0030bb5a",
+        "to_sha256": "3997920a049dea53e907087617aec717874957caf27858877d352176b538514f",
+        "at_utc": "2026-08-28",
+        "why": "build_mesh wound the second triangle of every quad backwards -- (i11,i10,i01) walks the shared edge the same way (i00,i10,i01) does, so the two triangles of a quad carried opposite normals. Corrected to the finalizer's own (v10,v11,v01).",
+        "behaviour": "no verdict moves. No detector reads the normal's sign: fold-back takes only the first triangle of each quad and the parallel test takes an absolute value. Checked on the three grown VC3D segments in vendor/villa, which certify identically before and after, and pinned by tests/test_the_geometry_gate_winds_its_mesh_the_way_the_finalizer_does.py."
+      },
+      {
+        "from_sha256": "3997920a049dea53e907087617aec717874957caf27858877d352176b538514f",
+        "to_sha256": "516633e6c29e3102510c5da69fa54b59ee79867215ab0127c598a98657530389",
+        "at_utc": "2026-08-28",
+        "why": "the candidate search bounded a partner's circumradius globally, so one stretched triangle widened it for the whole mesh and could under-reach a pair whose partner was in the top 0.1%; and the step rule compared every edge against the mesh's global median, which assumed an arc-length uniform grid.",
+        "behaviour": "unchanged on this corpus. The three grown VC3D segments in vendor/villa certify with every detector at zero before and after, with and without a supplied scale. The probe's own policy keeps step_window_cells 0, which is the published global-median rule exactly."
+      },
+      {
+        "from_sha256": "516633e6c29e3102510c5da69fa54b59ee79867215ab0127c598a98657530389",
+        "to_sha256": "f209a23de37504c879feb70b2bfb1cae17ef070e202d8435f23a88799ae55ac6",
+        "at_utc": "2026-08-29",
+        "why": "fold-back stopped being a hard defect and became an area measure with a mask. Any fold used to reject a surface, and on the only corpus where it was looked at the folds were wrinkles in a flattened scroll: they reproduce between seeds at 17x the base rate, the cells are not slivers, they are no likelier to sit where another lamina passes, and they run in components elongated along the scroll's axis.",
+        "behaviour": "changes verdicts, deliberately, and not on this corpus. The three grown VC3D segments carry no folds at all and certify identically. A synthetic hairpin at 6.5% of its cells is still rejected, through the ceiling rather than the count. What changes is a fitted winding at 2.3-2.7%, which used to be rejected outright and is now measured: the largest window this gate certifies on PHerc0826 w010 goes from 0.50 cm2 to 0.97 cm2. The three lamina-switch detectors stay hard and still reject every window at 1.87 cm2 and above."
+      }
+    ]
   },
   "integrity_dependency": {
     "path": "framework/stages/04-validation/scripts/helena_audit_mesh_integrity.py",
@@ -19,11 +42,16 @@
     "minimum_largest_component_fraction": 0.9,
     "minimum_valid_triangles": 64,
     "maximum_candidate_pairs": 20000000,
-    "resolution_limit_voxels": 16.0
+    "resolution_limit_voxels": 16.0,
+    "band_um": 480.0,
+    "resolution_limit_um": 150.0,
+    "step_window_cells": 0,
+    "maximum_fold_back_fraction": 0.05
   },
   "eligible_state": "GEOMETRY_CERTIFIED",
   "reject_state_prefix": "GEOMETRY_REJECTED_",
   "resolution_limited_is_eligible": false,
   "ink_used": false,
-  "non_claim": "This profile detects bounded artifact geometry defects; it does not certify the correct physical lamina."
+  "non_claim": "This profile detects bounded artifact geometry defects; it does not certify the correct physical lamina.",
+  "policy_note": "band_cells and resolution_limit_voxels are the cell and voxel counts this gate falls back to when it is not told the scroll's scale, which is the probe's case: a micro-grow is measured on its own artifact, not against a scroll's inter-lamina spacing. band_um and resolution_limit_um are the lengths those counts stand for -- 4 cells x 12.94 voxels x 9.362 um on the corpus this was calibrated against, and the 150 um floor of the 150-250 um inter-lamina range -- and are what the gate derives from when a caller supplies --voxel-um. step_window_cells 0 keeps the step measured against the mesh's own median, which is the published behaviour and the right one here: a probe has no scale to derive a window from. As of 2026-08-29 the probe passes the scroll's voxel size, so band_cells and the resolution limit are derived from it here too: a probe saying 'this micro-grow would certify' has to mean what P2 means by it. The comparison between candidates is unaffected either way, because every probe in one run reads the same scroll."
 }

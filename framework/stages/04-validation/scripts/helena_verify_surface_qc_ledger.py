@@ -110,6 +110,7 @@ def verify(
         "CT_SUPPORTED_NO_RETAINED_INK_SIGNAL",
         "CT_SUPPORTED_RETAINED_FOR_REVIEW",
         "CT_INSUFFICIENT_NO_COMMON_VALID_PIXELS",
+        "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY",
     }
     for row in required:
         surface_id = str(row.get("surface_id", ""))
@@ -118,18 +119,68 @@ def verify(
                 {"scope": surface_id, "reason": "QC_NOT_COMPLETED", "state": row.get("qc_state")}
             )
             continue
-        if row.get("outcome") not in allowed_outcomes:
+        outcome = row.get("outcome")
+        if outcome not in allowed_outcomes:
             failures.append(
-                {"scope": surface_id, "reason": "INVALID_OR_MISSING_OUTCOME", "outcome": row.get("outcome")}
+                {"scope": surface_id, "reason": "INVALID_OR_MISSING_OUTCOME", "outcome": outcome}
             )
         stages = row.get("stages") if isinstance(row.get("stages"), dict) else {}
-        for field in (
-            "render_complete",
-            "inference_complete",
-            "stability_complete",
-            "ct_gate_complete",
-            "evidence_manifest_complete",
-        ):
+        if outcome == "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY":
+            physical_qc_state = row.get("physical_qc_state")
+            if physical_qc_state != "INK_SCREEN_INSUFFICIENT":
+                failures.append(
+                    {
+                        "scope": surface_id,
+                        "reason": "PHYSICAL_QC_STATE_INVALID_FOR_INK_SCREEN_INSUFFICIENCY",
+                        "actual": physical_qc_state,
+                    }
+                )
+            required_complete_fields = (
+                "render_complete",
+                "inference_complete",
+                "evidence_manifest_complete",
+            )
+            for field in ("stability_complete", "ct_gate_complete"):
+                if stages.get(field) is not False:
+                    failures.append(
+                        {"scope": surface_id, "reason": f"{field.upper()}_UNEXPECTED"}
+                    )
+            if stages.get("screening_receipt_manifest_bound") is not True:
+                failures.append(
+                    {
+                        "scope": surface_id,
+                        "reason": "SCREENING_RECEIPT_MANIFEST_BINDING_FALSE",
+                    }
+                )
+            verdict = stages.get("screening_liveness_verdict")
+            if not isinstance(verdict, str) or verdict not in {
+                "DEGENERATE",
+                "EMPTY",
+            }:
+                failures.append(
+                    {
+                        "scope": surface_id,
+                        "reason": "SCREENING_LIVENESS_VERDICT_INVALID",
+                        "actual": verdict,
+                    }
+                )
+            reason = stages.get("screening_liveness_reason")
+            if not isinstance(reason, str) or not reason.strip():
+                failures.append(
+                    {
+                        "scope": surface_id,
+                        "reason": "SCREENING_LIVENESS_REASON_MISSING",
+                    }
+                )
+        else:
+            required_complete_fields = (
+                "render_complete",
+                "inference_complete",
+                "stability_complete",
+                "ct_gate_complete",
+                "evidence_manifest_complete",
+            )
+        for field in required_complete_fields:
             if stages.get(field) is not True:
                 failures.append({"scope": surface_id, "reason": f"{field.upper()}_FALSE"})
         if stages.get("rendered_slice_count") != 65:

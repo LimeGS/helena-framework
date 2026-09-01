@@ -20,3 +20,22 @@ aiohttp>=3.9
 # handles s3:// and local paths alike.
 tifffile>=2024.1
 s3fs>=2024.6
+
+# And boto3, for a different job than the note above. Reading a TIFXYZ through
+# fsspec is still right; materializing a published artifact set is not that --
+# it is what four call sites in this repository already gate behind
+# `import boto3`, deliberately, because s3transfer retries a dropped download
+# and a bare fsspec read does not. The workers carried it and the panel did not,
+# so the geometry orientation proof -- the first panel route to reach one of
+# those call sites -- refused with "S3 surface materialization requires boto3"
+# after a two-hour run had already earned its way to that boundary.
+# Pinned, and pinned to what s3fs already decides. s3fs pins aiobotocore,
+# aiobotocore pins botocore to one narrow range, and boto3 must match that
+# botocore -- so there is exactly one boto3 this file can have. Stated as
+# `boto3>=1.34`, pip discovered that by walking backwards through the release
+# list one five-second metadata download at a time -- 1.43.79, 1.43.78, and on
+# down -- which is minutes of every image build, on every pipeline.
+#
+# Bumping s3fs means bumping this. That is the point: the conflict is then a
+# refusal at install time rather than a quiet ten-minute search.
+boto3==1.43.56

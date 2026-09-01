@@ -36,7 +36,29 @@ from fleet.store import FleetStore
 from fleet.worker import McpSeedProvider, RecordedSeedProvider, SegmentWorker, SourceProviderUnavailable
 
 
-def source(store: FleetStore) -> str:
+def mcp_structured(candidates: list[dict] | None, key: str = "m7/chunk") -> dict:
+    objects = [{"object_key": key, "sha256": "a" * 64, "bytes": 10}]
+    content = {
+        **({"candidates": candidates} if candidates is not None else {}),
+        "source_read_set": {
+            "schema": "campaignx.first_letters_source_read_set.v1",
+            "objects": objects,
+            "canonical_manifest_sha256": content_sha256(objects),
+        },
+    }
+    return {"result": {"structuredContent": content}}
+
+
+def source(store: FleetStore, voxel_size_um: float = 9.362) -> str:
+    """A fixture snapshot.
+
+    The voxel size is a parameter because the fixture grow is a fixed 64x64
+    patch and its area therefore scales with it: at 9.362 um the surface comes
+    out at 0.0035 cm2, below the 0.10 cm2 effort floor, and a physical-QC worker
+    now refuses it on size before it does anything else. Tests about what a QC
+    worker does with a surface need one it will accept; tests about anything
+    else keep the historical value.
+    """
     return store.register_snapshot({
         "sample_id": "PHercTEST",
         "ct_uri": "fixture://ct",
@@ -44,9 +66,14 @@ def source(store: FleetStore) -> str:
         "m7_uri": "fixture://m7",
         "m7_sha256": "1" * 64,
         "shape_xyz": [512, 512, 512],
-        "voxel_size_um": 9.362,
+        "voxel_size_um": voxel_size_um,
         "coordinate_frame": "ct_l0_xyz",
     })
+
+
+# 0.0035 cm2 at 9.362 um scales quadratically; this puts the fixture surface at
+# about 0.14 cm2, an ordinary surface rather than two square millimetres.
+ABOVE_THE_EFFORT_FLOOR_UM = 60.0
 
 
 def task(source_id: str, cell_id: str = "cell-a", seed: tuple[int, int, int] = (256, 256, 256)) -> dict:
@@ -67,6 +94,39 @@ def task(source_id: str, cell_id: str = "cell-a", seed: tuple[int, int, int] = (
         ],
         "ink_used": False,
     }
+
+
+@pytest.mark.parametrize(
+    ("existing_authority", "incoming_authority", "allowed"),
+    [
+        ({"candidate_rank": 2, "reconsider_covered": True},
+         {"candidate_rank": 2, "reconsider_covered": True}, True),
+        ({"candidate_rank": 1, "reconsider_covered": False},
+         {"candidate_rank": 2, "reconsider_covered": False}, False),
+        ({"candidate_rank": 1, "reconsider_covered": False},
+         {"candidate_rank": 1, "reconsider_covered": True}, False),
+        ({}, {"candidate_rank": 1, "reconsider_covered": False}, True),
+        ({}, {"candidate_rank": 2, "reconsider_covered": False}, False),
+        ({}, {"candidate_rank": 1, "reconsider_covered": True}, False),
+    ],
+)
+def test_task_identity_never_reuses_different_candidate_authority(
+    tmp_path, existing_authority, incoming_authority, allowed,
+):
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    source_id = source(store)
+    existing = {**task(source_id), **existing_authority}
+    incoming = {**task(source_id), **incoming_authority}
+    assert store.create_tasks([existing]) == (1, 1)
+
+    if allowed:
+        assert store.create_tasks([incoming]) == (0, 1)
+    else:
+        with pytest.raises(
+            ValueError, match="task candidate authority differs"
+        ):
+            store.create_tasks([incoming])
 
 
 def test_bounded_worker_can_opt_in_to_expected_terminal_outcomes() -> None:
@@ -525,10 +585,54 @@ def test_worker_stops_before_planner_and_grow_when_ct_neighborhood_is_empty(tmp_
     diagnosis = json.loads(
         (attempt / "NO_SEED_CAUSAL_DIAGNOSIS.json").read_text()
     )
+    with store.connect() as connection:
+        persisted = connection.execute(
+            """SELECT t.task_id,a.attempt_id,a.result_json
+                 FROM tasks t JOIN attempts a ON a.task_id=t.task_id"""
+        ).fetchone()
     assert diagnosis["m7_raw_candidate_count"] == 2
     assert diagnosis["ct_support_rejected_candidate_count"] == 2
+    assert diagnosis["task_id"] == persisted["task_id"]
+    assert diagnosis["attempt_id"] == persisted["attempt_id"]
+    assert diagnosis["diagnosis_sha256"] == content_sha256({
+        key: value for key, value in diagnosis.items()
+        if key not in {"generated_at_utc", "diagnosis_sha256"}
+    })
+    persisted_result = json.loads(persisted["result_json"])
+    assert persisted_result["no_seed_causal_diagnosis"] == diagnosis
+    assert persisted_result["no_seed_causal_diagnosis_sha256"] == (
+        diagnosis["diagnosis_sha256"])
     assert diagnosis["non_claim"].startswith("NO_SEED identifies")
     assert not (attempt / "surface").exists()
+
+
+def test_missing_or_non_list_provider_candidates_are_source_failures_not_no_m7(
+    tmp_path: Path,
+) -> None:
+    class MalformedProvider:
+        def discover(self, _task: dict) -> dict:
+            return {"status": "ok", "ink_used": False}
+
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    source_id = source(store)
+    store.create_tasks([task(source_id)])
+    result = SegmentWorker(
+        store,
+        "worker-malformed-provider",
+        MalformedProvider(),
+        DeterministicPlanner(),
+        FixtureGrowExecutor(),
+        tmp_path / "runs",
+        tmp_path / "surfaces",
+        "fixture-surface-qc@1.0.0",
+        lease_seconds=60,
+    ).run_one()
+    assert result is not None
+    assert result["status"] == "RETRYABLE_SOURCE_UNAVAILABLE"
+    assert "raw_candidate_count" not in result
+    assert store.status()["tasks"] == {"PENDING": 1}
+    assert not list((tmp_path / "runs").glob("*/*/NO_SEED_CAUSAL_DIAGNOSIS.json"))
 
 
 def test_task_insertion_is_idempotent_and_claim_is_atomic(tmp_path: Path) -> None:
@@ -593,6 +697,40 @@ def test_task_specific_survey_reads_only_requested_pending_task(tmp_path: Path, 
     assert store.task_packet(requested["task_id"])["state"] == "PENDING"
 
 
+def test_pending_task_survey_reuses_the_candidate_funnel_primitive(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    source_id = source(store)
+    store.create_tasks([task(source_id, "cell-a")])
+    calls = []
+
+    def shared(task_value, _provider, *, ct_sampler=None):
+        calls.append((task_value["task_id"], ct_sampler))
+        return {
+            "task_id": task_value["task_id"], "sample_id": task_value["sample_id"],
+            "cell_id": task_value["cell_id"], "priority": task_value["priority"],
+            "counts": {"raw_m7": 1, "post_ct": 1, "post_clearance": 1,
+                       "packet_retained": 1},
+            "best_candidate": {"candidate_id": "shared", "score": 0.8},
+            "provider_response_sha256": "a" * 64, "source_error": None,
+            "ink_used": False,
+        }
+
+    monkeypatch.setattr("fleet.cli.survey_candidate_task", shared)
+    args = type("Args", (), {
+        "db": tmp_path / "fleet.sqlite", "output": tmp_path / "survey.json", "limit": 1,
+        "parallelism": 1, "progress": None, "task_id": None,
+    })()
+    assert command_survey(args) == 0
+    assert len(calls) == 1
+    result = json.loads((tmp_path / "survey.json").read_text())["results"][0]
+    assert result["candidate_count"] == 1
+    assert result["usable_candidate_count"] == 1
+    assert result["best_candidate"]["candidate_id"] == "shared"
+
+
 def test_mcp_provider_uses_a_safe_survey_request_id(monkeypatch: pytest.MonkeyPatch) -> None:
     class Client:
         def __init__(self, _url: str, _token: str):
@@ -603,7 +741,7 @@ def test_mcp_provider_uses_a_safe_survey_request_id(monkeypatch: pytest.MonkeyPa
 
         def call(self, _name: str, _arguments: dict, request_id: str) -> dict:
             self.request_id = request_id
-            return {"result": {"structuredContent": {"candidates": []}}}
+            return mcp_structured([])
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -656,14 +794,14 @@ def test_mcp_recenter_policy_requeries_at_median_m7_depth(monkeypatch: pytest.Mo
         def call(self, _name: str, arguments: dict, _request_id: str) -> dict:
             calls.append(arguments)
             if len(calls) == 1:
-                return {"result": {"structuredContent": {"candidates": [
+                return mcp_structured([
                     {"candidate_id": "a", "ct_l0_coordinate": {"x": 10, "y": 20, "z": 100}},
                     {"candidate_id": "b", "ct_l0_coordinate": {"x": 10, "y": 20, "z": 120}},
                     {"candidate_id": "c", "ct_l0_coordinate": {"x": 10, "y": 20, "z": 140}},
-                ]}}}
-            return {"result": {"structuredContent": {"candidates": [
+                ], "m7/initial")
+            return mcp_structured([
                 {"candidate_id": "safe", "ct_l0_coordinate": {"x": 15, "y": 25, "z": 120}, "combined_score": 1.0},
-            ]}}}
+            ], "m7/final")
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -699,14 +837,14 @@ def test_mcp_recenter_xyz_policy_requeries_at_median_m7_coordinate(monkeypatch: 
         def call(self, _name: str, arguments: dict, _request_id: str) -> dict:
             calls.append(arguments)
             if len(calls) == 1:
-                return {"result": {"structuredContent": {"candidates": [
+                return mcp_structured([
                     {"candidate_id": "a", "ct_l0_coordinate": {"x": 10, "y": 20, "z": 100}},
                     {"candidate_id": "b", "ct_l0_coordinate": {"x": 30, "y": 40, "z": 120}},
                     {"candidate_id": "c", "ct_l0_coordinate": {"x": 50, "y": 60, "z": 140}},
-                ]}}}
-            return {"result": {"structuredContent": {"candidates": [
+                ], "m7/initial")
+            return mcp_structured([
                 {"candidate_id": "safe", "ct_l0_coordinate": {"x": 30, "y": 40, "z": 120}, "combined_score": 1.0},
-            ]}}}
+            ], "m7/final")
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -742,16 +880,16 @@ def test_mcp_chunk_safe_recenter_uses_eight_fixed_subqueries(monkeypatch: pytest
             calls.append(arguments)
             if len(calls) <= 8:
                 z = int(arguments["region"]["center"]["z"])
-                return {"result": {"structuredContent": {"candidates": [{
+                return mcp_structured([{
                     "candidate_id": f"seed-{len(calls)}",
                     "ct_l0_coordinate": {"x": 10, "y": 20, "z": z},
                     "combined_score": 1.0,
-                }]}}}
-            return {"result": {"structuredContent": {"candidates": [{
+                }], f"m7/{len(calls)}")
+            return mcp_structured([{
                 "candidate_id": "safe",
                 "ct_l0_coordinate": {"x": 10, "y": 20, "z": 84},
                 "combined_score": 1.0,
-            }]}}}
+            }], "m7/final")
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -796,11 +934,11 @@ def test_mcp_chunk_safe_merge_preserves_interior_candidates_without_final_edge_q
             # lower face of every 64-voxel subquery.  Some of those faces are
             # nevertheless safely inside the original 128-voxel task cube.
             coordinate = {axis: int(center[axis]) - 64 for axis in "xyz"}
-            return {"result": {"structuredContent": {"candidates": [{
+            return mcp_structured([{
                 "candidate_id": f"seed-{len(calls)}",
                 "ct_l0_coordinate": coordinate,
                 "combined_score": 1.0,
-            }]}}}
+            }], f"m7/{len(calls)}")
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -843,7 +981,7 @@ def test_mcp_empty_structured_response_is_retryable_source_failure(monkeypatch: 
             return None
 
         def call(self, _name: str, _arguments: dict, _request_id: str) -> dict:
-            return {"result": {"structuredContent": {}}}
+            return mcp_structured(None)
 
     monkeypatch.setenv("VC_MCP_URL", "http://127.0.0.1/mcp")
     monkeypatch.setenv("VC_MCP_AUTH_TOKEN", "fixture-token")
@@ -1354,8 +1492,11 @@ def test_historical_surface_backfill_reconciles_once_then_becomes_immutable(
     )
 
     # And the gate is not a trap: a verdict promotes the job and then it claims.
-    store.record_geometry_certification(payload["surface_id"], "GEOMETRY_CERTIFIED",
-                                        {"schema": "test", "note": "measured"})
+    store.record_geometry_certification(
+        payload["surface_id"], "GEOMETRY_CERTIFIED",
+        {"schema": "test", "note": "measured"},
+        requested_by_job_id="p2-backfill", profile_id="geometry-test@1",
+        profile_sha256="6" * 64)
     claim = store.claim_qc("qc-backfill", 60)
     assert claim is not None, "certification did not release the waiting job"
     assert claim["surface"]["artifact_sha256"] == "2" * 64
@@ -1423,7 +1564,7 @@ def test_qc_finalization_rejects_unattributed_or_malformed_evidence(tmp_path: Pa
 def test_surface_qc_worker_completes_fixture_vertical_slice_without_leaking_lease(tmp_path: Path) -> None:
     store = FleetStore(tmp_path / "fleet.sqlite")
     store.initialize()
-    source_id = source(store)
+    source_id = source(store, ABOVE_THE_EFFORT_FLOOR_UM)
     store.create_tasks([task(source_id)])
     growth = worker(store, tmp_path).run_one()
     assert growth is not None and growth["status"] == "QC_PENDING"
@@ -1443,6 +1584,30 @@ def test_surface_qc_worker_completes_fixture_vertical_slice_without_leaking_leas
     assert "lease_token" not in claimed_receipt.read_text(encoding="utf-8")
 
 
+def test_surface_qc_worker_completes_terminal_liveness_insufficiency(tmp_path: Path) -> None:
+    store = FleetStore(tmp_path / "fleet.sqlite")
+    store.initialize()
+    source_id = source(store, ABOVE_THE_EFFORT_FLOOR_UM)
+    store.create_tasks([task(source_id)])
+    growth = worker(store, tmp_path).run_one()
+    assert growth is not None and growth["status"] == "QC_PENDING"
+
+    receipt = SurfaceQcWorker(
+        store,
+        "qc-fixture",
+        FixtureQcExecutor("INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"),
+        tmp_path / "qc-runs",
+        lease_seconds=60,
+    ).run_one()
+
+    assert receipt["status"] == "COMPLETED"
+    assert receipt["outcome"] == "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"
+    assert receipt["surface_state"] == "QC_INK_SCREEN_INSUFFICIENT"
+    assert receipt["physical_qc_state"] == "INK_SCREEN_INSUFFICIENT"
+    assert store.status()["qc_job_states"] == {"COMPLETED": 1}
+    assert store.claim_qc("another-worker", 60) is None
+
+
 def test_surface_qc_worker_requeues_operational_failure_without_scientific_result(tmp_path: Path) -> None:
     class BrokenExecutor:
         def execute(self, _claim: dict, _attempt_dir: Path) -> dict:
@@ -1450,7 +1615,7 @@ def test_surface_qc_worker_requeues_operational_failure_without_scientific_resul
 
     store = FleetStore(tmp_path / "fleet.sqlite")
     store.initialize()
-    source_id = source(store)
+    source_id = source(store, ABOVE_THE_EFFORT_FLOOR_UM)
     store.create_tasks([task(source_id)])
     assert worker(store, tmp_path).run_one()["status"] == "QC_PENDING"
 
@@ -2014,6 +2179,7 @@ def test_worker_retries_three_operational_proposals_then_uses_v2_fallback(
     adaptive = task(source_id)
     adaptive["planner_contract_version"] = "v2"
     adaptive["candidate_selection_policy"] = "adaptive-geometry-history-v2"
+    adaptive["candidate_rank"] = 2
     store.create_tasks([adaptive])
     planner = MalformedPlanner()
     result = SegmentWorker(
@@ -2041,9 +2207,10 @@ def test_worker_retries_three_operational_proposals_then_uses_v2_fallback(
     )
     assert fallback["status"] == "DETERMINISTIC_FALLBACK_LOCKED"
     assert fallback["operational_attempt_count"] == 3
-    assert json.loads((attempt_dir / "SEGMENTATION_PLAN.json").read_text())[
-        "schema"
-    ].endswith(".v2")
+    plan = json.loads((attempt_dir / "SEGMENTATION_PLAN.json").read_text())
+    assert plan["schema"].endswith(".v2")
+    assert plan["candidate_rank"] == 2
+    assert plan["selected_seed"]["candidate_id"] == "c02"
 
 
 def test_planner_v2_reads_regional_failures_and_locks_bounded_variation(tmp_path: Path) -> None:

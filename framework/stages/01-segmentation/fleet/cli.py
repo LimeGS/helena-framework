@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import shutil
+import sqlite3
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
 from .artifact_store import open_artifact_store
+from .candidate_preflight import survey_candidate_task
 from .certifier import certify_pending, load_qc_adapter
 from .common import content_sha256, file_sha256, utc_now, write_json_atomic
 from .executor import FixtureGrowExecutor, VC3DGrowExecutor
@@ -32,6 +35,10 @@ from .planner import (
     Planner,
     screen_candidates,
 )
+from .preflight_worker import (
+    CandidatePreflightWorker,
+    preflight_worker_environment_report,
+)
 from .qc_worker import FixtureQcExecutor, SubprocessQcExecutor, SurfaceQcWorker
 from .seed_probe import (
     default_seed_probe_policy,
@@ -39,7 +46,7 @@ from .seed_probe import (
     load_seed_probe_benchmark_receipt,
 )
 from .store import FleetStore, QC_OUTCOME_STATES
-from .store_factory import open_fleet_store, store_identity
+from .store_factory import open_fleet_store, open_fleet_store_read_only, store_identity
 from .worker import (
     ManualSeedProvider,
     TaskRoutedSeedProvider,
@@ -48,9 +55,25 @@ from .worker import (
     SegmentWorker,
 )
 
+from framework.contracts import artifact as artifact_contract
+from framework.contracts import mission as mission_contract
+
 
 def print_json(value: Any) -> None:
     print(json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))
+
+
+def _positive_candidate_rank(value: str) -> int:
+    """Argparse admission for the one-based M7 candidate ordering."""
+    try:
+        rank = int(value)
+    except (TypeError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(
+            "candidate rank must be a positive integer"
+        ) from exc
+    if rank < 1:
+        raise argparse.ArgumentTypeError("candidate rank must be a positive integer")
+    return rank
 
 
 def command_init(args: argparse.Namespace) -> int:
@@ -138,6 +161,176 @@ def command_probe_gc(args: argparse.Namespace) -> int:
     return 0 if not errors else 2
 
 
+def _cli_p1_campaign_admission(
+    args: argparse.Namespace, *, creation_path: str,
+) -> dict[str, Any] | None:
+    """Resolve explicit mission authority before any CLI path can insert P1."""
+    mission_id = str(getattr(args, "mission_id", "") or "").strip()
+    mission_root = getattr(args, "mission_root", None)
+    private_path = getattr(args, "task_budget_private", None)
+    public_path = getattr(args, "task_budget_sanitized", None)
+    if not mission_id:
+        if mission_root is not None or private_path is not None or public_path is not None:
+            raise RuntimeError("mission/budget paths require --mission-id")
+        return None
+    if mission_root is None:
+        raise RuntimeError(
+            "a named mission requires --mission-root; omission cannot decide "
+            "whether controlled campaign admission applies")
+    manifest = mission_contract.load(Path(mission_root))
+    if manifest.get("mission_id") != mission_id:
+        raise RuntimeError("--mission-root contains a different mission")
+    from .campaign_decision import (  # noqa: PLC0415
+        admit_p1_creation,
+    )
+    if not mission_contract.is_first_letters_discovery_manifest(manifest):
+        if private_path is not None or public_path is not None:
+            raise RuntimeError("generic missions cannot consume a controlled task budget")
+        return None
+    if creation_path != "bootstrap":
+        return admit_p1_creation(manifest, creation_path=creation_path)
+    if private_path is None or public_path is None:
+        return admit_p1_creation(manifest, creation_path=creation_path)
+    try:
+        private = json.loads(Path(private_path).read_text(encoding="utf-8"))
+        public = json.loads(Path(public_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"task-budget receipt pair is unreadable: {exc}") from exc
+    _validate_cli_current_preflight(Path(mission_root), private)
+    bindings = copy.deepcopy(private.get("execution_bindings") or {})
+    gates = copy.deepcopy(bindings.get("gates") or {})
+    bindings.update({
+        "mission_id": mission_id,
+        "grid_version": args.grid_version,
+        "policy_version": args.policy_version,
+        "grid_step": args.grid_step,
+        "query_radius": args.query_radius,
+        "selection_strategy": args.selection_strategy,
+        "candidate_selection_policy": args.candidate_selection_policy,
+        "seed_region_policy": args.seed_region_policy,
+        "p0_selection_version": args.p0_selection_version,
+        "p0_selection_sha256": args.p0_selection_sha256,
+        "p0_artifact_id": args.p0_artifact_id,
+        "p0_artifact_sha256": args.p0_artifact_sha256,
+        "catalog_snapshot_sha256": file_sha256(args.catalog),
+    })
+    gates.update({
+        "cell_clearance": args.clearance,
+        "volume_clearance": args.volume_edge_margin,
+        "candidate_interior_clearance": args.candidate_interior_clearance,
+        "ct_material_support_gate": (
+            {
+                "policy": "ome-zarr-nearby-material-v1",
+                "level": args.ct_support_level,
+                "radius_l0_voxels": args.ct_support_radius_l0,
+                "minimum_nonzero_voxels": args.ct_support_minimum_nonzero_voxels,
+            }
+            if args.ct_material_support_gate else None),
+    })
+    bindings["gates"] = gates
+    bindings["queue_execution"] = {
+        "parameter_envelope": {
+            **copy.deepcopy(DEFAULT_ENVELOPE),
+            "maximum_candidate_count": gates["packet_candidate_limit"],
+        },
+        "planner": args.planner,
+        "planner_model": args.planner_model,
+        "prediction_space": "ct_l0_xyz",
+        "minimum_separation_voxels": 16,
+        "recenter_probe_max_candidates": args.recenter_probe_max_candidates,
+        "recenter_radius_xyz": {
+            "x": args.recenter_radius_x,
+            "y": args.recenter_radius_y,
+            "z": args.recenter_radius_z,
+        },
+        "seed_probe_mode": args.seed_probe_mode,
+        "seed_probe_top_k": args.seed_probe_top_k,
+        "seed_probe_generations": args.seed_probe_generations,
+        "candidate_rank": getattr(args, "candidate_rank", 1),
+        "reconsider_covered": getattr(args, "reconsider_covered", False),
+        "verify_sources": not args.no_verify_sources,
+    }
+    samples = list(getattr(args, "sample", []) or [])
+    if len(samples) != 1:
+        raise RuntimeError("controlled campaign bootstrap requires exactly one sample")
+    sample_id = str(private.get("sample_id") or "")
+    if samples[0] not in {sample_id, sample_id.replace("PHerc", "PHerc0", 1)}:
+        raise RuntimeError("controlled task budget names another sample")
+    try:
+        return admit_p1_creation(
+            manifest, creation_path="bootstrap",
+            budget_private=private, budget_public=public,
+            mission_id=mission_id, sample_id=sample_id,
+            preflight_receipt_sha256=str(private.get("preflight_receipt_sha256")),
+            policy_sha256=str(manifest.get("campaign_policy_sha256")),
+            requested_tasks=args.max_tasks_per_sample,
+            execution_bindings=bindings,
+        )
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
+
+
+def _validate_cli_current_preflight(
+    mission_root: Path, budget_private: dict[str, Any],
+) -> None:
+    """Require the exact latest signed preflight before registry publication."""
+    private_sha = str(budget_private.get("preflight_receipt_sha256") or "")
+    public_sha = str(
+        budget_private.get("preflight_sanitized_receipt_sha256") or "")
+    root = mission_root / "evidence" / "segmentation-preflight"
+    matches = list(root.rglob(f"{private_sha}.private.json"))
+    if len(matches) != 1:
+        raise RuntimeError(
+            "controlled bootstrap requires its exact current preflight pair")
+    private_path = matches[0]
+    public_path = private_path.with_name(f"{private_sha}.sanitized.json")
+    try:
+        preflight_private = json.loads(private_path.read_text(encoding="utf-8"))
+        preflight_public = json.loads(public_path.read_text(encoding="utf-8"))
+        from .candidate_preflight import (  # noqa: PLC0415
+            validate_candidate_preflight_receipt_pair,
+        )
+        validate_candidate_preflight_receipt_pair(
+            preflight_private, preflight_public)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"controlled bootstrap preflight pair is invalid: {exc}") from exc
+    sanitized = sorted(
+        private_path.parent.glob("*.sanitized.json"),
+        key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True,
+    )
+    core = preflight_private.get("scientific_core") or {}
+    bindings = core.get("bindings") or {}
+    if (preflight_private.get("receipt_sha256") != private_sha
+            or preflight_public.get("receipt_sha256") != public_sha
+            or not sanitized or sanitized[0] != public_path):
+        raise RuntimeError(
+            "controlled bootstrap preflight is not the exact current pair")
+    # The execution receipt deliberately carries only queue-relevant bindings;
+    # the preflight core additionally hashes its normalized request.
+    queue_bindings = budget_private.get("execution_bindings") or {}
+    if any(bindings.get(key) != value for key, value in queue_bindings.items()
+           if key not in {"gates", "queue_execution"}):
+        raise RuntimeError(
+            "controlled bootstrap preflight differs from budget authority")
+    try:
+        selection = artifact_contract.current_selection(mission_root) or {}
+        selected = queue_bindings.get("p0_artifact_id")
+        record = artifact_contract.get(mission_root, str(selected))
+        record_sha = artifact_contract.content_hash(Path(record["path"]))[0]
+    except (artifact_contract.ArtifactError, OSError, KeyError) as exc:
+        raise RuntimeError(
+            "controlled bootstrap current P0 selection is unreadable") from exc
+    if (selected not in (selection.get("choices") or {}).values()
+            or selection.get("version_id") !=
+                queue_bindings.get("p0_selection_version")
+            or selection.get("content_sha256") !=
+                queue_bindings.get("p0_selection_sha256")
+            or record_sha != queue_bindings.get("p0_artifact_sha256")):
+        raise RuntimeError(
+            "controlled bootstrap current P0 selection differs from budget authority")
+
+
 def command_bootstrap(args: argparse.Namespace) -> int:
     benchmark_receipt_path = getattr(
         args, "seed_probe_benchmark_receipt", None
@@ -187,7 +380,31 @@ def command_bootstrap(args: argparse.Namespace) -> int:
                 "--seed-probe-review-owner is only valid with "
                 "--seed-probe-mode select"
             )
+    campaign_budget_admission = _cli_p1_campaign_admission(
+        args, creation_path="bootstrap")
+    resume_authorization = None
+    resume_path = getattr(args, "campaign_resume_authorization", None)
+    if resume_path is not None:
+        if campaign_budget_admission is None:
+            raise RuntimeError(
+                "--campaign-resume-authorization requires a controlled "
+                "campaign task budget")
+        try:
+            resume_authorization = json.loads(
+                Path(resume_path).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                f"campaign resume authorization is unreadable: {exc}") from exc
+        if not isinstance(resume_authorization, dict):
+            raise RuntimeError(
+                "campaign resume authorization must be a JSON object")
     store = open_fleet_store(args.db)
+    if campaign_budget_admission is not None:
+        store.initialize()
+        store.register_campaign_budget_admission(
+            campaign_budget_admission,
+            resume_authorization=resume_authorization,
+        )
     receipt = bootstrap_queue(
         store,
         args.eligible,
@@ -213,6 +430,7 @@ def command_bootstrap(args: argparse.Namespace) -> int:
         created_by=args.queued_by,
         mission_id=args.mission_id,
         p0_selection_version=args.p0_selection_version,
+        p0_selection_sha256=args.p0_selection_sha256,
         p0_artifact_id=args.p0_artifact_id,
         p0_artifact_sha256=args.p0_artifact_sha256,
         p0_resolved_by=args.p0_resolved_by,
@@ -245,6 +463,9 @@ def command_bootstrap(args: argparse.Namespace) -> int:
             if args.seed_probe_mode != "off"
             else None
         ),
+        seed_probe_top_k=args.seed_probe_top_k,
+        seed_probe_generations=args.seed_probe_generations,
+        campaign_budget_admission=campaign_budget_admission,
     )
     output = args.receipt or Path("SEGMENT_FLEET_BOOTSTRAP_RECEIPT.json")
     write_json_atomic(output, receipt)
@@ -414,19 +635,47 @@ def command_bootstrap_resume(args: argparse.Namespace) -> int:
     Overwriting it would destroy the record of what the fleet actually produced.
     """
     store = open_fleet_store(args.db)
+    try:
+        surface_record = store.surface_artifact(args.surface)
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
+    surface = {
+        **dict(surface_record.get("payload") or {}),
+        **{key: surface_record.get(key) for key in (
+            "surface_id", "source_snapshot_id", "sample_id", "artifact_uri",
+            "artifact_sha256",
+        )},
+    }
+    parent_task_id = str(surface.get("task_id") or "")
+    if not parent_task_id:
+        raise RuntimeError(
+            "resume source surface has no immutable parent task binding")
+    try:
+        parent_task = store.task_packet(parent_task_id)
+    except (KeyError, RuntimeError) as exc:
+        raise RuntimeError(
+            "resume source surface parent task is unavailable") from exc
+    inherited_mission = str(parent_task.get("mission_id") or "unfiled")
+    requested_mission = str(args.mission_id or "unfiled")
+    if requested_mission != inherited_mission:
+        if args.mission_id is None and inherited_mission != "unfiled":
+            raise RuntimeError(
+                "a filed resume source requires its exact --mission-id")
+        raise RuntimeError(
+            "resume mission differs from the source surface parent task")
+    if inherited_mission != "unfiled":
+        args.mission_id = inherited_mission
+    _cli_p1_campaign_admission(args, creation_path="resume-correction")
     store.initialize()
-
-    surface = store.surface(args.surface) if hasattr(store, "surface") else None
-    if surface is None:
-        rows = [s for s in store.surfaces() if s.get("surface_id") == args.surface]
-        if not rows:
-            raise SystemExit(f"no surface {args.surface!r} on this control plane")
-        surface = rows[0]
     if not surface.get("artifact_uri"):
         raise SystemExit(f"{args.surface} has no artifact to resume from")
 
-    snapshots = store.snapshots({str(surface["sample_id"])})
-    if not snapshots:
+    snapshots = [
+        snapshot for snapshot in store.snapshots({str(surface["sample_id"])})
+        if snapshot.get("source_snapshot_id") ==
+            parent_task.get("source_snapshot_id") == surface.get("source_snapshot_id")
+    ]
+    if len(snapshots) != 1:
         raise SystemExit(f"no source snapshot for {surface['sample_id']!r}")
 
     bbox = surface.get("bbox_xyz") or [[0, 0, 0], [0, 0, 0]]
@@ -448,6 +697,7 @@ def command_bootstrap_resume(args: argparse.Namespace) -> int:
         "resume_from": surface["artifact_uri"],
         "corrections": str(args.corrections),
         "submitted_by": args.submitted_by,
+        "mission_id": inherited_mission,
         "resumes_surface": args.surface,
         **({"resume_generations": args.resume_generations}
            if args.resume_generations else {}),
@@ -478,16 +728,22 @@ def command_bootstrap_manual(args: argparse.Namespace) -> int:
     supplies points sitting beside twenty that rank cells nobody asked it to
     rank.
     """
+    _cli_p1_campaign_admission(args, creation_path="manual-seeds")
     store = open_fleet_store(args.db)
     store.initialize()
     points = read_seed_points(args.points)
     if not points:
         raise SystemExit(f"{args.points} contains no points")
     snapshots = store.snapshots({args.sample})
+    if args.source_snapshot_id:
+        snapshots = [snapshot for snapshot in snapshots
+                     if snapshot.get("source_snapshot_id") == args.source_snapshot_id]
     if not snapshots:
         raise SystemExit(
-            f"no source snapshot for {args.sample!r}; run bootstrap for it first, "
+            f"no selected source snapshot for {args.sample!r}; run bootstrap for it first, "
             "because a manual seed still needs the volume it refers to")
+    if args.source_snapshot_id and len(snapshots) != 1:
+        raise SystemExit("the selected source snapshot is not unique")
     generated: dict[str, dict[str, int]] = {}
     for snapshot in snapshots:
         tasks = generate_manual_tasks(
@@ -564,6 +820,39 @@ def read_seed_points(path: Path) -> list[dict[str, Any]]:
 
 
 def command_bootstrap_seed_recovery(args: argparse.Namespace) -> int:
+    # The recovery CLI historically inferred authority only from optional
+    # mission flags.  A copied controlled task could therefore be replayed into
+    # a fresh DB simply by omitting those flags.  The source task's immutable
+    # budget envelope is authority too, and is inspected read-only before the
+    # destination DB or receipt can be created.
+    try:
+        source_uri = f"file:{Path(args.source_db).resolve()}?mode=ro"
+        with sqlite3.connect(source_uri, uri=True) as connection:
+            table = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tasks'"
+            ).fetchone()
+            controlled_source = False
+            if table is not None:
+                for (payload_json,) in connection.execute(
+                        "SELECT payload_json FROM tasks"):
+                    try:
+                        envelope = json.loads(payload_json or "{}").get(
+                            "campaign_budget")
+                    except (TypeError, json.JSONDecodeError):
+                        continue
+                    if (isinstance(envelope, dict)
+                            and envelope.get("schema") ==
+                            "campaignx.first_letters_task_budget_admission.v1"):
+                        controlled_source = True
+                        break
+    except sqlite3.Error as exc:
+        raise RuntimeError(
+            f"seed recovery source DB cannot be inspected read-only: {exc}") from exc
+    if controlled_source:
+        raise RuntimeError(
+            "controlled campaign P1 path 'seed-recovery' is not authorized by "
+            "the probability-prefix discovery budget")
+    _cli_p1_campaign_admission(args, creation_path="seed-recovery")
     receipt = bootstrap_seed_positive_recovery_queue(
         FleetStore(args.source_db),
         FleetStore(args.db),
@@ -589,6 +878,7 @@ def command_bootstrap_seed_recovery(args: argparse.Namespace) -> int:
 
 
 def command_bootstrap_adaptive_retry(args: argparse.Namespace) -> int:
+    _cli_p1_campaign_admission(args, creation_path="adaptive-retry")
     receipt = bootstrap_adaptive_retry_task(
         open_fleet_store(args.db),
         args.source_task_id,
@@ -623,31 +913,24 @@ def command_survey(args: argparse.Namespace) -> int:
         tasks = store.pending_tasks(args.limit)
 
     def survey_one(task: dict[str, Any]) -> dict[str, Any]:
-        try:
-            response = provider.discover(task)
-            screened = screen_candidates(response, task)
+        row = survey_candidate_task(task, provider)
+        if row.get("source_error"):
             return {
-                "task_id": task["task_id"],
-                "sample_id": task["sample_id"],
-                "cell_id": task["cell_id"],
-                "priority": task["priority"],
-                "candidate_count": screened["raw_candidate_count"],
-                "usable_candidate_count": screened["usable_candidate_count"],
-                "best_candidate": screened["best_candidate"],
-                "response_sha256": content_sha256(response),
-                "response": response,
+                "task_id": row["task_id"], "sample_id": row["sample_id"],
+                "cell_id": row["cell_id"], "priority": row["priority"],
+                "candidate_count": None, "error": row["source_error"],
                 "ink_used": False,
             }
-        except BaseException as error:
-            return {
-                "task_id": task["task_id"],
-                "sample_id": task["sample_id"],
-                "cell_id": task["cell_id"],
-                "priority": task["priority"],
-                "candidate_count": None,
-                "error": f"{type(error).__name__}: {error}",
-                "ink_used": False,
-            }
+        return {
+            "task_id": row["task_id"], "sample_id": row["sample_id"],
+            "cell_id": row["cell_id"], "priority": row["priority"],
+            "candidate_count": row["counts"]["raw_m7"],
+            "usable_candidate_count": row["counts"]["packet_retained"],
+            "best_candidate": row["best_candidate"],
+            "response_sha256": row["provider_response_sha256"],
+            "response": row.get("response"),
+            "ink_used": False,
+        }
     if args.parallelism < 1:
         raise ValueError("parallelism must be at least one")
     if args.progress:
@@ -718,6 +1001,55 @@ def command_survey(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_preflight(args: argparse.Namespace) -> int:
+    """Measure source-locked candidate coverage without initializing or writing fleet state."""
+    store = open_fleet_store_read_only(args.db)
+    matches = [row for row in store.snapshots({args.sample})
+               if row.get("source_snapshot_id") == args.source_snapshot_id]
+    if len(matches) != 1:
+        raise RuntimeError("preflight requires exactly one matching frozen source snapshot")
+    from .candidate_preflight import (
+        persist_candidate_preflight_receipt_pair,
+        run_candidate_coverage_preflight,
+    )
+
+    request = {
+        "mission_id": args.mission_id,
+        "provider": "vc3d-mcp",
+        "catalog_snapshot_sha256": args.catalog_snapshot_sha256,
+        "grid_version": args.grid_version, "policy_version": args.policy_version,
+        "grid_step": args.grid_step, "query_radius": args.query_radius,
+        "cell_clearance": args.cell_clearance, "volume_clearance": args.volume_clearance,
+        "candidate_interior_clearance": args.candidate_interior_clearance,
+        "selection_strategy": args.selection_strategy,
+        "candidate_selection_policy": args.candidate_selection_policy,
+        "seed_region_policy": args.seed_region_policy,
+        "m7_threshold": args.m7_threshold,
+        "packet_candidate_limit": args.packet_candidate_limit,
+        "maximum_cells": args.maximum_cells, "parallelism": args.parallelism,
+        "ct_material_support_gate": {
+            "policy": "ome-zarr-nearby-material-v1", "level": args.ct_support_level,
+            "radius_l0_voxels": args.ct_support_radius_l0,
+            "minimum_nonzero_voxels": args.ct_support_minimum_nonzero_voxels,
+        },
+        "p0_artifact_id": args.p0_artifact_id,
+        "p0_artifact_sha256": args.p0_artifact_sha256,
+        "p0_selection_version": args.p0_selection_version,
+        "p0_selection_sha256": args.p0_selection_sha256,
+        "source_content_lock_sha256": args.source_content_lock_sha256,
+    }
+    result = run_candidate_coverage_preflight(
+        matches[0], request, surface_view=store, code_revision=args.code_revision)
+    result = persist_candidate_preflight_receipt_pair(
+        args.private_output, args.sanitized_output,
+        result["private_receipt"], result["sanitized_receipt"])
+    print_json({"private_output": str(args.private_output),
+                "sanitized_output": str(args.sanitized_output),
+                "receipt_sha256": result["private_receipt"]["receipt_sha256"],
+                "state_mutation": "NONE"})
+    return 0
+
+
 PLANNER_CHOICES = ("deterministic", "deterministic-v2", "cost-aware-v2",
                    "fusion-v2", "opencode", "opencode-v2")
 
@@ -778,13 +1110,26 @@ def adopt_fleet_secrets(store: Any) -> list[str]:
               file=sys.stderr, flush=True)
         return []
     adopted = []
+    shadowed = []
     for name, value in sorted(held.items()):
         if os.environ.get(name):
+            # Deliberate -- see above -- but not silent. Somebody sets a key on
+            # the panel's Configuration page, the page says it is set, and this
+            # worker goes on using a different one from its env file: the change
+            # they made has no effect and nothing anywhere says why. Whoever is
+            # meant to administer this from a web page cannot debug an
+            # environment variable they never see.
+            shadowed.append(name)
             continue
         os.environ[name] = value
         adopted.append(name)
     if adopted:
         print(f"credentials from the control plane: {', '.join(adopted)}", flush=True)
+    if shadowed:
+        print(f"set on the panel but overridden by this worker's environment: "
+              f"{', '.join(shadowed)} -- the environment wins, so what the panel "
+              f"holds for these is not what is in use. Unset them here to let "
+              f"the panel manage them.", file=sys.stderr, flush=True)
     return adopted
 
 
@@ -950,9 +1295,12 @@ def command_certify(args: argparse.Namespace) -> int:
     store.initialize()
     receipt = certify_pending(
         store,
+        requested_by_job_id=args.requested_by_job_id,
         workspace=args.workspace,
         limit=args.limit,
         sample_id=args.sample,
+        surface_id=args.surface_id,
+        mission_id=getattr(args, "mission_id", None),
         dry_run=args.dry_run,
     )
     if args.receipt:
@@ -970,6 +1318,26 @@ def flatten_batch_exit_code(states: dict[str, int]) -> int:
     job even though no consumable sheet exists.
     """
     return 2 if states.get("FLATTENING_FAILED", 0) else 0
+
+
+def locked_inventory(surface: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """The per-file digests the catalogue recorded for this surface, if any.
+
+    Present for imports, whose bytes live on a host this fleet does not run and
+    whose only other reference would be a manifest from that same host. Absent
+    for surfaces grown here, which carry a manifest from an artifact store we
+    do run.
+
+    A malformed or empty list reads as absent rather than as an empty
+    inventory: the reader refuses one that omits required files, and it can
+    only do that if what it receives is either a real inventory or nothing.
+    """
+
+    payload = surface.get("payload") or {}
+    artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
+    if not isinstance(artifacts, list) or not artifacts:
+        return None
+    return artifacts
 
 
 def command_flatten(args: argparse.Namespace) -> int:
@@ -993,7 +1361,8 @@ def command_flatten(args: argparse.Namespace) -> int:
     pending = store.surfaces_awaiting_flattening(
         profile["profile_id"], limit=args.limit, sample_id=args.sample,
         require_physical_qc=not args.allow_unvalidated,
-        surface_id=args.surface_id)
+        surface_id=args.surface_id,
+        mission_id=getattr(args, "mission_id", None))
     if args.dry_run:
         print_json({"schema": "campaignx.surface_flattening_run.v1", "dry_run": True,
                     "profile_id": profile["profile_id"], "considered": len(pending),
@@ -1013,7 +1382,7 @@ def command_flatten(args: argparse.Namespace) -> int:
         try:
             adapter.materialize_surface(
                 str(surface["artifact_uri"]), str(surface["artifact_sha256"] or ""),
-                source)
+                source, expected_files=locked_inventory(surface))
             receipt = flatten_surface(
                 source, flat,
                 binary=args.binary, profile=profile,
@@ -1063,7 +1432,20 @@ def command_flatten(args: argparse.Namespace) -> int:
         finally:
             shutil.rmtree(work, ignore_errors=True)
         receipt.setdefault("state", receipt.get("status", "FLATTENED"))
-        receipt["surface_id"] = surface_id
+        receipt.update({
+            "surface_id": surface_id,
+            "requested_by_job_id": args.requested_by_job_id,
+            "source_artifact_sha256": surface.get("artifact_sha256"),
+            "profile_file_sha256": file_sha256(args.profile),
+        })
+        if receipt.get("artifact_sha256") and receipt.get("artifact_uri"):
+            receipt["objects"] = sorted([
+                {"object_key": name, "sha256": facts["sha256"],
+                 "bytes": facts["size_bytes"]}
+                for name, facts in files.items()
+            ], key=lambda row: row["object_key"])
+            receipt["files"] = len(receipt["objects"])
+        receipt["receipt_sha256"] = content_sha256(receipt)
         results.append({**store.record_flattening(receipt),
                         "surface_id": surface_id,
                         "area_ratio": receipt.get("area_ratio"),
@@ -1153,6 +1535,8 @@ def command_replan(args: argparse.Namespace) -> int:
     """Ask the cells that gave no seed again, under a different policy."""
     from .generator import replan_no_seed_cells  # noqa: PLC0415
 
+    if not args.dry_run:
+        _cli_p1_campaign_admission(args, creation_path="replan")
     store = open_fleet_store(args.db)
     print_json(replan_no_seed_cells(
         store, grid_version=args.grid_version, policy_version=args.policy_version,
@@ -1191,6 +1575,7 @@ def command_qc_run(args: argparse.Namespace) -> int:
         lease_seconds=args.lease_seconds,
         retry_delay_seconds=args.retry_delay_seconds,
         profile_id=args.profile_id,
+        minimum_free_vram_mib=args.minimum_free_vram_mib,
     )
     results = worker.run(
         max_jobs=args.max_jobs or None,
@@ -1206,6 +1591,44 @@ def command_qc_run(args: argparse.Namespace) -> int:
             "status": store.status(),
         }
     )
+    return 0 if all(result.get("status") == "COMPLETED" for result in results) else 2 if results else 0
+
+
+def command_preflight_worker_run(args: argparse.Namespace) -> int:
+    """Run the bounded candidate preflight where the sources actually are.
+
+    The panel enqueues; this runs. It is the same loop shape as `qc run` and it
+    keeps the same distinction: an outage fails the job and the worker carries
+    on, a missing setting fails the job and the worker stops.
+    """
+    store = open_fleet_store(args.db)
+    store.initialize()
+    worker = CandidatePreflightWorker(
+        store,
+        args.worker_id,
+        lease_seconds=args.lease_seconds,
+        max_consecutive_failures=args.max_consecutive_failures,
+    )
+    results = worker.run(
+        max_jobs=args.max_jobs or None,
+        idle_exit=not args.watch,
+        poll_seconds=args.poll_seconds,
+    )
+    stopped = any(result.get("worker_stopped") for result in results)
+    print_json({
+        "schema": "campaignx.segment_preflight_worker_run.v1",
+        "worker_id": args.worker_id,
+        "completed": sum(1 for row in results if row.get("status") == "COMPLETED"),
+        "results": results,
+        "worker_stopped": stopped,
+        "environment": preflight_worker_environment_report(),
+        "ink_used": False,
+    })
+    # 78 is sysexits EX_CONFIG, the same code the QC adapter uses to say "this
+    # is a setting". A supervisor that restarts on any non-zero exit would
+    # otherwise reproduce the spin one process up from the loop that refuses to.
+    if stopped:
+        return 78
     return 0 if all(result.get("status") == "COMPLETED" for result in results) else 2 if results else 0
 
 
@@ -1535,6 +1958,9 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
              "reselected between two runs does not produce two tasks that look "
              "identical and read different inputs")
     bootstrap.add_argument(
+        "--p0-selection-sha256", default=None,
+        help="content hash of the exact P0 selection version")
+    bootstrap.add_argument(
         "--p0-artifact-id", default=None,
         help="the P0 artifact chosen for this scroll under that selection")
     bootstrap.add_argument(
@@ -1554,6 +1980,19 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     bootstrap.add_argument(
         "--mission-id", default=None,
         help="mission that owns every generated task; defaults to unfiled")
+    bootstrap.add_argument(
+        "--mission-root", type=Path, default=None,
+        help="directory containing the authoritative MISSION.json")
+    bootstrap.add_argument(
+        "--task-budget-private", type=Path, default=None,
+        help="private hash-named controlled campaign task-budget receipt")
+    bootstrap.add_argument(
+        "--task-budget-sanitized", type=Path, default=None,
+        help="sanitized half paired with --task-budget-private")
+    bootstrap.add_argument(
+        "--campaign-resume-authorization", type=Path, default=None,
+        help="hash-named authorization binding a paused policy to a new "
+             "version and evidenced material causal change")
     bootstrap.add_argument(
         "--reason", default=None,
         help="why this queue was asked for, written onto every task it creates. "
@@ -1583,7 +2022,7 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     )
     bootstrap.add_argument(
         "--candidate-rank",
-        type=int,
+        type=_positive_candidate_rank,
         default=1,
         # Which rung of m7's frozen ordering to grow. 1 is the best candidate and
         # what every run does; a higher rank grows an alternative the planner
@@ -1734,6 +2173,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     manual.add_argument("--sample", required=True,
                         help="the scroll these points are in; it needs a source "
                              "snapshot already, because a point refers to a volume")
+    manual.add_argument("--source-snapshot-id", default=None,
+                        help="the exact P0-selected source snapshot to use")
     manual.add_argument("--points", type=Path, required=True,
                         help="JSON list of {x,y,z} in CT-L0 voxels, or CSV with an "
                              "x,y,z header")
@@ -1745,6 +2186,7 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
         default=None,
         help="mission that owns these tasks; omitted tasks are filed as unfiled",
     )
+    manual.add_argument("--mission-root", type=Path, default=None)
     manual.add_argument("--grid-step", type=int, default=2048)
     manual.add_argument("--query-radius", type=int, default=64)
     manual.add_argument("--volume-edge-margin", type=int, default=64)
@@ -1769,6 +2211,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     resume.add_argument("--corrections", required=True, type=Path,
                         help="a VC3D point collection, passed to --correct")
     resume.add_argument("--submitted-by", default="anonymous")
+    resume.add_argument("--mission-id", default=None)
+    resume.add_argument("--mission-root", type=Path, default=None)
     resume.add_argument("--resume-generations", type=int, default=None)
     resume.add_argument("--rewind-gen", type=int, default=None)
     resume.add_argument("--grid-version", default="resume-v1")
@@ -1785,6 +2229,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     recovery.add_argument("--source-attempt-root", type=Path, required=True)
     recovery.add_argument("--db", type=Path, required=True)
     recovery.add_argument("--receipt", type=Path, required=True)
+    recovery.add_argument("--mission-id", default=None)
+    recovery.add_argument("--mission-root", type=Path, default=None)
     recovery.add_argument("--grid-version", required=True)
     recovery.add_argument("--policy-version", required=True)
     recovery.add_argument(
@@ -1811,6 +2257,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     adaptive_retry.add_argument("--db", required=True)
     adaptive_retry.add_argument("--source-task-id", required=True)
     adaptive_retry.add_argument("--receipt", type=Path, required=True)
+    adaptive_retry.add_argument("--mission-id", default=None)
+    adaptive_retry.add_argument("--mission-root", type=Path, default=None)
     adaptive_retry.add_argument("--grid-version", required=True)
     adaptive_retry.add_argument("--policy-version", required=True)
     adaptive_retry.add_argument(
@@ -1963,10 +2411,15 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
         "certify",
         help="Give a geometry verdict to surfaces that carry none (P2).")
     certify.add_argument("--db", required=True)
+    certify.add_argument("--requested-by-job-id", required=True,
+                         help="immutable P2 queue job that requested this certification")
     certify.add_argument("--limit", type=int, default=25,
                          help="how many surfaces to measure in one pass; each is "
                               "fetched and meshed, so this bounds the run")
     certify.add_argument("--sample", default=None, help="one scroll only")
+    certify.add_argument("--surface-id", default=None,
+                         help="certify only this exact immutable surface")
+    certify.add_argument("--mission-id", default=None, help="only this mission's own surfaces: the ones its tasks grew, its jobs derived, or somebody uploaded into it. Omitted, the backlog is the whole control plane, which is what a fleet-wide sweep wants and not what a run started inside a mission does")
     certify.add_argument("--workspace", type=Path, default=None,
                          help="where surfaces are staged; a temporary directory "
                               "by default, removed per surface either way")
@@ -1979,6 +2432,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
         "flatten",
         help="Unroll certified surfaces into flat sheets (P3).")
     flatten.add_argument("--db", required=True)
+    flatten.add_argument("--requested-by-job-id", required=True,
+                         help="immutable P3 queue job that requested this flattening")
     flatten.add_argument("--binary", required=True,
                          help="the vc_flatten executable; recorded by hash on "
                               "every receipt")
@@ -2001,6 +2456,7 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
         "--surface-id", default=None,
         help="flatten only this immutable surface id; preserves an explicit "
              "merge-to-flatten continuation instead of taking another backlog item")
+    flatten.add_argument("--mission-id", default=None, help="only this mission's own surfaces: the ones its tasks grew, its jobs derived, or somebody uploaded into it. Omitted, the backlog is the whole control plane, which is what a fleet-wide sweep wants and not what a run started inside a mission does")
     flatten.add_argument("--workspace", type=Path, default=None)
     flatten.add_argument("--timeout", type=int, default=7200)
     flatten.add_argument("--receipt", type=Path, default=None)
@@ -2021,6 +2477,11 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     qc_run.add_argument("--qc-timeout", type=int, default=7200)
     qc_run.add_argument("--lease-seconds", type=int, default=900)
     qc_run.add_argument("--retry-delay-seconds", type=int, default=300)
+    qc_run.add_argument(
+        "--minimum-free-vram-mib", type=int, default=None,
+        help="Refuse a claim when no card has this much free, before the "
+             "render rather than after it. Off by default: a deployment that "
+             "owns its cards keeps what it had.")
     qc_run.add_argument("--profile-id", required=True)
     qc_run.add_argument("--max-jobs", type=int, default=1)
     qc_run.add_argument("--watch", action="store_true")
@@ -2046,6 +2507,66 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
     qc_backfill.add_argument("--surface-id", action="append", default=[])
     qc_backfill.add_argument("--profile-id", required=True)
     qc_backfill.set_defaults(handler=command_qc_enqueue_backfill)
+
+    preflight_worker = subcommands.add_parser(
+        "preflight-worker",
+        help="Run queued candidate preflights on a host that can reach the sources.",
+    )
+    preflight_worker_commands = preflight_worker.add_subparsers(
+        dest="preflight_worker_command", required=True)
+    preflight_worker_run = preflight_worker_commands.add_parser(
+        "run",
+        help="Claim queued candidate-preflight jobs and measure them read-only.",
+    )
+    preflight_worker_run.add_argument("--db", required=True)
+    preflight_worker_run.add_argument("--worker-id", required=True)
+    preflight_worker_run.add_argument("--lease-seconds", type=int, default=900)
+    preflight_worker_run.add_argument("--max-jobs", type=int, default=1)
+    preflight_worker_run.add_argument("--watch", action="store_true")
+    preflight_worker_run.add_argument("--poll-seconds", type=float, default=10.0)
+    preflight_worker_run.add_argument(
+        "--max-consecutive-failures", type=int, default=5,
+        help="Stop after this many claims in a row measured nothing.")
+    preflight_worker_run.set_defaults(handler=command_preflight_worker_run)
+
+    preflight = subcommands.add_parser(
+        "preflight", help="Measure source-locked M7/CT/clearance coverage without fleet writes.")
+    preflight.add_argument("--db", required=True)
+    preflight.add_argument("--sample", required=True)
+    preflight.add_argument("--mission-id", required=True)
+    preflight.add_argument("--source-snapshot-id", required=True)
+    preflight.add_argument("--p0-artifact-id", required=True)
+    preflight.add_argument("--p0-artifact-sha256", required=True)
+    preflight.add_argument("--p0-selection-version", required=True)
+    preflight.add_argument("--p0-selection-sha256", required=True)
+    preflight.add_argument("--source-content-lock-sha256", required=True)
+    preflight.add_argument("--catalog-snapshot-sha256", required=True)
+    preflight.add_argument("--grid-version", required=True)
+    preflight.add_argument("--policy-version", required=True)
+    preflight.add_argument("--grid-step", type=int, required=True)
+    preflight.add_argument("--query-radius", type=int, required=True)
+    preflight.add_argument("--cell-clearance", type=float, required=True)
+    preflight.add_argument("--volume-clearance", type=int, required=True)
+    preflight.add_argument("--candidate-interior-clearance", type=int, required=True)
+    preflight.add_argument("--selection-strategy",
+                           choices=("max-clearance-v1", "stratified-clearance-v1"),
+                           required=True)
+    preflight.add_argument("--candidate-selection-policy",
+                           choices=("score-cell-volume-clearance-v1",
+                                    "adaptive-geometry-history-v2"),
+                           default="score-cell-volume-clearance-v1")
+    preflight.add_argument("--seed-region-policy", default="fixed-v1")
+    preflight.add_argument("--m7-threshold", type=float, required=True)
+    preflight.add_argument("--packet-candidate-limit", type=int, default=8)
+    preflight.add_argument("--maximum-cells", type=int, required=True)
+    preflight.add_argument("--parallelism", type=int, required=True)
+    preflight.add_argument("--ct-support-level", type=int, default=5)
+    preflight.add_argument("--ct-support-radius-l0", type=int, default=192)
+    preflight.add_argument("--ct-support-minimum-nonzero-voxels", type=int, default=1)
+    preflight.add_argument("--code-revision", required=True)
+    preflight.add_argument("--private-output", type=Path, required=True)
+    preflight.add_argument("--sanitized-output", type=Path, required=True)
+    preflight.set_defaults(handler=command_preflight)
 
     survey = subcommands.add_parser("survey", help="MCP-probe pending m7 cells without claiming tasks.")
     survey.add_argument("--db", required=True)
@@ -2079,6 +2600,8 @@ def build_parser(repo_root: Path) -> argparse.ArgumentParser:
                              "with the same one usually gets the same answer")
     replan.add_argument("--planner-model", default=None)
     replan.add_argument("--sample", default=None)
+    replan.add_argument("--mission-id", default=None)
+    replan.add_argument("--mission-root", type=Path, default=None)
     replan.add_argument("--cause", action="append", default=[],
                         help="only cells whose diagnosis names this cause, e.g. "
                              "NO_M7_CANDIDATES or MALFORMED_COORDINATE_OR_SCORE")

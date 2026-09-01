@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Scientific adapter for one Segment Search Fleet surface-QC lease.
 
-The adapter renders one preserved TIFXYZ surface, runs the frozen six-replica
-TimeSformer screen, adds the existing high-recall router and CT/fiber gate,
-and publishes a compact immutable evidence bundle. It has exactly three
-closed routing outcomes and never accepts ink, text, letters, or a submission.
+The adapter renders one preserved TIFXYZ surface and runs the frozen
+six-replica TimeSformer screen. Unusable liveness short-circuits before later
+scientific stages; otherwise the adapter adds the existing high-recall router
+and CT/fiber gate. It publishes a compact immutable evidence bundle, has
+exactly four closed routing outcomes, and never accepts ink, text, letters, or
+a submission.
 """
 
 from __future__ import annotations
@@ -53,6 +55,9 @@ REQUIRED_SURFACE_FILES = ("x.tif", "y.tif", "z.tif", "meta.json")
 REQUIRED_TIFF_COUNT = 65
 NO_COMMON_VALID_ERROR = "RuntimeError: screening maps have no common valid pixels"
 OUTCOME_INSUFFICIENT = "CT_INSUFFICIENT_NO_COMMON_VALID_PIXELS"
+OUTCOME_INK_SCREEN_INSUFFICIENT = (
+    "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"
+)
 OUTCOME_NO_RETAINED = "CT_SUPPORTED_NO_RETAINED_INK_SIGNAL"
 OUTCOME_RETAINED = "CT_SUPPORTED_RETAINED_FOR_REVIEW"
 RENDER_MAX_ATTEMPTS = 3
@@ -437,45 +442,196 @@ def _s3_mirror_source(parsed: Any) -> Path | None:
     )
 
 
+SURFACE_HTTP_TIMEOUT_SECONDS = 300
+
+
+def _http_get(url: str, *, timeout: float = SURFACE_HTTP_TIMEOUT_SECONDS) -> bytes:
+    """Read one published object, with a deadline.
+
+    A read without one is how a flatten job burns its whole lease and dies with
+    nothing recorded: no CPU, no output, no reason. The deadline is per object,
+    not per surface, because a stalled connection is what needs bounding.
+    """
+
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Campaign-X-surface-qc-adapter/1.0"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
+def _download_http_surface(
+    base_uri: str,
+    destination: Path,
+    expected_digest: str,
+) -> dict[str, Any]:
+    """Materialize one TIFXYZ artifact set published over HTTP(S).
+
+    A public host is not a trusted one: the bytes are checked against the
+    manifest and the manifest against the catalogue digest by the same
+    `_verify_surface` the S3 and local branches use.
+    """
+
+    base = base_uri.rstrip("/")
+    manifest = json.loads(_http_get(f"{base}/ARTIFACT_SET.json").decode("utf-8"))
+    write(destination / "ARTIFACT_SET.json", manifest)
+    for name in REQUIRED_SURFACE_FILES:
+        (destination / name).write_bytes(_http_get(f"{base}/{name}"))
+    _verify_surface(destination, manifest, expected_digest)
+    return manifest
+
+
+def _locked_inventory(expected_files: Any) -> dict[str, dict[str, Any]]:
+    """Normalize the catalogue's file inventory, and require it to be complete.
+
+    An inventory that names fewer files than the artifact set would quietly
+    narrow what gets verified, which is worse than having none: it reads as a
+    check while leaving whatever it omits unguarded.
+    """
+
+    entries: dict[str, dict[str, Any]] = {}
+    for entry in expected_files:
+        name = str(entry.get("path") or entry.get("name") or "")
+        if not name or not entry.get("sha256"):
+            raise ValueError(
+                f"catalogue inventory entry names no file or no digest: {entry!r}")
+        entries[name] = entry
+    missing = [name for name in REQUIRED_SURFACE_FILES if name not in entries]
+    if missing:
+        raise ValueError(
+            f"the catalogue inventory does not cover {', '.join(missing)}: an "
+            "inventory that omits a file would narrow what is verified")
+    return entries
+
+
+def _verify_against_inventory(
+    directory: Path, entries: dict[str, dict[str, Any]]
+) -> None:
+    """Check what arrived against what the catalogue locked.
+
+    Distinct from `_verify_surface`, which checks an artifact set against a
+    manifest that travelled with it. Where the two disagree this one wins: a
+    manifest from the same place as the bytes can only confirm itself, and for
+    a surface somebody else published that is the whole of the difference.
+    """
+
+    for name in REQUIRED_SURFACE_FILES:
+        entry = entries[name]
+        path = directory / name
+        if not path.is_file():
+            raise RuntimeError(f"TIFXYZ artifact is incomplete: {name}")
+        size = entry.get("size_bytes")
+        if size is not None and path.stat().st_size != int(size):
+            raise RuntimeError(f"TIFXYZ artifact size mismatch: {name}")
+        if sha256(path) != entry.get("sha256"):
+            raise RuntimeError(
+                f"TIFXYZ artifact hash mismatch against the catalogue: {name}")
+
+
+def _download_listed_surface(
+    base_uri: str,
+    destination: Path,
+    expected_digest: str,
+    locked: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Fetch exactly the files the catalogue locked, and ask the host for nothing else.
+
+    No `ARTIFACT_SET.json` is requested. A community host does not publish one
+    -- the name is our convention, and expecting third parties to adopt it is an
+    obstacle no community segmentation will clear -- and one fetched from the
+    same place as the bytes could only vouch for itself.
+
+    The manifest written here is therefore ours, built from what arrived after
+    it matched the inventory. Its `artifact_sha256` is the catalogue's digest
+    carried over rather than anything derived: the verification that happened is
+    the per-file one above it.
+    """
+
+    base = base_uri.rstrip("/")
+    for name in REQUIRED_SURFACE_FILES:
+        (destination / name).write_bytes(_http_get(f"{base}/{name}"))
+    _verify_against_inventory(destination, locked)
+    manifest = {
+        "schema": "campaignx.segmentation_artifact_set.v1",
+        "files": {
+            name: {"sha256": sha256(destination / name),
+                   "size_bytes": (destination / name).stat().st_size}
+            for name in REQUIRED_SURFACE_FILES},
+        "artifact_sha256": expected_digest,
+    }
+    write(destination / "ARTIFACT_SET.json", manifest)
+    return manifest
+
+
 def materialize_surface(
     artifact_uri: str,
     expected_digest: str,
     destination: Path,
     *,
     s3_client: Any | None = None,
+    expected_files: Any | None = None,
 ) -> dict[str, Any]:
     if destination.exists():
         raise RuntimeError(f"refusing to reuse surface staging: {destination}")
     destination.mkdir(parents=True)
+    locked = _locked_inventory(expected_files) if expected_files is not None else None
     parsed = urlparse(artifact_uri)
+    if parsed.scheme in ("http", "https") and locked is not None:
+        return _download_listed_surface(
+            artifact_uri, destination, expected_digest, locked)
     if parsed.scheme == "s3":
         mirror_source = _s3_mirror_source(parsed)
         if mirror_source is not None and mirror_source.is_dir():
-            return _copy_local_surface(
+            # Falls through rather than returning: a mirror is a convenience
+            # copy, and the inventory check at the end applies to it exactly as
+            # it does to the bucket it stands in for.
+            manifest = _copy_local_surface(
                 mirror_source,
                 destination,
                 expected_digest,
             )
-        if s3_client is None:
-            try:
-                import boto3
-            except ImportError as error:  # pragma: no cover - runtime dependency
-                raise RuntimeError("S3 surface materialization requires boto3") from error
-            s3_client = boto3.client("s3")
-        base = parsed.path.strip("/")
-        manifest_key = f"{base}/ARTIFACT_SET.json"
-        response = s3_client.get_object(Bucket=parsed.netloc, Key=manifest_key)
-        body = response["Body"].read()
-        manifest = json.loads(body.decode("utf-8"))
-        write(destination / "ARTIFACT_SET.json", manifest)
-        for name in REQUIRED_SURFACE_FILES:
-            s3_client.download_file(
-                parsed.netloc, f"{base}/{name}", str(destination / name)
-            )
+        else:
+            if s3_client is None:
+                try:
+                    import boto3
+                except ImportError as error:  # pragma: no cover - runtime dependency
+                    raise RuntimeError(
+                        "S3 surface materialization requires boto3") from error
+                s3_client = boto3.client("s3")
+            base = parsed.path.strip("/")
+            manifest_key = f"{base}/ARTIFACT_SET.json"
+            response = s3_client.get_object(Bucket=parsed.netloc, Key=manifest_key)
+            body = response["Body"].read()
+            manifest = json.loads(body.decode("utf-8"))
+            write(destination / "ARTIFACT_SET.json", manifest)
+            for name in REQUIRED_SURFACE_FILES:
+                s3_client.download_file(
+                    parsed.netloc, f"{base}/{name}", str(destination / name)
+                )
+            _verify_surface(destination, manifest, expected_digest)
+    elif parsed.scheme in ("http", "https"):
+        manifest = _download_http_surface(artifact_uri, destination, expected_digest)
+    elif parsed.scheme == "file":
+        source = Path(urllib.request.url2pathname(parsed.path))
+        manifest = _copy_local_surface(source, destination, expected_digest)
+    elif "://" in artifact_uri:
+        # Anything else must say so by name. Falling through to the local branch
+        # is what made an `https://` surface resolve to `<cwd>/https:/host/key`:
+        # a URI the lane cannot read became a filesystem accident that depended
+        # on where the worker happened to be standing. Keyed off `://` rather
+        # than a parsed scheme so a relative path containing a colon stays a
+        # path, which is what `urlparse` would otherwise call a scheme.
+        raise ValueError(
+            f"surface artifact URI scheme {parsed.scheme!r} cannot be read by "
+            f"this lane: {artifact_uri}")
     else:
         source = Path(artifact_uri).expanduser().resolve()
-        return _copy_local_surface(source, destination, expected_digest)
-    _verify_surface(destination, manifest, expected_digest)
+        manifest = _copy_local_surface(source, destination, expected_digest)
+    # Every branch above has now checked its artifact set against the manifest
+    # that travelled with it.
+    if locked is not None:
+        # Last and decisive: whatever manifest travelled with the bytes, the
+        # catalogue's inventory is the one the lane locked.
+        _verify_against_inventory(destination, locked)
     return manifest
 
 
@@ -606,12 +762,52 @@ def render_and_screen(
             str(float(screening_profile["minimum_valid_ratio"])),
             "--device",
             os.environ.get("HELENA_QC_DEVICE", "cuda"),
+            "--on-degenerate",
+            "warn",
         ],
         output / "robust-inference.stdout.log",
     )
     screening_receipt = screening / "INK_SCREENING_RECEIPT.json"
     if not screening_receipt.is_file():
         raise RuntimeError("six-replica inference receipt is absent")
+    screening_payload = load(screening_receipt)
+    liveness = screening_payload.get("liveness")
+    if not isinstance(liveness, dict):
+        raise RuntimeError("six-replica inference receipt omitted liveness")
+    verdict = str(liveness.get("verdict", ""))
+    if verdict not in {"ALIVE", "DEGENERATE", "EMPTY"}:
+        raise RuntimeError("six-replica inference receipt has an unknown liveness verdict")
+    if verdict != "ALIVE":
+        reason = liveness.get("reason")
+        if not isinstance(reason, str) or not reason.strip():
+            raise RuntimeError(
+                "six-replica inference receipt has an invalid liveness reason"
+            )
+        row = {
+            "sample_id": sample_id,
+            "seed_id": surface_id,
+            "state": OUTCOME_INK_SCREEN_INSUFFICIENT,
+            "screening_outcome": OUTCOME_INK_SCREEN_INSUFFICIENT,
+            "manual_review_route": "NO_USABLE_INK_MAP",
+            "tiff_count": REQUIRED_TIFF_COUNT,
+            "slice_ordering": slice_ordering,
+            "screening_receipt": str(screening_receipt),
+            "screening_receipt_sha256": sha256(screening_receipt),
+            "liveness": liveness,
+        }
+        summary = _write_screen_summary(
+            output,
+            row,
+            renderer,
+            checkpoint,
+            inference,
+            analysis,
+            actual_checkpoint_sha256,
+            input_sha256,
+            qc_profile,
+            qc_profile_sha256,
+        )
+        return summary, output / "FLEET_SURFACE_SCREEN_EXECUTION.json"
     analysis_log = output / "robust-analysis.stdout.log"
     try:
         run_logged(
@@ -725,7 +921,10 @@ def _write_screen_summary(
     qc_profile: dict[str, Any],
     qc_profile_sha256: str,
 ) -> dict[str, Any]:
-    insufficient = row["state"] == OUTCOME_INSUFFICIENT
+    insufficient = row["state"] in {
+        OUTCOME_INSUFFICIENT,
+        OUTCOME_INK_SCREEN_INSUFFICIENT,
+    }
     summary = {
         "kind": "campaign_x_phase4_geometry_recovery_v1_screen_execution",
         "generated_at_utc": utc_now(),
@@ -1090,9 +1289,32 @@ def publish_evidence(
     qc_job: dict[str, Any],
     *,
     s3_client: Any | None = None,
+    attempt_id: str | None = None,
 ) -> str:
+    """Publish one attempt's evidence under a key that names that attempt.
+
+    `attempt_id` is what keeps a retry from colliding with the attempt before
+    it. Not everything an attempt publishes is the same across attempts:
+    CT_RENDER_RETRY_RECEIPT.json is the attempt's own account of itself and
+    carries its timestamp and count, so its bytes differ every time.
+
+    Publication skips a key that already exists and verifies the object that
+    is there. Scoped to the job alone, a second attempt therefore met an
+    object it could never match -- measured on gpu-1 on 2026-08-23, after 57
+    minutes of completed work: local 9ae5b2a2..., in the bucket 6cea728a...
+    from 18 days earlier, and no number of retries could clear it.
+
+    The verification is not what was wrong; it is what keeps published
+    evidence from being replaced unnoticed, and it stays. What was wrong is
+    that one key was being asked to hold two things that legitimately differ.
+
+    Optional, so every existing caller keeps working: a direct CLI run without
+    one publishes exactly where it used to.
+    """
     sample_id = str(qc_job["source"]["sample_id"])
     suffix = f"{sample_id}/{qc_job['surface_id']}/{qc_job['qc_job_id']}"
+    if attempt_id:
+        suffix = f"{suffix}/{attempt_id}"
     paths = [*evidence_files(output), manifest]
     parsed = urlparse(root_uri)
     if parsed.scheme == "s3":
@@ -1156,6 +1378,8 @@ def publish_evidence_with_failover(
     primary_root: str,
     fallback_root: str,
     qc_job: dict[str, Any],
+    *,
+    attempt_id: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Publish durably, using an explicit local fallback on primary outage.
 
@@ -1165,7 +1389,8 @@ def publish_evidence_with_failover(
     """
 
     try:
-        uri = publish_evidence(output, manifest, primary_root, qc_job)
+        uri = publish_evidence(output, manifest, primary_root, qc_job,
+                               attempt_id=attempt_id)
         return uri, {
             "primary_root": primary_root,
             "fallback_root": fallback_root or None,
@@ -1175,7 +1400,8 @@ def publish_evidence_with_failover(
     except Exception as error:
         if not fallback_root:
             raise
-        uri = publish_evidence(output, manifest, fallback_root, qc_job)
+        uri = publish_evidence(output, manifest, fallback_root, qc_job,
+                               attempt_id=attempt_id)
         return uri, {
             "primary_root": primary_root,
             "fallback_root": fallback_root,
@@ -1251,7 +1477,9 @@ def execute(input_path: Path, output: Path) -> dict[str, Any]:
     )
     ink_used = True
     followup: dict[str, Any] | None = None
-    if summary["receipts"][0]["state"] == OUTCOME_INSUFFICIENT:
+    if summary["receipts"][0]["state"] == OUTCOME_INK_SCREEN_INSUFFICIENT:
+        outcome = OUTCOME_INK_SCREEN_INSUFFICIENT
+    elif summary["receipts"][0]["state"] == OUTCOME_INSUFFICIENT:
         outcome = OUTCOME_INSUFFICIENT
     else:
         shadow_profile_path: Path | None = None
@@ -1297,6 +1525,11 @@ def execute(input_path: Path, output: Path) -> dict[str, Any]:
         evidence_root,
         fallback_root,
         qc_job,
+        # The attempt directory's own name. The worker mints one per attempt --
+        # `{utc}-{uuid}` -- and it is the only thing in scope that distinguishes
+        # this run of this job from the last one, which is exactly what the
+        # evidence key was missing.
+        attempt_id=output.parent.name or None,
     )
     cleanup = (
         cleanup_regenerable_payloads(output)

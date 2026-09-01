@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+import re
 from pathlib import Path
 from typing import Any
 
@@ -140,7 +141,20 @@ def commit(
     return version
 
 
+# What `_version_id` produces, and the only shape this reads from disk.
+#
+# `root / f"{version_id}.json"` is a path built from a string that arrives in a
+# URL. Starlette's router happens to refuse the traversals today -- a path
+# parameter without `:path` matches no slash, encoded or not -- so the
+# containment lives where the invariant does rather than in whatever routes to
+# it, and stays true for the next caller that is not a route at all.
+VERSION_ID = re.compile(r"^cfg-[0-9]{4}-[0-9a-f]{6,32}$")
+
+
 def get(root: Path, version_id: str) -> dict:
+    if not VERSION_ID.match(version_id or ""):
+        raise ConfigVersionError(
+            f"{version_id!r} is not a configuration version id")
     path = root / f"{version_id}.json"
     if not path.exists():
         raise ConfigVersionError(f"no version {version_id}")

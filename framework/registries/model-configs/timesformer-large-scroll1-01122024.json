@@ -1,0 +1,23 @@
+{
+  "schema": "campaignx.timesformer_model_config.v1",
+  "for_checkpoint_sha256": "c85dd722aad3734476dd6d8f14fae7a249a0a3c019fbd68f894558ae381e3e9d",
+  "for_profile_id": "timesformer-large-scroll1-screening@1.0.0",
+  "dim": 512,
+  "depth": 16,
+  "n_heads": 8,
+  "num_classes": 16,
+  "num_frames": 26,
+  "patch_size": 16,
+  "window_size": 64,
+  "provenance": {
+    "dim": "backbone.layers.0.0.fn.to_qkv.weight is [1536, 512]; the second axis is dim",
+    "depth": "backbone.layers.0..15 exist in the checkpoint",
+    "n_heads": "to_qkv is [3 * 512, 512], so inner is 512 and dim_head is 64: 8 heads. The GP lane's 6 heads give [1152, 512], which is the size mismatch this config resolves",
+    "num_classes": "backbone.to_out.1.weight is [16, 512]",
+    "patch_size": "backbone.to_patch_embedding.weight is [512, 256] and 256 = 16 x 16",
+    "num_frames": "not encoded in any tensor -- the model uses rotary embeddings (frame_rot_emb, image_rot_emb) rather than a learned positional table. Taken from the profile's own input_contract, which declares frames 26",
+    "window_size": "likewise not in the weights; the profile declares tile_size_y_x [64, 64]",
+    "read_by": "safetensors shape inspection of the installed checkpoint, not inferred from the GP lane's defaults"
+  },
+  "note": "The runner already accepted --model-config for exactly this case and the profile already declared model_config_required: true. What was missing was the file and a way for the queue to name it."
+}

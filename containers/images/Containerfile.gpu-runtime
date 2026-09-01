@@ -1,0 +1,142 @@
+# syntax=docker/dockerfile:1.7
+# The GPU runtime: the frozen six-replica TimeSformer environment and the VC3D
+# tools, in one image. P4 renders with the tools, P5 infers with torch, and both
+# phases run in one worker, so both have to be here.
+#
+# It used to take two already-built parent images, INK_IMAGE and VC3D_IMAGE, and
+# helena-vc3d existed only to be this image's other parent -- an image nobody
+# published, whose sole consumer was this file, carrying a tarball that a script
+# elsewhere had assembled from binaries nobody could rebuild.
+#
+# The binaries are compiled now, from a pinned commit whose tree hash is checked
+# before the toolchain is installed, so the middle image has nothing left to do:
+# the bundle is assembled here, in a stage, from the image that compiled it.
+# What leaves with it is the tarball, its SHA256SUMS and the v3/v4 schema -- all
+# of which existed so the bundle could travel between machines as a file.
+#
+# The provenance changes shape rather than disappearing. There is no longer a
+# parent digest to pin; there is the villa commit and tree, labelled below,
+# which say what source produced these bytes rather than only that the bytes
+# matched. Nothing audited the old digest: helena-vc3d was never published.
+#
+# 289 MB, not the 1.4 GB of the whole toolchain: the bundle takes three tools
+# and the closure `ldd` reports for them, which is why it is still assembled
+# rather than copied wholesale from the compiler's image.
+# The base is not the ink image, and this is the constraint the two-parent
+# arrangement encoded without ever saying so. Measured: villa compiles on
+# ubuntu:25.10, whose glibc is 2.42, and its binaries ask for GLIBC_2.38; the
+# pytorch runtime image is 2.35. Basing this on the ink image builds an image
+# whose tools cannot start -- `version GLIBC_2.38 not found`, on the first job,
+# because a bundle carries its library closure and deliberately not glibc.
+#
+# So: a base new enough for the binaries, the ink environment copied onto it,
+# and the bundle assembled from the image that compiled it.
+ARG BASE_IMAGE
+ARG INK_IMAGE
+ARG VILLA_IMAGE
+
+# ------------------------------------------------------------------ bundle --
+FROM ${VILLA_IMAGE} AS bundle
+# The MCP is source, not a binary: its own was lost and the Python replacement
+# is what every worker in this fleet runs. build_vc3d_runtime_bundle.sh takes
+# either.
+COPY framework/stages/01-segmentation/mcp /src/mcp
+COPY framework/stages/01-segmentation/scripts/build_vc3d_runtime_bundle.sh /src/
+RUN sh /src/build_vc3d_runtime_bundle.sh /tmp/vc3d-runtime.tgz \
+      /opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+      /src/mcp \
+      /opt/campaignx/vc3d/bin/vc_render_tifxyz >/dev/null \
+ && mkdir -p /out && tar -xzf /tmp/vc3d-runtime.tgz -C /out \
+ && rm -f /tmp/vc3d-runtime.tgz
+
+# ----------------------------------------------------------------- runtime --
+FROM ${INK_IMAGE} AS ink_runtime
+
+FROM ${BASE_IMAGE}
+ARG BASE_IMAGE
+ARG INK_IMAGE
+ARG VILLA_IMAGE
+ARG VILLA_COMMIT=unknown
+ARG VILLA_TREE=unknown
+ARG BUILD_COMMIT=unknown
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.1.0
+LABEL org.opencontainers.image.title="helena-gpu-runtime" \
+      org.opencontainers.image.description="Helena Framework renderer, six-replica ink screening and physical-gate runtime" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      campaignx.parent.ink="${INK_IMAGE}" \
+      campaignx.vc3d.source.commit="${VILLA_COMMIT}" \
+      campaignx.vc3d.source.tree="${VILLA_TREE}"
+
+COPY --from=ink_runtime /opt/conda /opt/conda
+COPY --from=bundle /out /opt/campaignx/vc3d
+# Repo-root relative: the context is the repository now, because the bundle
+# stage needs the MCP source. It used to be containers/images/.
+COPY containers/images/requirements.surface-qc.txt /opt/campaignx/requirements.surface-qc.txt
+
+ENV PATH=/opt/conda/bin:${PATH} \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=surface-qc \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    CAMPAIGN_X_MODELS=/models \
+    VC3D_RUNTIME_ROOT=/opt/campaignx/vc3d \
+    VC3D_GROW_BINARY=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+    VC_MCP_SERVER_BINARY=/opt/campaignx/vc3d/bin/vc_mcp_server \
+    VC3D_RENDER_BINARY=/opt/campaignx/vc3d/bin/vc_render_tifxyz \
+    VC_MCP_GROW_EXECUTABLE=/opt/campaignx/vc3d/bin/vc_grow_seg_from_seed \
+    SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    PATH=/opt/campaignx/vc3d/bin:/opt/conda/bin:${PATH}
+
+# A minimal base has no trust store, and VC3D reads public HTTPS Zarr sources
+# directly: without one, a missing bundle surfaces as the misleading runtime
+# error `HTTP 0 fetching .zattrs`. Pinned, because an unpinned apt layer makes
+# two builds of one commit produce different images.
+ARG CA_CERTIFICATES_VERSION
+RUN test -n "${CA_CERTIFICATES_VERSION}" || { \
+      echo "CA_CERTIFICATES_VERSION build-arg is required; an unpinned apt layer is not reproducible" >&2; \
+      exit 2; \
+    } \
+ && apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates="${CA_CERTIFICATES_VERSION}" \
+ && update-ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# What the bundle says it needs, on top of what this image installs anyway. The
+# packaged MCP is two .py files with no dependency closure, and it declares its
+# own: today numpy, scipy and zarr, which requirements.surface-qc.txt happens to
+# cover -- happens to, which is not a contract. A dependency added to the MCP
+# would otherwise be installed nowhere and fail at the first seed search.
+RUN if [ -f /opt/campaignx/vc3d/PYTHON_REQUIREMENTS ]; then \
+      python -m pip install --no-cache-dir -r /opt/campaignx/vc3d/PYTHON_REQUIREMENTS; \
+    fi
+
+RUN python -m pip install --no-cache-dir -r /opt/campaignx/requirements.surface-qc.txt \
+ && python -c 'import boto3, numpy, PIL, psycopg, psycopg2, scipy, torch; assert torch.__version__.startswith("2.5.1")'
+
+# Every half, started rather than looked for. `test -x` cannot tell whether what
+# a launcher starts is there, and the MCP launcher is a shell shim over a Python
+# script whose dependencies the layer above installs.
+RUN set -eu; \
+    test -f "$SSL_CERT_FILE" || { echo "no trust store: VC3D will report HTTP 0 on every public Zarr" >&2; exit 3; }; \
+    have="$(ldd --version | head -1 | awk '{print $NF}')"; \
+    need=2.38; \
+    [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" = "$need" ] || { \
+      echo "this base has glibc $have and the compiled tools need $need." >&2; \
+      echo "A bundle carries its own library closure and deliberately not glibc," >&2; \
+      echo "so the tools would fail on the first job with" >&2; \
+      echo "  version \`GLIBC_2.38' not found" >&2; \
+      echo "Use a base at least as new as the one villa compiles on." >&2; \
+      exit 3; }; \
+    "$VC3D_GROW_BINARY" --help >/dev/null; \
+    "$VC3D_RENDER_BINARY" --help >/dev/null; \
+    "$VC_MCP_SERVER_BINARY" --help >/dev/null; \
+    python -c "import sys; sys.path.insert(0, '/opt/campaignx/vc3d/libexec/mcp'); import seed_candidates, server"; \
+    echo "the tools and the ink stack both start"
+
+WORKDIR /workspace/campaign-x
+CMD ["sh"]

@@ -17,7 +17,7 @@
     "preprocess_precision_rationale": [
       "the same checkpoint and the same physical resampling as @1.0.0",
       "@1.0.0 rounds to uint8 in interpolate_depth and again in resize_stack, so the 1.18x upscale from 9.362 um toward 7.91 um is forced back onto 256 levels twice",
-      "the model input is float32: infer_map applies clamp(0,200)/255, so no uint8 stage is required anywhere in the chain",
+      "the model input is float32: infer_map applies clamp(0,200)/200, so no uint8 stage is required anywhere in the chain. The divisor is the clip value itself, not 255: upstream's contract is clip(0, CFG.max_clip_value) followed by A.ToFloat(max_value=CFG.max_clip_value). This said /255 until an external audit read it against the runner; dividing by 255 compresses the input to 78.4% of the contrast range the model was trained on, and a reimplementation built from this profile would have inherited that",
       "@1.1.0 keeps interpolate_depth and resize_stack in float32 and quantizes zero times",
       "numerically different output; @1.0.0 stays frozen and reproducible and remains the routed lane until a control compares the two"
     ]

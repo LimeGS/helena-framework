@@ -120,3 +120,36 @@ def test_a_short_token_is_refused_at_startup(tmp_path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_readiness_is_answered_only_with_the_token(endpoint):
+    """The worker's entrypoint waits for this before it claims any task, and it
+    used to wait for `something accepts a connection on this port`. The
+    container runs with the host's network, so any process on the machine
+    satisfied that -- and the worker then sent seed requests to whatever it
+    was. Unauthenticated, this route would prove the same nothing: a squatter
+    can return 200."""
+    import urllib.error
+    import urllib.request
+
+    def ask(token):
+        request = urllib.request.Request(
+            f"{endpoint.removesuffix('/mcp')}/healthz",
+            headers={"Authorization": f"Bearer {token}"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.status, json.loads(response.read())
+
+    assert ask(TOKEN) == (200, {"service": "helena-seed-mcp", "ready": True})
+    with pytest.raises(urllib.error.HTTPError) as refused:
+        ask("not-the-token")
+    assert refused.value.code == 401
+
+
+def test_a_local_prediction_outside_the_volume_root_is_refused(tmp_path):
+    """`volume_root` was a preference: use the mirror if it is there, otherwise
+    open whatever the request named. `prediction_uri` comes from the request,
+    so a plain path opened any file the worker could read."""
+    root = tmp_path / "volumes"
+    root.mkdir()
+    with pytest.raises(mcp_server.SeedSearchError, match="volume root"):
+        mcp_server.open_prediction_with_read_set("/etc/passwd", root)

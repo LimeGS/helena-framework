@@ -50,7 +50,7 @@ def test_the_script_is_valid_shell():
 
 @pytest.mark.parametrize("needle, why", [
     ("command -v docker", "must install Docker only when it is missing"),
-    ("helena-worker", "must install the worker unit"),
+    ("helena-worker-cpp", "must install the worker unit"),
     ("helena-control-tunnel", "must install the tunnel the worker reaches the "
                                  "control plane through"),
     ("is-active", "must report what the units ended up doing rather than assume it"),

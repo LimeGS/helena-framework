@@ -9,6 +9,10 @@
 #   4. model_compile defaults False (torch.compile warmup wastes minutes on a
 #      3-core host; no throughput win for this workload)
 #   5. --reverse actually applied (original parsed the flag but never used it)
+#   6. the saved map is no longer divided by its own maximum. Upstream pinned
+#      every map's peak to exactly 1.0, which destroys comparability between
+#      runs and empties any absolute threshold read off the result. Display
+#      scaling moved into the PNG, where it cannot be mistaken for the number.
 import os
 import subprocess
 from tap import Tap
@@ -278,10 +282,26 @@ if __name__ == "__main__":
                         test_loader,test_xyxz,test_shape,fragment_mask = img_split
                         mask_pred = predict_fn(test_loader, model, device, test_xyxz,test_shape)
                         mask_pred = np.clip(np.nan_to_num(mask_pred),a_min=0,a_max=1)
-                        mask_pred /= mask_pred.max()
+                        # PATCH 6: upstream had `mask_pred /= mask_pred.max()`
+                        # here, which is not a harmless rescale. It makes the maximum
+                        # of *anything* -- noise, a crack, the edge of a mask -- equal
+                        # exactly 1.0, so two runs stop being comparable to each other
+                        # and a map with no ink shares its ceiling with one carrying
+                        # text. Any absolute threshold read off the result is then
+                        # measuring the brightest artefact rather than ink.
+                        #
+                        # It also empties the screening statistics: with the max
+                        # pinned to 1.0 by construction, p99 is ~1.0 for every map and
+                        # a spread of p99 over p50 measures only p50.
+                        #
+                        # The saved array is what gets measured, so it is left alone.
+                        # The display scaling that made the PNG readable stays, in the
+                        # PNG, where nobody will later mistake it for a measurement.
                         preds.append(mask_pred)
                         if len(args.out_path) > 0:
-                            image_cv = (mask_pred * 255).astype(np.uint8)
+                            peak = float(mask_pred.max())
+                            display = mask_pred / peak if peak > 0 else mask_pred
+                            image_cv = (display * 255).astype(np.uint8)
                             os.makedirs(args.out_path,exist_ok=True)
                             cv2.imwrite(os.path.join(args.out_path, f"{fragment_id}_prediction_rotated_{r}_layer_{i}.png"), image_cv)
                         del mask_pred

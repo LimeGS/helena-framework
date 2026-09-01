@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -143,11 +144,30 @@ def test_any_other_non_zero_exit_stays_an_ordinary_failure(tmp_path):
 # --------------------------------------------------------------------------
 
 class Recording:
-    """A store that records which finishing move the worker chose."""
+    """A store that records which finishing move the worker chose.
+
+    It answers the routing and lineage questions because a control plane does.
+    A double that stays silent about them would make this file green while the
+    worker refused every real claim, which is the opposite of what it checks.
+    """
+
+    def routing_receipt(self, surface_id):
+        from fleet import surface_routing
+
+        return surface_routing.build_receipt(
+            surface_id=surface_id, area_cm2=0.5,
+            policy=surface_routing.load_policy(),
+            measurement={}, read_set={},
+        )
+
+    def surface_artifact(self, surface_id, *, boundary):
+        return {"surface_id": surface_id, "payload": {}}
 
     def __init__(self, claim):
         self._claim = claim
         self.calls: list[str] = []
+        self.requeued_receipt: dict | None = None
+        self.blocked_receipt: dict | None = None
 
     def claim_qc(self, *a, **k):
         return self._claim
@@ -161,10 +181,12 @@ class Recording:
 
     def requeue_qc_unavailable(self, *a, **k):
         self.calls.append("requeue")
+        self.requeued_receipt = a[2]
         return {"status": "RETRYABLE_QC_UNAVAILABLE"}
 
     def block_qc_configuration(self, qc_job_id, lease_token, receipt):
         self.calls.append("block")
+        self.blocked_receipt = receipt
         return {"status": "BLOCKED_CONFIGURATION", "qc_job_id": qc_job_id,
                 "surface_id": receipt["surface_id"], "error": receipt["error"]}
 
@@ -215,6 +237,111 @@ def test_a_configuration_error_is_not_a_scientific_verdict(tmp_path):
     assert "outcome" not in receipt
 
 
+def test_exit_78_sanitizes_adapter_detail_before_blocked_receipt_and_store(tmp_path):
+    """A blocked adapter report must never serialize raw operational secrets.
+
+    Removing the persistence-boundary sanitizer makes this test retain the
+    adapter's Token credential, Cookie assignment, DSNs, artifact URI, Windows
+    path, worker identity, and generic URI in the durable receipt.
+    """
+    from fleet.qc_worker import SubprocessQcExecutor
+
+    raw = (
+        "profile hash differs Authorization: Token config-token "
+        "Authorization Token delimiter-free-token "
+        "Cookie=session-cookie redis://alice:redis-secret@private-redis:6379/0 "
+        "mysql://bob:mysql-secret@private-mysql/qc "
+        "gs://private-bucket/checkpoint.bin C:\\private\\checkpoint.bin "
+        "worker_id=blocked-underscore-worker worker-id=blocked-hyphen-worker "
+        "worker identity=blocked-space-worker api_key=adapter-api-key "
+        "client_secret=adapter-client-secret "
+        "custom+artifact://private-authority/item"
+    )
+    stub = tmp_path / "adapter.py"
+    stub.write_text(
+        "import json, sys\n"
+        f"print(json.dumps({{'status': 'BLOCKED_CONFIGURATION', 'error': {raw!r}}}))\n"
+        "sys.exit(78)\n"
+    )
+    store = Recording(_claim())
+    worker = SurfaceQcWorker(
+        store, "worker-1", SubprocessQcExecutor(stub), tmp_path / "runs")
+
+    result = worker.run_one()
+
+    assert result["status"] == "BLOCKED_CONFIGURATION"
+    assert store.calls[-1] == "block"
+    assert "requeue" not in store.calls
+    assert store.blocked_receipt is not None
+    disk_receipt = json.loads(
+        next(tmp_path.rglob("BLOCKED_CONFIGURATION_RECEIPT.json")).read_text())
+    for receipt in (store.blocked_receipt, disk_receipt):
+        assert receipt["status"] == "BLOCKED_CONFIGURATION"
+        assert receipt["no_scientific_conclusion"] is True
+        assert len(receipt["error"]) <= 500
+        for forbidden in (
+            "config-token", "session-cookie", "redis-secret", "private-redis",
+            "mysql-secret", "private-mysql", "private-bucket", "C:\\private",
+            "blocked-underscore-worker", "blocked-hyphen-worker",
+            "blocked-space-worker", "adapter-api-key", "adapter-client-secret",
+            "private-authority", "delimiter-free-token",
+        ):
+            assert forbidden not in json.dumps(receipt, sort_keys=True)
+
+
+def test_exit_78_sanitizes_nonstring_configuration_mapping(tmp_path):
+    """JSON error objects cross `_adapter_complaint` through their string form."""
+    from fleet.qc_worker import SubprocessQcExecutor
+
+    raw_error = {
+        "Authorization": "Digest username=alice, realm=private-realm, response=digest-secret",
+        "Cookie": "a=first-cookie, b=second-cookie",
+    }
+    stub = tmp_path / "adapter.py"
+    stub.write_text(
+        "import json, sys\n"
+        f"print(json.dumps({{'status': 'BLOCKED_CONFIGURATION', "
+        f"'error': {raw_error!r}}}))\n"
+        "sys.exit(78)\n"
+    )
+    store = Recording(_claim())
+
+    SurfaceQcWorker(
+        store, "worker-1", SubprocessQcExecutor(stub), tmp_path / "runs"
+    ).run_one()
+
+    assert store.blocked_receipt is not None
+    disk_receipt = json.loads(
+        next(tmp_path.rglob("BLOCKED_CONFIGURATION_RECEIPT.json")).read_text()
+    )
+    for receipt in (store.blocked_receipt, disk_receipt):
+        encoded = json.dumps(receipt, sort_keys=True)
+        assert "<redacted>" in encoded
+        for forbidden in (
+            "alice", "private-realm", "digest-secret", "first-cookie",
+            "second-cookie",
+        ):
+            assert forbidden not in encoded
+
+
+def test_manually_raised_configuration_error_is_sanitized_at_persistence_boundary(
+        tmp_path):
+    """Direct callers cannot bypass the blocked-receipt redaction boundary."""
+    raw = (
+        "configuration worker_id=manual-worker Cookie=manual-cookie "
+        + "x " * 600
+    )
+    store = Recording(_claim())
+
+    _worker(store, QcConfigurationError(raw), tmp_path).run_one()
+
+    assert store.blocked_receipt is not None
+    error = store.blocked_receipt["error"]
+    assert "manual-worker" not in error
+    assert "manual-cookie" not in error
+    assert len(error) <= 500
+
+
 def test_a_genuine_outage_still_requeues(tmp_path):
     """The other half. S3 being down for a minute is exactly what retry is for,
     and narrowing that would trade one failure mode for its opposite."""
@@ -225,6 +352,220 @@ def test_a_genuine_outage_still_requeues(tmp_path):
     assert "block" not in store.calls
     assert result["status"] == "RETRYABLE_QC_UNAVAILABLE"
     assert next(tmp_path.rglob("RETRYABLE_QC_RECEIPT.json")).is_file()
+
+
+def test_python_adapter_failure_persists_only_safe_exception_detail(tmp_path):
+    """An adapter traceback is useful only after its sensitive detail is removed.
+
+    Replacing this with the generic RuntimeError loses the actionable exception
+    type; persisting the complete traceback leaks an internal path and token.
+    """
+    from fleet.qc_worker import SubprocessQcExecutor
+
+    stub = tmp_path / "adapter.py"
+    stub.write_text(
+        "raise FileNotFoundError("
+        "'/srv/private/checkpoint.bin token=do-not-persist')\n"
+    )
+    store = Recording(_claim())
+    worker = SurfaceQcWorker(
+        store,
+        "worker-1",
+        SubprocessQcExecutor(stub),
+        tmp_path / "runs",
+    )
+
+    result = worker.run_one()
+
+    assert result["status"] == "RETRYABLE_QC_UNAVAILABLE"
+    assert store.calls[-1] == "requeue"
+    assert store.requeued_receipt is not None
+    error = store.requeued_receipt["error"]
+    assert error.startswith("FileNotFoundError: ")
+    assert "<path>" in error
+    assert "<redacted>" in error
+    assert "/srv/private" not in error
+    assert "do-not-persist" not in error
+    assert len(error) <= 500
+    assert store.requeued_receipt["no_scientific_conclusion"] is True
+
+
+def test_native_adapter_failure_persists_only_generic_exit_wrapper(tmp_path):
+    """Native adapter output is never safe to extract or persist verbatim.
+
+    Changing the generic wrapper to output-derived text would expose credentials
+    and paths; the worker must retain only its fixed safe failure description.
+    """
+    from fleet.qc_worker import SubprocessQcExecutor
+
+    stub = tmp_path / "adapter.sh"
+    stub.write_text(
+        "#!/bin/sh\n"
+        "echo 'FatalError: node-worker-77 opaque-value' >&2\n"
+        "exit 1\n"
+    )
+    stub.chmod(0o700)
+    store = Recording(_claim())
+    worker = SurfaceQcWorker(
+        store,
+        "worker-1",
+        SubprocessQcExecutor(stub),
+        tmp_path / "runs",
+    )
+
+    result = worker.run_one()
+
+    assert result["status"] == "RETRYABLE_QC_UNAVAILABLE"
+    assert store.requeued_receipt is not None
+    disk_receipt = json.loads(
+        next(tmp_path.rglob("RETRYABLE_QC_RECEIPT.json")).read_text()
+    )
+    for receipt in (store.requeued_receipt, disk_receipt):
+        error = receipt["error"]
+        assert error == (
+            "QcAdapterExecutionError: scientific QC adapter failed with exit code 1"
+        )
+        assert len(error) <= 500
+        encoded = json.dumps(receipt, sort_keys=True)
+        for forbidden in ("FatalError", "node-worker-77", "opaque-value"):
+            assert forbidden not in encoded
+    attempt_log = next(tmp_path.rglob("scientific-executor.log")).read_text()
+    assert attempt_log == "FatalError: node-worker-77 opaque-value\n"
+
+
+def test_non_adapter_retry_error_is_sanitized_and_bounded_before_persistence(
+        tmp_path):
+    """The ordinary retry path must enforce the same safe error boundary.
+
+    Bypassing redaction or length bounding here lets worker-local failures leak
+    credentials and oversized messages into the durable retry receipt.
+    """
+    raw = (
+        "outage /srv/private/model.bin "
+        "postgresql://alice:hunter2@private-db/campaignx "
+        "Authorization: Token retry-token Cookie=retry-cookie "
+        "gs://private-bucket/checkpoint.bin C:\\private\\checkpoint.bin "
+        "worker_id=retry-underscore-worker worker-id=retry-hyphen-worker "
+        "worker id=retry-space-worker token=raw-token "
+        "AWS_SECRET_ACCESS_KEY=raw-aws-secret "
+        + "x" * 700
+    )
+    store = Recording(_claim())
+
+    _worker(store, RuntimeError(raw), tmp_path).run_one()
+
+    assert store.requeued_receipt is not None
+    error = store.requeued_receipt["error"]
+    assert len(error) <= 500
+    assert "<path>" in error
+    assert "<dsn>" in error
+    assert "<artifact-uri>" in error
+    assert "<redacted>" in error
+    for forbidden in (
+        "/srv/private", "hunter2", "private-db", "raw-token",
+        "raw-aws-secret", "retry-token", "retry-cookie", "private-bucket",
+        "C:\\private", "retry-underscore-worker", "retry-hyphen-worker",
+        "retry-space-worker",
+    ):
+        assert forbidden not in error
+
+
+@pytest.mark.parametrize(
+    ("raw", "forbidden", "replacement"),
+    [
+        (
+            "Authorization: Digest username=alice, realm=private-realm, "
+            "response=digest-secret",
+            ("alice", "private-realm", "digest-secret"),
+            "<redacted>",
+        ),
+        (
+            "Proxy-Authorization: Digest username=bob, realm=proxy-realm, "
+            "response=proxy-secret",
+            ("bob", "proxy-realm", "proxy-secret"),
+            "<redacted>",
+        ),
+        (
+            "Cookie: a=first-cookie, b=second-cookie",
+            ("first-cookie", "second-cookie"),
+            "<redacted>",
+        ),
+        (
+            "Set-Cookie: a=first-set-cookie, b=second-set-cookie",
+            ("first-set-cookie", "second-set-cookie"),
+            "<redacted>",
+        ),
+        (
+            "Authorization: Custom raw auth secret",
+            ("Custom", "raw auth secret"),
+            "<redacted>",
+        ),
+        (
+            "Cookie: raw cookie secret",
+            ("raw cookie secret",),
+            "<redacted>",
+        ),
+        (
+            str({"token": "raw-secret", "worker_id": "node-17"}),
+            ("raw-secret", "node-17"),
+            "<redacted>",
+        ),
+        (
+            "'password': 'two word secret', "
+            '"worker_id": "private worker 17"',
+            ("two word secret", "private worker 17"),
+            "<redacted>",
+        ),
+        (
+            "token=raw unquoted secret phrase",
+            ("unquoted secret phrase",),
+            "<redacted>",
+        ),
+        (
+            r"C:\Users\Alice Smith\secret model.bin",
+            ("Alice Smith", "secret model.bin"),
+            "<path>",
+        ),
+        (
+            r'"C:\Users\Alice Smith\secret model.bin"',
+            ("Alice Smith", "secret model.bin"),
+            "<path>",
+        ),
+        (
+            r"\\private-server\secret share\hidden model.bin",
+            ("private-server", "secret share", "hidden model.bin"),
+            "<path>",
+        ),
+        (
+            '"/srv/private/Alice Smith/secret model.bin"',
+            ("/srv/private", "Alice Smith", "secret model.bin"),
+            "<path>",
+        ),
+        (
+            "/srv/private/Alice Smith/secret model.bin",
+            ("/srv/private", "Alice Smith", "secret model.bin"),
+            "<path>",
+        ),
+    ],
+)
+def test_worker_retry_boundary_fully_redacts_sensitive_multitoken_forms(
+    raw, forbidden, replacement, tmp_path,
+):
+    """Every worker fallback is safe before its receipt reaches any store."""
+    store = Recording(_claim())
+
+    _worker(store, RuntimeError(raw), tmp_path).run_one()
+
+    assert store.requeued_receipt is not None
+    disk_receipt = json.loads(
+        next(tmp_path.rglob("RETRYABLE_QC_RECEIPT.json")).read_text()
+    )
+    for receipt in (store.requeued_receipt, disk_receipt):
+        error = receipt["error"]
+        assert replacement in error
+        assert len(error) <= 500
+        for value in forbidden:
+            assert value not in error
 
 
 @pytest.mark.parametrize("error", [
@@ -278,6 +619,277 @@ def test_both_stores_offer_it():
 
     for store in (PostgresFleetStore, FleetStore):
         assert callable(getattr(store, "block_qc_configuration", None)), store.__name__
+
+
+_RAW_STORE_ERROR = (
+    "RuntimeError: Authorization: Digest username=store-user, "
+    "realm=store-realm, response=store-digest Cookie: a=store-cookie-one, "
+    "b=store-cookie-two 'token': 'store secret phrase', "
+    r"'worker_id': 'store worker 17' C:\Users\Store User\secret model.bin "
+    r"\\store-server\private share\hidden model.bin "
+    "/srv/private/Store User/secret model.bin "
+    + "x" * 700
+)
+_QUOTED_HEADER_STORE_ERRORS = (
+    "RuntimeError: {'Authorization': 'Digest username=alice, realm=private-realm, response=digest-secret'}",
+    "RuntimeError: {'Cookie': 'a=first-cookie, b=second-cookie'}",
+)
+_STORE_FORBIDDEN = (
+    "store-user",
+    "store-realm",
+    "store-digest",
+    "store-cookie-one",
+    "store-cookie-two",
+    "store secret phrase",
+    "store worker 17",
+    "Store User",
+    "secret model.bin",
+    "store-server",
+    "private share",
+    "/srv/private",
+    "alice",
+    "private-realm",
+    "digest-secret",
+    "first-cookie",
+    "second-cookie",
+)
+
+
+def _qc_receipt(claim, status, error):
+    return {
+        "schema": "campaignx.test.raw_qc_receipt.v1",
+        "status": status,
+        "qc_job_id": claim["qc_job_id"],
+        "surface_id": claim["surface_id"],
+        "error": error,
+        "no_scientific_conclusion": True,
+    }
+
+
+def _assert_store_error_is_safe(error):
+    assert isinstance(error, str)
+    assert len(error) <= 500
+    for forbidden in _STORE_FORBIDDEN + ("mapping-secret", "mapping-worker"):
+        assert forbidden not in error
+
+
+def _claimed_sqlite_qc(tmp_path, suffix):
+    from fleet.store import FleetStore
+
+    store = FleetStore(tmp_path / f"fleet-{suffix}.sqlite")
+    store.initialize()
+    source_id = store.register_snapshot({
+        "sample_id": "PHercSTORE",
+        "ct_uri": "fixture://ct",
+        "ct_sha256": "0" * 64,
+        "m7_uri": "fixture://m7",
+        "m7_sha256": "1" * 64,
+        "shape_xyz": [32, 32, 32],
+        "voxel_size_um": 1.0,
+        "coordinate_frame": "ct_l0_xyz",
+    })
+    enqueued = store.enqueue_imported_surface_qc(
+        {
+            "surface_id": f"surface-{suffix}",
+            "source_snapshot_id": source_id,
+            "sample_id": "PHercSTORE",
+            "artifact_sha256": "2" * 64,
+            "artifact_uri": f"fixture://surface-{suffix}",
+            "bbox_xyz": [[0, 0, 0], [1, 1, 1]],
+            # A measured area above the effort floor, because a QC enqueue now
+            # requires a routing decision and an unmeasured surface has none.
+            # The subject here is what a store error may say, not what a surface
+            # may be, so the fixture supplies the measurement the boundary asks
+            # for rather than the boundary being relaxed for the fixture.
+            "area_cm2": 0.5,
+            "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        },
+        profile_id="store-boundary-test@1.0.0",
+    )
+    claim = store.claim_qc("store-worker", 60)
+    assert claim is not None
+    assert claim["qc_job_id"] == enqueued["qc_job_id"]
+    return store, claim
+
+
+@pytest.mark.parametrize("finish", ["block", "retry"])
+@pytest.mark.parametrize(
+    "raw_error",
+    [
+        _RAW_STORE_ERROR,
+        *_QUOTED_HEADER_STORE_ERRORS,
+        {"token": "mapping-secret", "worker_id": "mapping-worker"},
+    ],
+    ids=[
+        "serialized-sensitive-forms",
+        "quoted-authorization-mapping",
+        "quoted-cookie-mapping",
+        "nonstring-mapping",
+    ],
+)
+def test_sqlite_qc_store_sanitizes_caller_receipt_at_durable_boundary(
+    finish, raw_error, tmp_path,
+):
+    """SQLite persists a safe clone even when a future caller bypasses worker."""
+    store, claim = _claimed_sqlite_qc(
+        tmp_path, f"{finish}-{type(raw_error).__name__}"
+    )
+    status = (
+        "BLOCKED_CONFIGURATION"
+        if finish == "block"
+        else "RETRYABLE_QC_UNAVAILABLE"
+    )
+    receipt = _qc_receipt(claim, status, raw_error)
+    original = json.loads(json.dumps(receipt))
+
+    if finish == "block":
+        returned = store.block_qc_configuration(
+            claim["qc_job_id"], claim["lease_token"], receipt
+        )
+        event_type = "QC_BLOCKED_CONFIGURATION"
+    else:
+        returned = store.requeue_qc_unavailable(
+            claim["qc_job_id"],
+            claim["lease_token"],
+            receipt,
+            retry_delay_seconds=0,
+        )
+        event_type = "QC_REQUEUED_UNAVAILABLE"
+
+    assert receipt == original, "the store must sanitize a clone, not caller data"
+    assert returned["status"] == status
+    with store.connect() as connection:
+        persisted = json.loads(connection.execute(
+            "SELECT result_json FROM qc_jobs WHERE qc_job_id=?",
+            (claim["qc_job_id"],),
+        ).fetchone()["result_json"])
+        event = json.loads(connection.execute(
+            "SELECT payload_json FROM events WHERE event_type=? ORDER BY event_id DESC",
+            (event_type,),
+        ).fetchone()["payload_json"])
+    _assert_store_error_is_safe(persisted["error"])
+    _assert_store_error_is_safe(event["error"])
+    if isinstance(raw_error, str):
+        assert persisted["error"].startswith("RuntimeError: ")
+        assert event["error"].startswith("RuntimeError: ")
+    if raw_error in _QUOTED_HEADER_STORE_ERRORS:
+        assert persisted["error"] == "RuntimeError: <redacted>"
+        assert event["error"] == "RuntimeError: <redacted>"
+    if finish == "block":
+        _assert_store_error_is_safe(returned["error"])
+        if raw_error in _QUOTED_HEADER_STORE_ERRORS:
+            assert returned["error"] == "RuntimeError: <redacted>"
+
+
+class _PostgresQcCursor:
+    def __init__(self, job):
+        self.job = job
+        self.statements = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def execute(self, statement, parameters=()):
+        self.statements.append((" ".join(statement.split()), parameters))
+
+    def fetchone(self):
+        return self.job
+
+
+class _PostgresQcConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return False
+
+    def cursor(self):
+        return self._cursor
+
+
+@pytest.mark.parametrize("finish", ["block", "retry"])
+@pytest.mark.parametrize(
+    "raw_error",
+    [
+        _RAW_STORE_ERROR,
+        *_QUOTED_HEADER_STORE_ERRORS,
+        {"token": "mapping-secret", "worker_id": "mapping-worker"},
+    ],
+    ids=[
+        "serialized-sensitive-forms",
+        "quoted-authorization-mapping",
+        "quoted-cookie-mapping",
+        "nonstring-mapping",
+    ],
+)
+def test_postgres_qc_store_sanitizes_caller_receipt_at_durable_boundary(
+    finish, raw_error, monkeypatch,
+):
+    """PostgreSQL binds only safe receipt and event JSON at its SQL boundary."""
+    from fleet.postgres_store import PostgresFleetStore, _token_hash
+
+    lease_token = "lease-token"
+    claim = {"qc_job_id": "job-1", "surface_id": "surface-1"}
+    cursor = _PostgresQcCursor({
+        **claim,
+        "state": "CLAIMED",
+        "lease_token_hash": _token_hash(lease_token),
+        "lease_expires_at": datetime.now(timezone.utc) + timedelta(minutes=5),
+    })
+    store = PostgresFleetStore("postgresql://unused")
+    monkeypatch.setattr(
+        store, "connect", lambda: _PostgresQcConnection(cursor)
+    )
+    status = (
+        "BLOCKED_CONFIGURATION"
+        if finish == "block"
+        else "RETRYABLE_QC_UNAVAILABLE"
+    )
+    receipt = _qc_receipt(claim, status, raw_error)
+    original = json.loads(json.dumps(receipt))
+
+    if finish == "block":
+        returned = store.block_qc_configuration("job-1", lease_token, receipt)
+        event_type = "QC_BLOCKED_CONFIGURATION"
+    else:
+        returned = store.requeue_qc_unavailable(
+            "job-1", lease_token, receipt, retry_delay_seconds=0
+        )
+        event_type = "QC_REQUEUED_UNAVAILABLE"
+
+    assert receipt == original, "the store must sanitize a clone, not caller data"
+    assert returned["status"] == status
+    update = next(
+        parameters
+        for statement, parameters in cursor.statements
+        if statement.startswith("UPDATE segment_qc_jobs")
+    )
+    persisted = json.loads(update[0])
+    event_parameters = next(
+        parameters
+        for statement, parameters in cursor.statements
+        if statement.startswith("INSERT INTO segment_events")
+        and parameters[2] == event_type
+    )
+    event = json.loads(event_parameters[3])
+    _assert_store_error_is_safe(persisted["error"])
+    _assert_store_error_is_safe(event["error"])
+    if isinstance(raw_error, str):
+        assert persisted["error"].startswith("RuntimeError: ")
+        assert event["error"].startswith("RuntimeError: ")
+    if raw_error in _QUOTED_HEADER_STORE_ERRORS:
+        assert persisted["error"] == "RuntimeError: <redacted>"
+        assert event["error"] == "RuntimeError: <redacted>"
+    if finish == "block":
+        _assert_store_error_is_safe(returned["error"])
+        if raw_error in _QUOTED_HEADER_STORE_ERRORS:
+            assert returned["error"] == "RuntimeError: <redacted>"
 
 
 # --------------------------------------------------------------------------

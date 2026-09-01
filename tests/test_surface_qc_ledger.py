@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import sqlite3
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +102,13 @@ def test_next_step_reports_each_pipeline_boundary() -> None:
         stages=gated,
         geometry_qc_state=certified,
     ) == "NONE_AUTOMATED_SCREEN_COMPLETE"
+    assert module.next_required_step(
+        surface_present=True,
+        qc_state="COMPLETED",
+        outcome="INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY",
+        stages=inferred,
+        geometry_qc_state=certified,
+    ) == "SELECT_DIFFERENT_SURFACE_SCREEN_INSUFFICIENT"
 
 
 def test_next_step_puts_the_geometry_axis_before_the_ink_screen() -> None:
@@ -145,6 +155,151 @@ def test_next_step_puts_the_geometry_axis_before_the_ink_screen() -> None:
         stages=gated,
         geometry_qc_state="GEOMETRY_CERTIFIED",
     ) == "RESOLVE_FAILED_QC_JOB"
+
+
+def test_stage_evidence_parses_and_binds_the_screening_receipt(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    attempt = tmp_path / "attempt"
+    scientific = attempt / "scientific-output"
+    receipt = scientific / "robust" / "INK_SCREENING_RECEIPT.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(
+        json.dumps(
+            {
+                "liveness": {
+                    "verdict": "DEGENERATE",
+                    "reason": "std 0.0001 < 0.02",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (scientific / "EVIDENCE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "path": "robust/INK_SCREENING_RECEIPT.json",
+                        "size_bytes": receipt.stat().st_size,
+                        "sha256": hashlib.sha256(receipt.read_bytes()).hexdigest(),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    stages = module.stage_evidence(attempt)
+
+    assert stages["screening_liveness_verdict"] == "DEGENERATE"
+    assert stages["screening_liveness_reason"] == "std 0.0001 < 0.02"
+    assert stages["screening_receipt_manifest_bound"] is True
+
+
+@pytest.mark.parametrize("mismatch", ["omitted", "path", "size", "sha256"])
+def test_stage_evidence_rejects_an_unbound_screening_receipt(
+    tmp_path: Path,
+    mismatch: str,
+) -> None:
+    module = load_module()
+    attempt = tmp_path / "attempt"
+    scientific = attempt / "scientific-output"
+    receipt = scientific / "robust" / "INK_SCREENING_RECEIPT.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(
+        json.dumps(
+            {
+                "liveness": {
+                    "verdict": "EMPTY",
+                    "reason": "aggregate has no valid pixels",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    row = {
+        "path": "robust/INK_SCREENING_RECEIPT.json",
+        "size_bytes": receipt.stat().st_size,
+        "sha256": hashlib.sha256(receipt.read_bytes()).hexdigest(),
+    }
+    if mismatch == "path":
+        row["path"] = "other/INK_SCREENING_RECEIPT.json"
+    elif mismatch == "size":
+        row["size_bytes"] += 1
+    elif mismatch == "sha256":
+        row["sha256"] = "0" * 64
+    files = [] if mismatch == "omitted" else [row]
+    (scientific / "EVIDENCE_MANIFEST.json").write_text(
+        json.dumps({"files": files}),
+        encoding="utf-8",
+    )
+
+    stages = module.stage_evidence(attempt)
+
+    assert stages["screening_receipt_manifest_bound"] is False
+
+
+def test_stage_evidence_does_not_invent_liveness_for_a_malformed_receipt(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    attempt = tmp_path / "attempt"
+    scientific = attempt / "scientific-output"
+    receipt = scientific / "robust" / "INK_SCREENING_RECEIPT.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text("{malformed", encoding="utf-8")
+    (scientific / "EVIDENCE_MANIFEST.json").write_text(
+        json.dumps(
+            {
+                "files": [
+                    {
+                        "path": "robust/INK_SCREENING_RECEIPT.json",
+                        "size_bytes": receipt.stat().st_size,
+                        "sha256": hashlib.sha256(receipt.read_bytes()).hexdigest(),
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    stages = module.stage_evidence(attempt)
+
+    assert stages["screening_liveness_verdict"] is None
+    assert stages["screening_liveness_reason"] is None
+
+
+def test_stage_evidence_marks_a_malformed_manifest_unbound(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    attempt = tmp_path / "attempt"
+    scientific = attempt / "scientific-output"
+    receipt = scientific / "robust" / "INK_SCREENING_RECEIPT.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(
+        json.dumps(
+            {
+                "liveness": {
+                    "verdict": "EMPTY",
+                    "reason": "aggregate has no valid pixels",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (scientific / "EVIDENCE_MANIFEST.json").write_text(
+        "{malformed",
+        encoding="utf-8",
+    )
+
+    stages = module.stage_evidence(attempt)
+
+    assert stages["screening_liveness_verdict"] == "EMPTY"
+    assert stages["screening_liveness_reason"] == "aggregate has no valid pixels"
+    assert stages["screening_receipt_manifest_bound"] is False
 
 
 def test_build_reports_backfill_completion_and_evidence_integrity(tmp_path: Path) -> None:
@@ -301,6 +456,9 @@ def test_build_reports_backfill_completion_and_evidence_integrity(tmp_path: Path
         "evidence_manifest_complete": True,
         "evidence_manifest_sha256": evidence_sha256,
         "evidence_manifest_matches_database": True,
+        "screening_liveness_verdict": None,
+        "screening_liveness_reason": None,
+        "screening_receipt_manifest_bound": False,
     }
     assert ledger["surfaces"][0]["next_required_step"] == (
         "NONE_AUTOMATED_SCREEN_COMPLETE"

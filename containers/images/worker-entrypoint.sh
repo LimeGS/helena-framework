@@ -71,7 +71,38 @@ MCP_DIR=/workspace/campaign-x/framework/stages/01-segmentation/mcp
 TOKEN_FILE=$(mktemp)
 head -c 48 /dev/urandom | base64 | tr -d '=+/' > "$TOKEN_FILE"
 
-mkdir -p "$RUN_ROOT" "$ARTIFACT_ROOT"
+# Only the ones that are directories. ARTIFACT_ROOT is an s3:// URL on this
+# fleet, and `mkdir -p s3://bucket/surfaces` asks for a directory called `s3:`
+# at the container root -- which root created, silently and pointlessly, on
+# every start. As a non-root user it fails instead, and the worker never got
+# past this line.
+for root in "$RUN_ROOT" "$ARTIFACT_ROOT"; do
+  case "$root" in
+    /*) mkdir -p "$root" || { echo "cannot create $root" >&2; exit 3; } ;;
+    "") ;;
+    *) : ;;   # a URL: whatever it names, it is not this filesystem's to create
+  esac
+done
+
+# Nobody may already be there. This container runs with the host's network, so
+# `something accepts a connection on $MCP_PORT` was satisfied by any process on
+# the machine -- and the readiness loop below then declared the seed service up
+# and sent it every seed request the worker made. A port that is occupied
+# before the service starts is a host problem, and it is one to say out loud
+# rather than to route seed traffic into.
+if /opt/venv/bin/python -c "
+import socket,sys
+try:
+    socket.create_connection(('127.0.0.1', $MCP_PORT), timeout=1).close()
+except OSError:
+    sys.exit(1)
+" 2>/dev/null; then
+  echo "something is already listening on 127.0.0.1:$MCP_PORT." >&2
+  echo "This worker shares the host's network, so that is not necessarily" >&2
+  echo "another Helena worker. Refusing rather than sending seed requests to" >&2
+  echo "whatever it is. Free the port, or set MCP_PORT." >&2
+  exit 3
+fi
 
 PYTHONPATH="$MCP_DIR" /opt/venv/bin/python "$MCP_DIR/server.py" \
   --token-file "$TOKEN_FILE" \
@@ -86,11 +117,20 @@ for _ in $(seq 1 20); do
     echo "the seed service exited before it was ready" >&2
     exit 3
   fi
+  # Answering with our token, not merely accepting a connection. The service
+  # already authenticates every request, so asking it something is the cheapest
+  # available proof that the thing on the port is the child we started and not
+  # a stranger that took it in the second between the check above and now.
   if /opt/venv/bin/python -c "
-import socket,sys
+import json,sys,urllib.request
+token = open('$TOKEN_FILE').read().strip()
+request = urllib.request.Request(
+    'http://127.0.0.1:$MCP_PORT/healthz',
+    headers={'Authorization': 'Bearer ' + token})
 try:
-    socket.create_connection(('127.0.0.1', $MCP_PORT), timeout=1).close()
-except OSError:
+    with urllib.request.urlopen(request, timeout=1) as response:
+        sys.exit(0 if response.status == 200 else 1)
+except Exception:
     sys.exit(1)
 " 2>/dev/null; then
     break
@@ -119,10 +159,31 @@ export VC_MCP_AUTH_TOKEN="$(cat "$TOKEN_FILE")"
 rm -f "$TOKEN_FILE"
 trap 'kill "$MCP_PID" "$REPORT_PID" 2>/dev/null || true' EXIT INT TERM
 
+# Which worker this container is. One image and one entrypoint, because every
+# kind that talks to M7 needs what the lines above did: a seed service of its
+# own, a token minted for it and kept out of the filesystem, and the refusal to
+# claim anything when the service did not start. A second kind that overrode the
+# entrypoint to get its own command would skip all of it.
+: "${HELENA_WORKER_KIND:=segment}"
+
 # Through the stage's own entry point, not cli.py directly: the CLI uses
 # relative imports and only works as part of its package, which this resolves.
+FLEET_ENTRY=/workspace/campaign-x/framework/stages/01-segmentation/scripts/helena_segment_search_fleet.py
+
+if [ "$HELENA_WORKER_KIND" = "preflight" ]; then
+  # Candidate preflights: read-only, ink-blind, and the reason this dispatch
+  # exists. It measures through the same seed service the segmentation worker
+  # uses, which is why it belongs behind this entrypoint rather than in the
+  # panel, where the measurement had neither service nor token.
+  exec /opt/venv/bin/python "$FLEET_ENTRY" \
+    preflight-worker run \
+    --db "$FLEET_DB" \
+    --worker-id "$WORKER_ID" \
+    "$@"
+fi
+
 exec /opt/venv/bin/python \
-  /workspace/campaign-x/framework/stages/01-segmentation/scripts/helena_segment_search_fleet.py \
+  "$FLEET_ENTRY" \
   worker run \
   --db "$FLEET_DB" \
   --worker-id "$WORKER_ID" \

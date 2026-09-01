@@ -28,7 +28,40 @@ def _probe_component(value: str, label: str) -> str:
     return component
 
 
-def _verify_local(directory: Path, manifest: dict[str, Any]) -> None:
+def _contained(root: Path, *parts: str) -> Path:
+    """Join caller-supplied parts under `root`, or refuse.
+
+    `_probe_component` above is the stricter rule and the right one for a probe
+    path, where every part is one name. It is the wrong rule here: P4 publishes
+    a layer stack as `layers/<id>`, deliberately, so a slash is legitimate and
+    the property that actually matters is that the result stays under the root.
+
+    Checked by resolving, because the reason to have this at all is `..` and a
+    symlink, and neither is visible in the unresolved string.
+    """
+    for part in parts:
+        if not part or part.startswith("/") or ".." in Path(part).parts:
+            raise ValueError(f"unsafe artifact path component: {part!r}")
+    destination = root.joinpath(*parts)
+    if not destination.resolve().is_relative_to(root.resolve()):
+        raise ValueError(
+            f"artifact path escapes its store: {destination} is not under {root}")
+    return destination
+
+
+MANIFEST_NAME = "ARTIFACT_SET.json"
+
+
+def _verify_local(directory: Path, manifest: dict[str, Any],
+                  *, exactly: bool = False) -> None:
+    """Every file the manifest names, present and byte-for-byte.
+
+    `exactly` also refuses files it does not name. Publishing has checked that
+    for a while; materialising did not, so an archive could carry anything
+    extra and still verify -- every named file was correct, and the answer to
+    "is this what the manifest describes" was yes about a directory holding
+    more than the manifest describes.
+    """
     for name, expected in manifest["files"].items():
         path = directory / name
         if not path.is_file():
@@ -37,6 +70,20 @@ def _verify_local(directory: Path, manifest: dict[str, Any]) -> None:
             raise RuntimeError(f"published artifact size mismatch: {path}")
         if file_sha256(path) != expected["sha256"]:
             raise RuntimeError(f"published artifact hash mismatch: {path}")
+    if exactly:
+        # The manifest itself travels beside the files it describes and cannot
+        # describe itself, so it is the one name that is expected and unnamed.
+        named = set(manifest["files"]) | {MANIFEST_NAME}
+        found = {
+            str(path.relative_to(directory))
+            for path in Path(directory).rglob("*") if path.is_file()
+        }
+        extra = sorted(found - named)
+        if extra:
+            raise RuntimeError(
+                f"the archive carries {len(extra)} file(s) the manifest does "
+                f"not name: {extra[:5]}. What was verified would have been "
+                "every named file, beside anything else that arrived.")
 
 
 class LocalArtifactStore:
@@ -55,7 +102,11 @@ class LocalArtifactStore:
     def stage(
         self, source: Path, attempt_id: str, manifest: dict[str, Any]
     ) -> dict[str, Any]:
-        destination = self.root / "staging" / attempt_id
+        # The same check `publish_probe` has applied all along, three methods
+        # below. These two joined their identifiers into a path and did not:
+        # every caller happens to pass a derived id today, but "happens to" is
+        # what this check exists to stop depending on.
+        destination = _contained(self.root, "staging", attempt_id)
         self._publish_directory(source, destination, manifest)
         return {
             "schema": "campaignx.segment_artifact_stage.v1",
@@ -71,7 +122,11 @@ class LocalArtifactStore:
         manifest: dict[str, Any],
     ) -> dict[str, Any]:
         source = Path(staged["staging_uri"])
-        destination = self.root / "surfaces" / sample_id / surface_id
+        # `sample_id` is one name; `surface_id` may be `layers/<id>` because a
+        # layer stack is published through the same method.
+        destination = _contained(self.root, "surfaces",
+                                 _probe_component(sample_id, "sample_id"),
+                                 surface_id)
         self._publish_directory(source, destination, manifest)
         return {
             "schema": "campaignx.segment_artifact_promotion.v1",
@@ -190,7 +245,7 @@ class LocalArtifactStore:
             # publishing correctly to S3, whose backend always read the manifest.
             for name in manifest["files"]:
                 shutil.copy2(source / name, temporary / name)
-            write_json_atomic(temporary / "ARTIFACT_SET.json", manifest)
+            write_json_atomic(temporary / MANIFEST_NAME, manifest)
             _verify_local(temporary, manifest)
             try:
                 os.rename(temporary, destination)
@@ -261,7 +316,7 @@ class S3ArtifactStore:
         manifest_bytes = canonical_bytes(manifest)
         self.client.put_object(
             Bucket=self.bucket,
-            Key=f"{base}/ARTIFACT_SET.json",
+            Key=f"{base}/{MANIFEST_NAME}",
             Body=manifest_bytes,
             ContentType="application/json",
             Metadata={"sha256": manifest["artifact_sha256"]},
@@ -297,13 +352,13 @@ class S3ArtifactStore:
                 MetadataDirective="COPY",
             )
             self._verify_object(destination, expected)
-        manifest_key = f"{final_base}/ARTIFACT_SET.json"
+        manifest_key = f"{final_base}/{MANIFEST_NAME}"
         self.client.copy_object(
             Bucket=self.bucket,
             Key=manifest_key,
             CopySource={
                 "Bucket": self.bucket,
-                "Key": f"{source_base}/ARTIFACT_SET.json",
+                "Key": f"{source_base}/{MANIFEST_NAME}",
             },
             MetadataDirective="COPY",
         )
@@ -355,7 +410,7 @@ class S3ArtifactStore:
         manifest_bytes = canonical_bytes(manifest)
         self.client.put_object(
             Bucket=self.bucket,
-            Key=f"{base}/ARTIFACT_SET.json",
+            Key=f"{base}/{MANIFEST_NAME}",
             Body=manifest_bytes,
             ContentType="application/json",
             Metadata={"sha256": manifest["artifact_sha256"]},
@@ -421,7 +476,7 @@ class S3ArtifactStore:
                     raise RuntimeError(
                         f"downloaded probe hash mismatch: {artifact_uri}/{name}"
                     )
-            write_json_atomic(temporary / "ARTIFACT_SET.json", manifest)
+            write_json_atomic(temporary / MANIFEST_NAME, manifest)
             _verify_local(temporary, manifest)
             try:
                 os.rename(temporary, destination)
@@ -474,7 +529,6 @@ class S3ArtifactStore:
             "deleted": True,
             "object_count": len(keys),
         }
-        return destination
 
 
 class PanelArtifactStore:
@@ -643,8 +697,20 @@ class PanelArtifactStore:
             for member in archive.getmembers():
                 if member.name.startswith("/") or ".." in Path(member.name).parts:
                     raise ValueError(f"unsafe path in archive: {member.name}")
-            archive.extractall(destination)
-        _verify_local(destination, manifest)
+                # The panel's side of this has always checked the member type
+                # and this side never did: a name says nothing about a symlink
+                # pointing out of the directory, a hard link into it, or a
+                # device node. Probe evidence is files.
+                if not (member.isfile() or member.isdir()):
+                    raise ValueError(
+                        f"probe archives carry files and directories, not "
+                        f"{member.type!r}: {member.name}")
+            # And the standard filter as well as the checks above, which is
+            # belt and braces on purpose: it refuses the same things plus the
+            # permission and ownership bits, and it keeps refusing them if
+            # somebody edits the loop.
+            archive.extractall(destination, filter="data")
+        _verify_local(destination, manifest, exactly=True)
         return destination
 
     def delete_probe(self, artifact_uri: str, manifest: dict[str, Any]) -> dict[str, Any]:

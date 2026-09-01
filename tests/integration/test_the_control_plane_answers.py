@@ -145,7 +145,9 @@ def imported_surface(store, snapshot, scroll, *, name: str, geometry: str,
         "bbox_xyz": [[0, 0, 0], [10, 10, 10]], "area_cm2": 1.0,
         "state": "QC_SCREENED", "physical_qc_state": physical})
     if certify:
-        store.record_geometry_certification(surface, geometry, {"schema": "test"})
+        store.record_geometry_certification(
+            surface, geometry, {"schema": "test"}, requested_by_job_id=f"p2-{name}",
+            profile_id="geometry-test@1", profile_sha256="6" * 64)
     return surface
 
 
@@ -173,6 +175,9 @@ def test_flattening_takes_only_what_both_gates_admit(store, snapshot, scroll):
     assert len(relaxed) == 2
 
 
+# record_flattening refuses a surface without a STANDARD routing receipt, and
+# both stores can now produce one: the ordering below is the queue-starvation
+# guard and holds on top of that gate rather than around it.
 def test_a_surface_that_fails_every_time_does_not_starve_the_queue(store, snapshot, scroll):
     """Ordered by created_at alone, a surface whose flattening fails sits at the
     head of the queue forever: with a limit of five and two such surfaces, forty
@@ -183,8 +188,14 @@ def test_a_surface_that_fails_every_time_does_not_starve_the_queue(store, snapsh
     fresh = imported_surface(store, snapshot, scroll, name="fresh",
                              geometry="GEOMETRY_CERTIFIED", physical="CT_SUPPORTED",
                              uri="s3://bucket/fresh")
-    store.record_flattening({"surface_id": stubborn, "profile_id": "flatten-abf-v1@1.0.0",
-                             "state": "FLATTENING_FAILED", "error": "gone"})
+    failed_flattening = {
+        "surface_id": stubborn, "profile_id": "flatten-abf-v1@1.0.0",
+        "state": "FLATTENING_FAILED", "error": "gone",
+        "requested_by_job_id": "p3-stubborn",
+        "source_artifact_sha256": "0" * 64, "profile_file_sha256": "6" * 64,
+    }
+    failed_flattening["receipt_sha256"] = content_sha256(failed_flattening)
+    store.record_flattening(failed_flattening)
     waiting = store.surfaces_awaiting_flattening("flatten-abf-v1@1.0.0", limit=10,
                                                  sample_id=scroll)
     assert [row["surface_id"] for row in waiting][0] == fresh, \
@@ -197,8 +208,10 @@ def test_the_geometry_backlog_puts_the_never_measured_first(store, snapshot, scr
     tried = imported_surface(store, snapshot, scroll, name="tried",
                              geometry="GEOMETRY_UNMEASURED", physical="UNVALIDATED",
                              uri="s3://bucket/tried")
-    store.record_geometry_certification(tried, "GEOMETRY_UNMEASURED",
-                                        {"reason": "ARTIFACT_UNAVAILABLE"})
+    store.record_geometry_certification(
+        tried, "GEOMETRY_UNMEASURED", {"reason": "ARTIFACT_UNAVAILABLE"},
+        requested_by_job_id="p2-tried", profile_id="geometry-test@1",
+        profile_sha256="6" * 64)
     never = imported_surface(store, snapshot, scroll, name="never",
                              geometry="GEOMETRY_UNMEASURED", physical="UNVALIDATED",
                              uri="s3://bucket/never", certify=False)
@@ -256,8 +269,10 @@ def test_a_geometry_verdict_does_not_touch_the_other_axis(store, snapshot, scrol
     surface = imported_surface(store, snapshot, scroll, name="axes",
                                geometry="GEOMETRY_UNMEASURED", physical="CT_SUPPORTED",
                                uri="s3://bucket/axes")
-    store.record_geometry_certification(surface, "GEOMETRY_REJECTED_BRIDGE",
-                                        {"schema": "test"})
+    store.record_geometry_certification(
+        surface, "GEOMETRY_REJECTED_BRIDGE", {"schema": "test"},
+        requested_by_job_id="p2-axes", profile_id="geometry-test@1",
+        profile_sha256="6" * 64)
     rows = [row for row in store.surfaces_for_snapshot(snapshot)
             if row["surface_id"] == surface]
     assert rows and rows[0]["physical_qc_state"] == "CT_SUPPORTED"

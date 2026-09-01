@@ -94,10 +94,15 @@ def test_switching_off_survives_a_restart(client, app_module):
 def test_a_switched_off_module_cannot_be_queued(client, app_module):
     """A switch that only hides a module from a form is decoration: the API is
     the interface, and the panel is one client of it."""
-    client.post("/api/modules/P4/scroll3-chunk-gather", json={"enabled": False})
+    client.post("/api/modules/P4/chunk-gather", json={"enabled": False})
+    # A real mission with this scroll selected. Queueing needs one now, and the
+    # switch is only reached once the scope checks out -- so without this the
+    # test would pass on the mission refusal and never touch the switch.
+    client.post("/api/missions", json={
+        "mission_id": "modules", "name": "Modules", "scrolls": ["PHerc0826"]})
     refused = client.post("/api/jobs", json={
-        "sample_id": "PHerc0826", "phase": "P4",
-        "parameters": {"lane": "scroll3-chunk-gather"}})
+        "sample_id": "PHerc0826", "phase": "P4", "mission_id": "modules",
+        "parameters": {"lane": "chunk-gather"}})
     assert refused.status_code == 409
     assert "switched off" in json.dumps(refused.json())
 

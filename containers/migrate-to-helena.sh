@@ -63,8 +63,8 @@ if $commit; then
 else
   echo "nothing was changed. Re-run with --commit, then enable:"
 fi
-echo "  systemctl enable --now helena-worker helena-ink"
-echo "  systemctl enable --now helena-surface-qc@0 helena-surface-qc@1"
+echo "  systemctl enable --now helena-worker-cpp helena-ink"
+echo "  systemctl enable --now helena-gpu-runtime@0 helena-gpu-runtime@1"
 echo
 echo "The panel and the control plane are not units: they come up with"
 echo "  docker compose --env-file /etc/helena/platform.env \\"

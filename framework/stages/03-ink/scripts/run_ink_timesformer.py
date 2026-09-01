@@ -18,6 +18,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+
+# The repository root, so the shared device resolver is importable from a
+# script launched by path. `auto` has to mean the same thing in every runner or
+# it is six defaults again, wearing one word.
+_ROOT = Path(__file__).resolve()
+while _ROOT != _ROOT.parent and not (_ROOT / "framework").is_dir():
+    _ROOT = _ROOT.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from framework.contracts.host_probe import resolve_device  # noqa: E402
 import numpy as np
 from PIL import Image
 
@@ -599,7 +609,8 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--min-valid-ratio", type=float, default=0.60)
     parser.add_argument("--max-clip-value", type=int, default=200)
-    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--device", default="auto",
+                        help="auto (the card if this host has one), cpu, or cuda[:N] to require one")
     parser.add_argument(
         "--on-degenerate",
         choices=("fail", "warn"),
@@ -607,6 +618,12 @@ def main() -> int:
         help="what to do when the output map carries no decision (default: fail closed)",
     )
     args = parser.parse_args()
+
+    # Resolve the device before anything expensive: an explicit `cuda` on a host
+    # with no card is refused here rather than several minutes into a load, and
+    # `auto` becomes the word the receipt can stand behind.
+    _device = resolve_device(args.device)
+    args.device = _device["device"]
 
     started = time.monotonic()
     ink_profile = args.ink_profile.resolve()
@@ -804,6 +821,7 @@ def main() -> int:
             "batch_size": args.batch_size,
             "min_valid_ratio": args.min_valid_ratio,
             "device": args.device,
+            "device_selection": _device,
             "runs": records,
             "tile_filter_summary": {
                 "all_grid_tiles": sum(

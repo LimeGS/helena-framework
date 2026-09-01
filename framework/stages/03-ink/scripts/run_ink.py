@@ -32,6 +32,16 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+
+# The repository root, so the shared device resolver is importable from a
+# script launched by path. `auto` has to mean the same thing in every runner or
+# it is six defaults again, wearing one word.
+_ROOT = Path(__file__).resolve()
+while _ROOT != _ROOT.parent and not (_ROOT / "framework").is_dir():
+    _ROOT = _ROOT.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from framework.contracts.host_probe import resolve_device  # noqa: E402
 ROOT = Path(__file__).resolve().parents[4]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -273,7 +283,8 @@ def main() -> int:
     ap.add_argument("--stride", type=int, default=None)
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--min-valid-ratio", type=float, default=None)
-    ap.add_argument("--device", default="cuda")
+    ap.add_argument("--device", default="auto",
+                        help="auto (the card if this host has one), cpu, or cuda[:N] to require one")
     ap.add_argument(
         "--on-degenerate",
         choices=("fail", "warn"),
@@ -281,6 +292,12 @@ def main() -> int:
         help="what to do when the output map carries no decision (default: fail closed)",
     )
     args = ap.parse_args()
+
+    # Resolve the device before anything expensive: an explicit `cuda` on a host
+    # with no card is refused here rather than several minutes into a load, and
+    # `auto` becomes the word the receipt can stand behind.
+    _device = resolve_device(args.device)
+    args.device = _device["device"]
 
     if args.output.exists() and any(args.output.iterdir()):
         raise RuntimeError(f"refusing to overwrite non-empty output: {args.output}")
@@ -297,7 +314,20 @@ def main() -> int:
 
     checkpoint_sha = sha256_file(args.checkpoint)
     declared = spec["checkpoint_sha256"]
-    if declared and declared != checkpoint_sha:
+    # A profile that pins no digest used to get no verification at all, in
+    # silence -- which is the worst of the three possible states, because the
+    # receipt then records a digest nobody promised and reads exactly like one
+    # that was checked. Weights silently different from what the receipt names
+    # are an irreproducible result that looks reproducible.
+    if not declared:
+        raise RuntimeError(
+            f"profile {spec['profile_id']} pins no checkpoint_sha256, so nothing "
+            f"can say whether {args.checkpoint} is the weights it means. Add the "
+            "digest to the profile -- upstream's LFS metadata carries it -- or "
+            "run this outside the queue where nobody will mistake the receipt "
+            "for a verified one."
+        )
+    if declared != checkpoint_sha:
         raise RuntimeError(
             f"checkpoint {checkpoint_sha} does not match profile {spec['profile_id']} "
             f"which pins {declared}"

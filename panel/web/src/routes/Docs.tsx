@@ -9,12 +9,14 @@ import { Empty } from "../components/Bits";
 // Tutorial is the path: press these, in this order, get a result. User guide is
 // the reference: every control, what it is for, what to leave it on. They were
 // one page, which in practice meant the path with the reference missing.
+const Handbook = lazy(() => import("./Handbook"));
 const Tutorial = lazy(() => import("./Tutorial"));
 const UserGuide = lazy(() => import("./UserGuide"));
 const DeveloperReference = lazy(() => import("./DeveloperReference"));
 const ApiReference = lazy(() => import("./ApiReference"));
 
 const TABS = [
+  ["handbook", "Handbook"],
   ["tutorial", "Tutorial"],
   ["guide", "User guide"],
   ["developer", "Developer reference"],
@@ -24,7 +26,8 @@ const TABS = [
 export default function Documentation() {
   // Tutorial first and by default: the person who has never run this is the one
   // who cannot yet tell which tab they need.
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>("tutorial");
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>(
+    window.location.hash.startsWith("#/docs/") ? "handbook" : "handbook");
   return (
     <>
       <nav className="subtabs">
@@ -36,6 +39,7 @@ export default function Documentation() {
         ))}
       </nav>
       <Suspense fallback={<Empty>loading…</Empty>}>
+        {tab === "handbook" && <Handbook />}
         {tab === "tutorial" && <Tutorial />}
         {tab === "guide" && <UserGuide />}
         {tab === "developer" && <DeveloperReference />}

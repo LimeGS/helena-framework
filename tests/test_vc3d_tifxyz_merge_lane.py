@@ -92,7 +92,7 @@ def test_queue_builds_only_the_registered_wrapper_argv():
         "reference_artifact_id": "surface-a", "ransac_seed": 1729,
         "anchor_cap": 2000, "strip_cols": 0,
         "artifact_store": "s3://helena/reconstruction-v1",
-    }, "P8")
+    }, "P8", server_owned=("artifact_store",))
     argv = command_for({
         "phase": "P8", "profile_id": "vc3d-tifxyz-merge@1.0.0",
         "parameters": parameters,
@@ -142,11 +142,13 @@ def test_p3_can_target_only_the_merged_child_surface():
     from job_store import command_for, validate_parameters
 
     parameters = validate_parameters({
+        "sample": "PHerc0139",
         "surface_id": "merged-child-1",
         "artifact_store": "s3://helena/flatten-v1",
-    }, "P3")
+    }, "P3", server_owned=("artifact_store",))
     argv = command_for({
-        "phase": "P3", "profile_id": "flatten-abf-v1@1.0.0",
+        "job_id": "p3-merged-child", "phase": "P3", "profile_id": "flatten-abf-v1@1.0.0",
+        "sample_id": "PHerc0139",
         "parameters": parameters,
     }, runner="fleet.py", output_dir="/runs/p3-job")
     assert argv[argv.index("--surface-id") + 1] == "merged-child-1"
@@ -232,6 +234,9 @@ def test_worker_exposes_the_complete_merge_receipt_in_the_job_result():
         "status": "PASS", "surface_id": "merged-surface",
         "artifact_uri": "s3://evidence/merged-surface",
         "artifact_sha256": "a" * 64,
+        # The lane measures the merged sheet it produced, so a receipt standing
+        # in for a real one carries that measurement.
+        "area_cm2": 0.42,
         "parents": [{"surface_id": "a"}, {"surface_id": "b"}],
     }
     publication = {
@@ -246,10 +251,109 @@ def test_worker_exposes_the_complete_merge_receipt_in_the_job_result():
     assert fields["artifact_uri"] == receipt["artifact_uri"]
     assert fields["evidence_uri"] == publication["evidence_uri"]
     assert fields["parents"] == receipt["parents"]
+    assert fields["area_cm2"] == 0.42
+    assert fields["enters_canonical_downstream"] is True
 
     invalid = {**publication, "evidence_sha256": None}
     with pytest.raises(RuntimeError, match="evidence_sha256"):
         ink_worker.merge_result_from_receipt(job, receipt, invalid)
+
+
+def _tifxyz_grid(directory: Path, *, points: int, spacing: float) -> None:
+    """A flat square sheet, `points` per side, `spacing` voxels apart.
+
+    Flat so the triangulated area is exactly `(points-1)**2 * spacing**2` voxel
+    squares, which makes the expected cm2 arithmetic something the test can
+    state rather than something it has to trust the fixture for.
+    """
+    numpy = pytest.importorskip("numpy")
+    tifffile = pytest.importorskip("tifffile")
+
+    axis = numpy.arange(points, dtype=numpy.float32) * spacing + 100.0
+    x, y = numpy.meshgrid(axis, axis)
+    directory.mkdir(parents=True, exist_ok=True)
+    tifffile.imwrite(directory / "x.tif", x)
+    tifffile.imwrite(directory / "y.tif", y)
+    tifffile.imwrite(directory / "z.tif",
+                     numpy.full_like(x, 500.0, dtype=numpy.float32))
+
+
+@pytest.mark.parametrize("spacing,expected_route", [
+    # Two sheets of identical shape, differing only in how much papyrus each
+    # covers. The route has to follow the measurement and nothing else.
+    (10.0, "SMALL_SURFACE_DIAGNOSTIC"),
+    (40.0, "STANDARD_QC_PENDING"),
+])
+def test_a_merged_sheet_is_routed_on_the_area_measured_from_its_own_grids(
+    tmp_path, spacing, expected_route,
+):
+    """Where a merged surface's area comes from, exercised rather than asserted.
+
+    The merge lane measures the sheet upstream produced -- `inspect_tifxyz` over
+    the merged x/y/z grids the lane is about to publish -- and hands that number
+    to the router. No parent is consulted, so this composition is the whole of
+    the decision and it is reproduced here end to end.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet import surface_routing
+    from fleet.finalizer import inspect_tifxyz
+
+    voxel_size_um = 9.362
+    points = 15
+    _tifxyz_grid(tmp_path, points=points, spacing=spacing)
+    inspection = inspect_tifxyz(tmp_path, voxel_size_um)
+
+    expected_cm2 = ((points - 1) * spacing) ** 2 * voxel_size_um ** 2 / 1e8
+    assert inspection["area_cm2"] == pytest.approx(expected_cm2, rel=1e-9)
+
+    receipt = surface_routing.receipt_for_surface({
+        "surface_id": "merged-under-test",
+        "source_snapshot_id": "snapshot-1", "sample_id": "PHerc826",
+        "artifact_sha256": "a" * 64,
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "bbox_xyz": inspection["bbox_xyz"],
+        "sample_points": inspection["sample_points"],
+        "area_cm2": inspection["area_cm2"],
+    })
+    assert receipt["route"] == expected_route
+    assert receipt["measured_area_cm2"] == inspection["area_cm2"]
+    assert surface_routing.enters_canonical_downstream(receipt) is (
+        expected_route == "STANDARD_QC_PENDING")
+
+
+def test_the_lane_routes_the_merged_surface_on_its_own_measurement():
+    """The wiring the test above cannot see: which area reaches the router.
+
+    Inheriting a parent's decision, or routing on a parent's area, is the
+    mutation this catches -- both look correct in a merge that happens to have
+    similar parents and are wrong exactly when the merge changes the answer.
+    """
+    wrapper = SCRIPT.read_text()
+    lane = wrapper[wrapper.index("def run("):]
+
+    # One description of the merged sheet, measured from the merged output.
+    assert lane.count("merged_surface = {") == 1
+    assert '"area_cm2": inspection["area_cm2"]' in lane
+    # Routed by the router's own assembly, from that description.
+    assert "surface_routing.receipt_for_surface(merged_surface)" in lane
+    # And registered as the same surface it routed, not a second one.
+    assert "surface = {\n        **merged_surface," in lane
+    # The measurement is bound to the canonical digest the manifest derived,
+    # never to a second digest of the same bytes.
+    measurement = lane[lane.index('"area_measurement": {'):]
+    assert '"artifact_sha256": publication["artifact_sha256"]' in (
+        measurement[:measurement.index("},")])
+    # The receipt carries both, so the worker has something to re-decide from.
+    for field in ('"area_cm2": inspection["area_cm2"]',
+                  '"routing_receipt": routing_receipt'):
+        assert field in lane
+
+    # A sub-floor merge is routed, never refused: the sheet is real, it is
+    # certified, and it stays evidence. Refusing would destroy it.
+    assert "MergeRefused" not in lane[lane.index("routing_receipt = "):
+                                      lane.index('"routing_receipt": routing_receipt')]
 
 
 def test_gpl_files_are_tracked_inside_the_worker_build_context():
@@ -261,13 +365,13 @@ def test_gpl_files_are_tracked_inside_the_worker_build_context():
         relative = profile["source"][key]
         assert relative.startswith("framework/licenses/volume-cartographer/")
         assert (ROOT / relative).is_file()
-    worker = (ROOT / "containers/images/Containerfile.worker").read_text()
+    worker = (ROOT / "containers/images/Containerfile.worker-cpp").read_text()
     assert "COPY --from=repo framework /workspace/campaign-x/framework" in worker
 
 
 def test_the_deployed_worker_proves_the_complete_digest_pinned_toolchain():
     villa = (ROOT / "containers/images/Containerfile.villa").read_text()
-    worker = (ROOT / "containers/images/Containerfile.worker").read_text()
+    worker = (ROOT / "containers/images/Containerfile.worker-cpp").read_text()
     builder = (ROOT / "containers/build-worker.sh").read_text()
     for binary in ("vc_merge_tifxyz", "vc_obj2tifxyz_legacy",
                    "vc_flatten", "vc_render_tifxyz"):

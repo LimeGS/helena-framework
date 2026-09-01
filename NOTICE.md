@@ -25,10 +25,36 @@ No weights are in this repository. The ink profiles under
 each comes with its own terms from whoever trained it. A profile is a pointer,
 not a redistribution.
 
+## volume-cartographer, which the worker images contain
+
+`helena-villa` is [volume-cartographer](https://github.com/ScrollPrize/villa)
+compiled from source, and `helena-worker-cpp` is built on it; `helena-vc3d` packages
+three of its binaries with their library closure. **volume-cartographer is
+GPL-3.0**, not MIT — the villa repository's own root LICENSE is MIT, and the
+subdirectory this framework compiles is not covered by it.
+
+Nothing here modifies it. The build clones one pinned commit, verifies the tree
+hash it received and compiles it unchanged; `containers/images/Containerfile.villa`
+and `containers/images/scrollfiesta/locks/source-lock.json` are the whole recipe.
+
+The Python that drives it is a separate work: the `vc_*` tools are standalone
+executables run as subprocesses, so this repository's MIT licence is unaffected.
+
+What that costs, if you distribute a built image rather than only running one:
+GPL-3.0 §6 asks that whoever conveys the binaries can supply the corresponding
+source. The commit is pinned and public and the build scripts are here, so the
+answer to "which source" is already recorded — but the obligation belongs to
+whoever publishes the image, not to upstream, and it outlives upstream's
+repository. Mirror the commit before publishing.
+
+None of this applies to building and running it yourself, which is what
+`deploy-platform.sh` does by default.
+
 ## Third-party code vendored here
 
 Everything under `framework/vendored/` is recorded in `INDEX.json` with the
-commit it was taken at. All of it is MIT — most was written for this project
+commit it was taken at. All of *that* is MIT (volume-cartographer above is not
+vendored here -- it is fetched and compiled) — most was written for this project
 and extracted for reuse:
 
 | Component | Origin | Code |

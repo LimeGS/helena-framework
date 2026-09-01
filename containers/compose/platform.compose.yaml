@@ -32,7 +32,7 @@ name: helena
 # Both places the panel image is named. An anchor, so a deployment that pins
 # HELENA_PANEL_IMAGE to a registry gets it in both and the schema is never
 # created by a different build from the one that reads it.
-x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.21.1}}
+x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.22.0}}
 
 x-panel-build: &panel-build
   context: ../..
@@ -101,13 +101,75 @@ services:
   #
   # Both schemas: the segmentation control plane and the ink job store are
   # separate migration sets, and the panel reads both.
+  # Docker creates a named volume as root:root 0755. Every other service here
+  # runs as 1000:1000, so on a machine that has never run Helena the panel
+  # cannot even create /state/tls and exits with
+  #
+  #     mkdir: cannot create directory '/state/tls': Permission denied
+  #
+  # The existing hosts do not show this because their volumes were chowned by
+  # hand when the fleet moved off root -- which is what the comment below means
+  # by "the volumes are 1000:1000 on the hosts". A fresh install has nobody to
+  # have done that, so the published quickstart could not work on a clean
+  # machine. Found by installing onto one.
+  #
+  # So one container, root, no network, no capabilities beyond chown, exits
+  # immediately: it makes the volumes belong to the uid everything else runs as.
+  # Root here buys non-root everywhere after, which is the trade it is for.
+  prepare-volumes:
+    image: busybox:1.37.0
+    user: root
+    container_name: helena-prepare-volumes
+    network_mode: none
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    # It prints four lines and exits, but a container with no cap on its logs is
+    # a container that can fill the disk, and the rule holds regardless.
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+    volumes:
+      - ${HELENA_PANEL_STATE:-helena-panel-state}:/prepare/state
+      - ${HELENA_PANEL_RUNS:-helena-runs}:/prepare/runs
+      - ${HELENA_ARTIFACTS:-helena-artifacts}:/prepare/artifacts
+      - ${HELENA_MODELS:-helena-models}:/prepare/models
+    # Ownership only, and only where it is still root's. A volume somebody has
+    # already set up -- a bind mount to a directory with its own owner, say --
+    # is left exactly as it is: chown -R over a populated artifact store is slow
+    # and is not this container's business.
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        for d in /prepare/*; do
+          owner=$$(stat -c %u "$$d")
+          if [ "$$owner" = "0" ]; then
+            chown -R "${HELENA_RUN_AS:-1000:1000}" "$$d"
+            echo "prepared $$d for ${HELENA_RUN_AS:-1000:1000}"
+          else
+            echo "left $$d alone: already owned by uid $$owner"
+          fi
+        done
+
   init:
     image: *panel-image
+    # Not root. See the same block in ink.compose.yaml: the volumes are
+    # 1000:1000 on the hosts, and postgres is left alone because the official
+    # image already runs as its own user over a data directory it owns.
+    user: "${HELENA_RUN_AS:-1000:1000}"
+    security_opt:
+      - no-new-privileges:true
     build: *panel-build
     container_name: helena-init
     depends_on:
       postgres:
         condition: service_healthy
+      prepare-volumes:
+        condition: service_completed_successfully
     network_mode: host
     restart: "no"
     logging:
@@ -140,6 +202,12 @@ services:
   # ---------------------------------------------------------------------- panel
   panel:
     image: *panel-image
+    # Not root. See the same block in ink.compose.yaml: the volumes are
+    # 1000:1000 on the hosts, and postgres is left alone because the official
+    # image already runs as its own user over a data directory it owns.
+    user: "${HELENA_RUN_AS:-1000:1000}"
+    security_opt:
+      - no-new-privileges:true
     # Built from this checkout when the image is not already present, so a
     # clone and an `up` is the whole procedure. The frontend is built inside the
     # image too -- panel/web/dist is gitignored, so anything that COPYied it
@@ -225,7 +293,7 @@ services:
   #   docker compose --profile backup up -d
   backup:
     profiles: [backup]
-    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.21.1}}
+    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.22.0}}
     build:
       context: ../..
       dockerfile: containers/images/Containerfile.backup

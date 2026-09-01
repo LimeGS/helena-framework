@@ -30,15 +30,17 @@
       "slug": "segmentation",
       "name": "Segmentation",
       "one_line": "Find sheet surfaces inside the volume.",
-      "consumes": "the m7 surface-prediction volume for the scroll, at threshold 0.2 -- not the CT itself",
-      "produces": "a TIFXYZ surface -- x.tif, y.tif, z.tif, meta.json -- mapping each surface pixel to a CT voxel",
+      "consumes": "the m7 surface-prediction volume for the scroll, at threshold 0.2 -- not the CT itself -- for a seeded grow; for a spiral fit, an umbilicus, surface tracks, winding point collections and a lasagna normal field",
+      "produces": "a TIFXYZ surface -- x.tif, y.tif, z.tif, meta.json -- mapping each surface pixel to a CT voxel. A grow makes one; a fit makes one per winding",
       "lives_in": [
-        "framework/stages/01-segmentation"
+        "framework/stages/01-segmentation",
+        "framework/stages/01-segmentation/backends/spiral/repin.py",
+        "framework/stages/01-segmentation/scripts/run_spiral_fit.py"
       ],
       "maturity": "WORKING",
       "distributed": true,
-      "how_to_run": "Queue work for a scroll and choose how the seed is chosen. The fleet claims from segment_tasks in PostgreSQL and grows with vc3d; the planner picks the seed inside a cell the bootstrap found uncovered.",
-      "how_it_fails": "A surface can grow across a lamina boundary and look perfectly well-formed. P2 exists because P1 cannot tell.",
+      "how_to_run": "Two backends, two ways in, because they decide different things. The seeded grower is planned: queue work for a scroll from Segmentation and choose how the seed is picked, and the fleet claims from segment_tasks and grows with vc3d. The spiral fitter has no seed -- it fits every winding at once -- so it is a queued job: Phases -> P1 -> Run, on the spiral-fit lane, told a scroll, a slab of it, a scale and a winding direction. It runs in helena-villa-python and registers each fitted winding as a surface, so both backends meet at P2.",
+      "how_it_fails": "A surface can grow across a lamina boundary and look perfectly well-formed. P2 exists because P1 cannot tell. A fit fails differently and just as invisibly: the six constants that select the scroll are assigned at import upstream, so a fit pointed at the wrong dataset produces windings that are internally consistent and belong to another scroll. The rebind is refused rather than partial for that reason.",
       "gate": null,
       "prerequisites": {
         "needs": "an m7 surface-prediction volume, and the voxel size P0 froze",
@@ -47,12 +49,12 @@
         ],
         "may_come_from_outside": true,
         "external_source": "the m7 predictions published beside each scan in the open bucket",
-        "note": "P0 supplies the catalog entry -- the voxel size and which scan is eligible -- and the m7 prediction it points at is a public artefact, not something P0 makes. The grower is handed m7_uri and never ct_uri. The seed is decided here, not upstream."
+        "note": "P0 supplies the catalog entry -- the voxel size and which scan is eligible -- and the m7 prediction it points at is a public artefact, not something P0 makes. The grower is handed m7_uri and never ct_uri. The seed is decided here, not upstream. A spiral fit needs neither: it reads its own dataset directory, and needs a registered source snapshot only so the surfaces it files have a provenance to hang on."
       },
       "decides": {
-        "what": "the seed point",
-        "how": "one of six planners, from deterministic scoring to a model panel",
-        "why_it_matters": "A surface is the answer to 'what is at this seed'. Two planners asked to search the same cell can pick different seeds and grow different sheets, both correct, so the planner is part of the provenance rather than a runtime detail."
+        "what": "the seed point, for a grow; the scroll and the slab of it, for a fit",
+        "how": "one of six planners, from deterministic scoring to a model panel; or the six module constants the spiral fitter is rebound to",
+        "why_it_matters": "A surface is the answer to 'what is at this seed'. Two planners asked to search the same cell can pick different seeds and grow different sheets, both correct, so the planner is part of the provenance rather than a runtime detail. A fit answers a different question -- 'where does every winding of this slab go' -- and its provenance is the binding it was rebound to, hashed in the receipt."
       },
       "runnable_here": true,
       "runner": "framework/stages/01-segmentation/fleet/cli.py"

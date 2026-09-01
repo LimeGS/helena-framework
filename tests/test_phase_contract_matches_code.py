@@ -29,9 +29,26 @@ if str(ROOT) not in sys.path:
 
 sys.path.insert(0, str(ROOT / "framework" / "stages" / "03-ink" / "fleet"))
 from job_store import (  # noqa: E402
-    DEFAULT_P4_LANE, P4_LANES, PHASE_PARAMETERS, PHASE_REQUIRED, PHASE_RUNNERS,
-    command_for,
+    EXACTLY_ONE_OF,
+    DEFAULT_P4_LANE, P4_LANES, PHASE_LANES, PHASE_PARAMETERS, PHASE_REQUIRED,
+    PHASE_RUNNERS, command_for,
 )
+
+
+def default_lane(phase: str) -> str | None:
+    """The lane a job gets when it names none: the first registered."""
+    return next(iter(PHASE_LANES.get(phase) or {}), None)
+
+
+def profile_for(phase: str, lane: str | None = None) -> str:
+    """A profile id the phase's lane will actually accept.
+
+    A lane may pin the profiles it runs -- P1's fitter and P8's TIFXYZ merge
+    both do -- and the queue refuses anything else. A contract test that sent a
+    made-up id would be testing the refusal, not the contract.
+    """
+    spec = (PHASE_LANES.get(phase) or {}).get(lane or default_lane(phase) or "", {})
+    return next(iter(spec.get("profiles") or ()), "p")
 
 
 def sample_parameters(phase: str, lane: str | None = None) -> dict:
@@ -45,6 +62,21 @@ def sample_parameters(phase: str, lane: str | None = None) -> dict:
     for name, kind in PHASE_PARAMETERS[phase].items():
         if kind is float:
             values[name] = 1.5
+    # Names that must not appear together cannot all be set at once: setting
+    # every parameter a phase declares would be asking the builder to satisfy a
+    # contract that forbids it. The first of each group is kept -- for P5 that
+    # is `tiff_dir`, which every ink lane reads; the alternatives belong to
+    # particular lanes and have their own tests.
+    for rule in EXACTLY_ONE_OF.get(phase, ()):
+        if rule.get("lane") and rule["lane"] != (lane or DEFAULT_P4_LANE):
+            continue
+        for spare in rule["names"][1:]:
+            values.pop(spare, None)
+    # A lane name is not free text. Any phase that accepts one is given a lane
+    # that exists, because `f"value-of-lane"` is refused by the queue before it
+    # can build a command -- which reports the wrong failure for this test.
+    if "lane" in values:
+        values["lane"] = lane or default_lane(phase) or values["lane"]
     if phase == "P4":
         values["lane"] = lane or DEFAULT_P4_LANE
     elif phase == "P8":
@@ -101,9 +133,10 @@ def test_every_flag_the_queue_sends_exists_in_the_runner(phase):
         lane_spec = P4_LANES.get(lane or "", {})
         sample_id = next(iter(lane_spec.get("sample_ids", ())), "S")
         job = {"job_id": "j", "sample_id": sample_id,
-               "profile_id": "p", "phase": phase,
+               "profile_id": profile_for(phase, lane), "phase": phase,
                "parameters": sample_parameters(phase, lane)}
-        argv = command_for(job, runner=str(runner), output_dir="/tmp/out")
+        argv = command_for(job, runner=str(runner), output_dir="/tmp/out",
+                           upstream_root=WORKER_UPSTREAM_ROOT)
         sent = {token for token in argv if token.startswith("--")}
         unknown = sorted(sent - accepted)
         assert not unknown, (
@@ -112,16 +145,24 @@ def test_every_flag_the_queue_sends_exists_in_the_runner(phase):
         )
 
 
+# What a worker carrying the vendored architecture would report. Supplied here
+# because two P5 lanes take it from the host rather than from the job, and the
+# flag they build from it still has to exist in their argparse.
+WORKER_UPSTREAM_ROOT = "/opt/villa/ink-detection"
+
+
 @pytest.mark.parametrize("phase", sorted(PHASE_REQUIRED))
 def test_required_parameters_all_reach_the_command(phase):
     """A required parameter that the builder ignores is a lie in the schema:
     the caller is made to supply something nothing uses."""
     runner = ROOT / PHASE_RUNNERS[phase]
     parameters = sample_parameters(phase)
-    job = {"job_id": "j", "sample_id": "S", "profile_id": "p", "phase": phase,
-           "parameters": parameters}
+    sample_id = parameters["sample"] if phase in {"P2", "P3"} else "S"
+    job = {"job_id": "j", "sample_id": sample_id, "profile_id": profile_for(phase),
+           "phase": phase, "parameters": parameters}
     argv = [str(token) for token in
-            command_for(job, runner=str(runner), output_dir="/tmp/out")]
+            command_for(job, runner=str(runner), output_dir="/tmp/out",
+                        upstream_root=WORKER_UPSTREAM_ROOT)]
 
     required = list(PHASE_REQUIRED[phase])
     if phase == "P4":

@@ -304,14 +304,15 @@ def test_p8_merge_publication_store_is_owned_by_the_deployment(app_module, monke
     request = app_module.JobRequest(
         sample_id="PHerc826", phase="P8", mission_id="golden-run",
         profile_id="vc3d-tifxyz-merge@1.0.0",
-        parameters={"lane": "vc3d-tifxyz-merge", "artifact_store": "/tmp/diverted"},
+        parameters={"lane": "vc3d-tifxyz-merge"},
     )
     response = app_module.api_enqueue(
         request, SimpleNamespace(state=SimpleNamespace(username="tester")))
 
     assert response.status_code == 201
-    assert captured["parameters"]["artifact_store"] == \
+    assert captured["server_parameters"]["artifact_store"] == \
         "s3://helena/reconstruction-v1"
+    assert "artifact_store" not in captured["parameters"]
 
 
 def test_p4_render_publication_store_is_owned_by_the_deployment(app_module, monkeypatch):
@@ -342,15 +343,49 @@ def test_p4_render_publication_store_is_owned_by_the_deployment(app_module, monk
             "volume": "/volumes/scroll.zarr",
             "scale": 1.0,
             "group_idx": 0,
-            "artifact_store": "/tmp/diverted",
         },
     )
     response = app_module.api_enqueue(
         request, SimpleNamespace(state=SimpleNamespace(username="tester")))
 
     assert response.status_code == 201
-    assert captured["parameters"]["artifact_store"] == \
+    # As the server's own value, not merged into the request's: the queue is
+    # told which half each parameter came from rather than having to trust that
+    # the panel got there first.
+    assert captured["server_parameters"]["artifact_store"] == \
         "s3://helena/layer-stacks-v1"
+    assert "artifact_store" not in captured["parameters"]
+
+
+def test_a_client_that_names_a_publication_store_is_refused(app_module, monkeypatch):
+    """Refused, not quietly corrected.
+
+    The form hides the field and the panel used to overwrite whatever arrived
+    in its place. Overwriting is the right destination and the wrong signal: a
+    caller redirecting a render to a bucket it owns learns nothing, and neither
+    does anyone reading the logs afterwards.
+    """
+    monkeypatch.setattr(app_module, "RENDER_STORE", "s3://helena/layer-stacks-v1")
+    monkeypatch.setattr(app_module, "require_write_sample",
+                        lambda mission, sample, operation: sample)
+    monkeypatch.setattr(app_module, "module_disabled", lambda phase, module: False)
+
+    request = app_module.JobRequest(
+        sample_id="PHerc826", phase="P4", mission_id="golden-run",
+        parameters={
+            "lane": "vc-render-tifxyz",
+            "segmentation": "/surfaces/s-1",
+            "volume": "/volumes/scroll.zarr",
+            "scale": 1.0,
+            "group_idx": 0,
+            "artifact_store": "s3://attacker/exfil",
+        },
+    )
+    with pytest.raises(app_module.HTTPException) as refused:
+        app_module.api_enqueue(
+            request, SimpleNamespace(state=SimpleNamespace(username="tester")))
+    assert refused.value.status_code == 409
+    assert "artifact_store" in str(refused.value.detail)
 
 
 def test_p4_local_override_cannot_smuggle_a_publication_store(app_module, monkeypatch):
@@ -385,12 +420,22 @@ def test_p4_local_override_cannot_smuggle_a_publication_store(app_module, monkey
             "artifact_store": "s3://untrusted/destination",
         },
     )
+    # The escape hatch is still an escape hatch; the store that rode along with
+    # it is refused outright rather than dropped, so the caller learns the
+    # field was never theirs.
+    with pytest.raises(app_module.HTTPException) as refused:
+        app_module.api_enqueue(
+            request, SimpleNamespace(state=SimpleNamespace(username="tester")))
+    assert refused.value.status_code == 409
+    assert "artifact_store" in str(refused.value.detail)
+
+    request.parameters.pop("artifact_store")
     response = app_module.api_enqueue(
         request, SimpleNamespace(state=SimpleNamespace(username="tester")))
-
     assert response.status_code == 201
     assert captured["parameters"]["allow_local_layers"] is True
     assert "artifact_store" not in captured["parameters"]
+    assert "artifact_store" not in (captured["server_parameters"] or {})
 
 
 def test_p5_probability_map_store_is_owned_by_the_deployment(app_module, monkeypatch):
@@ -421,26 +466,36 @@ def test_p5_probability_map_store_is_owned_by_the_deployment(app_module, monkeyp
             "tiff_dir": "/runs/layers",
             "checkpoint": "/models/model.safetensors",
             "source_pixel_um": 2.399,
-            "artifact_store": "/tmp/diverted",
         },
     )
     response = app_module.api_enqueue(
         request, SimpleNamespace(state=SimpleNamespace(username="tester")))
 
     assert response.status_code == 201
-    assert captured["parameters"]["artifact_store"] == "s3://helena/ink-maps-v1"
+    assert captured["server_parameters"]["artifact_store"] == "s3://helena/ink-maps-v1"
+    assert "artifact_store" not in captured["parameters"]
 
 
 def test_a_p8_derived_surface_remains_visible_to_its_mission_in_p3():
+    """Both readers scope surfaces the way the shared predicate does.
+
+    The three ways a surface belongs to a mission -- grown by its tasks, derived
+    by its ink jobs, uploaded into it -- live in `surface_mission_predicate`
+    now, so what these two must not do is write a fourth definition inline. The
+    derivation branch is asserted where it is defined.
+    """
     source = (ROOT / "panel/app.py").read_text()
     flattening = source[source.index("def api_flattening("):
                         source.index("\n@app.get(\"/api/geometry\")")]
     subjects = source[source.index("def subject_surfaces("):
                       source.index("\n@app.get(\"/api/subjects\")")]
     for query in (flattening, subjects):
-        assert "surface_derivations" in query
-        assert "d.child_surface_id" in query
-        assert "j.mission_id" in query
+        assert "surface_mission_predicate(" in query
+    predicate = source[source.index("def surface_mission_predicate("):]
+    predicate = predicate[:predicate.index("\n\n\n")]
+    assert "surface_derivations" in predicate
+    assert "d.child_surface_id" in predicate
+    assert "j.mission_id" in predicate
 
 
 def test_the_panel_image_carries_what_the_catalog_symlinks_point_at():

@@ -19,7 +19,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))
 
-from job_store import JobRejected, validate_parameters  # noqa: E402
+from job_store import JobRejected, command_for, validate_parameters  # noqa: E402
 
 
 P4 = {
@@ -29,13 +29,16 @@ P4 = {
     "scale": 1.0,
     "group_idx": 0,
 }
-P4_SCROLL3 = {"lane": "scroll3-chunk-gather", "ppm": "/surfaces/s-1.ppm"}
+P4_SCROLL3 = {"lane": "chunk-gather", "ppm": "/surfaces/s-1.ppm"}
 P5 = {
     "tiff_dir": "/layers",
     "checkpoint": "/models/checkpoint.pt",
     "source_pixel_um": 9.362,
 }
-P7 = {"screening_of": "p5-source", "bbox": "0,0,64,64", "px_um": 2.399}
+P7 = {"screening_of": "p5-source",
+      "probability_map_artifact_sha256": "a" * 64,
+      "probability_map_manifest_sha256": "b" * 64,
+      "bbox": "0,0,64,64", "px_um": 2.399}
 P8_COLUMN = {
     "lane": "column-atlas",
     "scroll": "PHerc0139",
@@ -47,12 +50,13 @@ P8_COLUMN = {
     ("phase", "base", "key", "value"),
     [
         ("P2", {}, "limit", 0),
-        ("P3", {"artifact_store": "/artifacts/flattened-v1"}, "limit", 0),
+        ("P3", {}, "limit", 0),
         ("P4", P4, "scale", 0.0),
         ("P4", P4, "group_idx", -1),
         ("P4", P4, "cache_gb", 0),
         ("P4", P4, "num_slices", 0),
         ("P4", P4, "slice_step", 0.0),
+        ("P4", P4, "source_voxel_um", 0.0),
         ("P4", P4_SCROLL3, "layers", 0),
         ("P4", P4_SCROLL3, "spacing", 0.0),
         ("P4", P4_SCROLL3, "concurrency", 0),
@@ -80,6 +84,7 @@ def test_nonphysical_parameter_domains_are_refused(phase, base, key, value):
     [
         ("P4", P4, "scale"),
         ("P4", P4, "slice_step"),
+        ("P4", P4, "source_voxel_um"),
         ("P4", P4_SCROLL3, "spacing"),
         ("P4", P4_SCROLL3, "max_gb"),
         ("P5", P5, "source_pixel_um"),
@@ -123,6 +128,7 @@ def test_a_string_cannot_be_coerced_into_an_artifact_id_list():
                 "artifact_store": "/artifacts/reconstruction-v1",
             },
             "P8",
+            server_owned=("artifact_store",),
         )
 
 
@@ -143,6 +149,22 @@ def test_valid_boundary_values_keep_their_meaning():
     screen = validate_parameters({**P5, "min_valid_ratio": 1.0}, "P5")
     assert screen["min_valid_ratio"] == 1.0
 
+
+@pytest.mark.parametrize("phase", ["P2", "P3"])
+def test_worker_refuses_sample_parameter_that_disagrees_with_queue_identity(phase):
+    parameters = {"sample": "PHerc9999"}
+    with pytest.raises(JobRejected, match="sample"):
+        command_for(
+            {
+                "job_id": f"{phase.lower()}-bound-sample",
+                "phase": phase,
+                "sample_id": "PHerc0139",
+                "parameters": parameters,
+            },
+            runner="/fleet/surface_worker.py",
+            output_dir="/runs/job",
+        )
+
     merge = validate_parameters(
         {
             "lane": "vc3d-tifxyz-merge",
@@ -155,5 +177,53 @@ def test_valid_boundary_values_keep_their_meaning():
             "artifact_store": "/artifacts/reconstruction-v1",
         },
         "P8",
+        server_owned=("artifact_store",),
     )
     assert merge["anchor_cap"] == 0 and merge["strip_cols"] == 0
+
+
+def test_a_size_nothing_rejects_is_a_lease_taken_before_it_is_found_out():
+    """Lower bounds alone are half a domain.
+
+    Python integers do not stop being valid at any particular size, so
+    `num_slices: 10**12` was a job the queue accepted, a worker leased, and a
+    GPU host discovered.
+    """
+    from job_store import JobRejected, validate_parameters
+
+    with pytest.raises(JobRejected, match="bounded above"):
+        validate_parameters({"lane": "vc-render-tifxyz", "volume": "/v",
+                             "segmentation": "/s", "scale": 1.0, "group_idx": 0,
+                             "num_slices": 10 ** 12}, "P4")
+
+
+def test_the_two_p1_numbers_that_were_in_neither_set():
+    """`lasagna_scale` and the optimizer's seed had no sign check at all."""
+    from job_store import JobRejected, validate_parameters
+
+    fit = {"scroll_name": "PHerc0172", "dataset_path": "/artifacts/spiral",
+           "z_begin": 500, "z_end": 9000, "voxel_size_um": 7.91,
+           "artifact_store": "/artifacts"}
+    for bad in ({"lasagna_scale": -1}, {"random_seed": -5}):
+        with pytest.raises(JobRejected, match="cannot be negative"):
+            validate_parameters({**fit, **bad}, "P1",
+                                server_owned=("artifact_store",))
+
+
+def test_an_explicit_zero_seed_reaches_the_command():
+    """Dropped by truthiness, the run used upstream's default while the receipt
+    recorded the zero -- two halves that both look like a job that ran as
+    asked, disagreeing where nothing downstream can see it."""
+    from job_store import command_for, validate_parameters
+
+    parameters = validate_parameters(
+        {"scroll_name": "PHerc0172", "dataset_path": "/artifacts/spiral",
+         "z_begin": 500, "z_end": 9000, "voxel_size_um": 7.91,
+         "artifact_store": "/artifacts", "random_seed": 0}, "P1",
+        server_owned=("artifact_store",))
+    argv = [str(token) for token in command_for(
+        {"job_id": "p1-1", "sample_id": "PHerc0172", "phase": "P1",
+         "profile_id": "spiral-fitter-v1@0.3.0", "parameters": parameters},
+        runner="ignored", output_dir="/runs/p1-1")]
+    assert "--random-seed" in argv
+    assert argv[argv.index("--random-seed") + 1] == "0"

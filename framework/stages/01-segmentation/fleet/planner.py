@@ -68,6 +68,39 @@ class PlannerOutputInvalid(ValueError):
 class PlannerScientificViolation(ValueError):
     """The proposal violated a frozen scientific boundary and must fail closed."""
 
+
+def task6_planner_candidate(
+    candidate: dict[str, Any], *, ct_terminal: dict[str, Any],
+) -> dict[str, Any]:
+    """Admit only the exact prevalidated integral Task 6 candidate."""
+
+    from .seed_probe import coordinate_sha256_v1, validate_task6_coordinate
+
+    raw = validate_task6_coordinate(candidate.get("raw_coordinate_ct_l0_xyz"))
+    promotion = validate_task6_coordinate(
+        candidate.get("promotion_coordinate_ct_l0_xyz"),
+        require_integral=True,
+        expected_coordinate=raw,
+    )
+    digest = coordinate_sha256_v1(promotion)
+    if (candidate.get("raw_coordinate_sha256") != digest
+            or candidate.get("promotion_coordinate_sha256") != digest
+            or candidate.get("coordinate_admission_state") !=
+                "PROMOTABLE_INTEGRAL_COORDINATE_V1"):
+        raise ValueError("Task 6 planner coordinate authority drift")
+    if (ct_terminal.get("status") != "CT_RETAINED"
+            or ct_terminal.get("coordinate_ct_l0_xyz") not in (None, promotion)
+            or ct_terminal.get("coordinate_sha256") not in (None, digest)):
+        raise ValueError("Task 6 planner requires matching CT-retained evidence")
+    return {
+        "schema": "campaignx.first_letters_task6_planner_candidate.v1",
+        "candidate_id": candidate.get("candidate_id"),
+        "raw_coordinate_ct_l0_xyz": raw,
+        "raw_coordinate_sha256": digest,
+        "promotion_coordinate_ct_l0_xyz": promotion,
+        "promotion_coordinate_sha256": digest,
+    }
+
 PLANNER_PROMPT_V1 = """You are the ink-blind Helena Framework Stage 01 segmentation planner.
 
 Your job is narrow: select one already-proposed m7 seed for a pre-defined CT
@@ -133,12 +166,15 @@ Read the entire packet, then follow these rules exactly:
    `candidate_id`, `x`, `y`, and `z` byte-for-value. Never average, offset,
    recenter, round, repair, or invent coordinates. The validator independently
    verifies the listed candidate and inclusive cell bounds.
-3. Respect `candidate_selection_policy`. For
-   `score-cell-volume-clearance-v1`, choose the first candidate under the
-   documented frozen score/clearance/tie ordering. For
-   `adaptive-geometry-history-v2`, you may choose any listed candidate, but
-   justify the choice using only m7 score, cell/volume clearance, nearby
-   geometry, and the bounded failure history.
+3. Respect `candidate_rank` and `candidate_selection_policy`. The requested
+   frozen candidate rank is a one-based position in the documented
+   score/clearance/tie ordering. For
+   `score-cell-volume-clearance-v1`, choose exactly that ranked candidate.
+   For `adaptive-geometry-history-v2`, you may choose any listed candidate
+   only when `candidate_rank` is 1; a higher requested rank still selects the
+   exact frozen position. Justify any adaptive rank-one choice using only m7
+   score, cell/volume clearance, nearby geometry, and the bounded failure
+   history.
 4. Choose one exact `profile_id` from `parameter_envelope.profile_ids`. Return
    every parameter key exactly once. `const` values are immutable. Other values
    may vary, but must have the declared JSON type and stay inside inclusive
@@ -166,6 +202,7 @@ commands, or extra keys. Its complete shape is:
   "schema": "campaignx.segmentation_proposal.v2",
   "task_id": "copy packet task_id",
   "attempt_id": "copy packet attempt_id",
+  "candidate_rank": 1,
   "selected_seed": {"candidate_id": "listed id", "x": 0, "y": 0, "z": 0},
   "profile_id": "one allowed profile id",
   "parameters": {"every envelope parameter": "one valid value"},
@@ -188,12 +225,15 @@ PLANNER_PROMPT_V2_COMPACT = """Return exactly one compact JSON object for the
 Helena Framework ink-blind segmentation planner v2. Use only the attached decision
 view; never use ink, text, OCR, tools, web data, or invented coordinates.
 
-Choose one listed seed and copy candidate_id/x/y/z exactly. Choose one allowed
-profile and every declared parameter exactly once, respecting const, type,
-enum, minimum, and maximum. Consider every history row and do not repeat an
-exact failed recipe. Return no Markdown or extra keys:
+Choose one listed seed and copy candidate_id/x/y/z exactly. Honor
+`candidate_rank`: it is the requested frozen candidate rank; for a score policy
+you must choose exactly that one-based position. Choose one allowed profile and
+every declared parameter exactly once, respecting const, type, enum, minimum,
+and maximum. Consider every history row and do not repeat an exact failed
+recipe. Return no Markdown or extra keys:
 {"schema":"campaignx.segmentation_proposal.v2","task_id":"exact",
-"attempt_id":"exact","selected_seed":{"candidate_id":"listed","x":0,"y":0,"z":0},
+"attempt_id":"exact","candidate_rank":1,
+"selected_seed":{"candidate_id":"listed","x":0,"y":0,"z":0},
 "profile_id":"allowed","parameters":{"all":"valid"},
 "history_considered":["all history_id values in order"],
 "hypothesis":"brief geometry-only reason",
@@ -284,6 +324,7 @@ def compact_planner_view(
         or packet.get("source_snapshot_id"),
         "sample_id": packet.get("sample_id"),
         "candidate_selection_policy": packet.get("candidate_selection_policy"),
+        "candidate_rank": packet.get("candidate_rank", 1),
         "cell": packet.get("cell"),
         "candidate_seeds": seeds,
         "parameter_envelope": packet.get("parameter_envelope"),
@@ -588,6 +629,25 @@ def task_packet_for_planner(
 ) -> dict[str, Any]:
     if contract_version not in {"v1", "v2"}:
         raise ValueError(f"unsupported segmentation planner contract: {contract_version}")
+    candidate_rank = task.get("candidate_rank", 1)
+    if (
+        not isinstance(candidate_rank, int)
+        or isinstance(candidate_rank, bool)
+        or candidate_rank < 1
+    ):
+        raise ValueError("task candidate_rank must be a positive integer")
+    if candidate_rank != 1 and contract_version != "v2":
+        raise ValueError("candidate_rank above 1 requires planner v2")
+    seed_probe = task.get("seed_probe")
+    if (
+        isinstance(seed_probe, dict)
+        and seed_probe.get("mode") == "select"
+        and candidate_rank != 1
+    ):
+        raise ValueError(
+            "seed-probe select requires candidate_rank 1; its continuation "
+            "is bound to one persisted winner"
+        )
     if contract_version == "v2":
         if regional_attempt_history is None:
             raise ValueError("planner v2 requires an explicit regional attempt history packet")
@@ -648,6 +708,10 @@ def task_packet_for_planner(
             "initial_probe": m7_response.get("initial_probe"),
         } if m7_response is not None else None,
         "candidate_seeds": candidates,
+        # This is the task's immutable request, not a host-local planner
+        # setting. It must travel through the packet so a host default and a
+        # deterministic fallback execute the same selected M7 rung.
+        "candidate_rank": candidate_rank,
         "candidate_selection_policy": task.get("candidate_selection_policy", "legacy-v5-no-selection-enforcement"),
         "parameter_envelope": task["parameter_envelope"],
         "constraints": {
@@ -750,7 +814,7 @@ class DeterministicPlanner:
         # grown from m7's third choice is not the same evidence as one grown from
         # its first, and collapsing them would be the error this repository exists
         # to prevent.
-        rank = int(getattr(self, "candidate_rank", 1))
+        rank = int(packet.get("candidate_rank", getattr(self, "candidate_rank", 1)))
         if rank != 1 and self.contract_version != "v2":
             raise RuntimeError(
                 "candidate_rank needs the v2 proposal contract: v1 has no field "
@@ -1702,11 +1766,34 @@ def _validate_common_proposal(
         "candidate_selection_policy"
     ) not in {"score-cell-volume-clearance-v1", "adaptive-geometry-history-v2"}:
         raise RuntimeError("planner v2 task has an unsupported candidate selection policy")
-    if packet.get("candidate_selection_policy") == "score-cell-volume-clearance-v1":
-        required = sorted(packet["candidate_seeds"], key=candidate_rank_key)[0]
+    requested_rank = packet.get("candidate_rank", 1)
+    if (
+        not isinstance(requested_rank, int)
+        or isinstance(requested_rank, bool)
+        or requested_rank < 1
+    ):
+        raise PlannerScientificViolation("planner packet has an invalid candidate rank")
+    if packet.get("schema") == "campaignx.segmentation_planner_packet.v2":
+        proposal_rank = proposal.get("candidate_rank")
+        if (
+            not isinstance(proposal_rank, int)
+            or isinstance(proposal_rank, bool)
+            or proposal_rank != requested_rank
+        ):
+            raise PlannerScientificViolation(
+                "proposal candidate rank does not match the locked task request"
+            )
+    if (packet.get("candidate_selection_policy") == "score-cell-volume-clearance-v1"
+            or requested_rank != 1):
+        ordered_candidates = sorted(packet["candidate_seeds"], key=candidate_rank_key)
+        if requested_rank > len(ordered_candidates):
+            raise PlannerScientificViolation(
+                "requested candidate rank is outside the frozen M7 candidate packet"
+            )
+        required = ordered_candidates[requested_rank - 1]
         if selected["candidate_id"] != required["candidate_id"]:
             raise PlannerScientificViolation(
-                "selected seed violates frozen score/cell/volume-clearance ordering"
+                "selected seed violates the requested frozen score/cell/volume-clearance candidate rank"
             )
     low, high = packet["cell"]["bounds_xyz"]
     if any(not (float(low[index]) <= float(selected[axis]) <= float(high[index])) for index, axis in enumerate("xyz")):
@@ -1839,6 +1926,10 @@ def validate_and_lock(packet: dict[str, Any], proposal: dict[str, Any]) -> dict[
         "cell": packet["cell"],
         "source": packet["source_snapshot"],
         "selected_seed": selected,
+        **(
+            {"candidate_rank": packet.get("candidate_rank", 1)}
+            if packet_schema.endswith(".v2") else {}
+        ),
         "profile_id": proposal["profile_id"],
         "parameters": proposal["parameters"],
         "proposal_sha256": content_sha256(proposal),

@@ -32,6 +32,23 @@ class PanelError(RuntimeError):
         super().__init__(f"{method} {path} -> HTTP {status}: {body[:400]}")
 
 
+class AmbiguousMutationError(RuntimeError):
+    """A mutation may have committed, but its response could not be read.
+
+    Callers must read platform state before deciding what happened.  Retrying
+    here could create a second job or experiment under a new identity.
+    """
+
+    def __init__(self, method: str, path: str, detail: str):
+        self.method = method
+        self.path = path
+        self.detail = detail
+        super().__init__(
+            f"{method} {path} has an ambiguous outcome ({detail}); the mutation "
+            "must not be retried until platform state is read back"
+        )
+
+
 class Panel:
     """A session against one panel.
 
@@ -63,16 +80,51 @@ class Panel:
             handlers.append(urllib.request.HTTPSHandler(context=context))
         self.http = urllib.request.build_opener(*handlers)
 
-    def call(self, method: str, path: str, body: dict | None = None) -> dict:
+    def call(self, method: str, path: str, body: dict | None = None, *,
+             timeout: float | None = None) -> dict:
         data = json.dumps(body).encode() if body is not None else None
         request = urllib.request.Request(
             self.base + path, data=data, method=method,
             headers={"Content-Type": "application/json"} if data else {})
         try:
-            with self.http.open(request, timeout=self.timeout) as response:
+            with self.http.open(
+                    request, timeout=self.timeout if timeout is None else timeout
+            ) as response:
                 return json.loads(response.read() or b"{}")
         except urllib.error.HTTPError as failure:
+            body_text = failure.read().decode(errors="replace")
+            if method.upper() in {"POST", "PUT", "PATCH", "DELETE"} \
+                    and failure.code in {502, 504}:
+                raise AmbiguousMutationError(
+                    method.upper(), path, f"HTTP {failure.code}: {body_text}"
+                ) from None
             raise PanelError(method, path, failure.code,
+                             body_text) from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError,
+                json.JSONDecodeError) as failure:
+            if method.upper() in {"POST", "PUT", "PATCH", "DELETE"}:
+                raise AmbiguousMutationError(
+                    method.upper(), path, f"{type(failure).__name__}: {failure}"
+                ) from None
+            raise
+
+    def fetch(self, path: str, *, timeout: float | None = None) -> bytes:
+        """One response body, unparsed.
+
+        `call` decodes JSON, which is right for every route but the artifact
+        one: that hands back a directory as a gzipped tar, and a control that
+        wants to see what a job published has to read it as bytes. Reading it
+        off the worker's disk instead would be reaching into the machine under
+        test rather than using the interface anybody else has.
+        """
+        request = urllib.request.Request(self.base + path, method="GET")
+        try:
+            with self.http.open(
+                    request, timeout=self.timeout if timeout is None else timeout
+            ) as response:
+                return response.read()
+        except urllib.error.HTTPError as failure:
+            raise PanelError("GET", path, failure.code,
                              failure.read().decode(errors="replace")) from None
 
     def sign_in(self, username: str, password: str) -> str:

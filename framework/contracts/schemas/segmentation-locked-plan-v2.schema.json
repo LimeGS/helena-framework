@@ -3,7 +3,7 @@
   "$id": "https://campaignx.local/schemas/segmentation-locked-plan-v2.schema.json",
   "title": "Campaign X locked adaptive segmentation plan v2",
   "type": "object",
-  "required": ["schema", "status", "locked_at_utc", "task_id", "attempt_id", "source_snapshot_id", "sample_id", "cell", "source", "selected_seed", "profile_id", "parameters", "proposal_sha256", "catalog_snapshot_sha256", "hypothesis", "regional_attempt_history_sha256", "history_considered", "parameter_rationale", "variation_summary", "proposed_recipe_sha256", "ink_used", "non_claims"],
+  "required": ["schema", "status", "locked_at_utc", "task_id", "attempt_id", "source_snapshot_id", "sample_id", "cell", "source", "selected_seed", "candidate_rank", "profile_id", "parameters", "proposal_sha256", "catalog_snapshot_sha256", "hypothesis", "regional_attempt_history_sha256", "history_considered", "parameter_rationale", "variation_summary", "proposed_recipe_sha256", "ink_used", "non_claims"],
   "properties": {
     "schema": {"const": "campaignx.segmentation_locked_plan.v2"},
     "status": {"const": "LOCKED_READY"},
@@ -15,6 +15,7 @@
     "cell": {"type": "object"},
     "source": {"type": "object"},
     "selected_seed": {"type": "object"},
+    "candidate_rank": {"type": "integer", "minimum": 1},
     "profile_id": {"type": "string", "minLength": 1},
     "parameters": {"type": "object"},
     "benchmark_execution": {

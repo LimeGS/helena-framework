@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -203,3 +205,116 @@ def test_the_floor_reaches_the_receipt(tmp_path):
     from flatten import AREA_RATIO_FLOOR
 
     assert receipt["area_ratio_floor"] == AREA_RATIO_FLOOR
+
+
+def test_panel_flattening_readback_returns_full_current_job_receipt(monkeypatch):
+    import panel.app as app
+
+    receipt = {
+        "schema": "campaignx.surface_flattening_receipt.v1",
+        "state": "FLATTENED", "surface_id": "surface-control",
+        "requested_by_job_id": "p3-current", "source_artifact_sha256": "3" * 64,
+        "profile_id": "flatten-abf-v1@1.0.0", "profile_file_sha256": "5" * 64,
+        "artifact_uri": "s3://flat/current", "artifact_sha256": "6" * 64,
+        "files": 1, "objects": [
+            {"object_key": "x.tif", "sha256": "7" * 64, "bytes": 42}],
+    }
+    payload = {**receipt, "receipt_sha256": app._canonical_document_sha256(receipt)}
+
+    class Cursor:
+        calls = 0
+
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def execute(self, _statement, _parameters=()):
+            self.calls += 1
+        def fetchone(self): return (1,)
+        def fetchall(self):
+            if self.calls == 3:
+                return [("FLATTENED", 1)]
+            return [("flat-id", "surface-control", "PHerc0139",
+                     "flatten-abf-v1@1.0.0", "FLATTENED", 0.95,
+                     "s3://flat/current", "6" * 64,
+                     datetime(2026, 8, 2, tzinfo=timezone.utc), payload)]
+
+    class Connection:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def cursor(self): return Cursor()
+
+    monkeypatch.setattr(app, "DSN", "configured")
+    monkeypatch.setattr(app, "read_scope", lambda mission, sample: {"PHerc0139"})
+    monkeypatch.setitem(sys.modules, "psycopg", SimpleNamespace(
+        connect=lambda *_args, **_kwargs: Connection()))
+    body = json.loads(app.api_flattening(sample="PHerc0139", mission="control").body)
+    row = body["rows"][0]
+    assert row["artifact_id"] == "flat-id"
+    assert row["requested_by_job_id"] == "p3-current"
+    assert row["source_artifact_sha256"] == "3" * 64
+    assert row["receipt"] == receipt
+    assert row["receipt_sha256"] == app._canonical_document_sha256(receipt)
+
+
+# --------------------------------------------------------------- lasagna --
+#
+# A second flattener, selectable rather than substituted. vc_flatten stays the
+# default: its profile is frozen and its hash is in receipts already written,
+# so `engine` is absent from that profile and absent must keep meaning
+# vc_flatten forever.
+
+LASAGNA_PROFILE = (ROOT
+                   / "framework/profiles/02-flattening/flatten-lasagna-v1-1.0.0.json")
+
+
+def test_a_profile_with_no_engine_is_still_vc_flatten():
+    """The shipped profile predates the choice and cannot be edited: its
+    content hash is in every receipt P3 has ever written."""
+    profile = load_profile(PROFILE)
+    assert "engine" not in profile, (
+        "adding a field to the frozen profile changes its hash and breaks the "
+        "comparability the profile exists to provide")
+    argv = flatten_command("vc_flatten", Path("in"), Path("out"), profile)
+    assert argv[0] == "vc_flatten"
+    assert "--iterations" in argv
+
+
+def test_the_lasagna_profile_is_a_valid_profile():
+    profile = load_profile(LASAGNA_PROFILE)
+    assert profile["profile_id"] == "flatten-lasagna-v1@1.0.0"
+    assert profile["engine"] == "lasagna"
+
+
+def test_lasagna_builds_its_own_command_from_its_own_profile():
+    """Lasagna is config-file driven, not flag driven: bare .json paths are
+    positional and everything else is a flag. An argv shaped like
+    vc_flatten's would simply not run."""
+    profile = load_profile(LASAGNA_PROFILE)
+    argv = flatten_command("/opt/villa/lasagna/fit.py", Path("in"), Path("out"),
+                           profile, volume="s3://bucket/scroll.zarr")
+    assert argv[0] == "/opt/villa/lasagna/fit.py"
+    # Every config the profile names, as a bare positional .json.
+    for config in profile["configs"]:
+        assert config in argv, f"{config} never reached the command"
+    assert "--tifxyz-init" in argv and "in" in argv
+    assert "--out-dir" in argv and "out" in argv
+    assert "--input" in argv and "s3://bucket/scroll.zarr" in argv
+    assert "--device" in argv and profile["device"] in argv
+    # vc_flatten's flags must not leak into a lasagna run.
+    assert "--iterations" not in argv
+    assert "--downsample" not in argv
+
+
+def test_lasagna_without_a_volume_is_refused_rather_than_guessed():
+    """vc_flatten reads only the TIFXYZ; lasagna samples the CT and cannot be
+    given a default for which scan that is."""
+    profile = load_profile(LASAGNA_PROFILE)
+    with pytest.raises(ValueError, match="volume"):
+        flatten_command("fit.py", Path("in"), Path("out"), profile)
+
+
+def test_an_unknown_engine_is_refused_rather_than_defaulted():
+    """Silently falling back to vc_flatten would write a receipt naming an
+    engine that never ran."""
+    with pytest.raises(ValueError, match="engine"):
+        flatten_command("x", Path("in"), Path("out"),
+                        {"profile_id": "p@1.0.0", "engine": "not-a-flattener"})

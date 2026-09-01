@@ -17,13 +17,25 @@ name: helena-qc
 
 services:
   surface-qc:
-    # The phase runtime, which is helena-surface-qc plus tifffile plus this
+    # The phase runtime, which is helena-gpu-runtime plus tifffile plus this
     # repository baked in. QC needs the adapter, the watch script and the frozen
     # profile; taking them from the image rather than a mounted checkout is what
     # lets a machine run this with nothing on its disk. The model underneath is
     # the same model, byte for byte, that every past verdict was issued with.
-    image: ${HELENA_QC_IMAGE:-helena-ink-worker:${HELENA_VERSION:-0.21.1}}
-    container_name: helena-surface-qc-${HELENA_QC_DEVICE:-0}
+    image: ${HELENA_QC_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.22.0}}
+    # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
+    # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
+    # had the whole container and every volume mounted into it. The volumes are
+    # 1000:1000 on the hosts (see containers/README-nonroot.md); a host that
+    # has not done that chown will see permission errors on first start rather
+    # than silent damage.
+    #
+    # no-new-privileges as well: it costs nothing here and removes setuid as a
+    # way back up.
+    user: "${HELENA_RUN_AS:-1000:1000}"
+    security_opt:
+      - no-new-privileges:true
+    container_name: helena-gpu-runtime-${HELENA_QC_DEVICE:-0}
     restart: unless-stopped
       # A ceiling, because this host has already lost PostgreSQL to a full
       # disk. Docker's default json-file driver has no limit at all: a
@@ -49,6 +61,21 @@ services:
       # deployment ends up with and needs no configuration. A deployment that
       # already sets this in its env file keeps whatever it says.
       HELENA_QC_CHECKPOINT: ${HELENA_QC_CHECKPOINT:-/models/timesformer_GP_scroll1/model.safetensors}
+      # This worker does not own its card. On gpu-1 two llama.cpp servers hold
+      # 9,264 MiB of the 12,288 across both boards, and every QC job that
+      # reached ink screening died with CUDA out of memory -- after paying for
+      # a full render, because the render succeeds and only inference finds
+      # there is no room.
+      #
+      # Below this many MiB free on the best card, a claim is refused before
+      # the executor runs and the receipt says GPU_MEMORY_EXHAUSTED with the
+      # number it saw, instead of "command failed with exit code 1".
+      #
+      # 2048 is a floor, not a measurement: the observed failure had TimeSformer
+      # at 815 MiB allocated when it died asking for 40 more, so the true
+      # requirement is above that and has not been measured with the cards free.
+      # Set it from a measured run when there is one.
+      QC_MINIMUM_FREE_VRAM_MIB: ${QC_MINIMUM_FREE_VRAM_MIB:-2048}
     gpus:
       - driver: nvidia
         device_ids: ["${HELENA_QC_DEVICE:-0}"]

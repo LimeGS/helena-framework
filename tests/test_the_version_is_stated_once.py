@@ -8,7 +8,7 @@ them.
 
 Deliberately not covered here:
 
-  * Component image tags -- helena-vc3d:0.3.2, helena-surface-qc:0.1.1. Those are
+  * Component image tags -- helena-vc3d:0.3.2, helena-gpu-runtime:0.1.1. Those are
     pulled from a registry by tag. Renaming them to match the platform names an
     image that does not exist, and the deploy fails at the pull.
   * Scientific profile versions. They are immutable identities that receipts

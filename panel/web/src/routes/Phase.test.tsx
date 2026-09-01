@@ -22,7 +22,7 @@ const P4_SCHEMA = {
   lanes: [
     { id: "vc-render-tifxyz", name: "volume-cartographer renderer",
       note: "reads a tifxyz directly", validated: null, required: [] },
-    { id: "scroll3-chunk-gather", name: "chunk-gather renderer (Scroll 3 only)",
+    { id: "chunk-gather", name: "chunk-gather renderer (Scroll 3 only)",
       note: "needs a PPM", validated: "r = 0.89 against an official ink map",
       required: [] },
   ],
@@ -48,28 +48,39 @@ const P4_SCHEMA = {
     { name: "artifact_store", type: "text", required: false, lane: null,
       label: "Where it publishes", note: null, placeholder: null,
       filled_by_deployment: true },
-    { name: "ppm", type: "text", required: true, lane: "scroll3-chunk-gather",
+    { name: "ppm", type: "text", required: true, lane: "chunk-gather",
       label: "PPM file", note: null, placeholder: null, filled_by_deployment: false },
+    // A field that names another job, with the jobs this mission has.
+    { name: "screening_of", type: "text", required: false, lane: null,
+      label: "…or the screening that produced one", note: null, placeholder: null,
+      filled_by_deployment: false, names_a_job_from: "P5",
+      choices: [{ value: "p5-0c1c5934eaf442", note: "PHerc0139 · ink-9um" }] },
   ],
 };
 
 const PHASE = {
   contract: { id: "P4", name: "Surface volume rendering", one_line: "Sample the CT",
               maturity: "WORKING", distributed: true },
-  state: {}, artefacts: [], jobs: [], profiles: [], components: [],
+  state: {},
+  artefacts: [], jobs: [], profiles: [], components: [],
   queueable: true, queueable_reason: null,
 };
 
 const posted: { path: string; body: any }[] = [];
 
+// What this phase reports about itself, per test: a phase with state rows draws
+// a tab bar, and the launcher stops being the default view.
+let state: Record<string, unknown> = {};
+
 function reply(path: string) {
   if (path.startsWith("/api/phases/P4/parameters")) return P4_SCHEMA;
-  if (path.startsWith("/api/phase/P4")) return PHASE;
+  if (path.startsWith("/api/phase/P4")) return { ...PHASE, state };
   return {};
 }
 
 beforeEach(() => {
   posted.length = 0;
+  state = {};
   vi.stubGlobal("fetch", vi.fn(async (input: any, init?: any) => {
     const path = String(input);
     if (init?.method === "POST") {
@@ -129,8 +140,8 @@ describe("the queue form", () => {
     await openTheForm();
     await screen.findByPlaceholderText("/vol/scroll.zarr");
     expect(screen.queryByText(/PPM file/)).toBeNull();
-    fireEvent.change(screen.getByRole("combobox"),
-                     { target: { value: "scroll3-chunk-gather" } });
+    fireEvent.change(document.querySelector("select")!,
+                     { target: { value: "chunk-gather" } });
     await waitFor(() => expect(screen.getByText(/PPM file/)).toBeDefined());
     expect(screen.queryByPlaceholderText("/vol/scroll.zarr")).toBeNull();
   });
@@ -142,6 +153,25 @@ describe("the queue form", () => {
     const queue = screen.getByRole("button", { name: /Queue P4 job/ });
     expect((queue as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/name exactly one of/)).toBeDefined();
+  });
+
+  it("queues with the other half of an exactly-one-of pair", async () => {
+    // The surface path is `required` and pairs with the flattened surface id.
+    // Naming the id satisfied the pair and re-armed the path, so the button
+    // stayed disabled however the form was filled in, and a flattened sheet
+    // could not be rendered from a browser at all.
+    await openTheForm();
+    fireEvent.change(screen.getByPlaceholderText("/vol/scroll.zarr"),
+                     { target: { value: "/vol/x.zarr" } });
+    fireEvent.change(screen.getByLabelText(/or a flattened surface id/),
+                     { target: { value: "151ea1c0-0308" } });
+    await waitFor(() => expect(
+      (screen.getByRole("button", { name: /Queue P4 job/ }) as HTMLButtonElement).disabled,
+    ).toBe(false));
+    fireEvent.click(screen.getByRole("button", { name: /Queue P4 job/ }));
+    await waitFor(() => expect(posted.length).toBe(1));
+    expect(posted[0].body.parameters.flattened_surface).toBe("151ea1c0-0308");
+    expect(posted[0].body.parameters.segmentation).toBeUndefined();
   });
 
   it("posts the types the queue declared, not strings", async () => {
@@ -169,5 +199,35 @@ describe("the queue form", () => {
     expect(body.parameters.num_slices).toBe(63);          // integer, not "63"
     expect(body.parameters.flip_normals).toBe(true);      // boolean, not "on"
     expect(body.parameters.artifact_store).toBeUndefined();
+  });
+});
+
+describe("what the phase reports", () => {
+  it("reads a tally as words rather than as JSON", async () => {
+    // {"ALIVE":2} on screen, braces and quotes included, is what P6's verdict
+    // tile said for what is two words.
+    state = { runs_with_liveness: 2, verdicts: { ALIVE: 2, DEAD: 1 } };
+    draw();
+    expect(await screen.findByText("ALIVE 2 · DEAD 1")).toBeDefined();
+    expect(screen.queryByText(/\{"ALIVE"/)).toBeNull();
+  });
+
+  it("offers the jobs a job-naming field can name", async () => {
+    await openTheForm();
+    const field = await screen.findByLabelText(/or the screening that produced one/);
+    // A datalist, not a select: an id from outside this mission is still an
+    // answer somebody may have.
+    expect((field as HTMLInputElement).getAttribute("list")).toBe("P4-screening_of");
+    const option = document.querySelector("#P4-screening_of option");
+    expect(option?.getAttribute("value")).toBe("p5-0c1c5934eaf442");
+  });
+
+  it("asks the queue for candidates in this mission and scroll", async () => {
+    await openTheForm();
+    const asked = (globalThis.fetch as any).mock.calls
+      .map((call: any[]) => String(call[0]))
+      .find((path: string) => path.startsWith("/api/phases/P4/parameters"));
+    expect(asked).toContain("mission=test");
+    expect(asked).toContain("sample=PHerc826");
   });
 });

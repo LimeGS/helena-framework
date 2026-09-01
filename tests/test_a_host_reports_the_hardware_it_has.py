@@ -9,6 +9,7 @@ after the machine had rendered a layer stack on one of them.
 
 from __future__ import annotations
 
+import re
 import sys
 import time
 from pathlib import Path
@@ -61,3 +62,29 @@ def test_a_fresh_observation_replaces_the_reading_it_repeats():
     assert len(merged) == 1
     assert merged[0]["used_mb"] == 2632
     assert merged[0]["seen_by"] == "worker-host"
+
+
+def test_an_unregistered_host_is_told_where_to_register() -> None:
+    """This ran every minute on a fresh install and named no way forward.
+
+    "no host row named 'work-3'; register it to see this" is true and useless:
+    the reader has the panel open in front of them and no reason to guess that
+    Configuration holds a Hosts tab. Saying where turns a log line that repeats
+    forever into one step.
+
+    The location is asserted against the panel, not spelled twice: a message
+    naming a tab that has been moved is worse than the one that named nothing.
+    """
+    root = Path(__file__).resolve().parents[1]
+    message = (root / "framework/contracts/host_report.py").read_text()
+    assert "no host row named" in message, "the message is gone; drop this test"
+
+    said = re.search(r'add it under\s*"?\s*\n?\s*f?"([^"]*Hosts[^"]*)', message)
+    assert said, "the message no longer says where a host is registered"
+
+    configuration = (root / "panel/web/src/routes/Configuration.tsx").read_text()
+    assert 'tab === "hosts"' in configuration, (
+        "the message sends people to a Hosts tab that Configuration no longer "
+        "renders")
+    hosts_page = (root / "panel/web/src/routes/Hosts.tsx").read_text()
+    assert 'title="Hosts"' in hosts_page, "the page it names is not called Hosts"

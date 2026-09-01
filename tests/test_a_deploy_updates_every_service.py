@@ -20,10 +20,28 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = (ROOT / "containers/deploy-platform.sh").read_text()
 
+# Read out of the deploy rather than restated beside it. A hand-kept list is
+# the same bug this file exists for, one level up: the 9 um slot ran six months
+# on the image it was born with because the deploy had never been told about it,
+# and a list here that nobody updates would let the next such slot through the
+# same way. Every compose file the deploy brings up is checked, and adding one
+# enrols it automatically.
+COMPOSE_NAMES = sorted(set(re.findall(r"\$compose/([A-Za-z0-9._-]+)\.compose\.yaml",
+                                     DEPLOY)))
 COMPOSE = {
     name: yaml.safe_load((ROOT / f"containers/compose/{name}.compose.yaml").read_text())
-    for name in ("platform", "segment", "host-report", "ink", "surface-qc")
+    for name in COMPOSE_NAMES
 }
+
+
+def test_the_deploy_brings_up_every_stack_this_file_knows_to_check() -> None:
+    """The list is derived, so this guards the derivation rather than the list:
+    a deploy that stopped naming its compose files by path would silently check
+    nothing at all."""
+    assert {"platform", "segment", "ink", "surface-qc", "spiral"} <= set(COMPOSE_NAMES), (
+        f"the deploy names only {COMPOSE_NAMES}; a stack it stopped bringing up "
+        "is a stack nothing below checks"
+    )
 
 
 def _image_variables() -> set[str]:
@@ -40,7 +58,7 @@ def _image_variables() -> set[str]:
 
 def test_every_image_a_compose_file_names_is_set_by_the_deploy() -> None:
     """A variable nobody sets falls back to a default in the compose file --
-    `helena-worker:0.10.0`, a version tag that stopped moving long ago. The
+    `helena-worker-cpp:0.10.0`, a version tag that stopped moving long ago. The
     service then runs whatever that means on this host, forever, while the
     deploy reports the new commit."""
     for variable in _image_variables():
@@ -70,7 +88,7 @@ def test_the_deploy_checks_what_it_left_running() -> None:
                       "helena-backup", "helena-ink-0"):
         assert container in checked, f"{container} is never verified after the deploy"
     # The QC workers are one container per card, so they are checked in a loop.
-    assert "helena-surface-qc-$device" in DEPLOY
+    assert "helena-gpu-runtime-$device" in DEPLOY
 
 
 def test_qc_receipts_use_the_commit_being_deployed() -> None:

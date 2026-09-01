@@ -30,6 +30,16 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+
+# The repository root, so the shared device resolver is importable from a
+# script launched by path. `auto` has to mean the same thing in every runner or
+# it is six defaults again, wearing one word.
+_ROOT = Path(__file__).resolve()
+while _ROOT != _ROOT.parent and not (_ROOT / "framework").is_dir():
+    _ROOT = _ROOT.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+from framework.contracts.host_probe import resolve_device  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from model_resnet3d_3d_decoder import load_model  # noqa: E402
 
@@ -90,13 +100,21 @@ def main() -> int:
     ap.add_argument("--output", type=Path, required=True)
     ap.add_argument("--sample-id", required=True)
     ap.add_argument("--source-pixel-um", type=float, required=True)
+    ap.add_argument(
+        "--expected-checkpoint-sha256",
+        help="the digest the profile pins. This script computes the real one "
+             "for its receipt and had nothing to compare it against -- it takes "
+             "no --profile -- so a receipt could record a checkpoint nobody had "
+             "checked was the intended one. Given, it is verified before the "
+             "model is loaded rather than after the run.")
     ap.add_argument("--frames", type=int, default=62)
     ap.add_argument("--tile-size", type=int, default=256)
     ap.add_argument("--stride", type=int, default=128)
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--depth-center", type=int, default=None)
     ap.add_argument("--min-valid-ratio", type=float, default=0.60)
-    ap.add_argument("--device", default="cuda")
+    ap.add_argument("--device", default="auto",
+                        help="auto (the card if this host has one), cpu, or cuda[:N] to require one")
     ap.add_argument(
         "--on-degenerate",
         choices=("fail", "warn"),
@@ -105,8 +123,20 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    if args.output.exists():
-        raise RuntimeError(f"refusing to overwrite: {args.output}")
+    # Resolve the device before anything expensive: an explicit `cuda` on a host
+    # with no card is refused here rather than several minutes into a load, and
+    # `auto` becomes the word the receipt can stand behind.
+    _device = resolve_device(args.device)
+    args.device = _device["device"]
+
+    # Non-empty, not merely present. The fleet worker makes every job's run
+    # directory before it starts the runner -- other lanes write a file into it
+    # and expect it to be there -- so refusing an existing directory refused
+    # every queued run of this lane, in two and a half seconds, since the day
+    # the guard was written. What it is for is not clobbering a map that is
+    # already there, and an empty directory is not a map.
+    if args.output.exists() and any(args.output.iterdir()):
+        raise RuntimeError(f"refusing to overwrite non-empty output: {args.output}")
 
     files = ordered_layers(args.tiff_dir.resolve())
     centre = args.depth_center if args.depth_center is not None else len(files) // 2
@@ -122,6 +152,14 @@ def main() -> int:
     if stack.dtype != np.uint8:
         raise RuntimeError(f"expected uint8 layers, got {stack.dtype}")
     depth, height, width = stack.shape
+
+    # Before the model is loaded, so a wrong checkpoint costs a hash and not a
+    # run. Same reason the layer stack is validated before inference here.
+    checkpoint_sha = sha256_file(args.checkpoint)
+    if args.expected_checkpoint_sha256 and checkpoint_sha != args.expected_checkpoint_sha256:
+        raise RuntimeError(
+            f"checkpoint {checkpoint_sha} is not the "
+            f"{args.expected_checkpoint_sha256} that was expected. Nothing was run.")
 
     device = torch.device(args.device)
     model = load_model(str(args.checkpoint), device, num_frames=args.frames)
@@ -182,7 +220,10 @@ def main() -> int:
         "sample_id": args.sample_id,
         "method_id": "ink-canonical-2um@1.0.0",
         "recipe": "new_canon_autoresearch_recipe",
-        "checkpoint_sha256": sha256_file(args.checkpoint),
+        "checkpoint_sha256": checkpoint_sha,
+        # Recorded so a reader can tell a digest that was checked against
+        # something from one that was merely computed and written down.
+        "checkpoint_sha256_verified": bool(args.expected_checkpoint_sha256),
         "model_loader": "ScrollPrize/villa ink-detection/optimized_inference/model_resnet3d_3d_decoder.py",
         "input": {
             "tiff_dir": str(args.tiff_dir),

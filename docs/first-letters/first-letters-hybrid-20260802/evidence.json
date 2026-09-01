@@ -1,0 +1,536 @@
+{
+  "schema": "helena.public_first_letters_campaign_evidence.v1",
+  "report_version": "1.0.0",
+  "mission_label": "first-letters-hybrid-20260802",
+  "campaign_verdict": "BOUNDED_NEGATIVE_NO_REVIEWABLE_CANDIDATE",
+  "scope": {
+    "frozen_scroll_count": 13,
+    "policy_version": "first-letters-hybrid-20260802-v1",
+    "scientific_profiles": {
+      "p1_growth": "vc3d-m7-growth-v1"
+    },
+    "planner": "cost-aware-v2",
+    "selection_strategy": "stratified-clearance-v1",
+    "seed_probe_mode": "off",
+    "ct_material_support_gate": "ome-zarr-nearby-material-v1",
+    "wave_execution": "serial_terminal_evidence_before_next_scroll",
+    "artifact_locations_disclosed": false,
+    "public_evidence_includes": [
+      "frozen P0 artifact IDs and SHA-256 identities",
+      "per-scroll attempt and terminal-state summaries",
+      "quantitative gate results",
+      "scientific profile and policy names",
+      "incident fixes, test counts, and deployment approval",
+      "source-record SHA-256 identities",
+      "limitations and non-claims"
+    ],
+    "redacted": [
+      "hostnames",
+      "users and account data",
+      "worker identifiers",
+      "private paths and URIs",
+      "authentication and deployment topology",
+      "task, attempt, and QC identifiers",
+      "source-snapshot identifiers",
+      "CI job identifiers",
+      "raw logs"
+    ]
+  },
+  "source_evidence": {
+    "campaign_ledger_sha256": "ad3d126a387615a13da56299b8bb6a6beb26b35ff7a474eb2e36d6050b3b2131",
+    "final_api_readback_sha256": "93918848d245efa93759d8a6a225f1837f710e0fe2c5825ee79e342761bfc83b",
+    "final_readback_retrieved_at_utc": "2026-08-02T20:56:07.974423+00:00"
+  },
+  "p0_frozen_artifacts": [
+    {
+      "scroll": "PHerc0125",
+      "artifact_id": "p0:PHerc0125:ddfc1d87c6b4",
+      "content_sha256": "ddfc1d87c6b4f5d8b0ae2b8d43b6847fdfff7054c9f61ca90e61c61830bf2f29"
+    },
+    {
+      "scroll": "PHerc0191",
+      "artifact_id": "p0:PHerc0191:c89f8cb0103c",
+      "content_sha256": "c89f8cb0103c5fee5bd2b9bcc6099641b1a41d831188c7be379cb3884d644723"
+    },
+    {
+      "scroll": "PHerc0211",
+      "artifact_id": "p0:PHerc0211:b5ced58cbd0e",
+      "content_sha256": "b5ced58cbd0e7f3956d07d24f4e8b7555a9f8400cde0774e33f1b155f55db0fb"
+    },
+    {
+      "scroll": "PHerc0257",
+      "artifact_id": "p0:PHerc0257:46e53c716ef7",
+      "content_sha256": "46e53c716ef761d5aa853da63f65f0344bba6bb13ce38cb831fcfbbb2b062fb0"
+    },
+    {
+      "scroll": "PHerc0268",
+      "artifact_id": "p0:PHerc0268:45fc8c5db982",
+      "content_sha256": "45fc8c5db9821c1e37551b3e3c289766e969337cdcb39296ca5d7003f8070708"
+    },
+    {
+      "scroll": "PHerc0358",
+      "artifact_id": "p0:PHerc0358:8360cd908a08",
+      "content_sha256": "8360cd908a0816ae1719e3af8854f426c23a9779eaea5d12bce4ee0c93b56070"
+    },
+    {
+      "scroll": "PHerc0800",
+      "artifact_id": "p0:PHerc0800:f9a255333b50",
+      "content_sha256": "f9a255333b50f7066bb0ac613fae2299f27c50a5d000173aa0a762c1a8192fc7"
+    },
+    {
+      "scroll": "PHerc0813",
+      "artifact_id": "p0:PHerc0813:7142dc07558e",
+      "content_sha256": "7142dc07558e756b80a8c003d84af1e16a528caeda5896fc8568b53aad461aed"
+    },
+    {
+      "scroll": "PHerc0826",
+      "artifact_id": "p0:PHerc0826:6d68c572ec0a",
+      "content_sha256": "6d68c572ec0aefc4a92033c7abaf847c28ec4abc6181c27603f79516662eead7"
+    },
+    {
+      "scroll": "PHerc1203",
+      "artifact_id": "p0:PHerc1203:1c757dcf0d6b",
+      "content_sha256": "1c757dcf0d6be7d934efb95b3d8c1b9fb375ca52f51889355c6fbf0e427cb360"
+    },
+    {
+      "scroll": "PHerc1218",
+      "artifact_id": "p0:PHerc1218:6392c0d7ab3c",
+      "content_sha256": "6392c0d7ab3c98ceeabf5686e26ce6fc18caf983aa5fb211ee8c9bdd105dbe85"
+    },
+    {
+      "scroll": "PHerc1447",
+      "artifact_id": "p0:PHerc1447:5f2a3c3051c6",
+      "content_sha256": "5f2a3c3051c61dd46918a2f9431b036e848383f8d7c7dd6d2f2a6e225b1e7e2f"
+    },
+    {
+      "scroll": "PHerc1545",
+      "artifact_id": "p0:PHerc1545:34670f0b05be",
+      "content_sha256": "34670f0b05be96d0362152156e0bd6ca38fc5911bb8722dd77d8f3e4aa52f7db"
+    }
+  ],
+  "aggregate": {
+    "attempt_count": 56,
+    "attempt_projection_states_literal": {
+      "NO_SEED": 55,
+      "QC_PENDING": 1
+    },
+    "projection_to_qc_relationship": {
+      "scope": "PHerc0268 sole surface path",
+      "attempt_projection_state": "QC_PENDING",
+      "associated_qc_state": "COMPLETED",
+      "interpretation": "The run projection and the terminal QC record are distinct historical views. The projection is preserved literally and is not rewritten to the QC state."
+    },
+    "p1_request_receipt_accounting": {
+      "request_count": 13,
+      "reported_generated_total": 52,
+      "reported_inserted_total": 52,
+      "observed_attempt_total": 56,
+      "observed_minus_reported_inserted": 4,
+      "reconciliation": "The full +4 is attributed to PHerc0826 historical source-snapshot fan-out. Its one request reported 4 generated and 4 inserted, while 8 immutable task and attempt records were observed; every other scroll reconciles exactly.",
+      "pherc0826_attribution": {
+        "api_post_count": 1,
+        "reported_generated": 4,
+        "reported_inserted": 4,
+        "observed_attempts": 8,
+        "difference": 4
+      }
+    },
+    "primary_causes": {
+      "NO_M7_CANDIDATES": 54,
+      "INSUFFICIENT_VOLUME_INTERIOR_CLEARANCE": 1
+    },
+    "candidate_counts": {
+      "raw": 8,
+      "post_ct": 8,
+      "usable": 0
+    },
+    "surface_count": 1,
+    "surface_geometry_states": {
+      "GEOMETRY_CERTIFIED": 1
+    },
+    "surface_physical_states": {
+      "INK_SCREEN_INSUFFICIENT": 1
+    },
+    "qc_job_states": {
+      "COMPLETED": 1
+    },
+    "downstream_admissible_surface_count": 0,
+    "downstream_job_count": 0,
+    "active_attempt_count": 0,
+    "active_qc_job_count": 0,
+    "active_generic_job_count": 0,
+    "active_queue_tasks": 0,
+    "active_queue_leases": 0
+  },
+  "per_scroll": [
+    {
+      "scroll": "PHerc0268",
+      "wave": 1,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 3,
+        "QC_PENDING": 1
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 3
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 1,
+      "qc_jobs": {
+        "COMPLETED": 1
+      },
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0211",
+      "wave": 1,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc1447",
+      "wave": 2,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc1203",
+      "wave": 3,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0800",
+      "wave": 4,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0125",
+      "wave": 5,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0191",
+      "wave": 6,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0257",
+      "wave": 7,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0358",
+      "wave": 8,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 3,
+        "INSUFFICIENT_VOLUME_INTERIOR_CLEARANCE": 1
+      },
+      "candidate_counts": {
+        "raw": 8,
+        "post_ct": 8,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0813",
+      "wave": 9,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc1218",
+      "wave": 10,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc1545",
+      "wave": 11,
+      "attempt_count": 4,
+      "attempt_projections": {
+        "NO_SEED": 4
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 4
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0
+    },
+    {
+      "scroll": "PHerc0826",
+      "wave": 12,
+      "attempt_count": 8,
+      "attempt_projections": {
+        "NO_SEED": 8
+      },
+      "primary_causes": {
+        "NO_M7_CANDIDATES": 8
+      },
+      "candidate_counts": {
+        "raw": 0,
+        "post_ct": 0,
+        "usable": 0
+      },
+      "surface_count": 0,
+      "qc_jobs": {},
+      "downstream_admissible_surfaces": 0,
+      "historical_fanout_incident": true
+    }
+  ],
+  "surface_path": {
+    "scroll": "PHerc0268",
+    "geometry_state": "GEOMETRY_CERTIFIED",
+    "area_cm2": 0.01983222455087575,
+    "grid_shape_y_x": [
+      14,
+      14
+    ],
+    "valid_triangle_count": 132,
+    "finite_coordinate_count": 84,
+    "artifact_sha256": "d6791503f3d5e1418ba92b9b3dd2b73051558c89e0fefdc280ffbb3b2a5752c6",
+    "artifact_manifest_sha256": "5d45a67c7fa45e5cb82c738a3be52d14273f47472045bb2101c3db6a13ceb09a",
+    "physical_qc_state": "INK_SCREEN_INSUFFICIENT",
+    "qc_state": "COMPLETED",
+    "qc_outcome": "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY",
+    "qc_evidence_manifest_sha256": "bc30868bf786242902adad4f7dac90eb9dc7d9765a5521e58dbeccd85badb301",
+    "qc_evidence_manifest_file_count": 16,
+    "liveness_verdict": "EMPTY",
+    "ct_support_verdict": "NOT_SEPARATELY_ESTABLISHED",
+    "downstream_admissible": false,
+    "non_claim": "Geometry certification, completed QC, and liveness status do not separately establish CT support. EMPTY is a terminal screen result for this surface path, not an ink-absence finding for the scroll."
+  },
+  "incidents": [
+    {
+      "public_label": "terminal-liveness-refusal-misclassified-as-retryable",
+      "scope": "PHerc0268 surface path",
+      "historical_projection_preserved": "QC_PENDING",
+      "projection_to_qc_relationship": {
+        "attempt_projection_state": "QC_PENDING",
+        "associated_qc_state": "COMPLETED",
+        "preservation": "The projection remains literal; terminal QC is recorded separately."
+      },
+      "root_cause": "A terminal degenerate-or-empty liveness refusal was classified as retryable before the correction.",
+      "repair_commit": "2ba943ed80fb3a100e3e95261c38d3021acdbf7c",
+      "focused_tests": {
+        "passed": 169,
+        "duration_seconds": 5.19
+      },
+      "full_tests": {
+        "passed": 1873,
+        "skipped": 129,
+        "warnings": 18,
+        "duration_seconds": 95.64
+      },
+      "observed_terminal_outcome": "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY",
+      "provenance_source_ledger_sha256": "ad3d126a387615a13da56299b8bb6a6beb26b35ff7a474eb2e36d6050b3b2131",
+      "staging_correction_evidence": {
+        "correction_commit": "2ba943ed80fb3a100e3e95261c38d3021acdbf7c",
+        "staging_gate_states": {
+          "build_ci": "SUCCEEDED",
+          "unit_tests": "SUCCEEDED",
+          "frontend": "SUCCEEDED",
+          "panel_build": "SUCCEEDED",
+          "deploy": "SUCCEEDED",
+          "smoke": "SUCCEEDED"
+        },
+        "deploy_completed_at_utc": "2026-08-02T19:00:29.794Z",
+        "smoke_completed_at_utc": "2026-08-02T19:01:13.712Z",
+        "runtime_revision": "2ba943ed",
+        "runtime_services": {"converged": 8, "expected": 8},
+        "transient_ci_containers_remaining": 0,
+        "database_health": "NOT_RECORDED_IN_SOURCE_LEDGER"
+      }
+    },
+    {
+      "public_label": "historical-source-snapshot-bootstrap-fanout",
+      "scope": "PHerc0826",
+      "symptom": "One bounded request reported four generated and inserted tasks while eight immutable task and attempt records existed across historical snapshots.",
+      "preservation": "Existing evidence was retained; no cleanup rewrote historical records.",
+      "repair_behavior": "Resolve exactly the current mapping and fail closed on missing, duplicate, or sample-mismatched rows while preserving historical rows and truthful receipt counts.",
+      "fix_commit": "ebf3b568324ce0cc55947bfa2df983c85aa360c3",
+      "focused_tests": {
+        "passed": 85
+      },
+      "full_tests": {
+        "passed": 1877,
+        "skipped": 129,
+        "warnings": 18,
+        "duration_seconds": 87.36
+      },
+      "final_review": "APPROVED_NO_CRITICAL_OR_IMPORTANT_FINDINGS",
+      "provenance_source_ledger_sha256": "ad3d126a387615a13da56299b8bb6a6beb26b35ff7a474eb2e36d6050b3b2131",
+      "staging_correction_evidence": {
+        "correction_commit": "ebf3b568324ce0cc55947bfa2df983c85aa360c3",
+        "staging_gate_states": {
+          "build_ci": "SUCCEEDED",
+          "unit_tests": "SUCCEEDED",
+          "frontend": "SUCCEEDED",
+          "panel_build": "SUCCEEDED",
+          "deploy": "SUCCEEDED",
+          "smoke": "SUCCEEDED"
+        },
+        "deploy_completed_at_utc": "2026-08-02T20:52:02.126912Z",
+        "smoke_completed_at_utc": "2026-08-02T20:53:28.301598Z",
+        "runtime_revision": "ebf3b568",
+        "runtime_services": {"converged": 8, "expected": 8},
+        "database_healthy": true,
+        "transient_ci_containers_remaining": 0
+      }
+    }
+  ],
+  "next_wave_decision": {
+    "action": "NONE",
+    "reason": "BOUNDED_SCOPE_COMPLETE",
+    "requires_new_campaign_authorization": true,
+    "implicit_continuation": false
+  },
+  "verdicts": {
+    "operational": "BOUNDED_THIRTEEN_SCROLL_CAMPAIGN_COMPLETE",
+    "platform": "TWO_DISCOVERED_DEFECTS_REPAIRED_REVIEWED_TESTED_DEPLOYED_AND_SMOKE_APPROVED",
+    "geometry": "PHERC0268_SURFACE_GEOMETRY_CERTIFIED",
+    "ct_support": "NOT_SEPARATELY_ESTABLISHED",
+    "ink_screen": "PHERC0268_SURFACE_EMPTY_AND_NON_ADMISSIBLE",
+    "human_letter_review": "NOT_REQUESTED_NO_REVIEWABLE_CANDIDATE",
+    "letters": "NO_CREDIBLE_FIRST_LETTERS_CANDIDATE_IN_BOUNDED_RUN",
+    "scientific_non_claim": "THIS_RESULT_DOES_NOT_ESTABLISH_INK_ABSENCE_OR_SCROLL_EXHAUSTION"
+  }
+}

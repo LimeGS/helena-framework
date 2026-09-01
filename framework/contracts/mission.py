@@ -22,6 +22,8 @@ and why.
 from __future__ import annotations
 
 import json
+import os
+import hashlib
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +32,18 @@ from typing import Any
 MANIFEST_NAME = "MISSION.json"
 SCHEMA = "campaignx.mission.v1"
 STATES = ("active", "paused", "archived")
+FIRST_LETTERS_DISCOVERY = "FIRST_LETTERS_DISCOVERY"
+FIRST_LETTERS_CAMPAIGN_POLICY_ID = (
+    "first-letters-campaign-decision-policy@1.2.0")
+HISTORICAL_FIRST_LETTERS_CAMPAIGN_POLICY_IDS = frozenset({
+    "first-letters-campaign-decision-policy@1.0.0",
+    "first-letters-campaign-decision-policy@1.1.0",
+    FIRST_LETTERS_CAMPAIGN_POLICY_ID,
+})
+CAMPAIGN_FIELDS = (
+    "campaign_kind", "campaign_policy_id", "campaign_policy_sha256",
+    "deployed_revision", "campaign_binding_sha256",
+)
 
 # A mission id becomes a directory name and part of a job id, so it stays boring.
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$")
@@ -44,6 +58,45 @@ DEFAULT_NON_CLAIMS = [
 
 class MissionError(ValueError):
     """The mission could not be created or read."""
+
+
+def _binding_sha256(value: dict[str, Any]) -> str:
+    encoded = json.dumps({
+        "mission_id": value.get("mission_id"),
+        "campaign_kind": value.get("campaign_kind"),
+        "campaign_policy_id": value.get("campaign_policy_id"),
+        "campaign_policy_sha256": value.get("campaign_policy_sha256"),
+        "deployed_revision": value.get("deployed_revision"),
+        "created_by": value.get("created_by"),
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def is_first_letters_discovery_manifest(manifest: object) -> bool:
+    """Validate and identify the explicit campaign binding; names never count."""
+    if not isinstance(manifest, dict):
+        raise MissionError("campaign mission manifest must be an object")
+    kind = manifest.get("campaign_kind")
+    if kind is None:
+        if any(field in manifest for field in CAMPAIGN_FIELDS[1:]):
+            raise MissionError("generic mission has partial campaign binding fields")
+        return False
+    if kind != FIRST_LETTERS_DISCOVERY:
+        raise MissionError(f"unsupported campaign kind: {kind!r}")
+    policy_id = manifest.get("campaign_policy_id")
+    policy_sha = manifest.get("campaign_policy_sha256")
+    revision = manifest.get("deployed_revision")
+    creator = manifest.get("created_by")
+    binding_sha = manifest.get("campaign_binding_sha256")
+    if (policy_id not in HISTORICAL_FIRST_LETTERS_CAMPAIGN_POLICY_IDS
+            or not isinstance(policy_sha, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", policy_sha)
+            or not isinstance(revision, str)
+            or not re.fullmatch(r"[0-9a-f]{40}", revision)
+            or not isinstance(creator, str) or not creator.strip()
+            or binding_sha != _binding_sha256(manifest)):
+        raise MissionError("controlled campaign binding is incomplete or was changed")
+    return True
 
 
 def _now() -> str:
@@ -67,6 +120,10 @@ def create(
     scrolls: list[str],
     description: str = "",
     created_by: str = "panel",
+    campaign_kind: str | None = None,
+    campaign_policy_id: str | None = None,
+    campaign_policy_sha256: str | None = None,
+    deployed_revision: str | None = None,
 ) -> dict:
     """Create a mission directory. The selection stays a draft until work exists."""
     validate_id(mission_id)
@@ -82,7 +139,6 @@ def create(
     directory = root / mission_id
     if (directory / MANIFEST_NAME).exists():
         raise MissionError(f"mission {mission_id} already exists at {directory}")
-    directory.mkdir(parents=True, exist_ok=True)
 
     manifest = {
         "schema": SCHEMA,
@@ -99,6 +155,19 @@ def create(
         "amendments": [],
         "non_claims": list(DEFAULT_NON_CLAIMS),
     }
+    if campaign_kind is not None:
+        manifest.update({
+            "campaign_kind": campaign_kind,
+            "campaign_policy_id": campaign_policy_id,
+            "campaign_policy_sha256": campaign_policy_sha256,
+            "deployed_revision": deployed_revision,
+        })
+        manifest["campaign_binding_sha256"] = _binding_sha256(manifest)
+    # Validate before the first byte is published.  This also rejects a caller
+    # that supplies only some campaign fields, because controlled authority is
+    # never inferred from a mission id or display name.
+    is_first_letters_discovery_manifest(manifest)
+    directory.mkdir(parents=True, exist_ok=True)
     write(directory, manifest)
     return manifest
 
@@ -119,6 +188,10 @@ def load(directory: Path) -> dict:
     for required in ("mission_id", "name", "scrolls", "state"):
         if required not in manifest:
             raise MissionError(f"{path} is missing {required}")
+    if manifest.get("mission_id") != directory.name:
+        raise MissionError(
+            f"{path} mission_id differs from its authoritative directory")
+    is_first_letters_discovery_manifest(manifest)
     return manifest
 
 
@@ -130,26 +203,65 @@ def discover(root: Path) -> list[dict]:
     without anything being moved.
     """
     missions = []
+    unreadable: list = []
     if not root.exists():
         return missions
     loose_runs = []
     for entry in sorted(root.iterdir()):
-        if not entry.is_dir():
+        # One unreadable directory used to hide every mission. A run left behind
+        # by a job that ran as root is 0700, the panel runs as 1000:1000, and the
+        # PermissionError from probing it for a manifest propagated out of this
+        # loop -- so the page said "no mission yet" while fifteen sat on disk.
+        #
+        # A directory this process cannot read is a fact about that directory.
+        # It is not evidence about any other one, and it must never be able to
+        # answer "what missions exist" on their behalf.
+        try:
+            if not entry.is_dir():
+                continue
+            has_manifest = (entry / MANIFEST_NAME).exists()
+        except OSError:
+            unreadable.append(entry)
             continue
-        if (entry / MANIFEST_NAME).exists():
+        if has_manifest:
             try:
                 manifest = load(entry)
             except MissionError:
                 continue
+            except OSError:
+                unreadable.append(entry)
+                continue
             manifest["path"] = str(entry)
-            manifest["run_count"] = sum(
-                1 for d in entry.iterdir()
-                if d.is_dir() and any(d.glob("*RECEIPT*.json"))
-            )
-            manifest["selection_frozen"] = manifest["run_count"] > 0
+            try:
+                # Counted with an explicit listing rather than glob, because
+                # Path.glob swallows PermissionError and returns nothing --
+                # so an unreadable run directory counted as "no receipts here"
+                # instead of "I could not look".
+                runs_here = 0
+                for d in entry.iterdir():
+                    if not d.is_dir():
+                        continue
+                    for name in os.listdir(d):
+                        if "RECEIPT" in name and name.endswith(".json"):
+                            runs_here += 1
+                            break
+                manifest["run_count"] = runs_here
+            except OSError:
+                # The mission is readable and one of its runs is not. Counting
+                # zero would read as "nothing has run here", which is the one
+                # answer that is certainly wrong.
+                manifest["run_count"] = None
+                manifest["run_count_unreadable"] = True
+            manifest["selection_frozen"] = bool(manifest["run_count"])
             missions.append(manifest)
-        elif any(entry.glob("*RECEIPT*.json")):
-            loose_runs.append(entry)
+        else:
+            try:
+                loose = any(entry.glob("*RECEIPT*.json"))
+            except OSError:
+                unreadable.append(entry)
+                continue
+            if loose:
+                loose_runs.append(entry)
 
     if loose_runs:
         # The sample id comes from the receipt, not from the directory name.
@@ -184,6 +296,34 @@ def discover(root: Path) -> list[dict]:
             # Nobody chose this selection, so there is nothing to unfreeze into.
             "selection_frozen": True,
             "implicit": True,
+        })
+    if unreadable:
+        # Reported as a row rather than a log line nobody reads. "Fifteen
+        # missions and one directory I cannot open" is a different statement
+        # from "fifteen missions", and the operator is the one who can fix it.
+        missions.append({
+            "schema": SCHEMA,
+            "mission_id": "unreadable",
+            "name": f"{len(unreadable)} unreadable director"
+                    f"{'y' if len(unreadable) == 1 else 'ies'}",
+            "description":
+                "This process cannot read these directories, so whether they "
+                "hold missions is unknown. A run left behind by a job that ran "
+                "as root is 0700 and the panel does not run as root. Fix with "
+                "chmod o+rx, or chown to the uid the panel runs as: "
+                + ", ".join(sorted(str(p) for p in unreadable)[:8]),
+            "state": "active",
+            "scrolls": [],
+            "scrolls_frozen_at_utc": None,
+            "created_at_utc": None,
+            "created_by": "discovery",
+            "amendments": [],
+            "non_claims": list(DEFAULT_NON_CLAIMS),
+            "path": str(root),
+            "run_count": 0,
+            "selection_frozen": True,
+            "implicit": True,
+            "unreadable": sorted(str(p) for p in unreadable),
         })
     missions.sort(key=lambda m: (m.get("created_at_utc") or "", m["mission_id"]), reverse=True)
     return missions

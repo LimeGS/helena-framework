@@ -28,6 +28,11 @@ Non-claims
   receipt therefore publishes ``median_edge_voxels`` and
   ``resolution_limited``; a grid whose step is at or above the inter-lamina
   spacing cannot certify against a single-lamina switch.
+* ``resolution_limited`` is measured against this scroll's own inter-lamina
+  spacing only when a caller supplies one.  Without it the frozen 150 um floor
+  stands in, which is the bottom of a published range rather than a fact about
+  the scroll, and ``resolution_limit_measured_here`` says which of the two the
+  verdict was reached against.
 """
 
 from __future__ import annotations
@@ -54,11 +59,21 @@ GEOMETRY_REJECTED_COVERAGE = "GEOMETRY_REJECTED_COVERAGE"
 GEOMETRY_UNMEASURED = "GEOMETRY_UNMEASURED"
 
 REQUIRED_FILES = ("x.tif", "y.tif", "z.tif")
+# One byte per grid cell, 1 where the sheet folds. Named beside the receipt so a
+# renderer can exclude those cells rather than re-deriving them.
+FOLD_BACK_MASK = "FOLD_BACK_MASK.tif"
 
 # Frozen defaults.  ``band_cells`` and ``parallel_angle_deg`` mirror the
 # ScrollFiesta invocation in helena_audit_mesh_integrity.py (--band 4,
-# --angle 20).  The distance thresholds are expressed relative to the measured
-# grid step because TIFXYZ grids are arc-length uniform by construction.
+# --angle 20).
+#
+# The distance thresholds used to be expressed relative to the mesh's global
+# median step, on the grounds that TIFXYZ grids are arc-length uniform by
+# construction.  That is true of a seeded grow -- whose longest edge is 7.1x its
+# median, against a factor of 8.0 -- and false of a global fit, whose longest is
+# 13x to 26x and whose local step ranges over threefold across one strip.  The
+# step rule is measured locally now, and the counts below are read as the
+# lengths they stand for when a caller supplies the scroll's scale.
 DEFAULT_POLICY: dict[str, Any] = {
     "band_cells": 4,
     # A scroll sheet legitimately passes within one inter-lamina spacing of
@@ -79,6 +94,27 @@ DEFAULT_POLICY: dict[str, Any] = {
     # TIFXYZ grid whose step reaches that range cannot resolve a switch of a
     # single lamina, so its certification is explicitly resolution limited.
     "resolution_limit_voxels": 16.0,
+    # The same two numbers as lengths, which is what they were always standing
+    # for. `band_cells: 4` on the corpus this gate was calibrated against is
+    # 4 x 12.94 voxels x 9.362 um; `resolution_limit_voxels: 16` is the 150 um
+    # floor of the inter-lamina range the comment above cites. When a caller
+    # supplies the scroll's scale these are what the gate derives from, and the
+    # counts above are the fallback for when it does not.
+    # Fold-back stopped being a hard defect and became an area measure, and
+    # this is the ceiling on it. See `_fold_back_pairs` for why.
+    #
+    # Not calibrated, and it must not be read as if it were. It is set to catch
+    # a mesh that is folded *everywhere* -- a fit that failed globally -- and it
+    # cannot discriminate a wrinkle from an error, because nothing here can:
+    # measured on the only corpus where this has been looked at, three fitted
+    # windings of PHerc0826 carry 2.34%, 2.72% and 2.52% of their cells in a
+    # fold, and the three grown VC3D segments carry none.
+    "maximum_fold_back_fraction": 0.05,
+    "band_um": 480.0,
+    "resolution_limit_um": 150.0,
+    # 0 means "measure the step against the mesh's own median", which is what
+    # the gate did before it could derive a window from the scale.
+    "step_window_cells": 0,
 }
 
 
@@ -134,8 +170,25 @@ def load_tifxyz(surface_dir: Path):
 def build_mesh(points, valid) -> dict[str, Any]:
     """Derive the triangle mesh from the grid; no .obj is required.
 
-    Each quad becomes two triangles with the same split the frozen finalizer
-    already uses for area, so mesh area and gate geometry cannot disagree.
+    Each quad becomes two triangles with the same split *and the same winding*
+    as `fleet/finalizer.py:triangulate_tifxyz_grid`, so mesh area and gate
+    geometry cannot disagree.
+
+    The winding is not a detail. The second triangle used to be
+    `(i11, i10, i01)`, which walks the shared edge i10->i01 in the same
+    direction the first one does -- so the two triangles of every quad came out
+    with opposite normals. On a flat unit quad their dot product is exactly
+    -1.0; on a fitted spiral winding 97% of quads had their two normals more
+    than 90 degrees apart, which reads as a mesh that is folded everywhere and
+    is nothing of the kind.
+
+    No detector here consumed that sign -- fold-back reads only the first
+    triangle of each quad, and the parallel test takes the absolute value -- so
+    no verdict this gate has issued was affected, and the regression test beside
+    this file pins that. It was still wrong to publish: `mesh["normal"]` is half
+    a normal field, this module's own docstring claimed the finalizer's
+    triangulation, and the orientation path elsewhere in the platform is exactly
+    the kind of consumer that would have read it and been silently wrong.
     """
 
     import numpy as np
@@ -145,8 +198,11 @@ def build_mesh(points, valid) -> dict[str, Any]:
     rows, cols = np.divmod(np.arange(height * width), width)
     i00, i10, i01, i11 = index[:-1, :-1], index[1:, :-1], index[:-1, 1:], index[1:, 1:]
     m00, m10, m01, m11 = valid[:-1, :-1], valid[1:, :-1], valid[:-1, 1:], valid[1:, 1:]
+    # (v00,v10,v01) and (v10,v11,v01): the finalizer's own pair, vertex for
+    # vertex. The masks are unchanged -- each triangle is still retained
+    # independently so a mask boundary cannot discard its valid half.
     first = np.stack([i00, i10, i01], axis=-1)[m00 & m10 & m01]
-    second = np.stack([i11, i10, i01], axis=-1)[m11 & m10 & m01]
+    second = np.stack([i10, i11, i01], axis=-1)[m10 & m11 & m01]
     triangles = np.concatenate([first, second], axis=0).astype(np.int64)
     vertices = points.reshape(-1, 3)
     if len(triangles) == 0:
@@ -216,8 +272,43 @@ def _coverage(valid) -> dict[str, Any]:
     }
 
 
-def _fold_back_pairs(mesh, valid, fold_angle_deg: float) -> int:
-    """Edge-adjacent triangles whose normals have flipped: the sheet folds back."""
+def _fold_back_pairs(mesh, valid, fold_angle_deg: float):
+    """Edge-adjacent triangles whose normals have flipped: the sheet folds back.
+
+    Returns the count and the cells it touches, because on this corpus the
+    count alone was the wrong shape of answer.
+
+    It was a hard defect, and any of them rejected the surface outright. What
+    that rejected was wrinkles. Four independent lines say so, measured on
+    PHerc0826: the folds land in the same physical places in both seeds
+    (17x enrichment over the base rate, p < 0.0005), the cells carrying them
+    are not slivers (aspect 2.2 against 1.9 on clean ones, so the normals are
+    well conditioned), they are no likelier than clean cells to sit where
+    another lamina passes within 375 um (41.4% against 39.7%), and 36 of 43
+    connected components larger than five cells are elongated along the
+    scroll's axis. A flattened scroll wrinkles along its axis, and the fit was
+    following the wrinkles.
+
+    The distinguishing evidence is spatial. Cropping to 4 cm2 drops the
+    lamina-switch detectors by 26x, 111x and 34x, and at 1 cm2 all four reach
+    zero somewhere on the surface -- they are hunting a genuinely non-local
+    signature and they find clean subregions. Fold-back does not move: about
+    120 per 4 cm2 everywhere, touching 322 of 636 rows. A defect distributed
+    evenly across a whole surface is either everywhere-real or everywhere-wrong,
+    and it is not localised.
+
+    No angle separates the two. Raising the threshold from 150 to 170 degrees
+    still leaves 83 flips on w010, because the angles are genuinely sharp.
+
+    So the count and the mask are reported, the fraction of affected area is
+    what the verdict reads, and the mask is what P3 and P4 have to exclude. The
+    reason that matters is specific: a fold-back is an inverted normal in that
+    cell, and this platform has already paid for the global version of that bug
+    -- a renderer whose default came out inverted against the published stack,
+    correlating 0.09 with it. The fix was to force one sign for the whole mesh
+    against the umbilicus axis, and a per-mesh sign does nothing about a cell
+    that disagrees with its neighbours.
+    """
 
     import numpy as np
 
@@ -232,34 +323,204 @@ def _fold_back_pairs(mesh, valid, fold_angle_deg: float) -> int:
     live[cell_mask] = ~mesh["degenerate"][:first_count]
     limit = float(np.cos(np.radians(fold_angle_deg)))
     total = 0
-    for shifted, base, mask in (
+    touched = np.zeros((height - 1, width - 1), dtype=bool)
+    for axis, (shifted, base, mask) in enumerate((
         (normal[1:, :], normal[:-1, :], live[1:, :] & live[:-1, :]),
         (normal[:, 1:], normal[:, :-1], live[:, 1:] & live[:, :-1]),
-    ):
+    )):
         if not mask.any():
             continue
         cosine = np.einsum("ijk,ijk->ij", shifted, base)
-        total += int(np.count_nonzero((cosine < limit) & mask))
+        hit = (cosine < limit) & mask
+        total += int(np.count_nonzero(hit))
+        # Both cells of a flipped pair are marked: which of the two is the
+        # wrong one is not knowable from the pair, and a consumer excluding
+        # only one of them keeps an inverted normal.
+        if axis == 0:
+            touched[1:, :] |= hit
+            touched[:-1, :] |= hit
+        else:
+            touched[:, 1:] |= hit
+            touched[:, :-1] |= hit
+    return total, touched
+
+
+def _write_mask(folded, path: Path) -> dict[str, Any]:
+    """Publish the folded cells as a grid, and name it by its digest."""
+    import numpy as np
+    import tifffile
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tifffile.imwrite(path, np.asarray(folded, dtype=np.uint8))
+    return {
+        "path": path.name,
+        "sha256": file_sha256(path),
+        "shape": [int(value) for value in np.asarray(folded).shape],
+        "note": ("one byte per grid cell, 1 where the sheet folds back. Both "
+                 "cells of a flipped pair are marked: which of the two carries "
+                 "the wrong normal is not knowable from the pair, and excluding "
+                 "one of them keeps an inverted normal."),
+    }
+
+
+def _fold_back_extent(folded, valid) -> dict[str, Any]:
+    """How much of the surface a fold touches, and in what shape.
+
+    The shape is reported because it is what told this corpus apart: folds that
+    are elongated along the scroll's axis are what a flattened scroll does, and
+    folds scattered as isolated cells are what a noisy normal field does.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    cells = valid[:-1, :-1] & valid[1:, :-1] & valid[:-1, 1:]
+    live = int(cells.sum())
+    touched = int(np.count_nonzero(folded))
+    labelled, count = ndimage.label(folded)
+    sizes = (ndimage.sum(folded, labelled, range(1, count + 1))
+             if count else np.zeros(0))
+    return {
+        "cells": touched,
+        "live_cells": live,
+        "fraction": (touched / live) if live else 0.0,
+        "components": int(count),
+        "components_over_five_cells": int((sizes > 5).sum()) if count else 0,
+        "rows_touched": int(np.unique(np.argwhere(folded)[:, 0]).size)
+                        if touched else 0,
+        "rows": int(folded.shape[0]),
+    }
+
+
+def _step_discontinuities(points, valid, median_edge: float, factor: float,
+                         window_cells: int = 0) -> int:
+    """Edges far longer than the sampling around them.
+
+    Measured against a *local* median, not the mesh's. The global rule rested
+    on a premise this module used to state outright -- that TIFXYZ grids are
+    arc-length uniform by construction -- which is true of a seeded grow and
+    false of a global fit: a grown surface's longest edge is 7.1x its median,
+    a fitted spiral winding's is 13x to 26x, and its local step ranges from 21
+    to 65 voxels across one strip. Against one number for the whole mesh that
+    non-uniformity reads as hundreds of lamina steps.
+
+    The rule is unchanged where the premise held. On the three grown segments
+    the count is zero either way; on the spiral windings it falls by an order of
+    magnitude and does not reach zero, which is the part the rule was for.
+
+    `window_cells` of 0 or 1 restores the global median exactly, so a caller
+    that has no scale to derive a window from gets the published behaviour.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    row_mask = valid[1:, :] & valid[:-1, :]
+    col_mask = valid[:, 1:] & valid[:, :-1]
+    total = 0
+    for lengths, mask in (
+        (np.linalg.norm(points[1:, :] - points[:-1, :], axis=-1), row_mask),
+        (np.linalg.norm(points[:, 1:] - points[:, :-1], axis=-1), col_mask),
+    ):
+        if window_cells and window_cells > 1:
+            # Edges with no valid pair are filled with the mesh median so a hole
+            # neither drags the local estimate down nor invents a step beside
+            # itself; the comparison below still only counts real edges.
+            filled = np.where(mask, lengths, median_edge)
+            reference = ndimage.median_filter(
+                filled, size=int(window_cells), mode="nearest")
+        else:
+            reference = np.full(lengths.shape, median_edge, dtype=float)
+        total += int(np.count_nonzero(mask & (lengths > factor * reference)))
     return total
 
 
-def _step_discontinuities(points, valid, median_edge: float, factor: float) -> int:
-    import numpy as np
+def scale_derived_policy(
+    policy: dict[str, Any], step: dict[str, float], *, voxel_um: float | None,
+    inter_lamina_um: float | None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Turn the policy's cell and voxel counts into what they stand for.
 
-    limit = factor * median_edge
-    row_mask = valid[1:, :] & valid[:-1, :]
-    col_mask = valid[:, 1:] & valid[:, :-1]
-    row = np.linalg.norm(points[1:, :] - points[:-1, :], axis=-1)[row_mask]
-    col = np.linalg.norm(points[:, 1:] - points[:, :-1], axis=-1)[col_mask]
-    return int(np.count_nonzero(row > limit) + np.count_nonzero(col > limit))
+    Three of the frozen numbers are lengths written in the units of one corpus:
+
+      * `band_cells` -- how far apart on the grid two triangles must be before
+        their proximity in space is evidence rather than adjacency. Four cells
+        on the grown corpus is 4 x 12.94 voxels x 9.362 um, about 480 um of
+        sheet; four cells on a fitted winding is 731 um, so the same number asks
+        a different question of each.
+      * `resolution_limit_voxels` -- 16 voxels, which the source justifies as
+        150 um at ~9.4 um per voxel, the bottom of the 150-250 um inter-lamina
+        range. It never reads the scroll it is measuring, and PHerc0826's own
+        spacing is about 371 um.
+      * the window the local step median is taken over, which has no frozen
+        value because it did not exist.
+
+    Derived here when the scale is known, left frozen when it is not, and the
+    receipt says which. Deriving them is not a loosening and should not be sold
+    as one: on a fitted winding the derived band is three cells rather than
+    four, which is stricter. What it buys is that both corpora are asked the
+    same physical question.
+    """
+    import math
+
+    derived = dict(policy)
+    notes: dict[str, Any] = {"voxel_um": voxel_um,
+                             "inter_lamina_um": inter_lamina_um,
+                             "derived": []}
+    if not voxel_um or voxel_um <= 0:
+        notes["reason"] = ("no voxel size was supplied, so the frozen cell and "
+                           "voxel counts apply and this verdict does not claim "
+                           "to have been measured against this scroll's scale")
+        return derived, notes
+
+    step_um = float(step["median_edge_voxels"]) * float(voxel_um)
+    band = max(1, int(math.ceil(float(policy["band_um"]) / step_um)))
+    derived["band_cells"] = band
+    notes["derived"].append({"name": "band_cells", "was": policy["band_cells"],
+                             "now": band, "from_um": policy["band_um"]})
+    # One window spanning about an inter-lamina spacing: wide enough to estimate
+    # the local sampling, narrow enough not to average across a real change in
+    # it. Odd, because a median filter's window is centred on its own cell.
+    spacing_um = float(inter_lamina_um or policy["resolution_limit_um"])
+    window = max(3, int(math.ceil(spacing_um / step_um)) | 1)
+    derived["step_window_cells"] = window
+    notes["derived"].append({"name": "step_window_cells", "was": None,
+                             "now": window, "from_um": spacing_um})
+    derived["resolution_limit_voxels"] = spacing_um / float(voxel_um)
+    notes["derived"].append({
+        "name": "resolution_limit_voxels",
+        "was": policy["resolution_limit_voxels"],
+        "now": derived["resolution_limit_voxels"],
+        "from_um": spacing_um,
+        "measured": inter_lamina_um is not None})
+    if inter_lamina_um is None:
+        notes["reason"] = ("this scroll's inter-lamina spacing was not supplied, "
+                           "so the resolution limit falls back to the frozen "
+                           f"{policy['resolution_limit_um']} um floor rather "
+                           "than a spacing measured here")
+    return derived, notes
 
 
-def _far_candidate_pairs(mesh, band_cells: int, gap: float, maximum_pairs: int):
+def _far_candidate_pairs(mesh, band_cells: int, gap: float, maximum_pairs: int,
+                        size_bins: int = 8):
     """Triangle pairs that are close in space but far apart on the grid.
 
-    The search radius is per-triangle.  A single stretched triangle -- the very
-    artifact a stitched surface produces -- would otherwise inflate one global
-    radius and force every triangle to be compared against the whole mesh.
+    Two triangles can only come within `gap` if their centroids are within
+    `gap + r_a + r_b`, so the search radius depends on *both* of them. The
+    partner's radius was bounded globally -- the 99.9th-percentile circumradius
+    for most triangles, the maximum for the largest few -- and that bound is
+    what a stretched mesh breaks. One 601-voxel edge widened the search for
+    every triangle in the mesh, and two of three fitted spiral windings
+    exhausted the pair budget without a single detector having run.
+
+    Bounding the partner per size bin instead keeps the wide radius where the
+    tree is small. Nothing can be missed: a triangle is only ever searched
+    against a bin whose own largest member bounds every triangle in it.
+
+    That also closes a gap in the published search rather than only speeding it
+    up. A triangle whose partner sat in the top 0.1% searched with a radius
+    below the one that pair needed, and the pair came back only when index
+    order happened to recover it from the other side -- one such pair on the
+    grown corpus, two large triangles at exactly their reach. A gate that fails
+    closed must not drop candidates quietly.
     """
 
     import numpy as np
@@ -267,39 +528,49 @@ def _far_candidate_pairs(mesh, band_cells: int, gap: float, maximum_pairs: int):
 
     centroid = mesh["centroid"]
     circumradius = mesh["circumradius"]
-    tree = cKDTree(centroid)
     rows, cols = mesh["triangle_row"], mesh["triangle_col"]
-    bulk = float(np.percentile(circumradius, 99.9))
-    peak = float(circumradius.max())
-    radii = gap + circumradius + np.where(circumradius > bulk, peak, bulk)
+    # Quantile edges rather than even ones: the sizes are heavy-tailed, and a
+    # linear split would put almost everything in the first bin and leave the
+    # bound as global as it was.
+    edges = np.unique(np.quantile(circumradius, np.linspace(0.0, 1.0, size_bins + 1)))
+    membership = np.clip(
+        np.searchsorted(edges, circumradius, side="right") - 1, 0, len(edges) - 2
+    )
     left: list = []
     right: list = []
     kept = 0
     chunk = 4096
-    for start in range(0, len(centroid), chunk):
-        stop = min(start + chunk, len(centroid))
-        neighbours = tree.query_ball_point(centroid[start:stop], r=radii[start:stop])
-        for offset, candidates in enumerate(neighbours):
-            if not candidates:
-                continue
-            here = start + offset
-            other = np.asarray(candidates, dtype=np.int64)
-            other = other[other > here]
-            if other.size == 0:
-                continue
-            separation = np.maximum(
-                np.abs(rows[other] - rows[here]), np.abs(cols[other] - cols[here])
-            )
-            other = other[separation > band_cells]
-            if other.size == 0:
-                continue
-            kept += int(other.size)
-            if kept > maximum_pairs:
-                raise GeometryGateError(
-                    "TIFXYZ geometry gate exceeded its candidate-pair budget"
+    for index in range(len(edges) - 1):
+        members = np.flatnonzero(membership == index)
+        if members.size == 0:
+            continue
+        tree = cKDTree(centroid[members])
+        radii = gap + circumradius + float(circumradius[members].max())
+        for start in range(0, len(centroid), chunk):
+            stop = min(start + chunk, len(centroid))
+            neighbours = tree.query_ball_point(
+                centroid[start:stop], r=radii[start:stop])
+            for offset, candidates in enumerate(neighbours):
+                if not candidates:
+                    continue
+                here = start + offset
+                other = members[np.asarray(candidates, dtype=np.int64)]
+                other = other[other > here]
+                if other.size == 0:
+                    continue
+                separation = np.maximum(
+                    np.abs(rows[other] - rows[here]), np.abs(cols[other] - cols[here])
                 )
-            left.append(np.full(other.size, here, dtype=np.int64))
-            right.append(other)
+                other = other[separation > band_cells]
+                if other.size == 0:
+                    continue
+                kept += int(other.size)
+                if kept > maximum_pairs:
+                    raise GeometryGateError(
+                        "TIFXYZ geometry gate exceeded its candidate-pair budget"
+                    )
+                left.append(np.full(other.size, here, dtype=np.int64))
+                right.append(other)
     if not left:
         empty = np.zeros(0, dtype=np.int64)
         return empty, empty
@@ -443,8 +714,16 @@ def _exact_self_intersections(mesh, left, right) -> int:
     return total
 
 
-def measure(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Compute every geometry metric for one TIFXYZ surface."""
+def measure(surface_dir: Path, policy: dict[str, Any] | None = None, *,
+            voxel_um: float | None = None,
+            inter_lamina_um: float | None = None) -> dict[str, Any]:
+    """Compute every geometry metric for one TIFXYZ surface.
+
+    `voxel_um` and `inter_lamina_um` are the scroll's own scale. With them the
+    lengths this gate measures against are derived rather than assumed; without
+    them the frozen counts apply and the receipt records that the verdict was
+    made without knowing the scale.
+    """
 
     import numpy as np
 
@@ -454,15 +733,20 @@ def measure(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str
     if int(valid.sum()) < 4:
         raise GeometryGateError("TIFXYZ has fewer than four valid coordinates")
     step = _grid_step(points, valid)
+    settings, scale = scale_derived_policy(
+        settings, step, voxel_um=voxel_um, inter_lamina_um=inter_lamina_um)
     mesh = build_mesh(points, valid)
     median_edge = step["median_edge_voxels"]
     gap = float(settings["gap_voxels"])
     # The local detectors are cheap and decisive.  Running them first means a
     # surface whose mesh is too large for the pair search still gets a verdict
     # rather than silently becoming unmeasured.
-    fold_back = _fold_back_pairs(mesh, valid, float(settings["fold_angle_deg"]))
+    fold_back, folded_cells = _fold_back_pairs(
+        mesh, valid, float(settings["fold_angle_deg"]))
+    fold = _fold_back_extent(folded_cells, valid)
     discontinuities = _step_discontinuities(
-        points, valid, median_edge, float(settings["step_discontinuity_factor"])
+        points, valid, median_edge, float(settings["step_discontinuity_factor"]),
+        window_cells=int(settings.get("step_window_cells") or 0),
     )
     near_parallel: int | None = 0
     non_parallel: int | None = 0
@@ -508,15 +792,22 @@ def measure(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str
                 offending.update(right[close].tolist())
         offending_count = len(offending)
         self_intersections = _exact_self_intersections(mesh, left, right)
+    # The three that stay hard, and they are the lamina-switch detectors: on a
+    # surface cropped to a clean subregion all three reach zero, which is what a
+    # non-local defect looks like when you stop looking at the place it is.
     seam = {
         "near_coincident_overlap_pairs": near_parallel,
         "interpenetration_pairs": non_parallel,
-        "fold_back_intersections": fold_back,
         "offending_triangles": offending_count,
         "lamina_step_discontinuity_edges": discontinuities,
     }
     return {
         "seam": seam,
+        # Beside the seam rather than in it: an area measure, not a hard defect.
+        "fold_back": {**fold, "pairs": fold_back,
+                      "angle_deg": float(settings["fold_angle_deg"]),
+                      "ceiling": float(settings["maximum_fold_back_fraction"])},
+        "_folded_cells": folded_cells,
         "exact_self_intersection": {
             "schema": "campaignx.mesh_self_intersection.v1",
             "vertices": int(valid.sum()),
@@ -538,6 +829,7 @@ def measure(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str
             **coverage,
         },
         "policy": settings,
+        "scale": scale,
     }
 
 
@@ -552,6 +844,7 @@ def classify(metrics: dict[str, Any], integrity: ModuleType | None = None) -> di
     seam = metrics["seam"]
     grid = metrics["grid"]
     policy = metrics["policy"]
+    fold = metrics.get("fold_back") or {}
     present = metrics["exact_self_intersection"]["self_intersections_present"]
     measured = {name: value for name, value in seam.items() if value is not None}
     complete = len(measured) == len(seam) and present is not None
@@ -563,6 +856,13 @@ def classify(metrics: dict[str, Any], integrity: ModuleType | None = None) -> di
         coverage_failures.append("FRAGMENTED_COVERAGE")
     if grid["valid_triangle_count"] < int(policy["minimum_valid_triangles"]):
         coverage_failures.append("TOO_FEW_VALID_TRIANGLES")
+    # Fold-back reads as an area, not as a count. Any of them used to reject the
+    # surface, and what that rejected was wrinkles: the maximum area this gate
+    # would certify on a fitted winding was half a square centimetre, against
+    # the four a campaign asks for, and no angle separates a wrinkle from an
+    # error. What the ceiling catches is a mesh folded everywhere.
+    folded = float(fold.get("fraction") or 0.0)
+    over_ceiling = folded > float(policy["maximum_fold_back_fraction"])
 
     def positive(name: str) -> bool:
         return bool(seam.get(name))
@@ -571,8 +871,11 @@ def classify(metrics: dict[str, Any], integrity: ModuleType | None = None) -> di
         state, reason = GEOMETRY_REJECTED_LAMINA_SWITCH, "NON_PARALLEL_STAB_OR_STEP_DISCONTINUITY"
     elif positive("near_coincident_overlap_pairs"):
         state, reason = GEOMETRY_REJECTED_BRIDGE, "NEAR_COINCIDENT_DOUBLED_SURFACE"
-    elif positive("fold_back_intersections") or bool(present):
-        state, reason = GEOMETRY_REJECTED_DISTORTION, "FOLD_BACK_OR_SELF_INTERSECTION"
+    elif bool(present):
+        state, reason = GEOMETRY_REJECTED_DISTORTION, "SELF_INTERSECTION"
+    elif over_ceiling:
+        state, reason = (GEOMETRY_REJECTED_DISTORTION,
+                         "FOLD_BACK_AREA_ABOVE_CEILING")
     elif coverage_failures:
         state, reason = GEOMETRY_REJECTED_COVERAGE, ",".join(coverage_failures)
     elif not complete:
@@ -587,12 +890,25 @@ def classify(metrics: dict[str, Any], integrity: ModuleType | None = None) -> di
         "hard_defects_observed": hard_defects if complete else None,
         "coverage_failures": coverage_failures,
         "measurement_complete": complete,
+        # Reported whatever the verdict: a certified surface can carry folded
+        # cells, and the number is how a reader knows how many.
+        "fold_back_fraction": folded,
+        "fold_back_within_ceiling": not over_ceiling,
         "status": "PASS" if state == GEOMETRY_CERTIFIED else "FAIL",
     }
 
 
-def certify(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Return a complete, hash-linked certification receipt for one surface."""
+def certify(surface_dir: Path, policy: dict[str, Any] | None = None, *,
+            voxel_um: float | None = None,
+            inter_lamina_um: float | None = None,
+            mask_dir: Path | None = None) -> dict[str, Any]:
+    """Return a complete, hash-linked certification receipt for one surface.
+
+    `mask_dir` is where the fold-back mask is written when there is one. Left
+    unset the mask is measured and not published, which is the right default
+    for a read-only survey and the wrong one for a certification a renderer
+    will consume.
+    """
 
     surface_dir = Path(surface_dir).resolve()
     inputs: dict[str, Any] = {}
@@ -601,11 +917,25 @@ def certify(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str
         if path.is_file():
             inputs[name] = {"sha256": file_sha256(path), "size_bytes": path.stat().st_size}
     try:
-        metrics = measure(surface_dir, policy)
+        metrics = measure(surface_dir, policy, voxel_um=voxel_um,
+                          inter_lamina_um=inter_lamina_um)
         verdict = classify(metrics)
+        # The mask is the deliverable, not the count. A fold-back is an inverted
+        # normal in that cell, and the platform's orientation fix forces one
+        # sign for a whole mesh -- which does nothing for a cell that disagrees
+        # with its neighbours. Written as a grid the same shape as the TIFXYZ so
+        # a consumer can index it directly.
+        folded = metrics.pop("_folded_cells", None)
+        if folded is not None and mask_dir is not None:
+            metrics["fold_back"]["mask"] = _write_mask(
+                folded, Path(mask_dir) / FOLD_BACK_MASK)
+        metrics.pop("_folded_cells", None)
         error = None
     except Exception as failure:  # noqa: BLE001 - unmeasurable is a real verdict
         metrics = {"seam": None, "exact_self_intersection": None, "grid": None,
+                   "fold_back": None,
+                   "scale": {"voxel_um": voxel_um,
+                             "inter_lamina_um": inter_lamina_um, "derived": []},
                    "policy": {**DEFAULT_POLICY, **(policy or {})}}
         verdict = {
             "geometry_qc_state": GEOMETRY_UNMEASURED,
@@ -632,10 +962,25 @@ def certify(surface_dir: Path, policy: dict[str, Any] | None = None) -> dict[str
             if median_edge is None
             else bool(median_edge >= float(metrics["policy"]["resolution_limit_voxels"]))
         ),
+        # Against a spacing measured on this scroll, or against the frozen floor
+        # standing in for one. A reader deciding what a resolution-limited
+        # certification is worth needs to know which of the two it was.
+        "resolution_limit_measured_here": bool(
+            (metrics.get("scale") or {}).get("inter_lamina_um") is not None),
         "non_claims": [
             "GEOMETRY_CERTIFIED is not physical-sheet acceptance, ink, text, or First Letters",
             "the gate cannot resolve a defect finer than the TIFXYZ grid step",
             "an unmeasured surface is not a certified surface",
+            "a certified surface may still carry folded cells: fold-back is an "
+            "area measure here and not a hard defect, because on the corpus "
+            "where it was looked at the folds were wrinkles in a flattened "
+            "scroll and rejecting them capped the certifiable area at half a "
+            "square centimetre",
+            "the fold-back mask is not advisory. Each marked cell has a normal "
+            "inverted against its neighbours, and the platform's orientation "
+            "fix sets one sign per mesh -- so a renderer that samples those "
+            "cells samples the far side of the sheet, which is the failure that "
+            "produced an ink map correlating 0.09 with the published one",
         ],
     }
     return receipt
@@ -657,7 +1002,9 @@ def _iter_surface_dirs(root: Path) -> Iterable[Path]:
 
 
 def run_batch(roots: Sequence[Path], policy: dict[str, Any] | None = None,
-              require_meta: bool = False) -> dict[str, Any]:
+              require_meta: bool = False, *, voxel_um: float | None = None,
+              inter_lamina_um: float | None = None,
+              write_masks: bool = False) -> dict[str, Any]:
     from collections import Counter
 
     receipts = []
@@ -667,7 +1014,12 @@ def run_batch(roots: Sequence[Path], policy: dict[str, Any] | None = None,
         for surface_dir in candidates:
             if require_meta and not (surface_dir / "meta.json").is_file():
                 continue
-            receipts.append(certify(surface_dir, policy))
+            receipts.append(certify(
+                surface_dir, policy, voxel_um=voxel_um,
+                inter_lamina_um=inter_lamina_um,
+                # Beside the surface it describes, so a consumer that has the
+                # TIFXYZ has the mask.
+                mask_dir=surface_dir if write_masks else None))
     receipts.sort(key=lambda row: row["surface_dir"])
     distribution = Counter(row["geometry_qc_state"] for row in receipts)
     reasons = Counter(row["reason"] for row in receipts)
@@ -677,6 +1029,7 @@ def run_batch(roots: Sequence[Path], policy: dict[str, Any] | None = None,
         "roots": [str(Path(root).resolve()) for root in roots],
         "require_meta_json": require_meta,
         "policy": {**DEFAULT_POLICY, **(policy or {})},
+        "scale": {"voxel_um": voxel_um, "inter_lamina_um": inter_lamina_um},
         "counts": {
             "surfaces": len(receipts),
             "by_geometry_qc_state": dict(sorted(distribution.items())),
@@ -702,6 +1055,17 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--surface-root", type=Path, action="append", default=[])
     value.add_argument("--require-meta-json", action="store_true")
     value.add_argument("--output", type=Path)
+    # Facts about the scroll, not policy: the gate derives its lengths from
+    # these when they are given, and says in the receipt when they were not.
+    value.add_argument("--write-masks", action="store_true",
+                       help="publish the fold-back mask beside each surface; a "
+                            "renderer needs it, a survey does not")
+    value.add_argument("--voxel-um", type=float, default=None,
+                       help="microns per voxel of the volume these surfaces "
+                            "are addressed in")
+    value.add_argument("--inter-lamina-um", type=float, default=None,
+                       help="this scroll's measured inter-lamina spacing; "
+                            "without it the frozen 150 um floor stands in")
     for name, default in DEFAULT_POLICY.items():
         value.add_argument(
             f"--{name.replace('_', '-')}", type=type(default), default=None
@@ -719,7 +1083,10 @@ def main(argv: list[str] | None = None) -> int:
         for name in DEFAULT_POLICY
         if getattr(args, name, None) is not None
     }
-    report = run_batch(roots, policy, require_meta=args.require_meta_json)
+    report = run_batch(roots, policy, require_meta=args.require_meta_json,
+                       voxel_um=args.voxel_um,
+                       inter_lamina_um=args.inter_lamina_um,
+                       write_masks=args.write_masks)
     payload = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

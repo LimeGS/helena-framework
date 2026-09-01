@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / "framework/stages/01-segmentation"
 sys.path.insert(0, str(STAGE))
 
+from fleet import surface_routing
 from fleet.store import FleetStore
 from fleet.common import content_sha256
 from fleet.postgres_store import PostgresFleetStore
@@ -38,6 +39,123 @@ def test_store_factory_preserves_sqlite_paths(tmp_path: Path) -> None:
     assert isinstance(store, FleetStore)
     store.initialize()
     assert store.status()["database"] == str(tmp_path / "fleet.sqlite")
+
+
+def test_postgres_geometry_certification_persists_causal_qc_promotion(monkeypatch):
+    statements = []
+    # The verdict releases a waiting job only for a surface the size gate
+    # admits, so the fake catalogue has to answer the routing question too --
+    # with a real receipt over a real area, not a stub, or this would be
+    # asserting the promotion against a decision that never happened.
+    surface = {
+        "surface_id": "surface-control", "physical_qc_state": "UNVALIDATED",
+        "artifact_sha256": "3" * 64, "area_cm2": 0.5,
+        "source_snapshot_id": "source-control", "sample_id": "PHercTEST",
+        "bbox_xyz": [[0, 0, 0], [1, 1, 1]], "sample_points": [[0.0, 0.0, 0.0]],
+        "payload": {},
+    }
+    routing = surface_routing.receipt_for_surface(
+        {**surface, "geometry_qc_state": "GEOMETRY_CERTIFIED"})
+
+    class Cursor:
+        last = ""
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, statement, parameters=()):
+            self.last = statement
+            statements.append((statement, parameters))
+            self.rowcount = 1
+
+        def fetchone(self):
+            if "segment_surface_routing_receipts" in self.last:
+                return {"receipt": routing}
+            return surface
+
+        def fetchall(self):
+            if "SELECT qc_job_id,payload" in self.last:
+                return [{"qc_job_id": "qc-current", "payload": {}}]
+            return []
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def cursor(self):
+            return Cursor()
+
+    store = PostgresFleetStore("postgresql://unused")
+    monkeypatch.setattr(store, "connect", lambda: Connection())
+    result = store.record_geometry_certification(
+        "surface-control", "GEOMETRY_CERTIFIED", {"schema": "geometry.v1"},
+        requested_by_job_id="p2-current", profile_id="geometry@1",
+        profile_sha256="6" * 64)
+    assert result["geometry_certified_by_job_id"] == "p2-current"
+    assert result["qc_promotion_links"][0]["qc_job_id"] == "qc-current"
+    encoded = json.dumps(statements, default=str)
+    assert "geometry_certification_lineage" in encoded
+    assert "unblocked_by_job_id" in encoded
+    assert "promotion_event_id" in encoded
+
+
+def test_postgres_flattening_returns_persisted_job_lineage_not_newer_claim(monkeypatch):
+    old = {
+        "surface_id": "surface-control", "profile_id": "flatten-abf-v1@1.0.0",
+        "state": "FLATTENED", "requested_by_job_id": "p3-old",
+        "source_artifact_sha256": "3" * 64, "profile_file_sha256": "5" * 64,
+        "artifact_sha256": "7" * 64, "receipt_sha256": "8" * 64,
+    }
+
+    # P3 now reads the surface's routing receipt before it writes anything, so
+    # the scripted cursor has to answer that read: this surface is on the
+    # standard path, which is the precondition this test was always assuming.
+    from fleet import surface_routing
+
+    routed = surface_routing.build_receipt(
+        surface_id="surface-control", area_cm2=0.5,
+        policy=surface_routing.load_policy(),
+        measurement={"bbox_xyz": [[0, 0, 0], [64, 64, 8]],
+                     "sample_point_count": 4096},
+        read_set={"source_snapshot_id": "snapshot-control",
+                  "sample_id": "PHercCONTROL", "artifact_sha256": "7" * 64,
+                  "geometry_qc_state": "GEOMETRY_CERTIFIED"})
+
+    class Cursor:
+        last = ""
+
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def execute(self, statement, parameters=()):
+            self.last = statement
+            self.rowcount = 0 if "INSERT INTO surface_flattenings" in statement else 1
+        def fetchone(self):
+            if "segment_surface_routing_receipts" in self.last:
+                return {"receipt": routed}
+            return {"payload": old}
+
+    class Connection:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return False
+        def cursor(self): return Cursor()
+
+    current = {
+        "surface_id": "surface-control", "profile_id": "flatten-abf-v1@1.0.0",
+        "state": "FLATTENED", "requested_by_job_id": "p3-current",
+        "source_artifact_sha256": "3" * 64, "profile_file_sha256": "5" * 64,
+    }
+    current["receipt_sha256"] = content_sha256(current)
+    store = PostgresFleetStore("postgresql://unused")
+    monkeypatch.setattr(store, "connect", lambda: Connection())
+    result = store.record_flattening(current)
+    assert result["inserted"] is False
+    assert result["requested_by_job_id"] == "p3-old"
 
 
 def test_postgres_env_spec_keeps_secret_out_of_identity(monkeypatch: pytest.MonkeyPatch) -> None:

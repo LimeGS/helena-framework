@@ -166,16 +166,24 @@ def test_what_is_installed_is_decided_by_hash_and_not_by_filename(client):
 # The list is derived, not typed
 # --------------------------------------------------------------------------
 
-def test_the_offered_models_come_from_the_profiles(client):
+def test_the_offered_models_come_from_a_declaration_and_never_from_a_guess(client):
     """The whole reason there is no hardcoded catalogue.
 
-    Every row is a hash some frozen profile declares. A typed list would be a
-    guess about somebody else's repository naming, and it would ship as a
-    button that 404s the day they rename something.
+    Every row traces to a document in this checkout: a frozen profile, or the
+    weight manifest. A typed list would be a guess about somebody else's
+    repository naming, and it would ship as a button that 404s the day they
+    rename something.
+
+    There are two declarers rather than one, and the difference is the point. A
+    profile declares the checkpoint a lane froze -- one. The manifest declares
+    what upstream published -- fourteen, for `ink_9um`, being two seeds by seven
+    steps of a single training run. Deriving the page from profiles alone made
+    the other thirteen invisible: not missing, not installed, simply absent from
+    the question the page was asking.
     """
     rows = client.get("/api/models").json()["checkpoints"]
     assert rows, "no checkpoint is declared anywhere in framework/profiles"
-    declared = set()
+    declared = {"ink-weights-0.1.0.json"}
     for profile in (ROOT / "framework/profiles").rglob("*.json"):
         text = profile.read_text(encoding="utf-8")
         if '"checkpoint_sha256"' in text:
@@ -302,3 +310,40 @@ def test_a_pickle_already_on_disk_counts_as_installed(client):
     # The suffix list is what makes a non-safetensors install visible at all.
     assert ".ckpt" in app_module.CHECKPOINT_SUFFIXES
     assert ".safetensors" in app_module.CHECKPOINT_SUFFIXES
+
+
+def test_a_profile_that_pins_no_digest_verifies_nothing_and_must_say_so():
+    """Silence was the worst of the three states.
+
+    A profile with a digest verifies; a profile with the wrong digest refuses;
+    a profile with no digest used to sail through and write a receipt that
+    records the checkpoint's hash. That receipt is indistinguishable from a
+    verified one -- it carries a digest, it just carries one nobody promised in
+    advance. Weights silently different from what the profile means are an
+    irreproducible result that reads as reproducible, which is the failure this
+    whole stage exists to prevent.
+
+    Every profile whose adapter is run_ink.py does pin one today, so this is a
+    guard against the next profile rather than a fix for a current one.
+    """
+    source = (ROOT / "framework/stages/03-ink/scripts/run_ink.py").read_text()
+    assert "if not declared:" in source, (
+        "run_ink.py no longer refuses a profile that pins no checkpoint_sha256")
+    # And the refusal has to be reachable: it must come before the comparison,
+    # or an absent digest falls into `declared != checkpoint_sha` and reports a
+    # mismatch against nothing.
+    assert source.index("if not declared:") < source.index("if declared != checkpoint_sha:")
+
+
+def test_every_profile_that_run_ink_serves_pins_a_digest():
+    """The guard above is only free while this stays true."""
+    import json  # noqa: PLC0415
+
+    for profile in sorted((ROOT / "framework/profiles/03-ink").glob("*.json")):
+        spec = json.loads(profile.read_text())
+        adapter = spec.get("adapter")
+        if not adapter or not adapter.endswith("run_ink.py"):
+            continue
+        assert spec.get("checkpoint_sha256"), (
+            f"{spec['profile_id']} routes to run_ink.py, which now refuses a "
+            "profile that pins no checkpoint_sha256")

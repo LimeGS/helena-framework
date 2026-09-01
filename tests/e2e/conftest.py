@@ -15,7 +15,7 @@ With HELENA_E2E_NO_SKIP=1:
     skipping.
 
 A blanket ban is not honest here, and pretending otherwise would trade one
-false green for another. Two of these tests queue real GPU work and swisspost-1
+false green for another. Two of these tests queue real GPU work and work-3
 has no card; three more read pipeline history that a freshly deployed staging
 environment genuinely does not have yet. Those are declared below, each with the
 reason it is tolerable. Everything else -- above all "no credentials" -- is a

@@ -18,12 +18,202 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
+
+import pytest
+from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 ROOT = Path(__file__).resolve().parents[1]
 PLANNER = (ROOT / "framework/stages/01-segmentation/fleet/planner.py").read_text()
 SCHEMA = json.loads(
     (ROOT / "framework/contracts/schemas/segmentation-proposal-v2.schema.json").read_text())
+PACKET_SCHEMA = json.loads(
+    (ROOT / "framework/contracts/schemas/segmentation-planner-packet-v2.schema.json").read_text())
+HISTORY_SCHEMA = json.loads(
+    (ROOT / "framework/contracts/schemas/segmentation-regional-attempt-history-v1.schema.json").read_text())
+sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+
+from fleet.cli import build_parser  # noqa: E402
+from fleet.generator import generate_tasks_for_snapshot  # noqa: E402
+from fleet.planner_history import build_regional_attempt_history  # noqa: E402
+from fleet.planner import (  # noqa: E402
+    DeterministicPlanner,
+    PLANNER_PROMPT_V2,
+    PLANNER_PROMPT_V2_COMPACT,
+    PlannerScientificViolation,
+    compact_planner_view,
+    task_packet_for_planner,
+    validate_and_lock,
+)
+from fleet.worker import SegmentWorker  # noqa: E402
+
+
+def _ranked_v2_task(rank: int = 2) -> dict:
+    return {
+        "task_id": "ranked-task",
+        "attempt_id": "ranked-attempt",
+        "sample_id": "PHercTEST",
+        "source": {
+            "source_snapshot_id": "source-ranked",
+            "ct_uri": "fixture://ct",
+            "m7_uri": "fixture://m7",
+            "shape_xyz": [512, 512, 512],
+            "voxel_size_um": 9.362,
+        },
+        "cell_id": "cell-ranked",
+        "bounds_xyz": [[128, 128, 128], [384, 384, 384]],
+        "center_xyz": {"x": 256, "y": 256, "z": 256},
+        "catalog_snapshot_sha256": "a" * 64,
+        "candidate_rank": rank,
+        "candidate_selection_policy": "score-cell-volume-clearance-v1",
+        "parameter_envelope": {
+            "profile_ids": ["fixture-profile"],
+            "parameters": {
+                "generations": {
+                    "type": "integer", "minimum": 20, "maximum": 30,
+                    "default": 20,
+                },
+            },
+        },
+    }
+
+
+def _ranked_candidates() -> list[dict]:
+    return [
+        {"candidate_id": "c01", "x": 300, "y": 300, "z": 300,
+         "score": 0.9, "cell_interior_clearance_voxels": 30,
+         "volume_interior_clearance_voxels": 30},
+        {"candidate_id": "c02", "x": 200, "y": 200, "z": 200,
+         "score": 0.8, "cell_interior_clearance_voxels": 20,
+         "volume_interior_clearance_voxels": 20},
+    ]
+
+
+def _ranked_history(task: dict) -> dict:
+    return build_regional_attempt_history(task, [])
+
+
+def _ranked_packet(task: dict) -> dict:
+    return task_packet_for_planner(
+        task,
+        _ranked_candidates(),
+        contract_version="v2",
+        regional_attempt_history=_ranked_history(task),
+    )
+
+
+def _validate_v2_packet(packet: dict) -> None:
+    """Use the canonical runtime schema, including its local history reference."""
+    Draft202012Validator.check_schema(PACKET_SCHEMA)
+    registry = Registry().with_resource(
+        HISTORY_SCHEMA["$id"], Resource.from_contents(HISTORY_SCHEMA)
+    )
+    Draft202012Validator(PACKET_SCHEMA, registry=registry).validate(packet)
+
+
+def test_v2_packet_schema_admits_default_and_ranked_authority() -> None:
+    """The canonical packet contract must carry the value worker/planner use."""
+    default_packet = _ranked_packet(_ranked_v2_task(rank=1))
+    ranked_packet = _ranked_packet(_ranked_v2_task(rank=2))
+    assert default_packet["candidate_rank"] == 1
+    assert ranked_packet["candidate_rank"] == 2
+    _validate_v2_packet(default_packet)
+    _validate_v2_packet(ranked_packet)
+
+
+@pytest.mark.parametrize("rank", [0, -1, True, 1.5])
+def test_generator_rejects_invalid_rank_before_it_can_queue(rank: object) -> None:
+    """Direct Python callers cannot bypass the panel/CLI admission boundary."""
+    class NeverQueue:
+        calls = 0
+
+        def surfaces_for_snapshot(self, _source_id: str) -> list[dict]:
+            self.calls += 1
+            raise AssertionError("invalid rank must not inspect or queue work")
+
+    store = NeverQueue()
+    with pytest.raises(ValueError, match="candidate_rank must be a positive integer"):
+        generate_tasks_for_snapshot(
+            store,
+            {"source_snapshot_id": "source", "sample_id": "PHercTEST",
+             "m7_uri": "fixture://m7", "shape_xyz": [64, 64, 64]},
+            catalog_snapshot_sha256="a" * 64,
+            grid_step=16, query_radius=8, clearance=0,
+            volume_edge_margin=8, candidate_interior_clearance=0,
+            selection_strategy="max-clearance-v1", max_tasks=1,
+            grid_version="grid", policy_version="policy", candidate_rank=rank,
+        )
+    assert store.calls == 0
+
+
+@pytest.mark.parametrize("rank", ["0", "-1"])
+def test_cli_rejects_nonpositive_rank_before_bootstrap(rank: str) -> None:
+    """The CLI parser rejects a bad knob before it can create a task."""
+    with pytest.raises(SystemExit):
+        build_parser(ROOT).parse_args([
+            "bootstrap", "--db", "fixture.sqlite", "--eligible", "eligible.json",
+            "--catalog", "catalog.json", "--candidate-rank", rank,
+        ])
+
+
+def test_rank_is_sealed_in_packet_proposal_and_locked_plan(tmp_path: Path) -> None:
+    """Rank 2 means the exact second frozen candidate at every boundary."""
+    packet = _ranked_packet(_ranked_v2_task())
+    assert packet["candidate_rank"] == 2
+
+    proposal = DeterministicPlanner(contract_version="v2").propose(
+        packet, tmp_path
+    )
+    assert proposal["candidate_rank"] == 2
+    Draft202012Validator(SCHEMA).validate(proposal)
+    assert proposal["selected_seed"]["candidate_id"] == "c02"
+
+    locked = validate_and_lock(packet, proposal)
+    assert locked["candidate_rank"] == 2
+    assert locked["selected_seed"]["candidate_id"] == "c02"
+
+    forged = {**proposal, "candidate_rank": 1}
+    with pytest.raises(PlannerScientificViolation, match="candidate rank"):
+        validate_and_lock(packet, forged)
+
+
+def test_host_default_and_deterministic_fallback_read_rank_from_packet(
+    tmp_path: Path,
+) -> None:
+    """A no-factory worker and a freshly-created fallback must not reset rank."""
+    worker = object.__new__(SegmentWorker)
+    worker.planner = DeterministicPlanner(contract_version="v2")
+    worker.planner_factory = None
+    packet = _ranked_packet(_ranked_v2_task())
+
+    host_default = worker.planner_for({"candidate_rank": 2})
+    fallback = DeterministicPlanner(contract_version="v2")
+    assert host_default.propose(packet, tmp_path / "host")["selected_seed"][
+        "candidate_id"
+    ] == "c02"
+    assert fallback.propose(packet, tmp_path / "fallback")["selected_seed"][
+        "candidate_id"
+    ] == "c02"
+
+
+def test_seed_probe_select_refuses_a_ranked_alternative_before_probe_execution() -> None:
+    """Select's winner continuation is singleton; rank two would be a lie."""
+    task = _ranked_v2_task()
+    task["seed_probe"] = {"mode": "select"}
+    with pytest.raises(ValueError, match="select.*candidate_rank 1"):
+        _ranked_packet(task)
+
+
+def test_compact_provider_view_and_prompt_bind_the_requested_rank() -> None:
+    """A named v2 provider must see the same ranked request as fallback."""
+    view = compact_planner_view(_ranked_packet(_ranked_v2_task()))
+    assert view["candidate_rank"] == 2
+    assert "candidate_rank" in PLANNER_PROMPT_V2
+    assert "frozen candidate rank" in PLANNER_PROMPT_V2
+    assert '"candidate_rank": 1' in PLANNER_PROMPT_V2
+    assert '"candidate_rank":1' in PLANNER_PROMPT_V2_COMPACT
 
 
 def test_the_ordering_is_shared_so_a_rank_means_one_thing() -> None:
@@ -34,8 +224,8 @@ def test_the_ordering_is_shared_so_a_rank_means_one_thing() -> None:
 
 
 def test_it_starts_where_it_is_told() -> None:
-    assert "rank = int(getattr(self, \"candidate_rank\", 1))" in PLANNER, (
-        "the planner no longer reads a rank, so alternatives cannot be reached"
+    assert 'rank = int(packet.get("candidate_rank", getattr(self, "candidate_rank", 1)))' in PLANNER, (
+        "the planner no longer reads the packet rank, so a fallback can reset it"
     )
     assert "ordered_candidates[rank - 1:]" in PLANNER, (
         "the rank is read and not applied to the ordering"
@@ -46,7 +236,7 @@ def test_asking_past_the_end_refuses_rather_than_falling_back() -> None:
     """m7 offers 3.1 candidates per cell on average and sometimes fewer. Rank 5
     where there are three is a question with no answer, and quietly returning
     the last one would answer a different question than the one asked."""
-    guard = PLANNER[PLANNER.index("rank = int(getattr"):]
+    guard = PLANNER[PLANNER.index('rank = int(packet.get("candidate_rank"'):]
     guard = guard[: guard.index("ordered_candidates[rank - 1:]")]
     assert "raise RuntimeError" in guard
     assert "no such alternative" in guard
@@ -58,6 +248,10 @@ def test_the_rank_is_recorded_on_the_proposal() -> None:
     assert '"candidate_rank": rank,' in PLANNER
     assert "candidate_rank" in SCHEMA["properties"], (
         "the field is emitted and the contract does not admit it"
+    )
+    assert "candidate_rank" in SCHEMA["required"], (
+        "a v2 provider can omit the requested rank even though the planner "
+        "must treat it as immutable"
     )
     assert SCHEMA["properties"]["candidate_rank"]["minimum"] == 1
 

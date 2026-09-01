@@ -1,0 +1,87 @@
+{
+  "schema": "campaignx.lamina_gate_profile.v1",
+  "profile_id": "lamina-gate@1.0.0",
+  "one_line": "Whether the CT resolves a single lamina under a certified surface.",
+  "asks": "Are there two air/papyrus interfaces, one sheet's thickness apart, on this surface, in this volume?",
+  "sampling": {
+    "columns": 256,
+    "samples_per_column": 80,
+    "sample_step_um": 4.0,
+    "note": "One column per sampled mesh cell, along the surface normal and centred on it. 80 samples at 4 um spans 320 um, which is wider than the fused population it has to discriminate: the window has to contain both interfaces of a 120-170 um pair, and a shorter one reports the clearest slab as a column nobody could measure."
+  },
+  "thickness_um": {
+    "sheet_low": 15.0,
+    "sheet_high": 70.0,
+    "note": "A papyrus sheet is about 35 um. The band is deliberately wide on both sides of that: what the measurement separates is a sheet from a slab, and the two populations measured were 35-45 um and 120-170 um with nothing between them."
+  },
+  "minimum_clean_fraction": 0.9,
+  "bimodality_ceiling": 1.0,
+  "verdicts": {
+    "LAMINA_SINGLE_SHEET": "the interface pair is one sheet apart: rendering here is worth its cost",
+    "LAMINA_FUSED": "the pair spans neighbouring laminae -- measured, or wider than the window read -- and a render there produces a slab that is not a sheet",
+    "LAMINA_TOO_THIN": "thinner than a sheet, so the pair is unlikely to be two interfaces",
+    "LAMINA_UNRESOLVED": "no valley between the modes: one material, or noise",
+    "LAMINA_INSUFFICIENT_COLUMNS": "too few columns carried an interface pair to say anything",
+    "LAMINA_UNMEASURED": "the gate did not run -- not a verdict, an absence of one"
+  },
+  "calibration": {
+    "origin": "First Letters campaign, 2026-08-28, reported to Helena as an artifact",
+    "measured_on": "PHerc0826 at 9.362 um, nine wraps",
+    "observations": [
+      {
+        "wrap": "w010",
+        "clean_fraction": 0.955,
+        "bimodality": 0.226,
+        "median_thickness_um": 44.7,
+        "reading": "one sheet"
+      },
+      {
+        "wrap": "w015",
+        "clean_fraction": 0.969,
+        "bimodality": 0.457,
+        "median_thickness_um": 35.4,
+        "reading": "one sheet"
+      },
+      {
+        "wrap": "w020",
+        "clean_fraction": 0.975,
+        "bimodality": 0.694,
+        "median_thickness_um": 135.1,
+        "reading": "fused"
+      },
+      {
+        "wrap": "w030",
+        "clean_fraction": 0.986,
+        "bimodality": 0.65,
+        "median_thickness_um": 122.7,
+        "reading": "fused"
+      },
+      {
+        "wrap": "w050",
+        "clean_fraction": 0.997,
+        "bimodality": 0.608,
+        "median_thickness_um": 168.7,
+        "reading": "fused"
+      }
+    ],
+    "sheet_reference_um": 35.5,
+    "sheet_reference_note": "median over 1,x00 crops of a 3D label set, another scroll and another pipeline; it agrees with the two wraps read as one sheet and is not independent of them.",
+    "reference_implementation": "halfmax_profile and column_material_depth in recto/core/frame.py of vesivius-research@1380cd6",
+    "reimplemented_here": true,
+    "reimplementation_note": "The arithmetic is reimplemented from the reported definitions rather than vendored, because that repository is not on this host. The bands are theirs; the numbers this gate produces have not been compared against theirs on the same input, and until they are, a verdict here is this platform's own.",
+    "interface_localisation": {
+      "median_error_um": 1.4,
+      "p90_error_um": 127.9,
+      "columns_that_fail_entirely": "10-15%",
+      "measured": "2.399 um native against the same columns averaged x4 to 9.6 um on PHerc0139",
+      "consequence": "excellent median, poor tail: any per-column use needs a per-column gate, and this gate is per surface with the clean fraction reported beside the median"
+    }
+  },
+  "non_claims": [
+    "this is a geometric gate, not a claim about content: a wrap that passes may hold no ink at all, and one did",
+    "it filters where one can look, never where there is something to see",
+    "the median is excellent and the tail is not: 10-15% of columns fail to localise the interface entirely, which is why the verdict is per surface and the clean fraction is reported beside it",
+    "passing is not a claim that the segmentation followed the correct lamina; that remains the geometry axis's own non-claim",
+    "the detector's own valid fraction does not discriminate: it reads 95% even with the depth shuffled inside each column, so it is not evidence that a column was localised. Thickness is the statistic that informs, which is why the verdict is read off the median and the clean fraction only bounds it"
+  ]
+}

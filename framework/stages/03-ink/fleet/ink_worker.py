@@ -15,14 +15,17 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Mapping
 from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -31,9 +34,90 @@ if str(ROOT) not in sys.path:
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from job_store import (  # noqa: E402
-    INK_ADAPTERS, PHASE_RUNNERS, InkJobStore, command_for,
-    depth_centers_that_fit, ink_adapter, lane_for,
+    INK_ADAPTERS, PHASE_RUNNERS, READ_PATH_PARAMETERS, WRITE_PATH_PARAMETERS,
+    InkJobStore, command_for,
+    runtime_image_for, depth_centers_that_fit, ink_adapter, ink_profile_path,
+    lane_for,
 )
+from framework.contracts.slice_order import (  # noqa: E402
+    SliceOrderError, ordered_tiff_files,
+)
+
+
+CONTROL_BINDING_FIELDS = (
+    "control_p0_artifact_id",
+    "control_p0_artifact_sha256",
+    "control_p0_selection_version",
+    "control_source_snapshot_id",
+    "control_source_content_lock",
+    "control_source_content_lock_sha256",
+    "control_policy_sha256",
+)
+
+
+def persisted_control_binding(job: dict) -> dict | None:
+    """Return one complete immutable server claim, or fail closed."""
+    parameters = job.get("parameters") or {}
+    present = [field for field in CONTROL_BINDING_FIELDS if field in parameters]
+    if not present:
+        return None
+    if len(present) != len(CONTROL_BINDING_FIELDS):
+        raise RuntimeError("job has a partial persisted control binding")
+    binding = {field: parameters[field] for field in CONTROL_BINDING_FIELDS}
+    content_lock = binding["control_source_content_lock"]
+    if not isinstance(content_lock, dict):
+        raise RuntimeError("job has a tampered persisted control binding")
+    content_lock_sha = hashlib.sha256(json.dumps(
+        content_lock, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=False, allow_nan=False).encode("utf-8")).hexdigest()
+    hashes = (
+        binding["control_p0_artifact_sha256"],
+        binding["control_source_content_lock_sha256"],
+        binding["control_policy_sha256"],
+    )
+    if (not all(isinstance(value, str) and len(value) == 64
+                and all(character in "0123456789abcdef" for character in value)
+                for value in hashes)
+            or not all(isinstance(binding[field], str) and binding[field]
+                       for field in ("control_p0_artifact_id",
+                                     "control_p0_selection_version",
+                                     "control_source_snapshot_id"))
+            or binding["control_source_content_lock_sha256"] != content_lock_sha):
+        raise RuntimeError("job has a tampered persisted control binding")
+    return binding
+
+
+def verified_control_binding(job: dict) -> dict | None:
+    """Bind worker control behavior to the exact policy hash it advertises."""
+    binding = persisted_control_binding(job)
+    if binding is None:
+        return None
+    policy_path = (
+        ROOT / "framework/profiles/01-segmentation/"
+        "first-letters-control-policy-1.3.0.json"
+    )
+    try:
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"worker cannot load bound control policy: {exc}") from exc
+
+    def canonical_sha256(document: dict) -> str:
+        return hashlib.sha256(json.dumps(
+            document, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            allow_nan=False).encode("utf-8")).hexdigest()
+
+    locks = policy.get("source_locks") or {}
+    expected_lock = {
+        "control_profile_id": policy.get("profile_id"),
+        "control_profile_sha256": canonical_sha256(policy),
+        "ct_lock_sha256": canonical_sha256(locks.get("ct") or {}),
+        "m7_lock_sha256": canonical_sha256(locks.get("m7") or {}),
+    }
+    if (binding["control_policy_sha256"] != canonical_sha256(policy)
+            or binding["control_source_content_lock"] != expected_lock):
+        raise RuntimeError("worker control policy differs from persisted binding")
+    job["_verified_control_policy"] = policy
+    return binding
 
 
 def receipt_names(job: dict) -> tuple[str, ...]:
@@ -65,6 +149,60 @@ def receipt_names(job: dict) -> tuple[str, ...]:
     return known
 
 
+def merged_surface_routing_receipt(receipt: dict) -> dict:
+    """The routing decision the merged surface earns on its own measurement.
+
+    A merge produces a *new* surface.  It has its own extent -- the merge lane
+    measures it with ``fleet.finalizer.inspect_tifxyz`` over the merged x/y/z
+    grids it just published, under the same frozen triangulation every other
+    surface is measured with -- so it has its own routing question, and the
+    answer is neither inherited from a parent nor implied by the merge having
+    passed.  Two parents that each clear the floor can be stitched into a strip
+    that does not, and the floor is a statement about how much papyrus there is
+    to ask about, which stitching does not change.
+
+    Decided here rather than read out of the merge receipt.  A route carried in
+    a document is a claim; the area beside it is the evidence, and where the two
+    disagree the document does not win.  This is the contract the stores already
+    hold to in ``agrees_with_measurement``: re-decide, then require the carried
+    receipt to be the receipt this area produces.  A merge receipt that records
+    no usable area is refused, because every alternative -- defaulting to
+    STANDARD, defaulting to DIAGNOSTIC, or omitting the decision the way this
+    function used to -- is an answer the measurement did not give.
+    """
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet import surface_routing  # noqa: PLC0415
+
+    surface_id = str(receipt["surface_id"])
+    policy = surface_routing.load_policy()
+    try:
+        decided = surface_routing.build_receipt(
+            surface_id=surface_id, area_cm2=receipt.get("area_cm2"),
+            policy=policy,
+            measurement={"decided_at": "P8_MERGE_RESULT_PROJECTION"},
+            read_set={"artifact_sha256": receipt.get("artifact_sha256")},
+        )
+    except ValueError as unmeasured:
+        raise RuntimeError(
+            f"P8 merge receipt records no usable area for {surface_id}, so the "
+            f"surface the merge produced cannot be routed: {unmeasured}"
+        ) from unmeasured
+
+    carried = receipt.get("routing_receipt")
+    if carried is None:
+        return decided
+    # The lane's own receipt is the one the catalogue stores, so it is the one
+    # to report -- but only after it has been checked against the measurement
+    # rather than trusted for having a digest.
+    if not surface_routing.agrees_with_measurement(
+        carried, receipt.get("area_cm2"), policy=policy,
+    ) or carried.get("surface_id") != surface_id:
+        raise RuntimeError(
+            f"P8 merge receipt carries a routing receipt for {surface_id} that "
+            "is not the decision its own measured area produces")
+    return carried
+
+
 def merge_result_from_receipt(
     job: dict,
     receipt: dict | None,
@@ -78,6 +216,12 @@ def merge_result_from_receipt(
     Both must exist before the worker can call the job successful.  Keeping
     them in ``ink_jobs.result`` makes the API sufficient to discover the new
     surface and its evidence without reading a worker-local directory.
+
+    The route travels with them.  A merged sheet under the effort floor used to
+    reach this result with no area and no routing decision at all, which is the
+    door PHerc0268 walked through on the ink screen wearing different clothes:
+    downstream reads a successful P8 result and finds nothing in it saying the
+    standard path was never available to the surface it names.
     """
     if (str(job.get("phase")) != "P8"
             or (job.get("parameters") or {}).get("lane")
@@ -107,6 +251,10 @@ def merge_result_from_receipt(
     if registered != receipt["surface_id"]:
         raise RuntimeError(
             "P8 evidence publication names a different registered surface")
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet import surface_routing  # noqa: PLC0415
+
+    routing_receipt = merged_surface_routing_receipt(receipt)
     return {
         "merge_receipt": receipt,
         "evidence_publication": publication,
@@ -116,7 +264,207 @@ def merge_result_from_receipt(
         "evidence_uri": publication["evidence_uri"],
         "evidence_sha256": publication["evidence_sha256"],
         "parents": receipt["parents"],
+        "area_cm2": routing_receipt["measured_area_cm2"],
+        # Read out of a receipt that has just been verified, never copied from
+        # a route string somebody wrote down.  The two admissibility answers
+        # come from the router's own predicates for the same reason: a forged
+        # or corrupted receipt then fails exactly the way a missing one does.
+        "route": routing_receipt["route"],
+        "routing_receipt": routing_receipt,
+        "enters_standard_qc": surface_routing.enters_standard_qc(routing_receipt),
+        "enters_canonical_downstream":
+            surface_routing.enters_canonical_downstream(routing_receipt),
     }
+
+
+# Which image this worker is. Set by the compose that runs it; None on a host
+# that never said, where this check cannot prove anything and stays quiet.
+RUNTIME_IMAGE = os.environ.get("HELENA_RUNTIME_IMAGE") or None
+
+
+def misnamed_runtime(runtime: str | None) -> str | None:
+    """Why this worker's declared runtime cannot be the one it says, or None.
+
+    HELENA_RUNTIME_IMAGE names the *lane* image a worker carries, not the
+    composed image it runs as -- `helena-ink-9um`, not
+    `helena-ink-9um-worker`. Getting it the other way round is quiet in the
+    worst way: the worker starts, claims nothing that needs the lane, and looks
+    exactly like a worker with nothing to do.
+
+    The sibling mistake is loud and the lane image now explains it: pointing
+    HELENA_INK_IMAGE at the lane gives a container with no repository in it.
+    These are the same confusion, one suffix apart, in an invocation that sets
+    both variables to nearly the same string.
+    """
+    name = (runtime or "").strip()
+    if not name or not name.endswith("-worker"):
+        return None
+    from job_store import lane_runtime_images  # noqa: PLC0415
+
+    lane = name[: -len("-worker")]
+    if lane not in lane_runtime_images():
+        return None
+    return (
+        f"HELENA_RUNTIME_IMAGE is {name!r}, which is the composed worker "
+        f"image. It has to name the lane image that worker carries: {lane!r}. "
+        "As it stands this worker will refuse every job for that lane by name "
+        "and go on looking idle.")
+
+
+def worker_code_revision() -> dict[str, str | None]:
+    """Which build of this worker ran a job, recorded on every result.
+
+    Four P4 jobs were finished `succeeded` with zero layers written, by a
+    worker whose copy of this file predated the check that refuses exactly
+    that. Nothing in the row said which build had run, so "the image is stale"
+    was an inference from a second symptom rather than something the receipt
+    could answer.
+
+    The digest of this file is the part that usually works: the build arguments
+    are only as true as the image that carries them, and a bind mount over the
+    checkout has neither. It is None on a worker that cannot read itself.
+
+    On the result of a job that *ran*. A job refused before the subprocess
+    starts -- an unreadable input, a write outside its run directory, a missing
+    upstream directory, a lineage refusal -- finishes through a path that
+    records the refusal and nothing else. Do not promise a reader that every
+    row carries this.
+    """
+    try:
+        source = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    except OSError:  # pragma: no cover - a worker that cannot read itself
+        source = None
+    return {
+        "image": RUNTIME_IMAGE,
+        "build_revision": os.environ.get("BUILD_REVISION") or None,
+        "worker_source_sha256": source,
+    }
+
+
+# How often a running job reports in. It was 120 s, which is the right cadence
+# for renewing an hour-long lease and the wrong one for saying what a job is
+# doing -- a twenty-six-minute render checked in thirteen times and said
+# nothing on any of them. The write happens anyway; the progress rides it.
+HEARTBEAT_SECONDS = 15
+# How much of a line survives into the control plane. A progress bar is short;
+# a traceback line can be arbitrarily long, and this column is read on every
+# poll of the queue.
+PROGRESS_LINE_CHARS = 400
+
+
+def split_progress(buffer: str) -> tuple[list[str], str]:
+    """Cut a chunk into finished lines and whatever is still half-written.
+
+    On carriage returns as well as newlines, because that is how tqdm draws a
+    bar: a reader that waits for a newline sees the whole thing at once, when
+    the process ends, which is the one moment it is worth nothing.
+
+    The remainder is held rather than emitted. Half a line reported as a whole
+    one is a claim the process did not make.
+    """
+    pieces = re.split(r"[\r\n]", buffer)
+    remainder = pieces.pop()
+    return [piece for piece in pieces if piece], remainder
+
+
+def run_streaming(argv: list[str], *, timeout: float | None, env: dict | None,
+                  on_line, on_start=None) -> subprocess.CompletedProcess:
+    """Run a child, echoing what it writes as it writes it.
+
+    `capture_output=True` buffers both pipes until the process exits, so a long
+    job is observable only as "started" and, much later, "finished" -- nothing
+    in the host's logs and nothing in the control plane while it runs. Watching
+    one meant reading the size of a file on disk and the GPU's utilisation,
+    neither of which is progress.
+
+    The return shape is subprocess.run's, deliberately: the receipt, the P3
+    lineage parse and the failure payload all read `completed.stdout` and
+    `completed.stderr`, and they need the two whole and separate. What is
+    collected is the normalised lines rather than the raw bytes, which is what
+    `text=True` used to do and what keeps a tail of progress bar readable.
+    """
+    process = subprocess.Popen(  # noqa: S603 - argv is built by command_for
+        argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    # Handed out so a cancellation can reach it. Without this the only way to
+    # stop a running job was to kill the whole worker.
+    if on_start is not None:
+        on_start(process)
+    collected: dict[str, list[str]] = {"stdout": [], "stderr": []}
+
+    def pump(name: str, pipe, echo) -> None:
+        rest = ""
+        try:
+            while True:
+                chunk = os.read(pipe.fileno(), 65536)
+                if not chunk:
+                    break
+                lines, rest = split_progress(
+                    rest + chunk.decode("utf-8", "replace"))
+                for line in lines:
+                    collected[name].append(line + "\n")
+                    # The host's own log first: it is the copy that survives a
+                    # control plane nobody can reach.
+                    print(line, file=echo, flush=True)
+                    try:
+                        on_line(name, line)
+                    except Exception:  # noqa: BLE001, S110
+                        # Reporting progress must not be able to kill the job
+                        # whose progress it is.
+                        pass
+        except (OSError, ValueError):
+            return
+        finally:
+            if rest:
+                collected[name].append(rest)
+
+    threads = [
+        threading.Thread(target=pump, args=("stdout", process.stdout, sys.stdout),
+                         daemon=True),
+        threading.Thread(target=pump, args=("stderr", process.stderr, sys.stderr),
+                         daemon=True),
+    ]
+    for thread in threads:
+        thread.start()
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Killed, not abandoned. A job whose process outlives its worker still
+        # holds the card it was using.
+        process.kill()
+        process.wait()
+        for thread in threads:
+            thread.join(timeout=5)
+        raise
+    for thread in threads:
+        thread.join(timeout=30)
+    return subprocess.CompletedProcess(
+        argv, process.returncode,
+        "".join(collected["stdout"]), "".join(collected["stderr"]))
+
+
+def require_runtime(job: dict) -> None:
+    """Refuse a lane whose runtime this worker is not, before it costs a job.
+
+    Three lanes now need an image their claiming worker does not run -- the
+    9 um detector, lasagna, the spiral fitter -- because their dependencies
+    cannot share one environment with the platform's. Without this the worker
+    runs their argv in its own runtime, the runner is not importable, and the
+    job dies several minutes in reporting whatever the traceback said rather
+    than the one fact that explains it.
+
+    Quiet when this worker does not know its own image: a host that was
+    configured correctly but never labelled would otherwise have every one of
+    those jobs refused, which is worse than the failure it prevents.
+    """
+    if RUNTIME_IMAGE is None:
+        return
+    needed = runtime_image_for(job)
+    if needed and needed != RUNTIME_IMAGE:
+        raise RuntimeError(
+            f"this lane runs in {needed} and this worker is {RUNTIME_IMAGE}. "
+            f"The lane declares its image because its dependencies cannot "
+            f"share an environment with this one -- route the job to a worker "
+            f"carrying {needed}.")
 
 
 def runner_for(job: dict) -> Path:
@@ -143,7 +491,7 @@ def runner_for(job: dict) -> Path:
 # Measured by framework/contracts/host_probe, which a segmentation host also
 # imports. Re-exported here because callers -- the panel included -- already
 # reach for fleet.ink_worker.host_state.
-from framework.contracts.host_probe import (  # noqa: E402
+from framework.contracts.host_probe import (  # noqa: E402,F401
     cpu_and_memory, host_state, local_images,
 )
 
@@ -194,7 +542,10 @@ class RenderNotUsable(RuntimeError):
 def rendered_layers_directory(job: dict, output: Path) -> Path:
     """Where this P4 lane actually writes the numbered TIFF stack."""
     parameters = job.get("parameters") or {}
-    if parameters.get("lane") == "scroll3-chunk-gather":
+    # Renamed from scroll3-chunk-gather when the renderer stopped being about
+    # one scroll. A job queued under the old id keeps working: it is the lane
+    # that changed, not where it writes.
+    if parameters.get("lane") in ("chunk-gather", "scroll3-chunk-gather"):
         return Path(str(parameters.get("out_dir") or output)) / "layers"
     return Path(str(parameters.get("tif_output") or (output / "layers")))
 
@@ -214,13 +565,21 @@ def verify_layer_stack(directory: Path, parameters: dict) -> dict:
     import numpy  # noqa: PLC0415
     import tifffile  # noqa: PLC0415
 
-    slices = sorted(Path(directory).glob("*.tif"))
-    if not slices:
-        raise RenderNotUsable(f"the renderer wrote no .tif under {directory}")
+    try:
+        slices, slice_ordering = ordered_tiff_files(
+            Path(directory), require_numeric=True, require_contiguous=True)
+    except SliceOrderError as exc:
+        raise RenderNotUsable(str(exc)) from exc
     expected = parameters.get("num_slices")
     if expected and len(slices) != int(expected):
         raise RenderNotUsable(
             f"asked for {int(expected)} slices and found {len(slices)}")
+    indices = [int(path.stem) for path in slices]
+    required_indices = list(range(int(expected) if expected else len(slices)))
+    if indices != required_indices:
+        raise RenderNotUsable(
+            f"numeric TIFF indices must be exactly {required_indices[0]}.."
+            f"{required_indices[-1]}, found {indices}")
     # The middle one: the ends of a stack can legitimately fall off the lamina,
     # and a stack whose centre is blank was not sampling the sheet at all.
     middle = tifffile.imread(slices[len(slices) // 2])
@@ -231,6 +590,9 @@ def verify_layer_stack(directory: Path, parameters: dict) -> dict:
             "signal, which exit 0 does not say")
     return {
         "slices": len(slices),
+        "slice_indices": indices,
+        "slice_filenames": [path.name for path in slices],
+        "slice_ordering": slice_ordering,
         "shape": [int(value) for value in middle.shape],
         "dtype": str(middle.dtype),
         "middle_slice_range": [low, high],
@@ -257,7 +619,13 @@ def publish_artifact_set(directory: Path, names: list[str], *, schema: str,
     promoted = store.promote(staged, sample_id, key, manifest)
     return {"artifact_uri": promoted["artifact_uri"],
             "artifact_sha256": manifest["artifact_sha256"],
-            "files": len(files)}
+            "manifest_sha256": content_sha256(manifest),
+            "files": len(files),
+            "objects": [
+                {"object_key": name, "sha256": files[name]["sha256"],
+                 "bytes": files[name]["size_bytes"]}
+                for name in names
+            ]}
 
 
 def publish_probability_map(directory: Path, *, store_spec: str, sample_id: str,
@@ -290,14 +658,22 @@ def publish_layer_stack(directory: Path, *, store_spec: str, sample_id: str,
     path, which means nothing on any other machine.
     """
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
-    from fleet.artifact_store import open_artifact_store  # noqa: PLC0415
-    from fleet.common import content_sha256, file_sha256  # noqa: PLC0415
-
-    names = sorted(path.name for path in Path(directory).glob("*.tif"))
-    return publish_artifact_set(
-        directory, names, schema="campaignx.layer_stack_artifact_set.v1",
+    try:
+        paths, slice_ordering = ordered_tiff_files(
+            Path(directory), require_numeric=True, require_contiguous=True)
+    except SliceOrderError as exc:
+        raise RenderNotUsable(str(exc)) from exc
+    indices = [int(path.stem) for path in paths]
+    if indices != list(range(len(paths))):
+        raise RenderNotUsable(
+            f"numeric TIFF indices must start at 0, found {indices}")
+    published = publish_artifact_set(
+        directory, [path.name for path in paths],
+        schema="campaignx.layer_stack_artifact_set.v1",
         store_spec=store_spec, sample_id=sample_id,
         key=f"layers/{job_id}", job_id=job_id)
+    return {**published, "slice_indices": indices,
+            "slice_ordering": slice_ordering}
 
 
 def resolve_flattened_surface(store: InkJobStore, job: dict, destination: Path) -> str:
@@ -312,7 +688,28 @@ def resolve_flattened_surface(store: InkJobStore, job: dict, destination: Path) 
     surface_id = str(job["parameters"]["flattened_surface"])
     profile_id = str(job["parameters"].get("flattening_profile")
                      or DEFAULT_FLATTENING_PROFILE)
+    lineage_guard = getattr(store, "require_surface_lineage", None)
+    if callable(lineage_guard):
+        lineage_guard(
+            surface_id=surface_id, mission_id=job.get("mission_id"),
+            boundary="P4_EXECUTION_RESOLUTION", allow_unvalidated=False,
+        )
     sheet = store.flattened_sheet(surface_id, profile_id)
+    expected_id = str(job["parameters"].get("flattening_id") or "")
+    expected_job = str(job["parameters"].get("p3_job_id") or "")
+    expected_sha = str(job["parameters"].get("flattened_artifact_sha256") or "")
+    if (not expected_id or sheet.get("flattening_id") != expected_id
+            or not expected_job or sheet.get("requested_by_job_id") != expected_job
+            or not expected_sha or sheet.get("artifact_sha256") != expected_sha):
+        raise RuntimeError(
+            "flattened sheet does not match the exact P3 artifact/job identity")
+    job["_flattened_sheet"] = {
+        "artifact_id": sheet.get("flattening_id"),
+        "surface_id": surface_id,
+        "p3_job_id": sheet.get("requested_by_job_id"),
+        "artifact_sha256": sheet.get("artifact_sha256"),
+        "artifact_uri": sheet.get("artifact_uri"),
+    }
 
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
     from fleet.certifier import load_qc_adapter  # noqa: PLC0415
@@ -320,6 +717,99 @@ def resolve_flattened_surface(store: InkJobStore, job: dict, destination: Path) 
     load_qc_adapter().materialize_surface(
         str(sheet["artifact_uri"]), str(sheet["artifact_sha256"] or ""), destination)
     return str(destination)
+
+
+def measure_p3_p4_lateral_metric(
+        sheet: Path, layer_shape_yx: list[int], *, source_voxel_um: float,
+        lineage: dict, policy: dict) -> dict:
+    """Measure the exact one-grid-cell P3→P4 raster transform in physical units."""
+    import numpy as np  # noqa: PLC0415
+    import tifffile  # noqa: PLC0415
+
+    base = {"schema": "campaignx.first_letters_p3_p4_lateral_metric.v1",
+            "profile_id": policy.get("profile_id"),
+            "profile_sha256": hashlib.sha256(json.dumps(
+                policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                allow_nan=False).encode()).hexdigest(),
+            "lineage": lineage, "policy": policy,
+            "source_voxel_um": source_voxel_um}
+    def finish(status: str, reason: str, **values):
+        receipt = {**base, **values, "status": status, "reason_code": reason}
+        receipt["receipt_sha256"] = hashlib.sha256(json.dumps(
+            receipt, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            allow_nan=False).encode()).hexdigest()
+        return receipt
+    arrays = [np.asarray(tifffile.imread(Path(sheet) / f"{axis}.tif"),
+                         dtype=np.float64) for axis in "xyz"]
+    if len({array.shape for array in arrays}) != 1 or arrays[0].ndim != 2:
+        return finish("UNPROVEN", "P3_TIFXYZ_GRID_INVALID")
+    shape = list(arrays[0].shape)
+    if shape != list(layer_shape_yx):
+        return finish("UNPROVEN", "P4_RASTER_DIMENSION_MISMATCH",
+                      tifxyz_shape_yx=shape, layer_shape_yx=list(layer_shape_yx))
+    xyz = np.stack(arrays, axis=-1)
+    valid = np.isfinite(xyz).all(axis=2) & (xyz >= 0).all(axis=2)
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.finalizer import triangulate_tifxyz_grid  # noqa: PLC0415
+    mesh = triangulate_tifxyz_grid(xyz)
+    possible_triangle_count = 2 * max(0, shape[0] - 1) * max(0, shape[1] - 1)
+    valid_triangle_count = int(len(mesh["faces"]))
+    triangle_coverage = valid_triangle_count / max(1, possible_triangle_count)
+    masks = (valid[:, :-1] & valid[:, 1:], valid[:-1, :] & valid[1:, :])
+    deltas = (xyz[:, 1:] - xyz[:, :-1], xyz[1:, :] - xyz[:-1, :])
+    distances = [np.linalg.norm(delta, axis=2)[mask] * float(source_voxel_um)
+                 for delta, mask in zip(deltas, masks, strict=True)]
+    totals = [mask.size for mask in masks]
+    valid_count = sum(len(values) for values in distances)
+    edge_coverage = valid_count / max(1, sum(totals))
+    if any(not len(values) for values in distances):
+        return finish("UNPROVEN", "P3_P4_LATERAL_EDGES_MISSING",
+                      valid_triangle_count=valid_triangle_count,
+                      possible_triangle_count=possible_triangle_count,
+                      valid_triangle_fraction=triangle_coverage,
+                      valid_edge_fraction=edge_coverage)
+    def stats(values):
+        return {"count": int(len(values)), "min_um": float(np.min(values)),
+                "median_um": float(np.median(values)),
+                "p95_um": float(np.percentile(values, 95)),
+                "max_um": float(np.max(values))}
+    horizontal, vertical = map(stats, distances)
+    medians = [horizontal["median_um"], vertical["median_um"]]
+    all_values = np.concatenate(distances)
+    lateral = float(np.median(all_values))
+    distortion = max(horizontal["p95_um"], vertical["p95_um"]) / max(
+        min(medians), np.finfo(float).eps)
+    threshold = float(policy["maximum_uv_to_3d_distortion_ratio"])
+    minimum_coverage = float(policy["minimum_valid_triangle_fraction"])
+    proven = triangle_coverage >= minimum_coverage and distortion <= threshold
+    return finish("PROVEN" if proven else "UNPROVEN",
+                  "LATERAL_METRIC_PROVEN" if proven else "LATERAL_METRIC_POLICY_FAILED",
+                  lateral_pixel_um=lateral,
+                  valid_triangle_count=valid_triangle_count,
+                  possible_triangle_count=possible_triangle_count,
+                  valid_triangle_fraction=triangle_coverage,
+                  valid_edge_fraction=edge_coverage,
+                  observed_uv_to_3d_distortion_ratio=float(distortion),
+                  raster_transform={"rule": "ONE_OUTPUT_PIXEL_PER_TIFXYZ_GRID_CELL",
+                                    "shape_yx": shape},
+                  measurements={"horizontal": horizontal, "vertical": vertical})
+
+
+ARTIFACT_HTTP_TIMEOUT_SECONDS = 300
+
+
+def _http_get(url: str, *, timeout: float = ARTIFACT_HTTP_TIMEOUT_SECONDS) -> bytes:
+    """Read one published object, with a deadline.
+
+    A read without one is how a job burns its whole lease and dies with nothing
+    recorded -- no CPU, no output, no reason -- which is indistinguishable from
+    a job nobody ever claimed.
+    """
+
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Campaign-X-ink-worker/1.0"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
 
 
 def fetch_artifact_set(artifact_uri: str, destination: Path) -> dict:
@@ -334,6 +824,7 @@ def fetch_artifact_set(artifact_uri: str, destination: Path) -> dict:
     """
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
     from fleet.common import file_sha256  # noqa: PLC0415
+    from fleet.retrying import read_with_retry  # noqa: PLC0415
 
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
@@ -343,12 +834,49 @@ def fetch_artifact_set(artifact_uri: str, destination: Path) -> dict:
 
         client = boto3.client("s3")
         bucket, base = parsed.netloc, parsed.path.strip("/")
-        manifest = json.loads(client.get_object(
-            Bucket=bucket, Key=f"{base}/ARTIFACT_SET.json")["Body"].read())
+
+        # `download_file` below retries on its own -- s3transfer carries
+        # S3_RETRYABLE_DOWNLOAD_ERRORS -- but nothing covers this one. The body
+        # is streamed after `get_object` has already returned, so botocore's
+        # request-layer retry is behind it and s3transfer is not in front of it.
+        # A disconnect here loses the whole fetch, and every file that would
+        # have been verified against this manifest goes with it.
+        def read_manifest() -> dict:
+            return json.loads(client.get_object(
+                Bucket=bucket, Key=f"{base}/ARTIFACT_SET.json")["Body"].read())
+
+        manifest = read_with_retry(read_manifest)
         for name in manifest["files"]:
             client.download_file(bucket, f"{base}/{name}", str(destination / name))
+    elif parsed.scheme in ("http", "https"):
+        base = artifact_uri.rstrip("/")
+
+        # Nothing sits in front of these the way s3transfer does for S3, so the
+        # bounded retry that guards the manifest read above guards every object
+        # here. It is bounded on purpose: a public host that is down should end
+        # the job with a reason, not hold the lease until it expires.
+        def fetch(name: str) -> bytes:
+            return read_with_retry(lambda: _http_get(f"{base}/{name}"))
+
+        manifest = json.loads(fetch("ARTIFACT_SET.json"))
+        for name in manifest["files"]:
+            (destination / name).write_bytes(fetch(name))
+    elif parsed.scheme == "file":
+        source = Path(urllib.request.url2pathname(parsed.path))
+        manifest = json.loads((source / "ARTIFACT_SET.json").read_text())
+        for name in manifest["files"]:
+            shutil.copy2(source / name, destination / name)
+    elif "://" in artifact_uri:
+        # Anything else must say which scheme it was. Falling through to the
+        # local branch is what turned an `https://` URI into a lookup under the
+        # worker's current directory: a URI the lane cannot read became a
+        # filesystem accident. Keyed off `://` rather than a parsed scheme so a
+        # relative path containing a colon stays a path.
+        raise ValueError(
+            f"artifact set URI scheme {parsed.scheme!r} cannot be read by this "
+            f"lane: {artifact_uri}")
     else:
-        source = Path(parsed.path if parsed.scheme == "file" else artifact_uri)
+        source = Path(artifact_uri)
         manifest = json.loads((source / "ARTIFACT_SET.json").read_text())
         for name in manifest["files"]:
             shutil.copy2(source / name, destination / name)
@@ -359,6 +887,74 @@ def fetch_artifact_set(artifact_uri: str, destination: Path) -> dict:
                 f"{name} arrived with digest {digest[:12]} and the manifest says "
                 f"{expected['sha256'][:12]}: this is not that artifact")
     return manifest
+
+
+FLATTENING_RUN_SCHEMA = "campaignx.surface_flattening_run.v1"
+
+
+def flattening_lineage(stdout: str, job_id: str) -> list[dict]:
+    """What this job flattened, for its own terminal event.
+
+    The control reads the job's `succeeded` payload as a second witness beside
+    the flattening index: the index says a surface was flattened, this says
+    *this job* flattened it. Without both, a row some other run wrote could
+    satisfy this run's boundary. It refused the first control ever to reach P3
+    with P3_CURRENT_JOB_EVIDENCE_MISSING, for want of a payload that carried
+    nothing but the runner's exit code.
+
+    Read off stdout because P3 has nowhere else to leave it: it works in a temp
+    directory and publishes, so `output_dir` is empty and `receipt_names()`
+    finds no file. Read off the whole of stdout rather than the stored 4000
+    character tail, which one surface fits inside and several do not.
+
+    Fails closed in both directions. A row naming another job is not adopted --
+    a witness that can be borrowed is not a witness -- and a surface that did
+    not flatten is not reported, because saying otherwise would claim the job
+    produced something it did not. Anything unparseable is simply no evidence:
+    every other phase runs through here, and none of them may be failed by the
+    shape of their own logs.
+    """
+    start = stdout.find("{")
+    if start < 0:
+        return []
+    try:
+        receipt = json.loads(stdout[start:])
+    except (ValueError, TypeError):
+        return []
+    if (not isinstance(receipt, dict)
+            or receipt.get("schema") != FLATTENING_RUN_SCHEMA):
+        return []
+    surfaces = receipt.get("surfaces")
+    if not isinstance(surfaces, list):
+        return []
+    lineage = []
+    for row in surfaces:
+        if (not isinstance(row, dict)
+                or row.get("requested_by_job_id") != job_id
+                or row.get("state") != "FLATTENED"
+                or not row.get("surface_id")
+                or not row.get("receipt_sha256")
+                or not row.get("artifact_sha256")):
+            continue
+        lineage.append({
+            "surface_id": row["surface_id"],
+            "requested_by_job_id": row["requested_by_job_id"],
+            "receipt_sha256": row["receipt_sha256"],
+            "artifact_sha256": row["artifact_sha256"],
+            "artifact_uri": row.get("artifact_uri"),
+            "profile_id": row.get("profile_id"),
+            "state": row["state"],
+            # The geometry orientation proof reads these off the same rows. The
+            # first version of this carried only what the control harness
+            # needed, so P3 passed and the very next boundary refused the same
+            # job for "hash-bound flattened lineage" it could not see. They were
+            # in the receipt all along.
+            "source_artifact_sha256": row.get("source_artifact_sha256"),
+            "profile_file_sha256": row.get("profile_file_sha256"),
+            "artifact_id": row.get("artifact_id"),
+            "flattening_id": row.get("flattening_id"),
+        })
+    return lineage
 
 
 def resolve_layer_stack(store: InkJobStore, job: dict, destination: Path) -> str:
@@ -380,12 +976,82 @@ def resolve_layer_stack(store: InkJobStore, job: dict, destination: Path) -> str
         raise RuntimeError(
             f"render {rendered_by} is {render.get('state')}; a probability map "
             "computed on a failed render is a map of whatever was left behind")
+    binding = verified_control_binding(job)
+    render_binding = persisted_control_binding(render)
+    if binding is None and render_binding is not None:
+        raise RuntimeError("P5 dropped its P4 persisted control binding")
+    if binding is not None and render_binding != binding:
+        raise RuntimeError("P5/P4 persisted control bindings disagree")
+    if (binding is not None
+            and persisted_control_binding({"parameters": render.get("result") or {}})
+            != binding):
+        raise RuntimeError("P4 result lacks its persisted control binding")
     published = (render.get("result") or {}).get("layer_stack") or {}
     if not published.get("artifact_uri"):
         raise RuntimeError(
             f"render {rendered_by} published no layer stack, so there is nothing "
             "to read on this machine")
-    fetch_artifact_set(str(published["artifact_uri"]), destination)
+    manifest = fetch_artifact_set(str(published["artifact_uri"]), destination)
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.common import content_sha256  # noqa: PLC0415
+
+    try:
+        paths, _ordering = ordered_tiff_files(
+            destination, require_numeric=True, require_contiguous=True)
+    except SliceOrderError as exc:
+        raise RuntimeError(str(exc)) from exc
+    objects = [
+        {"object_key": path.name,
+         "sha256": manifest["files"][path.name]["sha256"],
+         "bytes": manifest["files"][path.name]["size_bytes"]}
+        for path in paths
+    ]
+    artifact_sha = content_sha256(manifest.get("files") or {})
+    manifest_sha = content_sha256(manifest)
+    if (manifest.get("artifact_sha256") not in (None, artifact_sha)
+            or published.get("artifact_sha256") not in (None, artifact_sha)):
+        raise RuntimeError("the fetched layer manifest does not match the P4 artifact digest")
+    if (binding is not None
+            and (manifest.get("schema") != "campaignx.layer_stack_artifact_set.v1"
+                 or manifest.get("job_id") != rendered_by
+                 or published.get("manifest_sha256") != manifest_sha)):
+        raise RuntimeError(
+            "the fetched layer manifest digest does not match the exact P4 result")
+    if published.get("objects") not in (None, objects):
+        raise RuntimeError("the fetched layer objects do not match the P4 result inventory")
+    if binding is not None:
+        indices = [int(path.stem) for path in paths]
+        if indices != list(range(33)) or published.get("files") != 33:
+            raise RuntimeError("the First Letters P5 input is not exact slices 0..32")
+    job["_source_layer_stack"] = {
+        "schema": "campaignx.p5_source_layer_stack.v1",
+        "p4_job_id": rendered_by,
+        "artifact_uri": str(published["artifact_uri"]),
+        "artifact_sha256": artifact_sha,
+        "manifest_sha256": manifest_sha,
+        "objects": objects,
+    }
+    metric = (render.get("result") or {}).get("lateral_metric") or {}
+    if binding is not None:
+        unhashed_metric = {key: value for key, value in metric.items()
+                           if key != "receipt_sha256"}
+        metric_sha = hashlib.sha256(json.dumps(
+            unhashed_metric, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False).encode("utf-8")).hexdigest()
+        lateral = metric.get("lateral_pixel_um")
+        pitch = slice_pitch_from_render(job, render)
+        if (metric.get("status") != "PROVEN"
+                or metric.get("receipt_sha256") != metric_sha
+                or not isinstance(lateral, (int, float))
+                or not isinstance(pitch, (int, float))):
+            raise RuntimeError("the First Letters P4 lateral metric is unproven")
+        supplied_lateral = job["parameters"].get("source_pixel_um")
+        supplied_pitch = job["parameters"].get("source_slice_um")
+        if supplied_lateral not in (None, lateral) or supplied_pitch not in (None, pitch):
+            raise RuntimeError("P5 physical spacing differs from the bound P4 evidence")
+        job["parameters"]["source_pixel_um"] = float(lateral)
+        job["parameters"]["source_slice_um"] = float(pitch)
+        job["_source_lateral_metric"] = metric
     return str(destination)
 
 
@@ -398,21 +1064,21 @@ def slice_pitch_from_render(job: dict, render: dict) -> float | None:
     named -- P4 recorded the scale it sampled at and the step it took along the
     normal, and the pitch follows:
 
-        pitch = source_pixel_um * scale * slice_step
+        pitch = source_voxel_um * scale * slice_step
 
-    At scale 1.0 and a one-voxel step, which is every render this pipeline has
-    made, that is the pixel size itself. Derived rather than typed, because a
+    Lateral pixel size is a separate P3-to-P4 geometry measurement and is never
+    substituted into this depth formula. Derived rather than typed, because a
     number the platform already knows and asks a person to retype is a number
     that will eventually be retyped wrong.
     """
     parameters = render.get("parameters") or {}
-    lateral = job["parameters"].get("source_pixel_um")
-    if lateral in (None, ""):
+    source_voxel_um = parameters.get("source_voxel_um")
+    if source_voxel_um in (None, ""):
         return None
     try:
         scale = float(parameters.get("scale") or 1.0)
         step = float(parameters.get("slice_step") or 1.0)
-        return float(lateral) * scale * step
+        return float(source_voxel_um) * scale * step
     except (TypeError, ValueError):
         return None
 
@@ -548,7 +1214,9 @@ def read_adjudication(output: Path) -> dict:
         "tool_version": verdict.get("tool_version"),
         "config_hash": verdict.get("config_hash"),
         "verdict_file": verdict_path.name,
+        "verdict_sha256": hashlib.sha256(verdict_path.read_bytes()).hexdigest(),
         "card_file": card_path.name,
+        "card_sha256": hashlib.sha256(card_path.read_bytes()).hexdigest(),
     }
 
 
@@ -647,7 +1315,54 @@ def verify_plate_set(job: dict) -> dict:
     }
 
 
-def resolve_screened_map(store: InkJobStore, job: dict, destination: Path) -> str:
+def screened_window_grid_alarm(job: dict) -> dict:
+    """Measure the screened window's dominant period, or say why it could not.
+
+    Never raises: this is a note attached to somebody else's verdict, and a
+    screening that ran must not fail because the note could not be written.
+    """
+    parameters = job.get("parameters") or {}
+    try:
+        import numpy as np  # noqa: PLC0415
+
+        sys.path.insert(0, str(ROOT / "framework/stages/04-validation/scripts"))
+        from grid_alarm import grid_alarm  # noqa: PLC0415
+
+        path = Path(str(parameters["map_path"]))
+        values = np.load(path) if path.suffix == ".npy" else None
+        if values is None:
+            return {"alarm": False,
+                    "reason": f"the screened map is not a .npy this can read: {path.name}"}
+        x0, y0, x1, y1 = (int(part) for part in str(parameters["bbox"]).split(","))
+        window = values[y0:y1, x0:x1]
+        return grid_alarm(
+            window,
+            px_um=float(parameters["px_um"]),
+            render_cell_px=(float(parameters["render_cell_px"])
+                            if parameters.get("render_cell_px") else None))
+    except Exception as failure:  # noqa: BLE001 -- see the docstring
+        return {"alarm": False,
+                "reason": f"not measured: {type(failure).__name__}: {failure}"}
+
+
+def objects_by_key(rows) -> list:
+    """One artifact set's objects, in an order both writers agree on.
+
+    The published manifest sorts its files; a P5 result records them as they
+    were published. So the receipt is first in one and last in the other, and
+    comparing the two lists as sequences called that a manifest/content mismatch
+    for every map -- `INK_SCREENING_RECEIPT.json` sorts before the `.npy` files
+    it describes, and P7 refused an ALIVE map in one second on the order of a
+    list.
+
+    Nothing is loosened by sorting: the same keys, the same digests and the same
+    sizes are still compared. Only the sequence stops being part of the claim.
+    """
+    return sorted((row for row in (rows or []) if isinstance(row, dict)),
+                  key=lambda row: str(row.get("object_key")))
+
+
+def resolve_screened_map(store: InkJobStore, job: dict, destination: Path) -> dict:
     """Fetch the map a P5 job produced, and refuse one that is not alive.
 
     P7 took `map_path`, a file on whichever machine held it, so the chain from a
@@ -667,6 +1382,16 @@ def resolve_screened_map(store: InkJobStore, job: dict, destination: Path) -> st
         raise RuntimeError(
             f"screening {screening_id} is {screening.get('state')}; adjudicating "
             "a failed screening adjudicates whatever was left behind")
+    binding = verified_control_binding(job)
+    screening_binding = persisted_control_binding(screening)
+    if binding is None and screening_binding is not None:
+        raise RuntimeError("P7 dropped its P5 persisted control binding")
+    if binding is not None and screening_binding != binding:
+        raise RuntimeError("P7/P5 persisted control bindings disagree")
+    if (binding is not None
+            and persisted_control_binding({"parameters": screening.get("result") or {}})
+            != binding):
+        raise RuntimeError("P5 result lacks its persisted control binding")
     result = screening.get("result") or {}
     verdict = ((result.get("liveness") or {}).get("verdict"))
     if verdict != "ALIVE":
@@ -676,18 +1401,48 @@ def resolve_screened_map(store: InkJobStore, job: dict, destination: Path) -> st
         raise RuntimeError(
             f"the map of {screening_id} is {verdict or 'unrecorded'}, not ALIVE: "
             "screening a map the lane could not read finds shapes in noise")
-    published = (result.get("probability_map") or {}).get("artifact_uri")
-    if published:
-        fetch_artifact_set(str(published), destination)
-        return str(canonical_probability_map(destination))
-    local_output = Path(str(result.get("output_dir") or ""))
-    try:
-        return str(canonical_probability_map(local_output))
-    except RuntimeError as failure:
+    probability_map = result.get("probability_map") or {}
+    published = probability_map.get("artifact_uri")
+    expected_artifact = str(job["parameters"].get(
+        "probability_map_artifact_sha256") or "")
+    expected_manifest = str(job["parameters"].get(
+        "probability_map_manifest_sha256") or "")
+    if not published or not expected_artifact or not expected_manifest:
         raise RuntimeError(
-            f"screening {screening_id} published no map and has no canonical map "
-            f"on this worker ({failure}); give P5 an artifact_store so its map "
-            "outlives the machine that made it") from failure
+            f"screening {screening_id} lacks exact probability-map content binding")
+    manifest = fetch_artifact_set(str(published), destination)
+    sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+    from fleet.common import content_sha256  # noqa: PLC0415
+    objects = [
+        {"object_key": name, "sha256": item.get("sha256"),
+         "bytes": item.get("size_bytes")}
+        for name, item in (manifest.get("files") or {}).items()
+    ]
+
+    # Compared by content, not by the order two writers happened to list it in.
+    #
+    # The manifest sorts its files and the P5 result records them in the order
+    # they were published, so the receipt came first in one and last in the
+    # other -- and the equality below called that a "manifest/content mismatch"
+    # for every map either side listed differently. Which is every map: the
+    # receipt's name sorts before the .npy files it describes.
+    #
+    # Nothing is loosened. The same keys, the same digests and the same sizes
+    # are still required; only the sequence stops being part of the claim.
+    if (manifest.get("schema") != "campaignx.ink_probability_map.v1"
+            or manifest.get("job_id") != screening_id
+            or manifest.get("artifact_sha256") != expected_artifact
+            or content_sha256(manifest.get("files") or {}) != expected_artifact
+            or content_sha256(manifest) != expected_manifest
+            or probability_map.get("artifact_sha256") != expected_artifact
+            or probability_map.get("manifest_sha256") != expected_manifest
+            or objects_by_key(probability_map.get("objects"))
+               != objects_by_key(objects)):
+        raise RuntimeError(
+            f"screening {screening_id} probability-map manifest/content mismatch")
+    return {"path": str(canonical_probability_map(destination)),
+            "artifact_sha256": expected_artifact,
+            "manifest_sha256": expected_manifest, "objects": objects}
 
 
 def resolve_wrap_order(store: InkJobStore, job: dict) -> str:
@@ -723,6 +1478,187 @@ def resolve_wrap_order(store: InkJobStore, job: dict) -> str:
     return str(path)
 
 
+def supplied_input_note(job: dict) -> dict[str, str] | None:
+    """Record that this job's input was brought to it, when it was.
+
+    Helena is operated by more than one person, and a phase is not always run
+    by whoever ran the one before it. Screening a stack a colleague rendered
+    last week is ordinary work, and the platform allows it: outside the
+    campaign's own control scroll, P5 takes a `tiff_dir` and runs.
+
+    What it did not do is say so. P4 handed a bare path already records
+    `surface_tifxyz` with that path; P5 handed a bare `tiff_dir` recorded
+    nothing, so a result from an imported stack was indistinguishable in the
+    evidence from one whose provenance nobody wrote down.
+
+    Saying so is what makes the import safe rather than a hole. A researcher
+    certifying part of a pipeline is entitled to certify the part they ran --
+    and a reader is entitled to see where the chain begins. This is a
+    statement of scope, not a demerit.
+
+    None when `layer_stack` names a P4 this platform ran: that branch records
+    the real lineage, and marking it supplied would be false.
+    """
+    if str(job.get("phase") or "") != "P5":
+        # P4 answers its own bare-path case in its own vocabulary. A second
+        # name for the same fact is how two records come to disagree.
+        return None
+    parameters = job.get("parameters") or {}
+    if parameters.get("layer_stack"):
+        return None
+    # Either way of naming an input this platform did not produce: a layer stack
+    # carried in by hand, or a surface volume fetched from somewhere published.
+    # The second is how the public control gets its input, and it is as much an
+    # outside input as the first -- more plainly so, since anybody can fetch it.
+    kinds = {"tiff_dir": "supplied_layer_stack",
+             "surface_volume": "supplied_surface_volume"}
+    supplied = next((key for key in kinds if parameters.get(key)), None)
+    if supplied is None:
+        return None
+    return {
+        "kind": kinds[supplied],
+        "path": str(parameters[supplied]),
+        "non_claim": (
+            f"this {'layer stack' if supplied == 'tiff_dir' else 'surface volume'} "
+            "was supplied to the job and was not produced by this platform, so "
+            "the chain of evidence begins here: what follows is recorded, what "
+            "came before it is not"),
+    }
+
+
+class WorkerRefused(RuntimeError):
+    """This host cannot run this job, for a reason about the host.
+
+    Distinct from a rejected job: the request is fine and another worker may
+    well take it. A worker without the vendored upstream this lane imports is
+    the case that exists.
+    """
+
+
+def upstream_root(spec: Mapping[str, Any]) -> str | None:
+    """The vendored architecture directory this host carries, if it does.
+
+    Read here rather than passed in from the queue, which is the whole point:
+    the directory a runner imports its model code from is a property of the
+    machine that was built to run it.
+    """
+    variable = (spec.get("upstream") or {}).get("variable")
+    return (os.environ.get(variable) or "").strip() or None if variable else None
+
+
+# Phases whose runner reads object storage whatever it publishes to: P1 fetches
+# its lasagna volumes from the campaign bucket, and P8's default lane vendors a
+# script that requires boto3 outright.
+S3_READING_PHASES = frozenset({"P1", "P8"})
+
+
+def runner_needs_object_storage(job: Mapping[str, Any]) -> bool:
+    """Whether this runner has any business holding the worker's AWS keys.
+
+    P4 was the only phase they were taken from, for a reason about P4 -- and
+    that left every other runner holding credentials to the campaign's private
+    bucket whether or not it touches one. A subprocess that never opens an S3
+    URL does not need them, and the ones that do say so: either the phase reads
+    object storage regardless, or this job publishes to an s3:// store.
+
+    Read from the store rather than assumed, because that value is the
+    server's now and no longer something a request can point anywhere.
+    """
+    if job.get("phase") == "P4":
+        # Its own reason, and the opposite one: the renderer streams the CT
+        # from the public open-data bucket anonymously, and a signed request
+        # against a bucket these keys do not own comes back 400 one second
+        # into a render. Never, even if the store is s3.
+        return False
+    if str(job.get("phase") or "") in S3_READING_PHASES:
+        return True
+    store = str((job.get("parameters") or {}).get("artifact_store") or "")
+    return store.startswith("s3://")
+
+
+# Roots a runner may write into beyond the ones derived per job. Colon
+# separated, for a deployment that publishes somewhere the queue cannot infer --
+# a P9 plate run with its own volume, say. Empty is the ordinary case.
+WRITE_ROOTS_VARIABLE = "HELENA_JOB_WRITE_ROOTS"
+
+
+def refuse_unreadable_inputs(job: Mapping[str, Any]) -> None:
+    """Say which input this worker cannot see, before spending a lease on it.
+
+    The panel and the worker are different containers, often on different
+    hosts, and a path that exists for whoever queued the job says nothing about
+    whether the process that opens it can. A render pointed at a directory
+    outside the worker's mounts got one line -- `Error loading` -- from a
+    renderer that then exited 0, and the hour after that went on TIFF tag
+    types, a bbox, and everything except the file not being there.
+
+    Checked here rather than at enqueue for the same reason it is worth
+    checking at all: this is the only process that knows what it can reach.
+
+    "Here" is after the claim, holding the lease -- so a bad path costs one
+    attempt and the job reads `failed` with the reason in it. That is still far
+    better than the alternative, which was a renderer saying `Error loading`
+    and exiting zero; but it is not free, and this docstring used to claim it
+    happened before a lease was spent. The only thing that genuinely filters
+    before a claim is the runtime image.
+    """
+    parameters = job.get("parameters") or {}
+    checked = set(READ_PATH_PARAMETERS)
+    # `volume` is conditional, which is why it is not in the static set. With a
+    # remote URL it is the renderer's own cache and absent is the ordinary first
+    # run; without one it is an input that has to be there, and leaving it
+    # unchecked left the exact failure this function exists for reachable by
+    # another door -- `Error loading`, exit zero, nothing rendered.
+    if not parameters.get("remote_url"):
+        checked.add("volume")
+    for key in sorted(checked):
+        value = parameters.get(key)
+        if not value:
+            continue
+        path = Path(str(value))
+        if not path.exists():
+            raise WorkerRefused(
+                f"{key} is {value!r}, which does not exist on this worker. It "
+                "may well exist on the host: this process sees only what the "
+                "container mounts, and that path is not one of them.")
+        if not os.access(path, os.R_OK):
+            raise WorkerRefused(
+                f"{key} is {value!r}, which exists on this worker and is not "
+                "readable by it. This is a permission, not a path.")
+
+
+def refuse_writes_outside_the_job(job: Mapping[str, Any], *, runs_root: Path) -> None:
+    """Refuse a job whose output would land somewhere that is not its own.
+
+    validate_parameters bounds these to "absolute, no ..", which is a shape and
+    not a place: every absolute path on the host satisfies it. The bound is this
+    worker's run directory and the store it publishes to, and neither is known
+    where the job is validated -- so it is checked here, where they are.
+
+    On the resolved path, for the same reason the artifact endpoints are: a
+    symlink inside the run directory points wherever it points.
+    """
+    parameters = job.get("parameters") or {}
+    roots = [Path(runs_root).resolve()]
+    store = str(parameters.get("artifact_store") or "")
+    if store.startswith("/"):
+        roots.append(Path(store).resolve())
+    roots += [Path(extra).resolve()
+              for extra in os.environ.get(WRITE_ROOTS_VARIABLE, "").split(":")
+              if extra.strip()]
+    for key in sorted(WRITE_PATH_PARAMETERS):
+        value = parameters.get(key)
+        if not value:
+            continue
+        target = Path(str(value)).resolve()
+        if not any(target == root or root in target.parents for root in roots):
+            raise WorkerRefused(
+                f"{key} would write to {value!r}, which is outside this job's "
+                f"run directory and outside where it publishes. Roots this "
+                f"worker allows: {[str(root) for root in roots]}. A deployment "
+                f"that means it can name more in {WRITE_ROOTS_VARIABLE}.")
+
+
 def runner_environment(job: dict) -> dict[str, str]:
     """The environment the runner subprocess gets.
 
@@ -744,21 +1680,47 @@ def runner_environment(job: dict) -> dict[str, str]:
         environment["HELENA_JOB_ID"] = str(job["job_id"])
     if job.get("phase") == "P5":
         # A vendored runner that imports its architecture from beside itself
-        # needs that directory on the path, and it is a job parameter because
-        # which model code a lane runs is part of what its receipt has to say.
+        # needs that directory on the path. It used to be a job parameter,
+        # which meant a request chose what the GPU host imported; it is the
+        # worker's own now, and a worker that does not have one refuses the
+        # lane rather than importing from wherever it was pointed.
         spec = ink_adapter(job.get("profile_id"))[1]
-        source = spec.get("pythonpath_from")
-        upstream = job["parameters"].get(source) if source else None
-        if upstream:
-            environment["PYTHONPATH"] = f"{upstream}:{environment['PYTHONPATH']}"
-    if job.get("phase") == "P4":
+        upstream = spec.get("upstream") or {}
+        if upstream.get("pythonpath"):
+            root = upstream_root(spec)
+            if not root:
+                raise WorkerRefused(
+                    f"this lane imports its architecture from a vendored "
+                    f"upstream directory and this worker does not say where "
+                    f"one is: set {upstream['variable']} on this host")
+            environment["PYTHONPATH"] = f"{root}:{environment['PYTHONPATH']}"
+    if not runner_needs_object_storage(job):
         for key in [k for k in environment if k.startswith("AWS_")]:
             del environment[key]
     return environment
 
 
+def worker_failure_result(
+        error: str, output: Path, control_binding: dict | None) -> dict:
+    """Keep immutable classification on every terminal worker result."""
+    result = {"error": error, "output_dir": str(output)}
+    if control_binding is not None:
+        result.update(control_binding)
+    return result
+
+
 def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> None:
     job_id, token = job["job_id"], job["lease_token"]
+    lineage_guard = getattr(store, "require_job_canonical_lineage", None)
+    if callable(lineage_guard):
+        lineage_guard(job, execution=True)
+    # And the size question, which lineage cannot see. Both are asked here
+    # rather than at enqueue because a decision made when the job was queued is
+    # a decision about a surface that may since have been re-measured, and
+    # because everything below this line is I/O on the surface itself.
+    route_guard = getattr(store, "require_job_standard_route", None)
+    if callable(route_guard):
+        route_guard(job)
     output = runs_root / f"{job['sample_id'].lower()}-{job_id}"
     # Every phase is given a directory that exists. Some runners create their
     # own -- P5's does -- and some write a file into it and expect it to be
@@ -767,7 +1729,9 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
     # directory it was told to write into.
     output.mkdir(parents=True, exist_ok=True)
     rendered_from: dict[str, str] | None = None
+    control_binding: dict | None = None
     try:
+        control_binding = verified_control_binding(job)
         if job.get("phase") == "P4" and job["parameters"].get("flattened_surface"):
             # vc_render_tifxyz writes beside the segmentation it was given, so
             # the sheet is staged under this job's own output directory and the
@@ -779,8 +1743,17 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             rendered_from = {
                 "kind": "flattened_sheet",
                 "surface_id": str(job["parameters"]["flattened_surface"]),
+                "flattening_id": str(job["_flattened_sheet"]["artifact_id"]),
+                "p3_job_id": str(job["_flattened_sheet"]["p3_job_id"]),
+                "flattened_artifact_sha256": str(
+                    job["_flattened_sheet"]["artifact_sha256"]),
                 "profile_id": str(job["parameters"].get("flattening_profile")
                                   or DEFAULT_FLATTENING_PROFILE),
+                **({"orientation_receipt_sha256": str(
+                    job["parameters"]["orientation_receipt_sha256"])}
+                   if job["parameters"].get("orientation_receipt_sha256") else {}),
+                **({"flip_normals": job["parameters"]["flip_normals"]}
+                   if "flip_normals" in job["parameters"] else {}),
                 # The one caveat worth carrying: a flattened sheet is a
                 # resampling of the surface, so this stack is one interpolation
                 # further from the scan than one rendered off the raw tifxyz.
@@ -791,10 +1764,22 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             rendered_from = {"kind": "surface_tifxyz",
                              "path": str(job["parameters"].get("segmentation"))}
         elif job.get("phase") == "P7" and job["parameters"].get("screening_of"):
-            job["parameters"]["map_path"] = resolve_screened_map(
+            resolved_map = resolve_screened_map(
                 store, job, runs_root / f"{job_id}-map")
+            job["parameters"]["map_path"] = resolved_map["path"]
             rendered_from = {"kind": "probability_map",
                              "screened_by": str(job["parameters"]["screening_of"]),
+                             "probability_map_artifact_sha256": resolved_map[
+                                 "artifact_sha256"],
+                             "probability_map_manifest_sha256": resolved_map[
+                                 "manifest_sha256"],
+                             **({"roi_receipt_sha256": str(
+                                 job["parameters"]["roi_receipt_sha256"])}
+                                if job["parameters"].get("roi_receipt_sha256") else {}),
+                             "bbox": job["parameters"].get("bbox"),
+                             "px_um": job["parameters"].get("px_um"),
+                             **({"surface_id": job["parameters"]["surface_id"]}
+                                if job["parameters"].get("surface_id") else {}),
                              "non_claim": ("a screen is a verdict about shape, "
                                            "not a reading")}
         elif job.get("phase") == "P9" and job["parameters"].get("ordering_of"):
@@ -805,6 +1790,9 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
                 "non_claim": ("a radial ordering composes plates; it does not "
                               "establish a reading"),
             }
+        elif job.get("phase") == "P5" and not job["parameters"].get("layer_stack"):
+            # Brought from outside. Allowed, and recorded as such.
+            rendered_from = supplied_input_note(job)
         elif job.get("phase") == "P5" and job["parameters"].get("layer_stack"):
             # Beside the output directory, not inside it. P4's renderer writes
             # next to the surface it was given, so staging under the output is
@@ -821,23 +1809,86 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             fit_depth_to_stack(job, stack)
             rendered_from = {"kind": "layer_stack",
                              "rendered_by": str(job["parameters"]["layer_stack"]),
+                             **({
+                                 "layer_stack_artifact_sha256": job[
+                                     "_source_layer_stack"]["artifact_sha256"],
+                                 "layer_stack_manifest_sha256": job[
+                                     "_source_layer_stack"]["manifest_sha256"],
+                                 "lateral_metric_receipt_sha256": job.get(
+                                     "_source_lateral_metric", {}).get("receipt_sha256"),
+                                 "source_pixel_um": job["parameters"].get(
+                                     "source_pixel_um"),
+                                 "source_slice_um": job["parameters"].get(
+                                     "source_slice_um"),
+                             } if job.get("_source_layer_stack") else {}),
                              "non_claim": ("a probability map is a screening "
                                            "output, not a reading")}
-        argv = command_for(job, runner=str(runner_for(job)), output_dir=str(output))
+        if rendered_from is not None and control_binding is not None:
+            rendered_from.update(control_binding)
+        require_runtime(job)
+        refuse_unreadable_inputs(job)
+        refuse_writes_outside_the_job(job, runs_root=runs_root)
+        argv = command_for(job, runner=str(runner_for(job)), output_dir=str(output),
+                           upstream_root=upstream_root(
+                               ink_adapter(job.get("profile_id"))[1]
+                               if job.get("phase") == "P5" else {}))
     except Exception as exc:  # noqa: BLE001 -- a bad job must not stop the worker
+        failure = {"error": f"{type(exc).__name__}: {exc}"}
+        if control_binding is not None:
+            failure.update(control_binding)
         store.finish(job_id, token, state="failed",
-                     result={"error": f"{type(exc).__name__}: {exc}"})
+                     result=failure)
         return
 
     stop = threading.Event()
+    # The child, once it exists, and whether somebody asked for it to stop. The
+    # heartbeat is the only thing that hears a cancellation, and the only thing
+    # positioned to act on it.
+    running: dict[str, object] = {"process": None}
+    cancelled: dict[str, float | None] = {"at": None}
+    # The most recent thing the child said, and when. Written by the reader
+    # threads, read by the heartbeat: one line, replaced rather than queued,
+    # because what a watcher wants is where the job is now.
+    latest: dict[str, object] = {"line": None, "source": None, "at": None}
+
+    def remember(source: str, line: str) -> None:
+        text = line.strip()
+        if text:
+            latest["line"] = text[:PROGRESS_LINE_CHARS]
+            latest["source"] = source
+            latest["at"] = time.time()
 
     def beat() -> None:
         # A long inference must not look abandoned. The lease is renewed while
-        # the process lives, and stops the moment it does not.
-        while not stop.wait(120):
+        # the process lives, and stops the moment it does not -- and it carries
+        # the job's latest line, so the queue is not the only thing a watcher
+        # can see.
+        while not stop.wait(HEARTBEAT_SECONDS):
+            note = None
+            if latest["line"] is not None:
+                note = {
+                    "line": latest["line"],
+                    "source": latest["source"],
+                    "at": datetime.fromtimestamp(
+                        float(latest["at"] or 0), tz=timezone.utc
+                    ).isoformat(timespec="seconds"),
+                }
             try:
-                store.heartbeat(job_id, token)
+                asked_to_stop = store.heartbeat(job_id, token, progress=note)
             except RuntimeError:
+                return
+            if asked_to_stop and not cancelled["at"]:
+                # Terminate, not kill: the runner gets the chance to close what
+                # it has open. The wait below is short because the point of
+                # cancelling is that somebody is waiting for the card back.
+                cancelled["at"] = time.time()
+                child = running.get("process")
+                if child is not None:
+                    child.terminate()
+                    try:
+                        child.wait(timeout=20)
+                    except subprocess.TimeoutExpired:
+                        child.kill()
                 return
 
     store.mark_running(job_id, token, output_dir=str(output), command=argv)
@@ -851,9 +1902,10 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
 
     started = time.time()
     try:
-        completed = subprocess.run(
-            argv, capture_output=True, text=True, timeout=timeout,
-            env=runner_environment(job))
+        completed = run_streaming(
+            argv, timeout=timeout, env=runner_environment(job),
+            on_line=remember,
+            on_start=lambda child: running.__setitem__("process", child))
         tail = (completed.stdout or "")[-4000:]
         errors = (completed.stderr or "")[-4000:]
         # Whichever receipt this adapter writes. This was hardcoded to
@@ -870,6 +1922,10 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
         publication_path = output / "EVIDENCE_PUBLICATION.json"
         if publication_path.exists():
             evidence_publication = json.loads(publication_path.read_text())
+        # A terminated child exits non-zero. Reported as a failure that would
+        # read as the lane breaking, and the next person would go looking for a
+        # bug instead of finding the person who stopped it.
+        was_cancelled = cancelled["at"] is not None
         result = {
             "exit_code": completed.returncode,
             "runtime_seconds": round(time.time() - started, 1),
@@ -878,7 +1934,88 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             "statistics": (receipt or {}).get("statistics"),
             "liveness": (receipt or {}).get("liveness"),
             "output_dir": str(output),
+            "ran_by": worker_code_revision(),
         }
+        # Where the bytes actually landed, when the job named somewhere else.
+        #
+        # `output_dir` is the run directory this worker made, and it is where
+        # receipts and logs go -- but P8 takes `--out <file>` and P9 `--out
+        # <dir>`, so a job that names one leaves that directory empty and the
+        # record points at nothing. A P9 run that wrote 38 plates read as a job
+        # with an empty output directory, and only the person who typed the path
+        # knew otherwise.
+        named = job.get("parameters") or {}
+        destination = next(
+            (str(named[name]) for name in ("out_dir", "out_path")
+             if named.get(name)), None)
+        if destination and destination != str(output):
+            result["wrote_to"] = destination
+        if control_binding is not None:
+            result.update(control_binding)
+        if job.get("phase") == "P3" and completed.returncode == 0:
+            # `result` becomes the terminal event's payload, and the control
+            # reads that event as its second witness that *this* job produced
+            # the artifact the flattening index carries.
+            lineage = flattening_lineage(completed.stdout or "", job_id)
+            if lineage:
+                result["surfaces"] = lineage
+        if job.get("phase") == "P7":
+            # Beside the card's verdict, never instead of it: whether the
+            # strongest repetition in the screened window is the writing or the
+            # grid the map was rendered on. Any structure metric over an
+            # upsampled render carries a peak at the upsampling factor, and a
+            # row-periodicity score that reads 0.85 on blank papyrus is reading
+            # the mesh. The card is vendored byte for byte, so this rides
+            # alongside rather than inside it.
+            result["grid_alarm"] = screened_window_grid_alarm(job)
+        if job.get("phase") == "P7" and rendered_from is not None:
+            result["probability_map_input"] = {
+                "screened_by": rendered_from["screened_by"],
+                "artifact_sha256": rendered_from[
+                    "probability_map_artifact_sha256"],
+                "manifest_sha256": rendered_from[
+                    "probability_map_manifest_sha256"],
+            }
+        if job.get("phase") == "P5" and isinstance(receipt, dict):
+            physical = receipt.get("physical_normalization") or {}
+            lane = receipt.get("lane") or {}
+            checkpoint = receipt.get("checkpoint") or {}
+            result.update({
+                "physical_normalization": physical,
+                "map_shape_yx": physical.get("target_shape_y_x")
+                    or ((receipt.get("input") or {}).get("shape_model_y_x")),
+                "checkpoint_sha256": checkpoint.get("sha256")
+                    or lane.get("checkpoint_sha256"),
+            })
+            source_stack = job.get("_source_layer_stack")
+            metric = job.get("_source_lateral_metric") or {}
+            if source_stack and control_binding is not None:
+                profile_path = ink_profile_path(str(job.get("profile_id") or ""))
+                if profile_path is None:
+                    raise RuntimeError("P5 profile cannot be resolved for normalization")
+                profile_document = json.loads(profile_path.read_text(encoding="utf-8"))
+                profile_sha = hashlib.sha256(profile_path.read_bytes()).hexdigest()
+                training_pixel_um = (profile_document.get("input_contract") or {}).get(
+                    "training_pixel_um")
+                normalization = {
+                    "schema": "campaignx.first_letters_p5_normalization.v1",
+                    "p4_job_id": source_stack["p4_job_id"],
+                    "p4_layer_artifact_sha256": source_stack["artifact_sha256"],
+                    "p4_layer_manifest_sha256": source_stack["manifest_sha256"],
+                    "source_layer_objects": source_stack["objects"],
+                    "lateral_metric_receipt_sha256": metric.get("receipt_sha256"),
+                    "source_pixel_um": job["parameters"].get("source_pixel_um"),
+                    "source_slice_um": job["parameters"].get("source_slice_um"),
+                    "training_pixel_um": training_pixel_um,
+                    "checkpoint_sha256": result["checkpoint_sha256"],
+                    "profile_id": job.get("profile_id"),
+                    "profile_sha256": profile_sha,
+                }
+                normalization["receipt_sha256"] = hashlib.sha256(json.dumps(
+                    normalization, sort_keys=True, separators=(",", ":"),
+                    ensure_ascii=False, allow_nan=False).encode("utf-8")).hexdigest()
+                result["adapter_physical_normalization"] = physical
+                result["physical_normalization"] = normalization
         # Exit 3 is the runner refusing a map that carries no decision. That is
         # a real outcome of the job, not a crash, and it is recorded as such.
         state = "succeeded" if completed.returncode == 0 else "failed"
@@ -931,6 +2068,26 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
                         "only on this worker, and a worker is disposable. Set "
                         "CX_RENDER_STORE on the panel, or pass allow_local_layers "
                         "for a deliberate single-machine run")
+                if control_binding is not None:
+                    control = job.get("_verified_control_policy")
+                    if not isinstance(control, dict):
+                        raise RuntimeError("worker lost its verified control policy")
+                    policy = control["checks"]["PIPELINE_CONTROL"][
+                        "p3_p4_lateral_metric"]["policy"]
+                    sheet = job.get("_flattened_sheet") or {}
+                    layer_stack = result.get("layer_stack") or {}
+                    metric = measure_p3_p4_lateral_metric(
+                        output / "flattened-surface", result["layers"]["shape"],
+                        source_voxel_um=float(job["parameters"]["source_voxel_um"]),
+                        lineage={
+                            "flattened_artifact_id": sheet.get("artifact_id"),
+                            "flattened_artifact_sha256": sheet.get("artifact_sha256"),
+                            "p3_job_id": sheet.get("p3_job_id"), "p4_job_id": job_id,
+                            "p4_layer_artifact_sha256": layer_stack.get("artifact_sha256"),
+                            "p4_layer_manifest_sha256": layer_stack.get("manifest_sha256"),
+                            "p4_layer_objects": layer_stack.get("objects"),
+                        }, policy=policy)
+                    result["lateral_metric"] = metric
             except Exception as failure:  # noqa: BLE001
                 state = "failed"
                 result["error"] = f"{type(failure).__name__}: {failure}"
@@ -956,13 +2113,18 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             if registered:
                 result["artifact_id"] = registered["artifact_id"]
                 result["consumed"] = registered["inputs"]
+        if was_cancelled:
+            state = "cancelled"
+            result["stopped_by_request"] = True
         store.finish(job_id, token, state=state, result=result)
     except subprocess.TimeoutExpired:
         store.finish(job_id, token, state="failed",
-                     result={"error": f"timed out after {timeout}s", "output_dir": str(output)})
+                     result=worker_failure_result(
+                         f"timed out after {timeout}s", output, control_binding))
     except Exception as exc:  # noqa: BLE001 -- a worker must not die on one job
         store.finish(job_id, token, state="failed",
-                     result={"error": f"{type(exc).__name__}: {exc}", "output_dir": str(output)})
+                     result=worker_failure_result(
+                         f"{type(exc).__name__}: {exc}", output, control_binding))
     finally:
         stop.set()
         # The fetched stack is a copy of something in object storage; keeping it
@@ -998,8 +2160,14 @@ def main() -> int:
     store.initialize()
     args.runs_root.mkdir(parents=True, exist_ok=True)
 
+    misnamed = misnamed_runtime(RUNTIME_IMAGE)
+    if misnamed:
+        print(misnamed, file=sys.stderr, flush=True)
+        return 3
+
     print(f"ink worker {worker_id} on {args.host_id}, runs -> {args.runs_root}, "
-          f"phases: {','.join(phases) if phases else 'all'}", flush=True)
+          f"phases: {','.join(phases) if phases else 'all'}"
+          + (f", runtime: {RUNTIME_IMAGE}" if RUNTIME_IMAGE else ""), flush=True)
     last_state = 0.0
     # Probed once before the first claim, not only on the heartbeat: a worker
     # that claimed before its first probe would have no cards recorded and
@@ -1024,6 +2192,11 @@ def main() -> int:
                 worker_id=worker_id, host_id=args.host_id,
                 lease_seconds=args.lease_seconds, phases=phases,
                 has_gpu=bool(cards),
+                # Which image this worker is, so a lane needing another one is
+                # left for the worker that has it. require_runtime already
+                # refused those by name -- but at execution, having taken the
+                # job and spent an attempt on it.
+                runtime=RUNTIME_IMAGE,
                 gpu_vram_gb=max((c.get("total_mb", 0) / 1024 for c in cards),
                                 default=0.0))
         except Exception as exc:  # noqa: BLE001 -- the database may blink

@@ -22,7 +22,7 @@ class RecordingStore:
     def __init__(self):
         self.recorded = []
 
-    def record_geometry_certification(self, surface_id, state, receipt=None):
+    def record_geometry_certification(self, surface_id, state, receipt=None, **lineage):
         self.recorded.append((surface_id, state, receipt))
         return {"surface_id": surface_id, "geometry_qc_state": state,
                 "physical_qc_state": "UNVALIDATED", "blocked_qc_jobs": 0}
@@ -53,7 +53,8 @@ def test_an_artifact_that_cannot_be_fetched_is_unmeasured_not_rejected(tmp_path)
     retire a surface over an outage."""
     store = RecordingStore()
     outcome = certify_one(store, SURFACE, tmp_path,
-                          adapter=Adapter(RuntimeError("connection reset")))
+                          adapter=Adapter(RuntimeError("connection reset")),
+                          requested_by_job_id="p2-test")
     assert outcome["geometry_qc_state"] == "GEOMETRY_UNMEASURED"
     assert outcome["reason"] == "ARTIFACT_UNAVAILABLE"
 
@@ -65,7 +66,8 @@ def test_the_reason_is_recorded_with_the_verdict(tmp_path):
     first a missing module, then absent credentials, then scipy -- was only
     visible in the terminal of whoever ran it."""
     store = RecordingStore()
-    certify_one(store, SURFACE, tmp_path, adapter=Adapter(RuntimeError("no creds")))
+    certify_one(store, SURFACE, tmp_path, adapter=Adapter(RuntimeError("no creds")),
+                requested_by_job_id="p2-test")
     _, _, receipt = store.recorded[0]
     assert receipt["reason"] == "ARTIFACT_UNAVAILABLE"
     assert "no creds" in receipt["error"]
@@ -73,7 +75,8 @@ def test_the_reason_is_recorded_with_the_verdict(tmp_path):
 
 def test_the_staging_directory_does_not_survive_the_surface(tmp_path):
     """43 surfaces at a time, each a full TIFXYZ, on a disk with other jobs."""
-    certify_one(RecordingStore(), SURFACE, tmp_path, adapter=Adapter())
+    certify_one(RecordingStore(), SURFACE, tmp_path, adapter=Adapter(),
+                requested_by_job_id="p2-test")
     assert list(tmp_path.iterdir()) == []
 
 
@@ -81,5 +84,6 @@ def test_a_verdict_is_always_written_even_when_nothing_could_be_measured(tmp_pat
     """A surface that silently keeps its old state looks like one nobody has
     got to yet, so the backlog never shrinks and never explains itself."""
     store = RecordingStore()
-    certify_one(store, SURFACE, tmp_path, adapter=Adapter(RuntimeError("gone")))
+    certify_one(store, SURFACE, tmp_path, adapter=Adapter(RuntimeError("gone")),
+                requested_by_job_id="p2-test")
     assert len(store.recorded) == 1

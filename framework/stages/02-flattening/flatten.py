@@ -90,25 +90,65 @@ class FlatteningFailed(RuntimeError):
     """vc_flatten ran and did not produce a usable TIFXYZ."""
 
 
+# Which flattener a profile selects. Absent means vc_flatten, and it has to
+# keep meaning that: flatten-abf-v1@1.0.0 predates the choice, its content hash
+# is in every receipt P3 has written, and adding a field to it would invalidate
+# the comparability the profile exists to provide.
+VC_FLATTEN = "vc_flatten"
+LASAGNA = "lasagna"
+ENGINES = (VC_FLATTEN, LASAGNA)
+
+# What each engine must declare beyond `profile_id`. vc_flatten's list is the
+# one this phase has always required; lasagna is config-file driven and has no
+# use for any of it.
+ENGINE_REQUIRED_KEYS = {
+    VC_FLATTEN: ("iterations", "downsample", "lscm_only", "scale_to_3d_area"),
+    LASAGNA: ("configs", "device", "downscale"),
+}
+
+
+def profile_engine(profile: dict[str, Any]) -> str:
+    """Which flattener this profile selects, refusing anything unknown.
+
+    Defaulting an unrecognised name to vc_flatten would write a receipt naming
+    an engine that never ran, which is worse than not running at all.
+    """
+    engine = profile.get("engine", VC_FLATTEN)
+    if engine not in ENGINES:
+        raise ValueError(
+            f"unknown flattening engine {engine!r}; expected one of {list(ENGINES)}")
+    return engine
+
+
 def load_profile(path: Path) -> dict[str, Any]:
     """A frozen declaration of how this phase runs, with its own hash."""
     profile = json.loads(Path(path).read_text(encoding="utf-8"))
     if profile.get("schema") != "campaignx.flattening_profile.v1":
         raise ValueError(f"not a flattening profile: {path}")
-    for key in ("profile_id", "iterations", "downsample", "lscm_only", "scale_to_3d_area"):
+    if "profile_id" not in profile:
+        raise ValueError(f"flattening profile is missing profile_id: {path}")
+    for key in ENGINE_REQUIRED_KEYS[profile_engine(profile)]:
         if key not in profile:
             raise ValueError(f"flattening profile is missing {key}: {path}")
     return profile
 
 
 def flatten_command(binary: Path | str, source: Path, destination: Path,
-                    profile: dict[str, Any]) -> list[str]:
+                    profile: dict[str, Any], *,
+                    volume: str | None = None) -> list[str]:
     """The exact argv, so the receipt can carry it and a run can be repeated.
 
-    Built here rather than inline because every parameter that reaches
-    vc_flatten has to come from the profile: a flag typed at a prompt is a
+    Built here rather than inline because every parameter that reaches the
+    flattener has to come from the profile: a flag typed at a prompt is a
     setting that no receipt records and no second run reproduces.
+
+    `volume` is the CT the flattener samples. vc_flatten reads only the TIFXYZ
+    and ignores it; lasagna fits against the scan itself and cannot be given a
+    default for which scan that is.
     """
+    if profile_engine(profile) == LASAGNA:
+        return _lasagna_command(binary, source, destination, profile,
+                                volume=volume)
     argv = [str(binary), "--input", str(source), "--output", str(destination),
             "--iterations", str(int(profile["iterations"])),
             "--downsample", str(int(profile["downsample"]))]
@@ -116,6 +156,33 @@ def flatten_command(binary: Path | str, source: Path, destination: Path,
         argv.append("--lscm-only")
     if not profile["scale_to_3d_area"]:
         argv.append("--no-scale")
+    return argv
+
+
+def _lasagna_command(binary: Path | str, source: Path, destination: Path,
+                     profile: dict[str, Any], *,
+                     volume: str | None) -> list[str]:
+    """lasagna/fit.py's own argv shape, which is not vc_flatten's.
+
+    Its config files are bare positional `.json` paths -- `cli_json.split_cfg_argv`
+    routes any argument that does not start with `-` and ends in `.json` into
+    the config merge, and everything else to argparse. Passing a config as the
+    value of a flag would silently make it a flag value and drop the settings.
+    """
+    if not volume:
+        raise ValueError(
+            "lasagna fits against the CT it samples, so this engine needs the "
+            "volume; vc_flatten is the engine that reads only the TIFXYZ")
+    argv = [str(binary)]
+    # Positional, in the profile's order: later configs override earlier ones.
+    argv.extend(str(config) for config in profile["configs"])
+    argv.extend([
+        "--tifxyz-init", str(source),
+        "--out-dir", str(destination),
+        "--input", str(volume),
+        "--device", str(profile["device"]),
+        "--downscale", str(profile["downscale"]),
+    ])
     return argv
 
 
@@ -131,8 +198,13 @@ def flatten_surface(
     require_physical_qc: bool = True,
     area_ratio_floor: float = AREA_RATIO_FLOOR,
     timeout_seconds: int = 7200,
+    volume: str | None = None,
 ) -> dict[str, Any]:
-    """Flatten one admissible surface and describe what happened."""
+    """Flatten one admissible surface and describe what happened.
+
+    `volume` reaches the engine only if the engine samples the CT; vc_flatten
+    does not and ignores it.
+    """
 
     if geometry_qc_state != CERTIFIED:
         raise SurfaceNotCertified(
@@ -151,19 +223,20 @@ def flatten_surface(
     if destination.exists() and any(destination.iterdir()):
         raise FlatteningFailed(f"refusing to write into a non-empty directory: {destination}")
 
+    engine = profile_engine(profile)
     before = inspect_tifxyz(source, voxel_size_um)
-    argv = flatten_command(binary, source, destination, profile)
+    argv = flatten_command(binary, source, destination, profile, volume=volume)
     completed = subprocess.run(argv, capture_output=True, text=True,
                                timeout=timeout_seconds)
     if completed.returncode != 0:
         raise FlatteningFailed(
-            f"vc_flatten exited {completed.returncode}: "
+            f"{engine} exited {completed.returncode}: "
             f"{(completed.stderr or completed.stdout or '')[-800:]}")
 
     missing = [name for name in REQUIRED if not (destination / name).is_file()]
     if missing:
         raise FlatteningFailed(
-            f"vc_flatten reported success but wrote no {missing}; a phase that "
+            f"{engine} reported success but wrote no {missing}; a phase that "
             "believes an exit code over its own output publishes nothing")
     # The same reader the fleet uses on a grown surface. A flattened sheet that
     # this cannot parse is not a surface downstream can consume either.
@@ -178,6 +251,10 @@ def flatten_surface(
         "status": flattening_status(ratio, area_ratio_floor),
         "profile_id": profile["profile_id"],
         "profile_sha256": content_sha256(profile),
+        # Which flattener ran. A receipt that names only the profile leaves a
+        # reader to infer the engine from settings, and two engines that both
+        # produce a TIFXYZ are indistinguishable downstream.
+        "engine": engine,
         "binary": str(binary),
         "binary_sha256": file_sha256(Path(binary)) if Path(binary).is_file() else None,
         "command": argv,

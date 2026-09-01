@@ -46,9 +46,13 @@ def _calls(path: Path, name: str) -> int:
     )
 
 
-def test_there_are_four_lanes_to_check() -> None:
-    """A glob that matched nothing would make every assertion below vacuous."""
-    assert len(ADAPTERS) == 4, [p.name for p in ADAPTERS]
+def test_every_lane_on_disk_is_checked() -> None:
+    """A glob that matched nothing would make every assertion below vacuous.
+
+    Five since the 9 um lane joined: the count is asserted rather than the
+    glob trusted, so a lane added without liveness is a failure here and not a
+    silently shorter parametrisation."""
+    assert len(ADAPTERS) == 5, [p.name for p in ADAPTERS]
 
 
 @pytest.mark.parametrize("adapter", ADAPTERS, ids=lambda p: p.name)

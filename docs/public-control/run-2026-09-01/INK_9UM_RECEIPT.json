@@ -1,0 +1,78 @@
+{
+  "checkpoint_sha256": "e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab",
+  "command": [
+    "/opt/villa/ink-venv/bin/python",
+    "-m",
+    "koine_machines.inference.infer",
+    "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20260112000000-w043_2026011217/surface-volumes/9.362um-1.2m-113keV-volume-20250728140407.zarr",
+    "/models/step-075000.pth",
+    "/out/ink.tif",
+    "--overlap",
+    "0.5",
+    "--blend-mode",
+    "hann",
+    "--direction",
+    "both",
+    "--batch-size",
+    "1",
+    "--no-compile"
+  ],
+  "declared_checkpoint_sha256": "e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab",
+  "direction": "both",
+  "generated_at_utc": "2026-09-01T05:49:20Z",
+  "input": {
+    "sample_id": null,
+    "shape": [
+      6120,
+      8120
+    ],
+    "surface_volume": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20260112000000-w043_2026011217/surface-volumes/9.362um-1.2m-113keV-volume-20250728140407.zarr"
+  },
+  "liveness": {
+    "metrics": {
+      "fraction_near_half": 0.07031729933352651,
+      "p50": 0.27843138575553894,
+      "p99": 0.7764706015586853,
+      "spread_p99_p50": 0.49803921580314636,
+      "std": 0.16738003645791014,
+      "top1_components": 10701,
+      "top1_largest_component_px": 8119,
+      "top1_median_component_px": 1,
+      "top1_share_in_components_over_10px": 0.9673,
+      "valid_pixels": 49694400
+    },
+    "reason": "",
+    "verdict": "ALIVE"
+  },
+  "method_id": "ink-9um-hybrid-3d2d@1.0.0",
+  "no_ink_floor": 0.25,
+  "non_claims": [
+    "a probability map is a routing signal, not proof of ink, letters, or text",
+    "this recipe's no-ink floor is 0.25, not 0; a screen calibrated against a 0 floor is reading a different quantity",
+    "the published map is raw: the model card's display rescale is not applied"
+  ],
+  "pinned_source_revision": "3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e",
+  "profile_id": "ink-9um-hybrid-3d2d-screening@1.0.0",
+  "published_map": "probability.npy (forward)",
+  "reverse": {
+    "identical": false,
+    "map": "probability_reverse.npy",
+    "p50": 0.2705882489681244,
+    "p99": 0.6901960968971252,
+    "pearson_r_with_forward": 0.42750430410903345
+  },
+  "runner": "koine_machines.inference.infer",
+  "runtime_seconds": 1475.27,
+  "schema": "campaignx.ink_9um_screening_receipt.v1",
+  "statistics": {
+    "max": 0.8901960849761963,
+    "p50": 0.27843138575553894,
+    "p90": 0.5843137502670288,
+    "p99": 0.7764706015586853
+  },
+  "value_quantisation": {
+    "distinct_levels": 181,
+    "full_scale": 255.0,
+    "source_dtype": "uint8"
+  }
+}

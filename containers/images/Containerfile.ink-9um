@@ -1,0 +1,177 @@
+# syntax=docker/dockerfile:1.7
+#
+# The 9 um ink lane's own runner.
+#
+# ink-9um-hybrid-3d2d@1.0.0 is run by koine_machines.inference.infer and not by
+# Helena's generic runner. That is not a preference. The registry records what
+# the generic runner did to the canonical-2um recipe: on ground where the render
+# matched the community's at r=0.98, its clip(0,200)/200 normalisation and
+# resampled depth axis produced a map correlating r=0.079 against r=0.885 once
+# the recipe's own runner was used. So the runner ships, byte for byte, and this
+# image exists to hold it.
+#
+# It is a second villa revision. koine_machines does not exist at the
+# volume_cartographer commit the rest of the stack is built from; it is on the
+# merge-ink-pipelines branch, pinned by commit in the source lock. A branch name
+# is not an identity.
+#
+#
+# The base is deliberately minimal, not a CUDA image. uv installs the
+# interpreter and the dependencies, and PyPI's linux torch wheels carry their
+# own CUDA runtime as nvidia-* packages, so this needs glibc, ca-certificates
+# and a python3 for the source-lock check below. Basing it on one of the
+# platform's application images would inherit a second torch and several
+# gigabytes to run code that never imports the first one.
+# Source arrives at the commit the source lock pins, cloned here. It used to be
+# handed in as the named build context ``villa_ink_src``, which meant a checkout
+# only somebody who already had one could produce -- and the lane was therefore
+# skipped on every host that did not.
+#
+# This lane pins a *different* commit from the rest of villa: ink-detection
+# moves on its own, and the lock records that separately. Same repository, two
+# points in its history.
+#
+# The stage keeps the name ``villa_ink_src`` so `--build-context
+# villa_ink_src=<checkout>` still replaces it and existing callers are
+# untouched.
+ARG BASE_IMAGE
+ARG GIT_IMAGE=alpine/git:2.47.2
+
+# -------------------------------------------------------------------- fetch --
+FROM ${GIT_IMAGE} AS clone
+ARG VILLA_INK_REPOSITORY=https://github.com/ScrollPrize/villa.git
+ARG VILLA_INK_COMMIT
+ARG VILLA_INK_TREE
+RUN test -n "${VILLA_INK_COMMIT}" -a -n "${VILLA_INK_TREE}" || { \
+      echo "VILLA_INK_COMMIT and VILLA_INK_TREE are required: they are what makes this fetch reproducible" >&2; \
+      exit 2; \
+    }
+WORKDIR /src
+RUN git init -q . \
+ && git remote add origin "${VILLA_INK_REPOSITORY}" \
+ && git fetch -q --depth 1 origin "${VILLA_INK_COMMIT}" \
+ && git checkout -q FETCH_HEAD
+# The commit says which bytes were asked for; the tree says which arrived.
+RUN got="$(git rev-parse HEAD^{tree})"; \
+    if [ "$got" != "${VILLA_INK_TREE}" ]; then \
+      echo "ink-detection tree is ${got}, the lock pins ${VILLA_INK_TREE}." >&2; \
+      echo "The commit resolved but its content is not what was recorded." >&2; \
+      exit 3; \
+    fi
+RUN rm -rf /src/.git
+
+FROM scratch AS villa_ink_src
+COPY --from=clone /src /
+
+FROM ${BASE_IMAGE} AS build
+ARG VILLA_INK_COMMIT
+RUN test -n "${VILLA_INK_COMMIT}" || { \
+      echo "VILLA_INK_COMMIT build-arg is required: an unrecorded source identity makes the receipt unverifiable" >&2; \
+      exit 2; \
+    }
+
+COPY --from=uv_context uv /usr/local/bin/uv
+# Both trees, at the relative layout the lock file records. ink-detection
+# declares `vesuvius = { path = "../vesuvius", editable = true }`, so a context
+# holding only ink-detection resolves to a distribution that is not there --
+# `uv sync --frozen` refuses before installing anything, which is the lock
+# doing its job rather than silently resolving something else.
+COPY --from=villa_ink_src ink-detection /opt/villa/ink-detection
+COPY --from=villa_ink_src vesuvius /opt/villa/vesuvius
+
+COPY --from=repo containers/images/scrollfiesta/locks/source-lock.json /tmp/source-lock.json
+RUN python3 - <<'PY'
+import hashlib, json, sys
+lock = json.load(open('/tmp/source-lock.json'))['villa_ink_detection']
+prefix = 'ink-detection/'
+bad = []
+for declared, digest in lock['required_file_sha256'].items():
+    if not declared.startswith(prefix):
+        bad.append(f'{declared}: not under the copied tree'); continue
+    path = '/opt/villa/ink-detection/' + declared[len(prefix):]
+    try:
+        actual = hashlib.sha256(open(path, 'rb').read()).hexdigest()
+    except OSError as exc:
+        bad.append(f'{declared}: {exc}'); continue
+    if actual != digest:
+        bad.append(f'{declared}: {actual} != {digest}')
+if bad:
+    print('source-lock mismatch:', *bad, sep='\n  ', file=sys.stderr)
+    sys.exit(3)
+print('source lock verified for', len(lock['required_file_sha256']), 'files')
+PY
+
+# --frozen, because this tree ships a uv.lock and resolving instead of obeying
+# it would make the environment a property of the day the build ran. The lock's
+# own digest is checked above, so "frozen" names a set somebody can reconstruct.
+WORKDIR /opt/villa/ink-detection
+# only-managed makes the virtualenv self-contained. Left to itself uv notices
+# the base image already satisfies requires-python and points the venv's
+# `bin/python` at /usr/local/bin/python3.11 -- fine here, and a dangling
+# symlink the moment anything copies /opt/villa onto a different base, which is
+# exactly what the composed worker image does. An interpreter under
+# UV_PYTHON_INSTALL_DIR travels with the tree that references it.
+#
+# UV_PYTHON pins the minor version because only-managed otherwise takes the
+# newest interpreter `requires-python` allows, and this lock was resolved
+# against 3.11: on a newer one several pinned wheels have no matching tag and
+# uv falls back to building them from source, which fails for want of a
+# compiler and would otherwise be answered by putting a toolchain in a runtime
+# image. The lock decides the interpreter, not the other way round.
+ENV UV_PROJECT_ENVIRONMENT=/opt/villa/ink-venv \
+    UV_PYTHON_INSTALL_DIR=/opt/villa/python \
+    UV_PYTHON_PREFERENCE=only-managed \
+    UV_PYTHON=3.11 \
+    UV_LINK_MODE=copy
+RUN uv sync --frozen --no-dev
+
+# ------------------------------------------------------------------ runtime --
+FROM ${BASE_IMAGE} AS runtime
+ARG BASE_IMAGE
+ARG BUILD_COMMIT=unknown
+ARG VILLA_INK_COMMIT
+ARG SOURCE_DATE_EPOCH=0
+ARG FRAMEWORK_VERSION=0.4.1
+LABEL org.opencontainers.image.title="helena-ink-9um" \
+      org.opencontainers.image.description="Helena Framework 9 um ink lane runtime, upstream's own runner" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.created="${SOURCE_DATE_EPOCH}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}" \
+      org.helena.villa.ink.commit="${VILLA_INK_COMMIT}"
+
+COPY --from=build /opt/villa /opt/villa
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    CAMPAIGN_X_STAGE=ink-9um \
+    CAMPAIGN_X_REPO=/workspace/campaign-x \
+    CAMPAIGN_X_ARTIFACTS=/artifacts \
+    CAMPAIGN_X_MODELS=/models \
+    VILLA_INK_ROOT=/opt/villa/ink-detection \
+    PYTHONPATH=/opt/villa/ink-detection \
+    PATH=/opt/villa/ink-venv/bin:${PATH}
+
+# The entrypoint the lane profile names, checked here rather than at run time.
+# --help exercises argparse construction, which is where a missing dependency
+# in the inference path surfaces.
+RUN set -eu; \
+    /opt/villa/ink-venv/bin/python -m koine_machines.inference.infer --help >/dev/null \
+      || { echo "koine_machines.inference.infer does not start" >&2; exit 3; }; \
+    case "$(readlink -f /opt/villa/ink-venv/bin/python)" in \
+      /opt/villa/*) ;; \
+      *) echo "the venv interpreter is outside /opt/villa: $(readlink -f /opt/villa/ink-venv/bin/python); copying this tree onto another base would leave it dangling" >&2; exit 3 ;; \
+    esac; \
+    echo "9 um runner starts, self-contained"
+
+# The checkpoint is a runtime mount, not a layer: it is 138 MB, it is one of
+# fourteen upstream publishes, and which one ran belongs in a receipt rather
+# than in an image tag.
+# Running this image as a worker is the mistake it cannot otherwise report:
+# the failure is a missing file, and the cause is a variable one suffix away.
+COPY --from=repo containers/images/lane-entrypoint.sh /usr/local/bin/lane-entrypoint
+RUN chmod +x /usr/local/bin/lane-entrypoint
+
+WORKDIR /workspace/campaign-x
+ENTRYPOINT ["/usr/local/bin/lane-entrypoint"]
+CMD ["sh"]

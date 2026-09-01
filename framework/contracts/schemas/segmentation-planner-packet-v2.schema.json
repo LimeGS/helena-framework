@@ -3,7 +3,7 @@
   "$id": "https://campaignx.local/schemas/segmentation-planner-packet-v2.schema.json",
   "title": "Campaign X segmentation planner v2 input packet",
   "type": "object",
-  "required": ["schema", "task_id", "attempt_id", "sample_id", "source_snapshot", "cell", "catalog_snapshot_sha256", "nearby_geometry", "m7_query", "candidate_seeds", "candidate_selection_policy", "parameter_envelope", "constraints", "regional_attempt_history", "adaptation_policy"],
+  "required": ["schema", "task_id", "attempt_id", "sample_id", "source_snapshot", "cell", "catalog_snapshot_sha256", "nearby_geometry", "m7_query", "candidate_seeds", "candidate_rank", "candidate_selection_policy", "parameter_envelope", "constraints", "regional_attempt_history", "adaptation_policy"],
   "properties": {
     "schema": {"const": "campaignx.segmentation_planner_packet.v2"},
     "task_id": {"type": "string", "minLength": 1},
@@ -15,6 +15,7 @@
     "nearby_geometry": {"type": "object"},
     "m7_query": {"type": ["object", "null"]},
     "candidate_seeds": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"type": "object"}},
+    "candidate_rank": {"type": "integer", "minimum": 1},
     "candidate_selection_policy": {"enum": ["score-cell-volume-clearance-v1", "adaptive-geometry-history-v2"]},
     "benchmark_execution": {
       "$ref": "seed-probe-benchmark-execution-v1.schema.json"

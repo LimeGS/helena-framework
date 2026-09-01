@@ -29,6 +29,7 @@ const SegmentationView = lazyRoute(() => import("./Segmentation"));
 const Screening = lazyRoute(() => import("./Screening"));
 const Coverage = lazyRoute(() => import("./Coverage"));
 const InkLanes = lazyRoute(() => import("./InkLanes"));
+const InkMaps = lazyRoute(() => import("./InkMaps"));
 const InkLauncher = lazyRoute(() => import("./Command"));
 
 type Contract = {
@@ -47,9 +48,33 @@ type Component = {
   entry_points?: Record<string, string>; why_it_matters_here?: string;
   known_state?: string; validation?: string;
 };
+/**
+ * How long ago, in the shortest form that is still true.
+ *
+ * The age matters as much as the line: a progress bar from four seconds ago is
+ * a job that is working, and the identical line from nine minutes ago is a job
+ * that has stopped saying anything. Rendering the line alone would make those
+ * two look the same, which is the failure this column exists to end.
+ */
+function ago(at: string): string {
+  const seconds = Math.max(0, Math.round((Date.now() - Date.parse(at)) / 1000));
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
+
 type Job = {
   job_id: string; sample_id: string; phase: string; state: string;
   attempts: number; max_attempts: number; result: Record<string, any> | null;
+  // The newest line the job wrote, carried by the heartbeat that renews its
+  // lease. Absent until a worker has claimed it and it has said something.
+  progress?: { line: string; source: string; at: string } | null;
+};
+// One rendered page, as the worker recorded it on the job.
+type Plate = {
+  file: string; wrap?: string; width?: number; height?: number;
+  bytes?: number; sha256?: string;
 };
 type Profile = {
   profile_id: string; schema: string; method_id: string | null;
@@ -92,6 +117,9 @@ type SchemaField = {
   required: boolean; lane: string | string[] | null; label: string;
   note: string | null; placeholder: string | null;
   filled_by_deployment: boolean;
+  // Which phase's jobs this field may name, and the ones this mission has.
+  names_a_job_from?: string | null;
+  choices?: { value: string; note: string }[];
 };
 type Schema = {
   available: boolean; reason?: string; fields: SchemaField[];
@@ -113,9 +141,17 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
   const [values, setValues] = useState<Record<string, string | boolean>>({});
 
   const schema = useQuery<Schema>({
-    queryKey: ["phase-parameters", phase],
+    // The mission and scroll are part of the key: a field that names another
+    // job is offered this mission's jobs, so the answer is not the same for
+    // every mission the way the field list is.
+    queryKey: ["phase-parameters", phase, missionId ?? "", sample ?? ""],
     queryFn: async () => {
-      const response = await fetch(`/api/phases/${phase}/parameters`);
+      const scope = new URLSearchParams();
+      if (missionId) scope.set("mission", missionId);
+      if (sample) scope.set("sample", sample);
+      const query = scope.toString();
+      const response = await fetch(
+        `/api/phases/${phase}/parameters${query ? `?${query}` : ""}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return response.json();
     },
@@ -166,11 +202,20 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
 
   // Neither is required and exactly one must be there, which "required" cannot
   // express -- so the queue states the pairs and this checks them.
-  const unmet = (schema.data?.exactly_one_of ?? []).filter(
-    (rule) => (!rule.lane || rule.lane === chosen)
-      && rule.names.filter((name) => String(values[name] ?? "").trim()).length !== 1);
+  const rules = (schema.data?.exactly_one_of ?? []).filter(
+    (rule) => !rule.lane || rule.lane === chosen);
+  const unmet = rules.filter(
+    (rule) => rule.names.filter((name) => String(values[name] ?? "").trim()).length !== 1);
+  // A field in one of those pairs is required by the pair, not on its own.
+  //
+  // Exempting only the fields of an *unmet* rule made naming one of them turn
+  // the other back into a requirement: P4's surface path is `required` and
+  // pairs with the flattened surface id, so filling the id satisfied the rule
+  // and re-armed the path -- and the button stayed dead however the form was
+  // filled in. A flattened sheet could not be rendered from a browser at all.
+  const governed = new Set(rules.flatMap((rule) => rule.names));
   const ready = sample && unmet.length === 0
-    && fields.filter((f) => f.required && !unmet.some((r) => r.names.includes(f.name)))
+    && fields.filter((f) => f.required && !governed.has(f.name))
              .every((f) => String(values[f.name] ?? "").trim());
 
   if (schema.isLoading) return <Empty>loading the parameters…</Empty>;
@@ -186,7 +231,7 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
                  disabled={Boolean(missionId)}
                  placeholder={missionId ? "select a scroll in P0" : "PHerc0139"} />
         </label>
-        {lanes.length > 1 && (
+        {lanes.length > 1 ? (
           <label className="wide">
             Renderer
             <select value={chosen} onChange={(e) => setLane(e.target.value)}>
@@ -200,7 +245,18 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
               {fixedProfile && ` Frozen profile: ${fixedProfile}`}
             </span>
           </label>
-        )}
+        ) : chosenLane && (chosenLane.note || fixedProfile) ? (
+          /* One lane, but one worth naming: it pins the profile this run is
+             made against, and that id is what the queue checks. Shown rather
+             than offered -- there is nothing to choose. */
+          <div className="wide">
+            <strong>{chosenLane.name}</strong>
+            <span className="dash">
+              {chosenLane.note}
+              {fixedProfile && ` Frozen profile: ${fixedProfile}`}
+            </span>
+          </div>
+        ) : null}
         {fields.map((f) => (
           <label key={f.name}
                  className={f.type === "boolean" ? "wide toggle"
@@ -214,11 +270,23 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
             ) : (
               <>
                 {f.label}{f.required && " *"}
+                {/* A field that names another job lists the jobs it can name.
+                    Free text stayed possible -- a job from outside the mission
+                    is still a legitimate answer for anyone who has the id -- so
+                    this is a datalist, not a select that forbids the rest. */}
                 <input value={String(values[f.name] ?? "")}
                        inputMode={f.type === "integer" || f.type === "number"
                          ? "decimal" : undefined}
+                       list={f.choices?.length ? `${phase}-${f.name}` : undefined}
                        onChange={(e) => setValues({ ...values, [f.name]: e.target.value })}
                        placeholder={f.placeholder ?? undefined} />
+                {f.choices?.length ? (
+                  <datalist id={`${phase}-${f.name}`}>
+                    {f.choices.map((c) => (
+                      <option key={c.value} value={c.value} label={c.note} />
+                    ))}
+                  </datalist>
+                ) : null}
               </>
             )}
             {f.note && <span className="dash">{f.note}</span>}
@@ -267,7 +335,7 @@ const PLACED_BY_HAND: Record<string, Record<string, Sub | "view">> = {
 };
 
 type Sub = "state" | "run" | "profiles" | "artefacts" | "coverage" | "lanes"
-         | "runs" | "segments" | "new";
+         | "maps" | "runs" | "segments" | "new" | "import";
 
 // Phases with their own view. The rest have nothing to put under Artefacts,
 // and an empty tab is worse than an absent one: it promises a place to look.
@@ -286,7 +354,7 @@ const VIEW_LABEL: Record<string, string> = {
 // fleet is doing, not what it has accumulated.
 const P1_TABS: [Sub, string][] = [
   ["runs", "Runs"], ["segments", "Segments"], ["coverage", "Coverage"],
-  ["profiles", "Profiles"], ["new", "New run"],
+  ["profiles", "Profiles"], ["new", "New run"], ["import", "Import surface"],
 ];
 
 /**
@@ -393,6 +461,10 @@ export default function Phase() {
     tabs.push(...P1_TABS);
   } else {
     if (HAS_VIEW.has(id)) tabs.push(["artefacts", VIEW_LABEL[id] ?? "Artefacts"]);
+    // What P5 actually produced. The tab above it indexes the legacy receipt
+    // tree on disk, which cannot see a screening queued through the fleet --
+    // so the phase's own output was reachable only over ssh.
+    if (id === "P5") tabs.push(["maps", "Maps"]);
     // Which ink models exist and which of them this queue can actually run.
     if (id === "P5") tabs.push(["lanes", "Models"]);
     if (stateRowCount && !HAS_VIEW.has(id)) tabs.push(["state", "State"]);
@@ -458,7 +530,15 @@ export default function Phase() {
                 <div className="readout">{v}</div>
               ) : (
                 <p style={{ color: "var(--ink)", fontSize: 13 }}>
-                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                  {/* A tally is a tally, not a JSON literal. P6 counts its
+                      verdicts and the tile read {"ALIVE":2}, braces and quotes
+                      included, for what is two words. */}
+                  {v && typeof v === "object" && !Array.isArray(v)
+                    ? Object.entries(v as Record<string, unknown>)
+                        .map(([key, count]) => `${key.replaceAll("_", " ")} ${
+                          typeof count === "object" ? JSON.stringify(count) : String(count)}`)
+                        .join(" · ")
+                    : typeof v === "object" ? JSON.stringify(v) : String(v)}
                 </p>
               )}
             </div>
@@ -519,6 +599,11 @@ export default function Phase() {
                   <th className="l">Scroll</th>
                   <th className="l">State</th>
                   <th>Try</th>
+                  {/* A running job used to be `running` and four blanks, for as
+                      long as it took. Telling one that is working from one that
+                      has wedged meant opening a shell on the host -- where the
+                      output was buffered until the process exited anyway. */}
+                  <th className="l">Doing</th>
                   <th className="l">Result</th>
                 </tr>
               </thead>
@@ -533,8 +618,25 @@ export default function Phase() {
                     <td>
                       {j.attempts}/{j.max_attempts}
                     </td>
+                    <td className="l wrap doing">
+                      {j.progress?.line
+                        ? <><code>{j.progress.line}</code>
+                            <span className="dash"> · {ago(j.progress.at)}</span></>
+                        : <span className="dash">
+                            {j.state === "running" ? "nothing said yet" : ""}
+                          </span>}
+                    </td>
                     <td className="l wrap">
                       {j.result?.error ? String(j.result.error).slice(0, 70) : ""}
+                      {/* A structure score over an upsampled render peaks at the
+                          upsampling factor. When the strongest repetition in the
+                          screened window is the grid, the verdict beside it is
+                          reading the mesh -- so the reader sees that first. */}
+                      {j.result?.grid_alarm?.alarm && (
+                        <span title={String(j.result.grid_alarm.reason ?? "")}>
+                          <Pill kind="warn">grid</Pill>
+                        </span>
+                      )}
                       {j.result?.liveness?.verdict && (
                         <Pill kind={j.result.liveness.verdict === "ALIVE" ? "ok" : "crit"}>
                           {j.result.liveness.verdict}
@@ -546,6 +648,39 @@ export default function Phase() {
               </tbody>
             </table>
           </div>
+        </Card>
+      )}
+
+      {/* What P9 made, which was reachable only over SSH.
+          The phase reported "plate runs succeeded: 1" and the 38 pages it
+          rendered -- the deliverable of the whole pipeline -- had nowhere to be
+          looked at. The plate set is on the job's own result, so this needs no
+          second index of anything. */}
+      {active === "run" && data.jobs.some((j) => j.result?.plate_set?.plates?.length) && (
+        <Card title="Plates"
+              note={`${data.jobs.reduce((n, j) =>
+                n + (j.result?.plate_set?.plates?.length ?? 0), 0)} pages rendered`}>
+          {data.jobs.filter((j) => j.result?.plate_set?.plates?.length).map((j) => (
+            <div className="body-pad" key={j.job_id}>
+              <p className="dash">
+                {j.job_id} · {j.sample_id}
+                {j.result?.wrote_to ? ` · ${j.result.wrote_to}` : ""}
+              </p>
+              <div className="plates">
+                {(j.result!.plate_set.plates as Plate[]).map((plate) => (
+                  <a key={plate.file} className="plate"
+                     href={`/api/jobs/${j.job_id}/plate/${encodeURIComponent(plate.file)}`}
+                     target="_blank" rel="noreferrer">
+                    <img loading="lazy" alt={plate.file}
+                         src={`/api/jobs/${j.job_id}/plate/${encodeURIComponent(plate.file)}`} />
+                    <span className="dash">
+                      {plate.wrap ?? plate.file} · {plate.width}×{plate.height}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
         </Card>
       )}
 
@@ -661,6 +796,12 @@ export default function Phase() {
       </Suspense>
       )}
 
+      {active === "maps" && (
+      <Suspense fallback={<Empty>loading…</Empty>}>
+        <InkMaps sample={subject ?? undefined} mission={missionId ?? undefined} />
+      </Suspense>
+      )}
+
       {active === "lanes" && (
       <Suspense fallback={<Empty>loading…</Empty>}>
         <InkLanes />
@@ -683,7 +824,7 @@ export default function Phase() {
           handed the active one instead of drawing a second bar to pick it. */}
       {id === "P1" && active !== "profiles" && (
         <Suspense fallback={<Empty>loading…</Empty>}>
-          <SegmentationView job={active as "runs" | "segments" | "new"}
+          <SegmentationView job={active as "runs" | "segments" | "new" | "import"}
                             onSwitch={setSub} />
         </Suspense>
       )}

@@ -1,0 +1,29 @@
+{
+  "schema": "campaignx.first_letters_normal_full_grow_profile.v1",
+  "profile_id": "first-letters-normal-full-grow@1.0.0",
+  "ordinary_growth_profile": {
+    "profile_id": "vc3d-m7-growth-v1",
+    "path": "framework/stages/01-segmentation/fleet/profiles/vc3d-m7-growth-v1.json",
+    "sha256": "0a7747549011adae87c417d782747ee65196134a71d0309fc6adfd2c9c037217"
+  },
+  "growth_envelope": {
+    "generations": {"type": "integer", "minimum": 20, "maximum": 45, "default": 35},
+    "step_size": {"type": "integer", "minimum": 12, "maximum": 24, "default": 20},
+    "min_area_cm": {"type": "number", "const": 0.0, "default": 0.0},
+    "use_cuda": {"type": "boolean", "const": false, "default": false},
+    "maximum_candidate_count": 8,
+    "ink_used": false
+  },
+  "finalization_envelope": {
+    "profile_id": "ordinary-segmentation-finalization-v1",
+    "required_files": ["x.tif", "y.tif", "z.tif", "generations.tif", "meta.json"],
+    "require_verified_files": true,
+    "require_complete_artifact_manifest": true,
+    "require_publication_hashes": true,
+    "require_geometry_gate": true,
+    "discovery_artifact_role_allowed": false,
+    "allow_unvalidated": false
+  },
+  "fresh_start": true,
+  "allow_unvalidated": false
+}

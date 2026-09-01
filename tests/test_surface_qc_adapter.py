@@ -274,7 +274,7 @@ def test_evidence_publication_uses_only_explicit_verified_fallback(
     fallback = tmp_path / "fallback"
     calls: list[str] = []
 
-    def fake_publish(_output, _manifest, root, _job):
+    def fake_publish(_output, _manifest, root, _job, **_kwargs):
         calls.append(root)
         if root.startswith("s3://"):
             raise RuntimeError("expired temporary token")
@@ -472,6 +472,184 @@ def test_candidate_shadow_profile_is_hash_locked_and_explicitly_non_operational(
     assert loaded["profile_id"] == "surface-qc-gp-scroll1-ct-fiber-v4-shadow@1.0.0"
 
 
+@pytest.mark.parametrize("verdict", ["DEGENERATE", "EMPTY"])
+def test_non_alive_screen_is_terminal_and_never_reaches_analysis(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    verdict: str,
+) -> None:
+    adapter = load_adapter()
+    source, digest = make_surface(tmp_path / "source")
+    checkpoint = tmp_path / "checkpoint.pt"
+    checkpoint.write_bytes(b"frozen checkpoint fixture")
+    renderer = tmp_path / "vc_render_tifxyz"
+    renderer.write_bytes(b"renderer fixture")
+    output = tmp_path / "output"
+    output.mkdir()
+    evidence_root = tmp_path / "evidence"
+    input_path = tmp_path / "QC_INPUT.json"
+    job = qc_job(str(source), digest)
+    input_path.write_text(
+        json.dumps({"schema": "campaignx.segment_qc_input.v1", "qc_job": job})
+        + "\n",
+        encoding="utf-8",
+    )
+    profile = adapter.load(QC_PROFILE)
+    profile["ink_lane"]["checkpoint_sha256"] = adapter.sha256(checkpoint)
+    gate = ROOT / profile["ct_fiber_gate"]["profile"]
+
+    monkeypatch.setenv("HELENA_QC_RENDERER", str(renderer))
+    monkeypatch.setenv("HELENA_QC_CHECKPOINT", str(checkpoint))
+    monkeypatch.setenv("HELENA_QC_EVIDENCE_ROOT", str(evidence_root))
+    monkeypatch.setattr(
+        adapter,
+        "load_qc_profile",
+        lambda _job: (profile, QC_PROFILE, adapter.sha256(QC_PROFILE), gate),
+    )
+    monkeypatch.setattr(adapter, "fetch_zarr_metadata", lambda *_args: None)
+
+    def fake_renderer(_command, *, output, tiff_dir):
+        tiff_dir.mkdir()
+        for index in range(adapter.REQUIRED_TIFF_COUNT):
+            (tiff_dir / f"{index}.tif").write_bytes(b"tif")
+
+    monkeypatch.setattr(adapter, "run_renderer_with_retries", fake_renderer)
+
+    liveness = {
+        "verdict": verdict,
+        "reason": "std 0.0001 < 0.02",
+        "metrics": {"std": 0.0001, "valid_pixels": 84},
+    }
+
+    def fake_run_logged(command, _log):
+        script_name = Path(command[1]).name
+        if script_name == "analyze_ink_stability.py":
+            raise AssertionError("non-live map reached stability analysis")
+        assert script_name == "run_ink_timesformer.py"
+        assert "--on-degenerate" in command
+        assert command[command.index("--on-degenerate") + 1] == "warn"
+        screening = Path(command[command.index("--output") + 1])
+        screening.mkdir(parents=True)
+        (screening / "INK_SCREENING_RECEIPT.json").write_text(
+            json.dumps({"liveness": liveness}) + "\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(adapter, "run_logged", fake_run_logged)
+    monkeypatch.setattr(
+        adapter,
+        "run_high_recall",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("non-live map reached high-recall routing")
+        ),
+    )
+
+    result = adapter.execute(input_path, output)
+
+    assert result["outcome"] == "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"
+    assert result["ink_used"] is True
+    assert result["retained_for_visual_review_count"] == 0
+    summary_path = output / "FLEET_SURFACE_SCREEN_EXECUTION.json"
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["completed_count"] == 0
+    receipt = summary["receipts"][0]
+    assert receipt["state"] == "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"
+    assert receipt["screening_outcome"] == (
+        "INK_SCREEN_INSUFFICIENT_DEGENERATE_OR_EMPTY"
+    )
+    assert receipt["manual_review_route"] == "NO_USABLE_INK_MAP"
+    assert receipt["liveness"] == liveness
+    screening_receipt = Path(receipt["screening_receipt"])
+    assert receipt["screening_receipt_sha256"] == adapter.sha256(screening_receipt)
+
+    published_manifest = Path(result["evidence_uri"].removeprefix("file://"))
+    published_summary = json.loads(
+        (published_manifest.parent / summary_path.name).read_text(encoding="utf-8")
+    )
+    assert published_summary["receipts"][0]["liveness"] == liveness
+    assert published_summary["receipts"][0]["screening_receipt_sha256"] == (
+        adapter.sha256(screening_receipt)
+    )
+
+
+@pytest.mark.parametrize(
+    "liveness",
+    [
+        {"verdict": "DEGENERATE"},
+        {"verdict": "DEGENERATE", "reason": 7},
+        {"verdict": "DEGENERATE", "reason": ""},
+        {"verdict": "DEGENERATE", "reason": " \t\n"},
+    ],
+)
+def test_non_alive_screen_with_malformed_liveness_reason_retries_without_terminalizing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    liveness: dict[str, object],
+) -> None:
+    adapter = load_adapter()
+    source, digest = make_surface(tmp_path / "source")
+    checkpoint = tmp_path / "checkpoint.pt"
+    checkpoint.write_bytes(b"frozen checkpoint fixture")
+    renderer = tmp_path / "vc_render_tifxyz"
+    renderer.write_bytes(b"renderer fixture")
+    output = tmp_path / "output"
+    output.mkdir()
+    evidence_root = tmp_path / "evidence"
+    input_path = tmp_path / "QC_INPUT.json"
+    job = qc_job(str(source), digest)
+    input_path.write_text(
+        json.dumps({"schema": "campaignx.segment_qc_input.v1", "qc_job": job})
+        + "\n",
+        encoding="utf-8",
+    )
+    profile = adapter.load(QC_PROFILE)
+    profile["ink_lane"]["checkpoint_sha256"] = adapter.sha256(checkpoint)
+    gate = ROOT / profile["ct_fiber_gate"]["profile"]
+
+    monkeypatch.setenv("HELENA_QC_RENDERER", str(renderer))
+    monkeypatch.setenv("HELENA_QC_CHECKPOINT", str(checkpoint))
+    monkeypatch.setenv("HELENA_QC_EVIDENCE_ROOT", str(evidence_root))
+    monkeypatch.setattr(
+        adapter,
+        "load_qc_profile",
+        lambda _job: (profile, QC_PROFILE, adapter.sha256(QC_PROFILE), gate),
+    )
+    monkeypatch.setattr(adapter, "fetch_zarr_metadata", lambda *_args: None)
+
+    def fake_renderer(_command, *, output, tiff_dir):
+        tiff_dir.mkdir()
+        for index in range(adapter.REQUIRED_TIFF_COUNT):
+            (tiff_dir / f"{index}.tif").write_bytes(b"tif")
+
+    monkeypatch.setattr(adapter, "run_renderer_with_retries", fake_renderer)
+
+    def fake_run_logged(command, _log):
+        assert Path(command[1]).name == "run_ink_timesformer.py"
+        screening = Path(command[command.index("--output") + 1])
+        screening.mkdir(parents=True)
+        (screening / "INK_SCREENING_RECEIPT.json").write_text(
+            json.dumps({"liveness": liveness}) + "\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(adapter, "run_logged", fake_run_logged)
+    monkeypatch.setattr(
+        adapter,
+        "run_high_recall",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("malformed non-live map reached high-recall routing")
+        ),
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="six-replica inference receipt has an invalid liveness reason",
+    ):
+        adapter.execute(input_path, output)
+
+    assert not (output / "FLEET_SURFACE_SCREEN_EXECUTION.json").exists()
+
+
 def test_renderer_retries_only_identical_transient_abort(tmp_path, monkeypatch) -> None:
     adapter = load_adapter()
     responses = iter(
@@ -523,3 +701,105 @@ def test_renderer_retries_only_identical_transient_abort(tmp_path, monkeypatch) 
     )
     assert persisted["attempts"][0]["transient_abort"] is True
     assert persisted["attempts"][1]["returncode"] == 0
+
+
+def test_a_second_attempt_does_not_collide_with_the_first(tmp_path) -> None:
+    """Measured on gpu-1 on 2026-08-23, after 57 minutes of completed work.
+
+    The evidence key was `{sample}/{surface}/{qc_job}/...` -- scoped to the
+    job, with nothing naming the attempt. But some of what an attempt
+    publishes is the attempt's own account of itself:
+    CT_RENDER_RETRY_RECEIPT.json carries `generated_at_utc` and
+    `attempt_count`, so its bytes differ every time.
+
+    Publication skips a key that already exists and then verifies the object
+    that is there against the local file. For a job that had published once,
+    the second attempt found an object it could never match: local
+    9ae5b2a2..., in the bucket 6cea728a... from 18 days earlier. Every retry
+    failed the same way, and no number of retries could clear it -- 207 of
+    August's failures were this.
+
+    Scoping the key to the attempt is what makes a retry a retry rather than
+    a collision. Verification itself was never wrong: it is what keeps
+    published evidence from being replaced unnoticed, and it stays.
+    """
+    adapter = load_adapter()
+    source, digest = make_surface(tmp_path / "source")
+    job = qc_job(str(source), digest)
+    client = MemoryS3()
+    root = "s3://campaign-x-test/segment-qc-v1"
+
+    def attempt(name: str, stamp: str) -> str:
+        output = tmp_path / name / "scientific-output"
+        output.mkdir(parents=True)
+        (output / "summary.json").write_text("{}\n", encoding="utf-8")
+        (output / "review.png").write_bytes(b"png")
+        # The per-attempt receipt, different bytes each time -- the real one
+        # carries its own timestamp and attempt count.
+        (output / "CT_RENDER_RETRY_RECEIPT.json").write_text(
+            json.dumps({"generated_at_utc": stamp, "attempt_count": 1}),
+            encoding="utf-8")
+        manifest = adapter.build_evidence_manifest(
+            output=output, qc_job=job, outcome=adapter.OUTCOME_RETAINED,
+            ink_used=True, followup={"ct_retained_count": 1},
+            **profile_arguments(adapter))
+        return adapter.publish_evidence(
+            output, manifest, root, job, s3_client=client, attempt_id=name)
+
+    first = attempt("20260805T234152Z-aaaaaaaaaaaa", "2026-08-05T23:41:52Z")
+    # Before the fix this raised: "published QC evidence failed verification".
+    second = attempt("20260823T023039Z-65d1120d9aec", "2026-08-23T02:31:30Z")
+
+    assert first != second, "two attempts published to the same key"
+    assert "20260805T234152Z-aaaaaaaaaaaa" in first
+    assert "20260823T023039Z-65d1120d9aec" in second
+    # The first attempt's evidence is still there, unmodified.
+    keys = " ".join(str(k) for k in client.objects)
+    assert "20260805T234152Z" in keys
+    assert "20260823T023039Z" in keys
+
+
+def test_publishing_the_same_attempt_twice_is_still_idempotent(tmp_path) -> None:
+    """Scoping to the attempt must not cost the property that made a resumed
+    upload safe: the same attempt republished writes nothing new."""
+    adapter = load_adapter()
+    source, digest = make_surface(tmp_path / "source")
+    output = tmp_path / "attempt" / "scientific-output"
+    output.mkdir(parents=True)
+    (output / "summary.json").write_text("{}\n", encoding="utf-8")
+    (output / "review.png").write_bytes(b"png")
+    job = qc_job(str(source), digest)
+    manifest = adapter.build_evidence_manifest(
+        output=output, qc_job=job, outcome=adapter.OUTCOME_RETAINED,
+        ink_used=True, followup={"ct_retained_count": 1},
+        **profile_arguments(adapter))
+    client = MemoryS3()
+    root = "s3://campaign-x-test/segment-qc-v1"
+
+    first = adapter.publish_evidence(output, manifest, root, job,
+                                     s3_client=client, attempt_id="attempt-a")
+    count = len(client.objects)
+    second = adapter.publish_evidence(output, manifest, root, job,
+                                      s3_client=client, attempt_id="attempt-a")
+
+    assert first == second
+    assert len(client.objects) == count
+
+
+def test_an_attempt_that_is_not_named_still_publishes(tmp_path) -> None:
+    """attempt_id is optional so every existing caller keeps working; the
+    worker passes it, and a direct CLI run without one behaves as before."""
+    adapter = load_adapter()
+    source, digest = make_surface(tmp_path / "source")
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / "summary.json").write_text("{}\n", encoding="utf-8")
+    (output / "review.png").write_bytes(b"png")
+    job = qc_job(str(source), digest)
+    manifest = adapter.build_evidence_manifest(
+        output=output, qc_job=job, outcome=adapter.OUTCOME_RETAINED,
+        ink_used=True, followup={"ct_retained_count": 1},
+        **profile_arguments(adapter))
+
+    uri = adapter.publish_evidence(output, manifest, str(tmp_path / "durable"), job)
+    assert uri.endswith("/EVIDENCE_MANIFEST.json")

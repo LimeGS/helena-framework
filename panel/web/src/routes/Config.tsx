@@ -75,7 +75,10 @@ const EnvRow = memo(function EnvRow({
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   const editing = draft !== null;
-  const value = editing ? draft : setting.value;
+  // A secret's value never leaves the server, so there is nothing to show and
+  // nothing to compare a draft against. What the page can say is whether one is
+  // set; typing replaces it, and the write carries only the new value.
+  const value = editing ? draft : (setting.secret ? "" : setting.value);
 
   return (
     <tr>
@@ -124,7 +127,7 @@ const EnvRow = memo(function EnvRow({
       </td>
       <td className="l">
         <div className="rowactions">
-          {editing && draft !== setting.value && (
+          {editing && draft !== (setting.secret ? "" : setting.value) && (
             <button disabled={busy} onClick={() => { onSave(setting.name, draft); setDraft(null); }}>
               save
             </button>

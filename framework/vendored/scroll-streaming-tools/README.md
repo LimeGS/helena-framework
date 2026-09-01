@@ -23,30 +23,40 @@ for most of this — see the next section before reaching for anything here.
 
 ## Relationship to the official `vesuvius` package
 
-**The concrete gap this repo fills: the pip-installable `vesuvius` package
-has no PPM support at all** — a code search scoped to the `vesuvius/`
-subdirectory of `ScrollPrize/villa` (the package `vesuvius.render_obj`,
-`vesuvius.data.affine`, and `vesuvius.predict` all live in) returns zero
-references to the `.ppm` format, confirmed live. **That does not mean PPM
-support is absent from the wider `ScrollPrize/villa` monorepo** — it isn't:
-`volume-cartographer`'s `vc_render --output-ppm` / `vc_layers_from_ppm`
-CLI pair (documented in `scrollprize.org/docs/06_tutorial_VC.md`, actively
-used) renders a mesh to a `.ppm` and back to a layer stack *within the same
-volume*, and `thaumato-anakalyptor` ships its own PPM parser/writer
-utilities. The real, narrower gap: **none of the official tooling bridges a
-`.ppm` onto a *different* volume** (the new-rescan case, via
-`transform.json`) **in one command** — `vc_layers_from_ppm` only works
-against the volume the PPM was built from. PPM is still the *only* format
-many existing 2023/2024-era segments are published in (our own
-`vesuvius_data.py` in the parent project already documents this split:
-"classic" `.ppm` vs. "modern" tifxyz), so for a PPM segment you want to
-render against a newer rescan, there's no official one-command path — not
-because PPM support doesn't exist upstream, but because none of the tools
-that have it also do cross-volume bridging.
+**The gap this repo fills: nothing official renders a `.ppm` at all any more,
+and nothing ever bridged one onto a different volume.**
+
+Checked against `ScrollPrize/villa` at HEAD, two ways:
+
+- The pip-installable `vesuvius` package has no PPM support. Its modules are
+  built around **tifxyz** — `vesuvius.tifxyz` (reader, writer, hierarchical
+  tiling, upsampling), `neural_tracing`, `ink_detection`. A code search scoped
+  to `vesuvius/` returns zero references to `.ppm`.
+- `volume-cartographer` has 49 apps and **none of them names PPM**. The
+  `vc_render --output-ppm` / `vc_layers_from_ppm` pair this section used to
+  point at is gone: a filename search returns nothing and the whole
+  subdirectory carries two incidental mentions of the format. What is there is
+  `vc_render_tifxyz`, beside `vc_flatten`, `vc_obj2tifxyz`, `vc_tifxyz2obj`
+  and `flatboi`.
+
+So the official path moved to tifxyz, and the earlier claim here — that PPM
+support exists upstream and merely lacks cross-volume bridging — is no longer
+true. It was accurate when written.
+
+PPM is still the *only* format many 2023/2024-era segments are published in
+(our own `vesuvius_data.py` in the parent project documents that split:
+"classic" `.ppm` versus "modern" tifxyz), so for those segments there is now no
+official route at all — not to a newer rescan, and not within their own volume
+either.
+
+**The open question this raises, which this repo does not answer:** whether
+converting those PPMs to tifxyz and using the official path is preferable to
+maintaining a renderer here. That depends on whether the conversion preserves
+what the segment needs, which has not been measured.
 
 | Job | Official `vesuvius`/`villa` | This repo |
 |---|---|---|
-| Render a segment in its own volume | `vesuvius.render_obj`, or `vc_render`+`vc_layers_from_ppm` (`volume-cartographer`) for PPM specifically — both cover this already | not needed here |
+| Render a segment in its own volume | `vc_render_tifxyz` (`volume-cartographer`), for a surface in **tifxyz**. Nothing official renders a `.ppm` any more: the `vc_render --output-ppm` / `vc_layers_from_ppm` pair named here before is gone, and none of volume-cartographer's 49 apps names the format. | not needed here |
 | Bridge a segment/labels across a `transform.json`-related *different* volume pair | `vesuvius.data.affine` (`read_transform_json`, `resample_label_to_image_grid`) has the cross-frame math; `mesh_to_surface` can render an `.obj` against an arbitrary target volume. **None of the tools with cross-volume bridging take a `.ppm` as input** — `vc_layers_from_ppm`'s PPM support only renders against its own source volume | `render_scroll2.py` / `render_scroll3.py` take a `.ppm` directly, apply the same bridging math (reimplemented independently — see Validation), and stream a stack out against a *different* volume. The one-command path for PPM-only segments that need a new rescan |
 | Trace surface into unsegmented territory | `neural_tracing` — a full neural-net-based tracer with its own training/inference pipeline, actively integrated into VC3D; almost certainly more capable than what's here | `winding_tracer.py` + `wedge_extract.py` — a v0 radial ray-caster, far simpler, useful if you want something you can read start-to-end in an afternoon, and its output is a `.ppm` too (so it composes with the renderers above) |
 | Move labels across volumes | `vesuvius.data.affine.resample_label_to_image_grid` resamples label *arrays* (zarr-to-zarr) — the docstring's own phrasing ("the label slab fetched from disk") assumes the label is already an indexable array. A raw label PNG needs converting first | `label_transport.py` starts from a `.ppm` + a plain label PNG directly, no conversion step, HTTP-Range-fetches only the rows touched |
@@ -67,8 +77,9 @@ first.
 ## Layout
 
 ```
-render_scroll3.py       chunk-gather re-renderer, PHerc 0332 2.399 um rescan
-render_scroll2.py       same, PHercParis3 April-2026 2.400 um rescan
+render_scroll.py        chunk-gather re-renderer, any masked OME-Zarr rescan
+render_scroll3.py       the PHerc 0332 2.399 um variant it replaced (kept)
+render_scroll2.py       the PHercParis3 2.400 um variant it replaced (kept)
 winding_tracer.py       radial winding map r(z, theta, w) over surface predictions
 wedge_extract.py        (winding, z-band) region -> synthetic PPM ("virgin wedge")
 label_transport.py      move human ink labels onto a re-render via HTTP Range
@@ -112,10 +123,23 @@ Useful flags: `--stripe` (rows per output stripe, default 640), `--conc`
 budget exceeds this, default 14.0), `--pilot-stripe N` (render just stripe
 N first, to sanity-check before committing to the full job).
 
-Adapting either renderer to a volume that doesn't exist yet is a five-line
-constants change (`VOLKEY`, `VOLSHAPE`, the nominal spacing ratio); diffing
-`render_scroll2.py` against `render_scroll3.py` is the tutorial, since that
-diff is exactly how the Scroll 2 variant was made from the Scroll 3 one.
+Adapting to a volume that doesn't exist yet is an argument now:
+
+```
+python render_scroll.py --ppm seg.ppm --out out/seg \
+  --volume PHercXXXX/volumes/<the masked OME-Zarr>.zarr
+```
+
+It used to be a five-line constants change and a copied file -- `VOLKEY`,
+`VOLSHAPE` and the nominal spacing ratio -- with this section telling you to
+diff the two renderers, which is an instruction to fork. Two of those three
+were never ours to write down: the shape and the chunk edge are in the
+volume's own `.zarray`, so they are read, and a mistyped shape now fails at
+the source instead of rendering the wrong region. The third, the voxel size,
+is parsed from the key. Checked against both files' hardcoded values:
+identical for both scrolls.
+
+`render_scroll2.py` and `render_scroll3.py` are still here and unchanged.
 
 ### Scenario B — I want to look at scroll territory that has no segment yet
 
@@ -191,7 +215,7 @@ python adapters/sweep_dino3d.py --ppm seg/20240716140050.ppm --out out_sweep \
        --batch 6 --workers 24
 
 # GP-era TimeSformer (patched upstream copy — model and tiling math
-# unchanged, five bugfixes documented inline, see the table below):
+# unchanged, six bugfixes documented inline, see the table below):
 python adapters/infer_timesformer.py --segment_id 20240716140050 \
        --segment_path eval_scrolls --model_path outputs/.../epoch=7.ckpt \
        --out_path out_ts --reverse 0
@@ -204,7 +228,7 @@ still runs, it just quietly outputs something worse:
 |---|---|---|
 | `infer_resnet3d_1667.py` | PHerc.1667 iteration-0..5 (HF) | `uint8 clip[0,200] / 255` — the paper's normalization, not plain `/255` (shifts output means by over a point on our renders) |
 | `infer_dino3d.py`, `sweep_dino3d.py` | ink_3d_dino_guided, volumetric 256³ | builds the nnU-Net from the checkpoint's own embedded config; percentile 1/99 min-max on valid voxels; the sweep overlaps S3 prefetch with GPU forward instead of a naive per-cell loop that starves on fetch |
-| `infer_timesformer.py` | GP-era TimeSformer | upstream reference with five documented fixes, including a `--reverse` flag that upstream parsed but never applied |
+| `infer_timesformer.py` | GP-era TimeSformer | upstream reference with six documented fixes: a `--reverse` flag that upstream parsed but never applied, and a max-normalisation of the saved map that made every peak exactly 1.0 |
 
 **Install order matters and costs hours if you get it wrong:** pin
 `torch==2.6.0+cu124 torchvision==0.21.0+cu124` installed together and

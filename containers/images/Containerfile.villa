@@ -2,23 +2,81 @@
 #
 # volume-cartographer, compiled from source.
 #
-# This is the piece the stack was missing. Containerfile.vc3d unpacks a
-# ``vc3d-runtime.tgz`` and verifies it; build_vc3d_runtime_bundle.sh assembles
-# that tarball out of *already-built* binaries and their ldd closure. Neither
-# compiles anything, so the binaries came from somewhere off the record -- and
-# the one on the GPU host does not even start on its own, because it was copied
-# without its libraries and needs an LD_LIBRARY_PATH wrapper to run at all.
+# This is the piece the stack was missing. Nothing else here compiles the tools:
+# build_vc3d_runtime_bundle.sh assembles a runtime out of *already-built*
+# binaries and their ldd closure, so before this image existed those binaries
+# came from somewhere off the record -- and the copy on the GPU host did not
+# start on its own, having been taken without its libraries and needing an
+# LD_LIBRARY_PATH wrapper to run at all.
 #
-# Building properly fixes that on its own: upstream sets an install RPATH of
+# Building properly fixes that: upstream sets an install RPATH of
 # $ORIGIN/../lib, so the apps find their own libraries and there is no wrapper.
+# helena-gpu-runtime assembles the bundle in a stage of its own build, from this
+# image; helena-vc3d, which used to sit between them, is gone.
 #
 # The same image is where ScrollFiesta gets flatboi and vc_obj2tifxyz_legacy,
 # which its native bundle takes as inputs and cannot produce.
 #
 # Source arrives as the named build context ``villa_src`` at the commit the
-# ScrollFiesta source lock pins. Nothing is fetched here: a build that clones
-# is a build whose output depends on the day it ran.
+# ScrollFiesta source lock pins.
+#
+# The source can arrive two ways and the default is now the one a stranger can
+# use: the stage below clones the pinned commit itself, so `docker build` is the
+# whole instruction.
+#
+# It is named `villa_src` on purpose. BuildKit lets a build context replace a
+# stage of the same name, so every existing caller --
+# `--build-context villa_src=<checkout>`, which the Makefile passes -- keeps
+# working untouched and simply wins over the clone. Renaming the stage to
+# anything else silently turns those callers into clones of a commit they did
+# not choose.
+#
+# This file used to say "nothing is fetched here: a build that clones is a build
+# whose output depends on the day it ran", and refused to clone at all. The
+# objection is right about cloning a *branch* and wrong about cloning a commit:
+# what makes a fetch unreproducible is the moving reference, not the network. So
+# `fetch` takes the commit from the lock and then verifies the tree hash it got.
+# A rewritten tag, a compromised mirror or a truncated fetch all produce a
+# different tree, and the build stops before the toolchain is even installed.
 ARG BASE_IMAGE
+ARG GIT_IMAGE=alpine/git:2.47.2
+
+# -------------------------------------------------------------------- fetch --
+FROM ${GIT_IMAGE} AS clone
+ARG VILLA_REPOSITORY=https://github.com/ScrollPrize/villa.git
+ARG VILLA_COMMIT
+ARG VILLA_TREE
+RUN test -n "${VILLA_COMMIT}" -a -n "${VILLA_TREE}" || { \
+      echo "VILLA_COMMIT and VILLA_TREE are required: they are what makes this fetch reproducible" >&2; \
+      exit 2; \
+    }
+WORKDIR /src
+# By commit, never by branch. A shallow fetch of one object is also the only
+# form that does not depend on what the default branch points at today.
+RUN git init -q . \
+ && git remote add origin "${VILLA_REPOSITORY}" \
+ && git fetch -q --depth 1 origin "${VILLA_COMMIT}" \
+ && git checkout -q FETCH_HEAD
+# The commit says which bytes were asked for; the tree says which arrived.
+RUN got="$(git rev-parse HEAD^{tree})"; \
+    if [ "$got" != "${VILLA_TREE}" ]; then \
+      echo "villa tree is ${got}, the lock pins ${VILLA_TREE}." >&2; \
+      echo "The commit resolved but its content is not what was recorded." >&2; \
+      exit 3; \
+    fi
+# The checkout, not the history: .git is a few hundred megabytes nothing below
+# reads.
+RUN rm -rf /src/.git
+
+# The repository at the stage's own root, because that is where a build context
+# would put it: `--build-context villa_src=/path/to/villa` mounts that directory as
+# the root, so `COPY --from=villa_src volume-cartographer` has to mean the same
+# thing either way. Cloning into /src and copying from there made the two paths
+# differ, and the clone-by-default build failed on a file the checkout build
+# found -- the exact drift naming the stage and the context alike is meant to
+# prevent.
+FROM scratch AS villa_src
+COPY --from=clone /src /
 
 # ---------------------------------------------------------------- toolchain --
 FROM ${BASE_IMAGE} AS deps
@@ -150,8 +208,10 @@ COPY --from=build /tmp/runtime-packages.txt /opt/campaignx/vc3d/RUNTIME_PACKAGES
 COPY --from=build /usr/local/bin /opt/campaignx/vc3d/bin
 COPY --from=build /usr/local/lib /opt/campaignx/vc3d/lib
 
-# The environment the framework already expects, kept byte-identical to
-# Containerfile.vc3d so an executor pointed at either image behaves the same.
+# The environment the framework already expects. It was kept byte-identical to
+# the recipe for helena-vc3d, an image that no longer exists; helena-gpu-runtime
+# sets the same variables over the bundle it assembles from this image, so an
+# executor pointed at either behaves the same.
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     CAMPAIGN_X_STAGE=vc3d \

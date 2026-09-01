@@ -40,3 +40,9 @@ joblib          # how that router's model is loaded
 torch           # ink detection: run_ink_timesformer imports it at module level
 pytest-cov
 psycopg2-binary
+psycopg[binary]
+
+# The lint gate. Pinned like everything else here: a linter that changes what it
+# refuses between one pipeline and the next fails builds for reasons nobody
+# introduced.
+flake8==7.1.1

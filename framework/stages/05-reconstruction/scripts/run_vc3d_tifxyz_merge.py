@@ -54,8 +54,95 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _refuse_non_finite(literal: str) -> Any:
+    raise ValueError(f"{literal} is not JSON and cannot be hashed")
+
+
 def canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+    """The one JSON representation this lane hashes or compares documents in.
+
+    It calls ``fleet.common.canonical_bytes`` rather than restating its flags.
+    Restating them is what broke this: the lane declared its own ``json.dumps``,
+    left ``ensure_ascii`` at the default True, and so produced a different digest
+    for the same manifest than the one the control plane stored -- two content
+    ids for one document, which is the same as having none.  A copy of a
+    canonicalization becomes a second canonicalization the day either is edited,
+    so there is no copy here.
+
+    The one thing added on top is a refusal ``canonical_bytes`` does not make.
+    ``NaN`` and ``Infinity`` are not JSON; ``json.dumps`` writes them as bare
+    literals, and a digest over bytes no conforming parser will accept cannot be
+    reproduced by whatever later checks it.  ``parse_constant`` fires on exactly
+    those three literals and never on a string that merely contains them.
+    """
+    from fleet.common import canonical_bytes
+
+    text = canonical_bytes(value).decode("utf-8")
+    json.loads(text, parse_constant=_refuse_non_finite)
+    return text
+
+
+def manifest_sha256(manifest: dict[str, Any]) -> str:
+    """The digest of a whole artifact-set manifest document."""
+    return hashlib.sha256(canonical(manifest).encode("utf-8")).hexdigest()
+
+
+def artifact_sha256(files: dict[str, Any]) -> str:
+    """The digest of an artifact set, which is the digest of its inventory."""
+    return hashlib.sha256(canonical(files).encode("utf-8")).hexdigest()
+
+
+def require_canonical_manifest(
+    manifest: Any, *, expected_artifact_sha256: str | None = None,
+    schema: str | None = None,
+) -> dict[str, Any]:
+    """Refuse any manifest whose stated digest is not its inventory's digest.
+
+    ``artifact_sha256`` is what names a surface in the catalogue, and it is
+    supposed to be ``content_sha256`` of the ``files`` block sitting beside it.
+    Nothing on this path ever recomputed it: materialization compared the field
+    to the catalogue and materialization is where a merge decides which bytes it
+    is about to stitch.  A field compared to another copy of itself is a hash
+    that verifies nothing, so this derives the digest from the inventory the
+    manifest actually carries and refuses the manifest when the two disagree.
+    """
+    if not isinstance(manifest, dict):
+        raise MergeRefused("artifact manifest is not a mapping")
+    stated_schema = manifest.get("schema")
+    if not isinstance(stated_schema, str) or not stated_schema:
+        raise MergeRefused("artifact manifest names no schema")
+    if schema is not None and stated_schema != schema:
+        raise MergeRefused(
+            f"artifact manifest schema is {stated_schema}, not {schema}")
+    files = manifest.get("files")
+    if not isinstance(files, dict) or not files:
+        raise MergeRefused("artifact manifest has no file inventory")
+    for name, entry in files.items():
+        if (not isinstance(entry, dict)
+                or not isinstance(entry.get("sha256"), str)
+                or not _is_sha256(entry["sha256"])
+                or not isinstance(entry.get("size_bytes"), int)
+                or isinstance(entry.get("size_bytes"), bool)
+                or entry["size_bytes"] < 0):
+            raise MergeRefused(f"artifact manifest entry is unusable: {name}")
+    stated = manifest.get("artifact_sha256")
+    if not isinstance(stated, str) or not _is_sha256(stated):
+        raise MergeRefused("artifact manifest has no lowercase artifact_sha256")
+    derived = artifact_sha256(files)
+    if stated != derived:
+        raise MergeRefused(
+            "artifact manifest artifact_sha256 is not the digest of its own "
+            f"inventory: it says {stated} and the inventory is {derived}")
+    if expected_artifact_sha256 is not None and stated != expected_artifact_sha256:
+        raise MergeRefused(
+            "artifact manifest is not the catalogue artifact: it is "
+            f"{stated} and the catalogue names {expected_artifact_sha256}")
+    return manifest
+
+
+def _is_sha256(value: str) -> bool:
+    return len(value) == 64 and all(character in "0123456789abcdef"
+                                    for character in value)
 
 
 def validate_parent_compatibility(parents: list[dict[str, Any]]) -> dict[str, Any]:
@@ -352,12 +439,18 @@ def materialize_parents(parents: list[dict[str, Any]], aliases: dict[str, str],
         destination = paths_dir / alias
         manifest = adapter.materialize_surface(
             str(parent["artifact_uri"]), str(parent["artifact_sha256"]), destination)
+        # The adapter verifies the files against the manifest and the manifest
+        # against the catalogue.  Neither check derives artifact_sha256 from the
+        # inventory, so this does, inside the boundary that is about to stitch
+        # these bytes into a canonical surface.
+        require_canonical_manifest(
+            manifest,
+            expected_artifact_sha256=str(parent["artifact_sha256"]))
         materialized.append({
             "surface_id": parent["surface_id"], "alias": alias,
             "artifact_uri": parent["artifact_uri"],
             "artifact_sha256": parent["artifact_sha256"],
-            "manifest_sha256": hashlib.sha256(
-                canonical(manifest).encode("utf-8")).hexdigest(),
+            "manifest_sha256": manifest_sha256(manifest),
         })
     return materialized
 
@@ -379,12 +472,16 @@ def locate_upstream_output(paths_dir: Path, aliases: Iterable[str]) -> tuple[Pat
 def publish_set(source: Path, names: list[str], *, schema: str, store_spec: str,
                 sample_id: str, key: str, attempt: str) -> dict[str, Any]:
     from fleet.artifact_store import open_artifact_store
-    from fleet.common import content_sha256
 
     files = {name: {"size_bytes": (source / name).stat().st_size,
                     "sha256": file_sha256(source / name)} for name in names}
     manifest = {"schema": schema, "files": files,
-                "artifact_sha256": content_sha256(files)}
+                "artifact_sha256": artifact_sha256(files)}
+    # Publication and revalidation have to be the same statement about the same
+    # bytes, so publication is held to the check materialization applies.  It
+    # costs one hash and it is the only thing that makes the digest downstream
+    # recomputes mean what this side intended by it.
+    require_canonical_manifest(manifest, schema=schema)
     store = open_artifact_store(store_spec)
     staged = store.stage(source, attempt, manifest)
     promoted = store.promote(staged, sample_id, key, manifest)
@@ -393,6 +490,7 @@ def publish_set(source: Path, names: list[str], *, schema: str, store_spec: str,
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    from fleet import surface_routing
     from fleet.common import stable_id
     from fleet.finalizer import certify_surface_geometry, inspect_tifxyz
     from job_store import InkJobStore
@@ -417,6 +515,29 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     artifact_ids = json.loads(args.artifact_ids_json)
     rows = validate_layout(json.loads(args.rows_json), artifact_ids)
     parents = store.merge_surfaces(artifact_ids)
+    # The store resolves under its transaction, and the wrapper independently
+    # rechecks the retained lineage before it downloads a byte or starts the
+    # upstream binary.  This protects forged/replayed job rows that bypassed
+    # queue admission.
+    from fleet.canonical_lineage import require_canonical_lineage
+    for parent in parents:
+        payload = dict(parent.get("payload") or {})
+        require_canonical_lineage(
+            boundary="P8_PARENT_MATERIALIZATION",
+            controlled_mission=(
+                parent.get("controlled_first_letters") is True
+                or payload.get("controlled_first_letters") is True
+            ),
+            authoritative_lineage=(
+                parent.get("authoritative_lineage")
+                or payload.get("authoritative_lineage")
+            ),
+            allow_unvalidated=(
+                parent.get("allow_unvalidated")
+                if "allow_unvalidated" in parent
+                else payload.get("allow_unvalidated")
+            ),
+        )
     source = validate_parent_compatibility(parents)
     if args.reference_artifact_id not in artifact_ids:
         raise MergeRefused("reference_artifact_id is not a parent")
@@ -485,7 +606,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     collision_qc = evaluate_collision_qc(
         parents, paths_dir, edges, profile.get("collision_gate", {}))
     write_json(output / "COLLISION_QC.json", collision_qc)
-    geometry = certify_surface_geometry(output)
+    geometry = certify_surface_geometry(
+        output, voxel_um=float(source["voxel_size_um"]))
     write_json(output / "GEOMETRY_CERTIFICATION.json", geometry)
     if geometry.get("geometry_qc_state") != "GEOMETRY_CERTIFIED":
         raise MergeRefused(
@@ -518,11 +640,69 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     job_id = os.environ.get("HELENA_JOB_ID", "")
     if not job_id:
         raise MergeRefused("HELENA_JOB_ID is required for lineage registration")
+
+    # The merged sheet is described once, here, and every consumer below reads
+    # this one dict: the routing receipt, the merge receipt, and the catalogue
+    # registration. Two descriptions of one surface is two surfaces the day
+    # either is edited.
+    #
+    # Its extent is `inspection`'s -- measured by inspect_tifxyz over the merged
+    # x/y/z grids upstream just produced and this lane just published, under the
+    # same frozen triangulation and the same invalid-coordinate policy every
+    # other surface in the catalogue is measured with. No parent's area is read
+    # and none is inherited. A merge is not an exemption from the floor and it
+    # is not a promotion across it: stitching changes how much papyrus is in one
+    # artifact, which is exactly the quantity the floor is about.
+    merged_surface = {
+        "surface_id": surface_id,
+        "source_snapshot_id": source["source_snapshot_id"],
+        "sample_id": source["sample_id"],
+        "artifact_sha256": publication["artifact_sha256"],
+        "artifact_uri": publication["artifact_uri"],
+        "bbox_xyz": inspection["bbox_xyz"],
+        "sample_points": inspection["sample_points"],
+        "area_cm2": inspection["area_cm2"], "state": "MERGED",
+        "physical_qc_state": "UNVALIDATED",
+        "geometry_qc_state": geometry["geometry_qc_state"],
+        "parent_surface_ids": artifact_ids,
+        "profile_id": profile["profile_id"], "profile_sha256": profile_sha,
+    }
+    # Built by the router's own assembly rather than by this lane, for the
+    # reason receipt_for_surface exists: a second place that names the receipt's
+    # fields is a second receipt format, and the one that drifts is the one
+    # nobody ran the test against. These are the bytes both stores will hold.
+    routing_receipt = surface_routing.receipt_for_surface(merged_surface)
+    write_json(output / "ROUTING_RECEIPT.json", routing_receipt)
+
     receipt = {
         "schema": "campaignx.vc3d_tifxyz_merge_receipt.v1", "status": "PASS",
         "job_id": job_id, "surface_id": surface_id,
+        # Which scroll this is. Every other receipt says so and this one did
+        # not, so the panel -- which reads the scroll off the receipt and
+        # refuses to parse it out of a directory name -- listed the run under a
+        # scroll called "?", with a run count beside it in P0's own inventory.
+        "sample_id": source["sample_id"],
         "artifact_uri": publication["artifact_uri"],
         "artifact_sha256": publication["artifact_sha256"],
+        # The measurement, and the decision it produced, travel with the
+        # receipt. Without them a successful P8 result says nothing about
+        # whether the sheet it names is large enough to ask a question of.
+        "area_cm2": inspection["area_cm2"],
+        "area_measurement": {
+            "schema": "campaignx.merged_surface_measurement.v1",
+            "measured_by": "fleet.finalizer.inspect_tifxyz",
+            # The canonical digest require_canonical_manifest derived from the
+            # inventory of exactly the files measured here, so the area is bound
+            # to those bytes and not to a second name for them.
+            "artifact_sha256": publication["artifact_sha256"],
+            "voxel_size_um": source["voxel_size_um"],
+            "shape": inspection["shape"],
+            "finite_coordinate_count": inspection["finite_coordinate_count"],
+            "valid_triangle_count": inspection["valid_triangle_count"],
+            "invalid_coordinate_policy": inspection["invalid_coordinate_policy"],
+            "bbox_xyz": inspection["bbox_xyz"],
+        },
+        "routing_receipt": routing_receipt,
         "profile_id": profile["profile_id"], "profile_sha256": profile_sha,
         "source": profile["source"], "runtime": runtime,
         "parents": materialized, "assembly_manifest_sha256": file_sha256(
@@ -559,20 +739,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         output, evidence_names, schema="campaignx.vc3d_merge_evidence_set.v1",
         store_spec=args.artifact_store, sample_id=source["sample_id"],
         key=f"evidence-{surface_id}", attempt=f"{surface_id}-evidence")
+    # The evidence set is published after the merge receipt, because the receipt
+    # is a member of it. Nothing here is in the routing digest, so the receipt
+    # decided above is the receipt this surface registers with.
     surface = {
-        "surface_id": surface_id, "source_snapshot_id": source["source_snapshot_id"],
-        "sample_id": source["sample_id"],
-        "artifact_sha256": publication["artifact_sha256"],
-        "artifact_uri": publication["artifact_uri"],
-        "bbox_xyz": inspection["bbox_xyz"],
-        "sample_points": inspection["sample_points"],
-        "area_cm2": inspection["area_cm2"], "state": "MERGED",
-        "physical_qc_state": "UNVALIDATED",
-        "geometry_qc_state": geometry["geometry_qc_state"],
-        "parent_surface_ids": artifact_ids,
+        **merged_surface,
         "evidence_uri": evidence["artifact_uri"],
         "evidence_sha256": evidence["artifact_sha256"],
-        "profile_id": profile["profile_id"], "profile_sha256": profile_sha,
     }
     registration = store.register_merged_surface(
         surface, parents, job_id=job_id,

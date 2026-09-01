@@ -19,7 +19,11 @@ set -eu
 
 user="${1:?usage: run-smoke.sh USERNAME}"
 panel="${HELENA_PANEL_URL:-https://127.0.0.1:8800}"
-image="${HELENA_PANEL_IMAGE:-helena-panel:latest}"
+# The smoke test proves a specific build works. `latest` proves whatever the
+# daemon happens to hold under that name works, which is a different claim and
+# not the one anybody reads it as.
+version="$(cat "$(dirname "$0")/../VERSION" 2>/dev/null || true)"
+image="${HELENA_PANEL_IMAGE:-helena-panel:${version:?no VERSION file; set HELENA_PANEL_IMAGE to the image to smoke}}"
 credentials="${HELENA_SMOKE_ENV:-/etc/helena/smoke.env}"
 scroll="${HELENA_SMOKE_SCROLL:-PHerc0826}"
 volume_url="${HELENA_SMOKE_VOLUME_URL:-https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr}"

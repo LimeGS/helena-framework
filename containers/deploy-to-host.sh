@@ -20,7 +20,7 @@
 #     with only --env-file therefore asks nvidia for a device called "cuda" and is
 #     refused. It has to be overridden per device on the command line.
 #
-#   * Containerfile.ink-worker needs BASE_IMAGE, and there is no base-images.env on
+#   * Containerfile.worker-gpu needs BASE_IMAGE, and there is no base-images.env on
 #     the hosts, so a plain `docker build` fails with "base name should not be
 #     blank".
 #
@@ -37,11 +37,11 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 
 # The GPUs the QC workers are pinned to, one project each.
 devices="${HELENA_QC_DEVICES:-0 1}"
-# The image Containerfile.ink-worker builds on. Overridable, because the tag moves.
+# The image Containerfile.worker-gpu builds on. Overridable, because the tag moves.
 # Where built images are published. Both hosts route to this MetalLB VIP, so a
 # deploy is a pull rather than a copy of a source tree.
 registry="${HELENA_REGISTRY:-localhost:5000/helena}"
-qc_base="${HELENA_QC_BASE_IMAGE:-$registry/helena-surface-qc:0.1.1}"
+qc_base="${HELENA_QC_BASE_IMAGE:-$registry/helena-gpu-runtime:0.1.1}"
 registry_host="${registry%%/*}"
 # The full hash, because that is what the pipeline tags with ($CI_COMMIT_SHA).
 # This script used the short one everywhere, so it looked for a tag CI never
@@ -100,9 +100,9 @@ esac
 
 case "$stack" in
   segment|all)
-    tag="helena-worker:local-$commit"
+    tag="helena-worker-cpp:local-$commit"
     say "building $tag"
-    keep "$(on_host "sudo -n grep -oE '^HELENA_SEGMENT_IMAGE=.*' /etc/helena/segment.env | cut -d= -f2")" helena-worker
+    keep "$(on_host "sudo -n grep -oE '^HELENA_SEGMENT_IMAGE=.*' /etc/helena/segment.env | cut -d= -f2")" helena-worker-cpp
     on_host "cd $root && sudo -n env BUILD_COMMIT=$commit sh containers/build-worker.sh $root $tag" \
       | grep -E 'naming to|ERROR' || true
     # The env file names the image, so it moves with the build rather than the
@@ -117,7 +117,7 @@ esac
 
 case "$stack" in
   qc|all)
-    tag="helena-ink-worker:local-$commit"
+    tag="helena-worker-gpu:local-$commit"
     inflight="$(on_host "sudo -n docker exec helena-postgres psql -U campaignx -d campaignx -tAc \"select count(*) from segment_qc_jobs where state='CLAIMED'\"" 2>/dev/null | tr -d '[:space:]')"
     if [ "${inflight:-0}" != "0" ] && [ "${HELENA_QC_INTERRUPT:-}" != "yes" ]; then
       say "$inflight QC job(s) are running right now."
@@ -126,9 +126,9 @@ case "$stack" in
       exit 3
     fi
     say "building $tag on $qc_base"
-    keep "$(on_host "sudo -n grep -oE '^HELENA_QC_IMAGE=.*' /etc/helena/surface-qc.env | cut -d= -f2")" helena-ink-worker
+    keep "$(on_host "sudo -n grep -oE '^HELENA_QC_IMAGE=.*' /etc/helena/surface-qc.env | cut -d= -f2")" helena-worker-gpu
     on_host "cd $root && sudo -n docker build -q --build-arg BASE_IMAGE=$qc_base --build-arg BUILD_COMMIT=$commit \
-             -f containers/images/Containerfile.ink-worker -t $tag ." >/dev/null
+             -f containers/images/Containerfile.worker-gpu -t $tag ." >/dev/null
     on_host "sudo -n cp /etc/helena/surface-qc.env /etc/helena/surface-qc.env.bak-$commit \
              && sudo -n sed -i 's|^HELENA_QC_IMAGE=.*|HELENA_QC_IMAGE=$tag|' /etc/helena/surface-qc.env"
     for device in $devices; do

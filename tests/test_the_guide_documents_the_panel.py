@@ -19,7 +19,8 @@ CONTROLS = (ROUTES / "guide-controls.ts").read_text()
 APP = (ROOT / "panel/web/src/App.tsx").read_text()
 
 # Pages that document rather than being documented.
-DOCUMENTATION = {"UserGuide", "Tutorial", "ApiReference", "DeveloperReference", "Docs"}
+DOCUMENTATION = {"UserGuide", "Tutorial", "ApiReference", "DeveloperReference",
+                 "Docs", "Handbook"}
 
 # Pages with controls that no route and no import reaches: dead surfaces, not
 # undocumented ones. Proved orphaned below rather than merely asserted, so this
@@ -94,12 +95,16 @@ def test_the_tutorial_and_the_guide_are_different_things() -> None:
 
 def test_both_are_reachable_from_the_documentation_page() -> None:
     docs = (ROUTES / "Docs.tsx").read_text()
-    for tab in ("Tutorial", "UserGuide", "DeveloperReference", "ApiReference"):
+    for tab in ("Handbook", "Tutorial", "UserGuide", "DeveloperReference",
+                "ApiReference"):
         assert tab in docs, f"{tab} is not on the documentation page"
-    # The person who has never run this is the one who cannot tell which tab
-    # they need, so it opens on the walkthrough.
-    assert 'useState<(typeof TABS)[number][0]>("tutorial")' in docs, (
-        "the documentation page does not open on the tutorial"
+    # It opened on the walkthrough, for the reason that the person who has never
+    # run this cannot tell which tab they need. The handbook is that reason
+    # carried further: it has the walkthrough inside it as a section, and a
+    # contents list beside it, so the first screen answers "what is here" as
+    # well as "where do I start".
+    assert '"handbook"' in docs, (
+        "the documentation page does not open on the handbook"
     )
 
 

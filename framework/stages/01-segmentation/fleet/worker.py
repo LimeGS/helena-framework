@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import errno
+import hashlib
 import json
 import inspect
 import os
@@ -12,7 +13,7 @@ from typing import Any, Callable, Protocol
 import traceback
 from urllib.error import HTTPError, URLError
 
-from .common import content_sha256, utc_now, write_json_atomic
+from .common import canonical_bytes, content_sha256, utc_now, write_json_atomic
 from .ct_support import CtSupportSampler, CtSupportSourceUnavailable, apply_ct_material_support_gate
 from .executor import GrowExecutor, InsufficientGpuMemoryError
 from .finalizer import finalize_surface
@@ -41,6 +42,41 @@ class SeedProvider(Protocol):
 
 class SourceProviderUnavailable(RuntimeError):
     """A transient CT/m7 source outage, not a geometric assessment."""
+
+
+def task6_recenter_candidates(candidates: Any) -> dict[str, Any]:
+    """Build recenter evidence from integral Task 6 candidates only."""
+
+    from .seed_probe import coordinate_sha256_v1, validate_task6_coordinate
+
+    if not isinstance(candidates, list):
+        raise ValueError("Task 6 candidates must be a list")
+    eligible: list[tuple[str, list[int]]] = []
+    rejected: list[str] = []
+    for candidate in candidates:
+        candidate_id = str(candidate.get("candidate_id"))
+        promotion = candidate.get("promotion_coordinate_ct_l0_xyz")
+        if promotion is None:
+            rejected.append(candidate_id)
+            continue
+        coordinate = validate_task6_coordinate(promotion, require_integral=True)
+        if (candidate.get("promotion_coordinate_sha256") !=
+                coordinate_sha256_v1(coordinate)):
+            raise ValueError("Task 6 recenter coordinate hash drift")
+        eligible.append((candidate_id, coordinate))
+    if not eligible:
+        return {
+            "eligible_candidate_ids": [],
+            "rejected_candidate_ids": rejected,
+            "median_coordinate_ct_l0_xyz": None,
+        }
+    axes = [sorted(coordinate[index] for _, coordinate in eligible) for index in range(3)]
+    middle = len(eligible) // 2
+    return {
+        "eligible_candidate_ids": [candidate_id for candidate_id, _ in eligible],
+        "rejected_candidate_ids": rejected,
+        "median_coordinate_ct_l0_xyz": [axis[middle] for axis in axes],
+    }
 
 
 def _is_transient_operational_error(error: BaseException) -> bool:
@@ -251,9 +287,36 @@ class McpSeedProvider:
             client = McpClient(self.url, self.token)
             client.initialize()
             request_suffix = str(task.get("attempt_id") or "survey")
+            exchanges: list[dict[str, Any]] = []
+            read_objects: dict[str, dict[str, Any]] = {}
 
             def call(arguments: dict[str, Any], suffix: str) -> dict[str, Any]:
-                return structured(client.call("vc_find_seed_candidates", arguments, f"segment-fleet-{task['task_id']}-{request_suffix}-{suffix}"))
+                response = structured(client.call(
+                    "vc_find_seed_candidates", arguments,
+                    f"segment-fleet-{task['task_id']}-{request_suffix}-{suffix}"))
+                exchanges.append({"request": arguments, "response": response})
+                source_read_set = response.get("source_read_set") if isinstance(response, dict) else None
+                objects = (source_read_set or {}).get("objects")
+                if (not isinstance(source_read_set, dict)
+                        or source_read_set.get("schema") != "campaignx.first_letters_source_read_set.v1"
+                        or not isinstance(objects, list) or not objects
+                        or source_read_set.get("canonical_manifest_sha256") != content_sha256(objects)):
+                    raise SourceProviderUnavailable(
+                        "MCP returned no valid production source read evidence")
+                for item in objects:
+                    if (not isinstance(item, dict) or not item.get("object_key")
+                            or not isinstance(item.get("bytes"), int)
+                            or not isinstance(item.get("sha256"), str)
+                            or len(item["sha256"]) != 64):
+                        raise SourceProviderUnavailable(
+                            "MCP returned malformed production source read evidence")
+                    key = str(item["object_key"])
+                    existing = read_objects.get(key)
+                    if existing is not None and existing != item:
+                        raise SourceProviderUnavailable(
+                            f"MCP returned contradictory read evidence for {key}")
+                    read_objects[key] = dict(item)
+                return response
 
             def candidate_array(response: dict[str, Any], phase: str) -> list[dict[str, Any]]:
                 """Validate the MCP's required candidate-array output contract.
@@ -452,12 +515,31 @@ class McpSeedProvider:
                 raise SourceProviderUnavailable(f"transient MCP source failure: {error}") from error
             raise
         candidate_array(result, "final candidate query")
+        request_document = [entry["request"] for entry in exchanges]
+        response_document = [entry["response"] for entry in exchanges]
+        request_bytes = canonical_bytes(request_document)
+        response_bytes = canonical_bytes(response_document)
+        objects = [read_objects[key] for key in sorted(read_objects)]
+        source_read_set = {
+            "schema": "campaignx.first_letters_source_read_set.v1",
+            "objects": objects,
+            "canonical_manifest_sha256": content_sha256(objects),
+        } if objects else None
         # Credentials are never present in the returned receipt.
         return {
             **result,
             "request": request,
             "effective_candidate_region": effective_region,
             "initial_probe": initial_probe,
+            "source_read_set": source_read_set,
+            "provider_exchange": {
+                "encoding": "canonical-json-utf8",
+                "call_count": len(exchanges),
+                "request_sha256": hashlib.sha256(request_bytes).hexdigest(),
+                "request_bytes": len(request_bytes),
+                "response_sha256": hashlib.sha256(response_bytes).hexdigest(),
+                "response_bytes": len(response_bytes),
+            },
             "ink_used": False,
         }
 
@@ -616,6 +698,7 @@ class SegmentWorker:
         except ValueError as error:
             receipt = {
                 "status": "POLICY_REJECTED",
+                "failure_class": "CONFIGURATION_BLOCK",
                 "reason": "INVALID_BENCHMARK_EXECUTION_CONTRACT",
                 "error": f"{type(error).__name__}: {error}",
                 "generated_at_utc": utc_now(),
@@ -645,6 +728,7 @@ class SegmentWorker:
                 except (RuntimeError, ValueError) as error:
                     receipt = {
                         "status": "POLICY_REJECTED",
+                        "failure_class": "CONFIGURATION_BLOCK",
                         "reason": "INVALID_SEED_PROBE_TASK_CONTRACT",
                         "error": f"{type(error).__name__}: {error}",
                         "generated_at_utc": utc_now(),
@@ -708,15 +792,12 @@ class SegmentWorker:
                 )
                 return receipt
             except BaseException as error:
-                # The type and message alone are not a diagnosis. This state has already
-                # masked unrelated faults -- mcp/server.py records one that "read like
-                # the bucket being down" -- and a bare "HTTPError: HTTP Error 401"
-                # names neither the endpoint nor the caller, which is exactly the
-                # information somebody needs and cannot recover afterwards.
                 receipt = {
                     "status": "BLOCKED_SOURCE_UNAVAILABLE",
+                    "failure_class": "SOURCE_FAILURE",
                     "error": f"{type(error).__name__}: {error}",
                     "traceback": traceback.format_exc(),
+                    "generated_at_utc": utc_now(),
                 }
                 write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
                 self.store.mark_terminal(task["task_id"], task["attempt_id"], task["lease_token"], "BLOCKED_SOURCE_UNAVAILABLE", receipt)
@@ -749,14 +830,16 @@ class SegmentWorker:
                     "CT_MATERIAL_SUPPORT_REJECTED": ct_rejected_count,
                     **clearance["rejection_counts"],
                 }
-                primary_causes = [
+                primary_causes = sorted([
                     cause
                     for cause, count in cause_counts.items()
                     if int(count) > 0
-                ]
+                ])
                 diagnosis = {
                     "schema": "campaignx.no_seed_causal_diagnosis.v1",
                     "status": "NO_SEED",
+                    "task_id": task["task_id"],
+                    "attempt_id": task["attempt_id"],
                     "m7_raw_candidate_count": raw_m7_count,
                     "ct_support_input_candidate_count": ct_input_count,
                     "ct_support_retained_candidate_count": ct_retained_count,
@@ -780,6 +863,10 @@ class SegmentWorker:
                         "it does not establish absence of a physical surface."
                     ),
                 }
+                diagnosis["diagnosis_sha256"] = content_sha256({
+                    key: value for key, value in diagnosis.items()
+                    if key != "generated_at_utc"
+                })
                 write_json_atomic(
                     attempt_dir / "NO_SEED_CAUSAL_DIAGNOSIS.json", diagnosis
                 )
@@ -792,6 +879,9 @@ class SegmentWorker:
                     "usable_candidate_count": 0,
                     "no_seed_cause_counts": cause_counts,
                     "primary_causes": primary_causes,
+                    "no_seed_causal_diagnosis": diagnosis,
+                    "no_seed_causal_diagnosis_sha256": diagnosis[
+                        "diagnosis_sha256"],
                     "clearance_policy": clearance["clearance_policy"],
                     "reason": (
                         "No MCP candidate met the frozen interior-clearance and CT-material-support policies."
@@ -819,6 +909,7 @@ class SegmentWorker:
                     # experiment.
                     receipt = {
                         "status": "POLICY_REJECTED",
+                        "failure_class": "CONFIGURATION_BLOCK",
                         "reason": "WORKER_HAS_NO_SEED_PROBE_V1_CAPABILITY",
                         "generated_at_utc": utc_now(),
                         "ink_used": False,
@@ -951,7 +1042,8 @@ class SegmentWorker:
                         "schema": (
                             "campaignx.seed_probe_terminal_receipt.v1"
                         ),
-                        "status": "PROBE_REVIEW_PENDING",
+                        "status": "BLOCKED_PROBE_ARTIFACT_UNAVAILABLE",
+                        "failure_class": "SOURCE_FAILURE",
                         "reason": review_reason,
                         "probe_run_id": error.probe_run_id,
                         "winner_trial_id": error.winner_trial_id,
@@ -986,9 +1078,23 @@ class SegmentWorker:
                     "PROBE_REVIEW_PENDING",
                     "PROBE_REJECTED_ALL",
                 }:
+                    trial_outcomes = probe_result["decision"].get(
+                        "trial_outcomes") or []
+                    technical_failure = (
+                        probe_result["status"] == "PROBE_REVIEW_PENDING"
+                        and any(
+                            isinstance(outcome, dict)
+                            and outcome.get("state") == "FAILED"
+                            for outcome in trial_outcomes
+                        )
+                    )
+                    terminal_status = (
+                        "PROBE_TECHNICAL_FAILURE"
+                        if technical_failure else probe_result["status"]
+                    )
                     receipt = {
                         "schema": "campaignx.seed_probe_terminal_receipt.v1",
-                        "status": probe_result["status"],
+                        "status": terminal_status,
                         "probe_run_id": probe_result["probe_run_id"],
                         "decision": probe_result["decision"],
                         "generated_at_utc": utc_now(),
@@ -999,6 +1105,8 @@ class SegmentWorker:
                             "exists in the cell."
                         ),
                     }
+                    if technical_failure:
+                        receipt["failure_class"] = "WORKER_FAILURE"
                     write_json_atomic(
                         attempt_dir / "TERMINAL_RECEIPT.json", receipt
                     )
@@ -1006,7 +1114,7 @@ class SegmentWorker:
                         task["task_id"],
                         task["attempt_id"],
                         task["lease_token"],
-                        probe_result["status"],
+                        terminal_status,
                         receipt,
                     )
                     return receipt
@@ -1161,13 +1269,14 @@ class SegmentWorker:
                 )
                 return receipt
             except PlannerScientificViolation as error:
-                receipt = {"status": "POLICY_REJECTED", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
+                receipt = {"status": "POLICY_REJECTED", "failure_class": "CONFIGURATION_BLOCK", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
                 write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
                 self.store.mark_terminal(task["task_id"], task["attempt_id"], task["lease_token"], "POLICY_REJECTED", receipt)
                 return receipt
             except BaseException as error:
                 receipt = {
                     "status": "POLICY_REJECTED",
+                    "failure_class": "CONFIGURATION_BLOCK",
                     "error": f"{type(error).__name__}: {error}",
                     "generated_at_utc": utc_now(),
                     "ink_used": False,
@@ -1207,7 +1316,7 @@ class SegmentWorker:
                 )
                 return receipt
             except BaseException as error:
-                receipt = {"status": "GROW_FAILED", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
+                receipt = {"status": "GROW_FAILED", "failure_class": "WORKER_FAILURE", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
                 write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
                 self.store.mark_terminal(task["task_id"], task["attempt_id"], task["lease_token"], "GROW_FAILED", receipt)
                 return receipt
@@ -1271,6 +1380,7 @@ class SegmentWorker:
                             "TRANSIENT_FINALIZATION_RETRY_BUDGET_EXHAUSTED"
                         ),
                         "retry_budget_exhausted": True,
+                        "failure_class": "PUBLICATION_FAILURE",
                         "non_claim": (
                             "The bounded infrastructure retry budget was "
                             "exhausted. Probe evidence and any staged bytes are "
@@ -1289,7 +1399,7 @@ class SegmentWorker:
                         exhausted,
                     )
                     return exhausted
-                receipt = {"status": "FINALIZATION_FAILED", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
+                receipt = {"status": "FINALIZATION_FAILED", "failure_class": "PUBLICATION_FAILURE", "error": f"{type(error).__name__}: {error}", "generated_at_utc": utc_now(), "ink_used": False}
                 write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
                 self.store.mark_terminal(task["task_id"], task["attempt_id"], task["lease_token"], "FINALIZATION_FAILED", receipt)
                 return receipt

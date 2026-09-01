@@ -40,6 +40,9 @@ HEAVY = os.environ.get("HELENA_E2E_HEAVY") == "1"
 # failed on the clock while the job it was waiting for succeeded.
 PATIENCE = float(os.environ.get("HELENA_E2E_MINUTES", "180"))
 SCROLL = os.environ.get("HELENA_E2E_SCROLL", "PHerc0826")
+# Work does not exist outside a mission, so every route here that creates any
+# has to name the one the pipeline made for this run.
+MISSION = os.environ.get("HELENA_E2E_MISSION", "test")
 
 pytestmark = pytest.mark.skipif(
     not (PANEL and USER and PASSWORD),
@@ -144,7 +147,8 @@ def test_a_replan_under_the_same_policy_is_refused(panel):
     has to happen."""
     receipt = panel.call("POST", "/api/segmentation/replan", {
         "grid_version": "e2e-probe", "policy_version": "e2e-probe",
-        "sample_id": SCROLL, "limit": 3, "dry_run": True})
+        "sample_id": SCROLL, "mission_id": MISSION,
+        "limit": 3, "dry_run": True})
     assert receipt["dry_run"] is True
     assert receipt["would_queue"] <= receipt["considered"]
 
@@ -171,7 +175,7 @@ def test_a_render_is_verified_and_published_before_it_is_called_a_success(panel)
     if not volume:
         pytest.skip("set HELENA_E2E_VOLUME_URL to the scroll's OME-Zarr")
     job = panel.call("POST", "/api/jobs", {
-        "sample_id": SCROLL, "phase": "P4",
+        "sample_id": SCROLL, "phase": "P4", "mission_id": MISSION,
         "parameters": {"lane": "vc-render-tifxyz",
                        "volume": os.environ.get("HELENA_E2E_VOLUME_CACHE",
                                                 "/srv/helena/cache/e2e"),
@@ -208,6 +212,7 @@ def test_the_detector_reads_the_render_the_queue_points_it_at(panel):
 
     job = panel.call("POST", "/api/jobs", {
         "sample_id": renders[0]["sample_id"], "phase": "P5",
+        "mission_id": MISSION,
         "profile_id": os.environ.get("HELENA_E2E_INK_PROFILE",
                                      "timesformer-gp-scroll1-screening@1.1.0"),
         "parameters": {"layer_stack": renders[0]["job_id"], "checkpoint": checkpoint,
