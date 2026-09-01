@@ -124,12 +124,14 @@ RUN python -m pip install --no-cache-dir -r /opt/campaignx/requirements.surface-
 RUN set -eu; \
     test -f "$SSL_CERT_FILE" || { echo "no trust store: VC3D will report HTTP 0 on every public Zarr" >&2; exit 3; }; \
     have="$(ldd --version | head -1 | awk '{print $NF}')"; \
-    need=2.38; \
+    need="$(grep -hoa 'GLIBC_2\.[0-9][0-9]*' /opt/campaignx/vc3d/lib/*/*.so* \
+            2>/dev/null | sed 's/GLIBC_//' | sort -V | tail -1)"; \
+    test -n "$need" || { echo "found no GLIBC_ reference in the bundle; the copy above changed shape" >&2; exit 3; }; \
     [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" = "$need" ] || { \
-      echo "this base has glibc $have and the compiled tools need $need." >&2; \
+      echo "this base has glibc $have and the bundled tools need $need." >&2; \
       echo "A bundle carries its own library closure and deliberately not glibc," >&2; \
       echo "so the tools would fail on the first job with" >&2; \
-      echo "  version \`GLIBC_2.38' not found" >&2; \
+      echo "  version \`GLIBC_$need' not found" >&2; \
       echo "Use a base at least as new as the one villa compiles on." >&2; \
       exit 3; }; \
     "$VC3D_GROW_BINARY" --help >/dev/null; \

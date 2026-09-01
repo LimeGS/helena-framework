@@ -74,6 +74,19 @@ ARG LANE_IMAGE
 LABEL org.helena.lane.image="${LANE_IMAGE}"
 COPY --from=lane /opt/villa /opt/lanes/ink-9um
 
+# The virtualenv was built at /opt/villa, and both its interpreter symlink and
+# the `home` in pyvenv.cfg are absolute. Moving the tree leaves bin/python
+# dangling, which sh reports as "not found" -- naming the symlink rather than
+# the target it could not follow, which is the confusing half. The interpreter
+# came along in the same copy, so repoint at where it landed.
+RUN set -eu; \
+    lane=/opt/lanes/ink-9um; \
+    interp="$(cd "$lane"/python/*/bin && pwd)"; \
+    ln -sfn "$interp/python3" "$lane/ink-venv/bin/python"; \
+    ln -sfn "$interp/python3" "$lane/ink-venv/bin/python3"; \
+    sed -i "s|^home = .*|home = $interp|" "$lane/ink-venv/pyvenv.cfg"
+
+
 ENV HELENA_INK_9UM_PYTHON=/opt/lanes/ink-9um/ink-venv/bin/python \
     VILLA_INK_ROOT=/opt/lanes/ink-9um/ink-detection \
     PYTHONPATH=/opt/lanes/ink-9um/ink-detection
