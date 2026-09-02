@@ -15,7 +15,7 @@ name: helena-tunnel
 
 services:
   tunnel:
-    image: ${HELENA_TUNNEL_IMAGE:-helena-control-tunnel:${HELENA_VERSION:-0.24.0}}
+    image: ${HELENA_TUNNEL_IMAGE:-helena-control-tunnel:${HELENA_VERSION:-0.24.1}}
     container_name: helena-control-tunnel
     # Host networking, because the point is to bind 127.0.0.1:55432 on the
     # host: that is the address every worker's FLEET_DB names, and a forward

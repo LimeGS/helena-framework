@@ -7,7 +7,17 @@ more than one material stage or that orchestrates declared stage commands.
   they do not contain scientific transformations of their own.
 - `container/`: receipt and runtime-capture helpers used by any containerized
   stage.
-- `patches/`: narrowly scoped patches to third-party tooling.
+- `models/`: `install_ink_weights.py`, which fetches the checkpoints the weight
+  manifest names and verifies each against its digest.
+  It writes into the models volume from outside, which the panel is meant to
+  be the one process doing; `harness/install_declared_weights.py` asks the
+  panel what it lacks and has it fetch each checkpoint against the profile's
+  digest, through the same API the Models page uses.
+- `migrations/`: one-off scripts that move existing control-plane records onto
+  a rule that arrived after them.
+
+Patches to third-party tooling live under `containers/patches/`, beside the
+images that apply them.
 
 Stage-specific implementation belongs beside the stage interface:
 

@@ -45,7 +45,7 @@ verifies. It is safe to interrupt and safe to re-run — a file already installe
 with the right digest is left alone.
 
 ```
-install_ink_weights.py --models-root /mnt/bulk/helena/models
+install_ink_weights.py --models-root /path/to/models
 install_ink_weights.py --models-root ... --only ink_9um   # one repository
 install_ink_weights.py --models-root ... --verify-only    # audit, download nothing
 ```
@@ -72,8 +72,13 @@ The page's real content is the resolution state per model, and there are eight:
 | `unreachable` | the hub did not answer |
 | `no_family` | the profile names no model family to look up |
 
-> **Trap** **Safetensors only.** A `pickle_only` model is a published model you
-> cannot install here, and that is deliberate: safetensors cannot carry code.
+> **Trap** **Safetensors freely; a pickle only against a hash.** A `.bin`,
+> `.pt` or `.pth` checkpoint runs code when it is loaded, on a GPU worker, so
+> `POST /api/models/download` fetches one only when the request states the
+> `expect_sha256` it must have, and deletes rather than installs a file whose
+> bytes disagree. The page's own Download button sends the profile's digest;
+> the free-form field does not, so a `pickle_only` model is one you fetch by
+> request with the hash, not by clicking.
 
 ## Modules
 
@@ -114,6 +119,16 @@ Registering one takes an `ssh` target, and that field is validated hard: the
 format is `[user@]host` and nothing else. A leading dash once made
 `-oProxyCommand=` code execution in the panel container.
 
+Registering with `provision` set — the default — also runs
+`containers/provision-host.sh` against that target in the background: Docker
+if it is missing, the worker and tunnel images streamed over SSH, the compose
+files and an env file under `/etc/helena` on the target, then the tunnel and
+the worker as compose projects. `GET /api/hosts/{id}/provision` reads the log
+back. The panel image does not carry `containers/`, so a deployment running
+only the image answers **503**: the host is registered, and provisioning is
+the part that did not happen — bring it up with the compose files and it
+reports itself.
+
 Host state is measured, not assumed — by the **worker's** probe, not by this
 page. The claim filters on the `has_gpu` and VRAM the worker reported, probed
 before its first claim, because a host with no card must not take a job that
@@ -128,7 +143,7 @@ rather than misrouted.
 > **Trap** A host reporting healthily is not the same as its workers claiming.
 > The host report is written on its own timer, in a separate branch of the same
 > loop, so it keeps reporting while a claim beside it is blocked. For that
-> question use [the Fleet page](#/docs/panel/fleet).
+> question use [the queue page](#/docs/panel/fleet).
 
 ## Users
 

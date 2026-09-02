@@ -6,9 +6,25 @@ not contain generated TIFF stacks, model maps, private credentials, or
 campaign conclusions. During migration, canonical legacy records are exposed
 as symlinks here rather than duplicated.
 
+## Eligible volumes
+
+`eligible_volumes.json` is the list of scrolls P0 can start from: for each,
+the CT volume, the m7 surface prediction over it, the voxel size and the beam
+energy. The committed file is the seed a new deployment starts from. The
+panel rebuilds it from the open-data bucket on startup and once a day
+(`CX_CATALOG_REFRESH=1`, the default; `0` pins it to the file) and keeps the
+result in its cache, falling back to the committed file when the bucket
+cannot be reached.
+`framework/stages/01-segmentation/scripts/build_eligible_volumes_catalog.py`
+is the builder both use.
+
 ## Current TIFXYZ catalogue
 
-`geometry_surface_catalog_v2/` is archive-first: every complete
+`geometry_surface_catalog_v2/` is what the panel reads by default
+(`CX_GEOMETRY_CATALOG`); `geometry_surface_catalog_v3/` and `_v4/` are later
+builds that individual scripts under
+`framework/stages/01-segmentation/scripts/` name explicitly. It is
+archive-first: every complete
 `workspace/surfaces/campaign-x/<scroll>/<surface>/` directory is exactly one
 Campaign X row. Growth receipts are attached as provenance, but a receipt
 cannot invent a surface whose TIFXYZ is absent. The SQLite database is the
@@ -44,20 +60,9 @@ Two preservation states are intentionally distinct:
 - `VERIFIED_META_ONLY`: only the hash-verified bounding box survives. It is a
   spatial exclusion, never a reusable surface.
 
-Regenerate and safely backfill with:
-
-```sh
-python3 framework/stages/01-segmentation/scripts/build_historical_growth_exclusions_v1.py \
-  --root . \
-  --output workspace/catalog/historical_growth_exclusions_v1/HISTORICAL_GROWTH_EXCLUSIONS.json
-
-python3 framework/stages/01-segmentation/scripts/backfill_historical_geometry_surfaces_v1.py \
-  --root . \
-  --manifest workspace/catalog/historical_growth_exclusions_v1/HISTORICAL_GROWTH_EXCLUSIONS.json \
-  --archive-root workspace/surfaces/campaign-x \
-  --output workspace/catalog/historical_growth_exclusions_v1/HISTORICAL_SURFACE_BACKFILL_RECEIPT.json
-```
-
-The backfill receipt is idempotent: a repeated run reports already archived
-byte-identical files. A mismatch, incomplete destination, or path escape fails
-closed. Neither catalogue represents physical geometry acceptance.
+The scripts that built these two files left the framework when the search
+moved out of it; the files stay as the record they were.
+`HISTORICAL_SURFACE_BACKFILL_RECEIPT.json` beside the exclusions says, per
+surface, whether byte-identical files were already in the archive; a
+mismatch, an incomplete destination or a path escape failed closed. Neither
+catalogue represents physical geometry acceptance.

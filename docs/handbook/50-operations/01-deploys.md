@@ -7,7 +7,7 @@ summary: How code reaches the fleet, and the two ways a deploy can lie about wha
 
 A push to `staging` or `development` runs the pipeline. Five stages —
 `prepare`, `test`, `build`, `deploy`, `verify` — on the host that branch owns:
-`development` deploys work-3, `staging` deploys gpu-1.
+each branch deploys the host its runner is tagged for.
 
 The last one is the half people forget. `verify` is the smoke and end-to-end run
 **against the deployment that just landed**, and e2e is deliberately excluded
@@ -17,11 +17,27 @@ The **deploy and smoke** jobs prove they are on the machine they are for before
 doing anything — a tag is a request; the check is the proof. The build jobs only
 prove a daemon is there.
 
+## Where configuration lives
+
+`install.sh` asks what a machine should be — `--panel`, `--cpu` or `--gpu`, or
+`HELENA_INSTALL` — brings the platform stack up from the checkout and then
+calls `containers/deploy-platform.sh nogpu|gpu` for the workers. That script
+seeds `config/*.env` in the checkout from `containers/compose/*.env.example`
+on first run — platform, panel, segment, ink, surface-qc, and a `postgres.env`
+it writes from the platform's own credentials — never overwriting a file that
+exists, and fills in the two things no template can know: this host's name and
+the workers' database URL. The directory is git-ignored and holds nothing
+privileged. A host configured before this keeps `/etc/helena`, and the deploy
+says so; `HELENA_ENV_DIR` points it anywhere else. Nothing on a host runs
+outside a container: `provision-host.sh`, for a second machine joining a
+fleet, copies the compose files and an env file to the target and starts the
+tunnel and the worker as compose projects, and installs no units.
+
 ## What runs, and what only builds
 
-Eleven containers on a host with cards, from five images. Three more images
-exist and never run: they are parents, and a name in `docker images` that is
-never a container is the thing that makes this look bigger than it is.
+Up to eleven containers on a host with cards, from five images. Three more
+images exist and never run: they are parents, and a name in `docker images`
+that is never a container is the thing that makes this look bigger than it is.
 
 | Container | Does | Image |
 | --- | --- | --- |
@@ -35,16 +51,23 @@ never a container is the thing that makes this look bigger than it is.
 | `helena-spiral` | the spiral fitter (P1) | `helena-worker-cpp` + lane |
 | `helena-ink-0` | P4, P5, P7 | `helena-worker-gpu` |
 | `helena-ink-9um` | P5 on the 9 µm lane | `helena-worker-gpu` + lane |
-| `helena-surface-qc-1` | automatic QC, one per card | `helena-worker-gpu` |
+| `helena-gpu-runtime-<n>` | automatic QC, one per card | `helena-worker-gpu` |
 
-A host without cards runs the first seven.
+Not all of them on every host. `helena-backup` starts only where
+`HELENA_BACKUP_S3` is set; `helena-spiral` only where the `helena-villa-python`
+lane image is present, which the deploy does not build; `helena-ink-9um` where
+the 9 µm lane image is, which it does. A clean `install.sh --gpu` on one card
+leaves nine running, and two more — `helena-prepare-volumes`, `helena-init` —
+that ran once and exited. A host without cards runs the first seven, backup on
+the same condition.
 
 ## The tree
 
 ```
 postgres:16-alpine                         pulled, not built
 
-node + python  -> helena-panel  -> helena-backup
+node + python  -> helena-panel
+postgres:16-alpine -> helena-backup                   the dump script on the client image
 
 ubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8
                                 |
@@ -84,9 +107,10 @@ virtualenv, its own source tree — that cannot share ours. Two exist:
 lasagna).
 
 They are grafted into a worker at `/opt/lanes/<name>` by a second build target.
-Each worker Containerfile has two: `runtime` for a host without the lane,
-`with_lane` for one with it. BuildKit does not build the lane stage when it is
-not asked for, so a host without the lane image never needs to have it.
+Each worker Containerfile has two: one for a host without the lane — `runtime`
+in the GPU worker, `worker` in the CPU one — and `with_lane` for one with it.
+BuildKit does not build the lane stage when it is not asked for, so a host
+without the lane image never needs to have it.
 
 One path per lane, and that matters: both used to land at `/opt/villa`, so two
 lanes could not sit in one image, and there were four worker images for two
@@ -144,12 +168,16 @@ commit you think is deployed — every result from a job that **ran** carries it
 ## Rollback
 
 Before rewriting an env file, the deploy retags the outgoing image
-`…:rollback-<commit>` and copies the env file to `<file>.bak-<commit>`. That is
-the recovery path.
+`…:rollback-<commit>` and copies the env file to `<file>.bak-<commit>`, keeping
+the last ten. That is the recovery path.
 
-## "The platform" is six compose projects
+## "The platform" is seven compose projects
 
-`helena` (postgres, init, panel, backup), `helena-segment`, `helena-spiral`,
-`helena-host-report`, `helena-ink-0`, and one `helena-qc-N` per card. The deploy
-script exists precisely because an "all" that is not all is worse than no "all",
-since it reports success.
+`helena` (postgres, prepare-volumes, init, panel, backup), `helena-segment`
+(segment, fleet-runner, preflight), `helena-host-report`, `helena-ink-0`,
+`helena-ink-9um`, `helena-spiral`, and one `helena-qc-N` per card. A worker
+host that reaches the control plane over SSH runs an eighth, `helena-tunnel`:
+`control-tunnel.compose.yaml`, the forward to the database's port as a
+container with a restart policy, where a systemd unit used to be. The deploy
+script exists precisely because an "all" that is not all is worse than no
+"all", since it reports success.

@@ -15,8 +15,9 @@ receipts on disk, lane profiles under git, the fleet tables in PostgreSQL and
     CX_DB='postgresql://helena:PASS@127.0.0.1:55432/helena' \
       panel/.venv/bin/uvicorn panel.app:app --host 0.0.0.0 --port 8800
 
-Without `CX_DB` the Fleet page explains what is missing instead of breaking. If
-`web/dist` does not exist, the root returns 503 with the build command.
+Without `CX_DB` the pages that read the control plane say so instead of
+breaking. If `web/dist` does not exist, the root returns 503 with the build
+command.
 
 In development, `npm run dev` starts Vite with `/api` proxied to port 8800.
 

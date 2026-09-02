@@ -33,7 +33,7 @@ from fleet.preflight_worker import (  # noqa: E402
 import run_first_letters_positive_control as harness  # noqa: E402
 
 # The slowest complete preflight this deployment has produced, from
-# docs/first-letters/control-run-to-run-variation.md. Not a guess and not a
+# three runs of the same control, days apart. Not a guess and not a
 # limit -- a measurement, which is the only thing that makes the arithmetic
 # below mean anything.
 SLOWEST_MEASURED_PREFLIGHT_SECONDS = 4184

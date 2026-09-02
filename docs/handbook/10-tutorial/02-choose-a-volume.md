@@ -9,12 +9,16 @@ scale.
 
 ## Do this
 
-1. Open **Scrolls**. The catalogue is the frozen list of what this deployment
-   can reach; a scroll not in it is not a scroll you can start from.
+1. Open **P0** under Mission; its view is called **Scrolls**. The catalogue is
+   what this deployment can reach — seeded from the committed file and refreshed
+   from the open-data bucket on startup and daily; a scroll not in it is not a
+   scroll you can start from.
 2. Find your scroll and read the declared **µm per voxel**. Check it against the
    scan you think you chose — a scroll often has several, at different energies
    and resolutions, and they are not interchangeable.
-3. On **Mission**, add the scroll to your mission.
+3. Tick the scroll, say why, and **Record what P0 decided**. That adds it to the
+   mission's selection. A name with no volume this deployment can read is
+   refused here rather than at P1.
 
 That is the whole of P0. Nothing computes; it records a choice.
 

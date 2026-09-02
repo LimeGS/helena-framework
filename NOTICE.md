@@ -28,8 +28,9 @@ not a redistribution.
 ## volume-cartographer, which the worker images contain
 
 `helena-villa` is [volume-cartographer](https://github.com/ScrollPrize/villa)
-compiled from source, and `helena-worker-cpp` is built on it; `helena-vc3d` packages
-three of its binaries with their library closure. **volume-cartographer is
+compiled from source, and `helena-worker-cpp` is built on it; `helena-gpu-runtime`
+carries three of its binaries with their library closure, taken out of
+`helena-villa` in a build stage. **volume-cartographer is
 GPL-3.0**, not MIT — the villa repository's own root LICENSE is MIT, and the
 subdirectory this framework compiles is not covered by it.
 
@@ -68,7 +69,7 @@ and extracted for reuse:
 | `scroll-tracing-benchmark-v4` | ours | MIT; referenced scroll data CC BY-NC 4.0 |
 | `vetting-card` | ours ([LimeGS/vetting-card](https://github.com/LimeGS/vetting-card)) | MIT; bundled sample is a crop of an official ink map, CC BY-NC 4.0 |
 
-`framework/patches/` holds patches applied to upstream tools at build time. They
+`containers/patches/` holds patches applied to upstream tools at build time. They
 are diffs against projects that carry their own licences; the patch is ours, the
 code it patches is not. Each patch names the project and commit it applies to.
 

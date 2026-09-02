@@ -14,7 +14,8 @@ images, tests and documentation live at the repository root.
 | `campaigns/<id>/findings/` | traceable candidates; never automatic acceptance |
 | `campaigns/<id>/cache/` | CT staging, TIFFs and arrays that can be regenerated |
 
-Only `catalog/` is tracked in this repository. Everything a run produces —
-`campaigns/`, and the archive of past campaigns — is deliberately untracked: it
+Only `catalog/` and these README files are tracked in this repository.
+Everything a run produces — `campaigns/`, `surfaces/`, and the archive of past
+campaigns — is deliberately untracked: it
 is a data release with its own citation and its own licence, not a directory
 people clone to read the code. See `NOTICE.md`.

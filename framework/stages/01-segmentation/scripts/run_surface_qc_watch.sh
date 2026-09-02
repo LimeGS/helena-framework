@@ -71,7 +71,7 @@ while :; do
   # shellcheck disable=SC2086 - vram_flag is either empty or two known words
   "$python_bin" "$script_dir/helena_segment_search_fleet.py" qc run \
     ${vram_flag} \
-    --db "$FLEET_DB" \
+    --db "$(case "$FLEET_DB" in postgres*) echo postgres-env://FLEET_DB;; *) echo "$FLEET_DB";; esac)" \
     --worker-id "$worker_id" \
     --run-root "$QC_RUN_ROOT" \
     --qc-executable "$SURFACE_QC_EXECUTABLE" \

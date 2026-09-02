@@ -35,8 +35,9 @@ is a deliberate trade you make per mission, not a tax on using the platform.
   first run, make it an exploration mission — no `campaign_kind`. You will
   spend the first attempt learning what the inputs look like, and a
   certification run refuses the shortcuts that make learning fast.
-- **A worker with a GPU**, visible on the Fleet page and polling. The spiral fit
-  and the detectors need one; nothing in this tutorial runs on the panel host.
+- **A worker with a GPU**, counted on the Mission page's Fleet tile and
+  `POLLING` in `GET /api/fleet`. The spiral fit and the detectors need one;
+  nothing in this tutorial runs on the panel host.
 - **The inputs the spiral fitter reads**: an umbilicus, tracks, and the lasagna
   normal volumes. These are not all downloadable — see
   [Recover a surface](#/docs/tutorial/recover-a-surface), which is the step

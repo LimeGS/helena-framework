@@ -52,7 +52,7 @@ services:
     #
     # One variable rather than a fallback chain: compose does not resolve a
     # default nested inside another default, and quietly used the innermost.
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.24.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.24.1}}
     container_name: helena-host-report
     restart: unless-stopped
     logging:
@@ -72,10 +72,17 @@ services:
     # The worker image keeps its interpreter in a venv; the panel image uses the
     # system one. Naming it is cheaper than making every image agree.
     entrypoint: ["${HELENA_HOST_REPORT_PYTHON:-/opt/venv/bin/python}"]
+    # The DSN goes in the environment and the command names the variable. It
+    # was the value, on the command line, where any user on the host reads it
+    # with `ps` -- the one process left doing that after the workers stopped.
+    # The env file above is optional, so the variable is set here as well:
+    # a name in argv with nothing behind it is a reporter that never reports.
+    environment:
+      FLEET_DB: ${FLEET_DB:?set FLEET_DB, or put it in the env file}
     command:
       - /workspace/campaign-x/framework/contracts/host_report.py
       - --db
-      - ${FLEET_DB:?set FLEET_DB, or put it in the env file}
+      - postgres-env://FLEET_DB
       - --host-id
       - ${HELENA_HOST_ID:?set HELENA_HOST_ID to this machine's name in the panel}
       # Which filesystem "disk free" describes. Only the GPU list is merged

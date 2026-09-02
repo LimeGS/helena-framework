@@ -71,12 +71,17 @@ a request can move.
 ## Then certify it
 
 A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them
-from the **Geometry** page — `POST /api/geometry/certify`.
+with **certify** under Maintenance on the P1 panel, or with
+`POST /api/geometry/certify`; the P2 panel shows the verdicts and has no
+button of its own.
 
-> **Trap** P2 is not one of the phases Command queues. The queueable set is P1,
-> P4, P5, P7, P8 and P9; anything else gets a 400 saying the phase has no runner
-> registered. P3 is the same, and goes through the Flattening page. This is not a formality — it is the step that tells you
-whether the fit stayed on one sheet.
+> **Trap** P2 is not one of the phases `POST /api/jobs` queues. The queueable
+> set is P1, P4, P5, P7, P8 and P9; anything else gets a 400 saying the phase
+> has no runner registered. P3 is the same, and goes through the Flattening
+> page.
+
+This is not a formality — it is the step that tells you whether the fit stayed
+on one sheet.
 
 What P2 can tell you that looking cannot:
 

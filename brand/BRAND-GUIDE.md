@@ -65,10 +65,9 @@ The supplied master logo SVGs contain outlined wordmark paths, so the logo does 
 
 ## File map
 
-- `svg/` — master scalable assets.
-- `png/` — transparent and background-backed raster exports.
-- `web/` — favicon files, app icons, manifest, and CSS tokens.
-- `reference/` — concept board used to extend the approved direction.
+- `svg/` — master scalable assets, including `helena-favicon.svg` and the app icons.
+- `helena-logo-horizontal-1500.png`, `helena-logo-horizontal-dark-1500.png`, `helena-social-card-1200x630.png` — the raster exports, beside this guide.
+- The favicon files, app icons and web manifest the panel serves live in `panel/web/public/`.
 
 ## Trademark note
 

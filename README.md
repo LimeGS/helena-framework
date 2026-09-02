@@ -217,15 +217,12 @@ Everything else is in the panel, under **Documentation**:
   to put your own tool into a phase.
 - **API reference** — the HTTP surface, from the routes themselves.
 
-Two runs are kept as evidence; only one is reproducible by a stranger:
+One run is kept as evidence, because it is the one a stranger can reproduce:
 
 - **September 2026 — [the public ink control](docs/public-control/REPRODUCE.md)**
   — the whole ink chain on a volume read anonymously from the open-data bucket
   and a non-gated checkpoint verified by digest. Six boundaries, all passed,
-  receipts and logs beside it, run twice here and once on a rented GPU.
-- ~~**August 2026 — [PHerc0826 golden run](docs/golden-runs/pherc0826-2026-08-01/README.md)**~~
-  — merge through ink screening to a negative. Superseded: older tooling, and a
-  private bucket, so it records one deployment instead of being reproducible.
+  receipts and logs beside it, run twice here and twice on a rented GPU.
 
 The two references are generated from the code they describe, so they cannot
 drift from the deployment in front of you. That is why this file is short.

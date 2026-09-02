@@ -16,11 +16,13 @@ anything with real curvature should not.
 Flatten from the **Flattening** page — `POST /api/flattening/run`. Like P2, P3
 is not queueable from Command.
 
-> **Trap** It refuses with a 409 if `CX_FLATTEN_STORE` is unset: a sheet
-> published nowhere is one P4 cannot read.
+> **Trap** It refuses with a 409 if `CX_FLATTEN_STORE` has been emptied: a sheet
+> published nowhere is one P4 cannot read. The default is
+> `/artifacts/flattened-v1`, on the platform's own volume.
 
-The panel sends `limit`, `dry_run`, `allow_unvalidated`, `sample` and
-`surface_id`; `profile` and `binary` are contract-only, and `binary` accepts
+The panel sends `limit`, `dry_run`, `allow_unvalidated`, `sample_id` and
+`mission_id`; `surface_id` is accepted by the route but not offered by the
+form, and `profile` and `binary` are contract-only, with `binary` accepting
 exactly one value. The fields:
 
 | Field | What it is |

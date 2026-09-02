@@ -1,6 +1,6 @@
 ---
 title: The HTTP API
-summary: 128 endpoints, the ones worth knowing by hand, and the two credentials that reach them.
+summary: 131 endpoints, the ones worth knowing by hand, and the two credentials that reach them.
 ---
 
 The panel's own pages use this API, so anything the panel can do is reachable
@@ -29,7 +29,10 @@ missions, so it does not have one.
 ## What the shape of a request is
 
 Everything is JSON. Errors carry a `detail`, and the ones worth handling say
-what to do rather than what went wrong.
+what to do rather than what went wrong. The spec is at `/api/openapi.json`,
+and an `/api/` path that matches no route answers **404** as JSON rather than
+the app shell, so a typo or a version skew fails as itself instead of as a 200
+full of HTML.
 
 Server-owned parameters are refused rather than ignored. Where a job publishes,
 and its whole control binding, are decided by the server — a request that sets
@@ -83,7 +86,7 @@ GET /api/audit                  every mutation, and every refusal
 
 `/api/fleet` carries `workers` with a `state` of `POLLING` or `SILENT`, and
 `workers_silent` as its own list. That is the difference between a quiet fleet
-and a stuck one — see [the Fleet page](#/docs/panel/fleet).
+and a stuck one — see [the queue page](#/docs/panel/fleet).
 
 ## Artifacts
 
@@ -130,6 +133,9 @@ DELETE         /api/config/env/{name}  drop an override
 PUT            /api/config/constant    rewrites a constant in the platform's source
 GET/POST/DELETE /api/users             accounts
 POST           /api/users/{name}/password
+POST           /api/segmentation/qc-jobs/requeue   configuration-blocked QC back to PENDING, with `fixed`
+GET/POST       /api/hosts              workers' hosts; POST provisions one, or answers 503 without the script
+GET            /api/hosts/{id}/provision   how that went
 ```
 
 > **Trap** `PUT /api/config/constant` is not a setting. It edits a module-level

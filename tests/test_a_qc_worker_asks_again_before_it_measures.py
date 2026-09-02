@@ -33,7 +33,7 @@ from fleet.store import FleetStore  # noqa: E402
 
 PROFILE = "fixture-surface-qc@1.0.0"
 
-# docs/first-letters/first-letters-hybrid-20260802/evidence.json
+# tests/fixtures/first-letters-hybrid-20260802/evidence.json
 PHERC0268_AREA = 0.01983222455087575
 PHERC0268_SHA256 = (
     "d6791503f3d5e1418ba92b9b3dd2b73051558c89e0fefdc280ffbb3b2a5752c6"

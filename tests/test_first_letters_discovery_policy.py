@@ -40,10 +40,6 @@ PROBE_PROFILE_PATH = (
 )
 RUNBOOK_PATH = ROOT / "framework/stages/01-segmentation/SEED_PROBE_RUNBOOK.md"
 CATALOG_PATH = ROOT / "workspace/catalog/eligible_volumes.json"
-DESIGN_PATH = (
-    ROOT
-    / "docs/superpowers/specs/2026-08-02-first-letters-discovery-recovery-design.md"
-)
 
 VERSIONED_ID = re.compile(r"(?:@\d+\.\d+\.\d+|-v\d+(?:\.\d+)*)$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -508,10 +504,9 @@ def campaign_fixture() -> dict[str, Any]:
     return validate_campaign(load_json(CAMPAIGN_PATH))
 
 
-def test_checked_in_policies_and_design_are_complete(
+def test_checked_in_policies_are_complete(
     control: dict[str, Any], campaign: dict[str, Any]
 ) -> None:
-    assert DESIGN_PATH.is_file()
     assert control["profile_id"] == "first-letters-control-policy@1.0.0"
     assert campaign["profile_id"] == "first-letters-campaign-decision-policy@1.0.0"
     assert control["source_locks"]["m7"]["level_set_iso_value"] == 0.2

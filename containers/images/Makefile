@@ -18,7 +18,7 @@ help:
 	@printf '%s\n' '  build-ink-9um       VILLA_INK_SRC=  the 9 um ink runner'
 	@printf '%s\n' 'Both also need VILLA_PYTHON_BASE_IMAGE= and UV_CONTEXT=. The two source'
 	@printf '%s\n' 'variables are different checkouts at different commits: the 9 um runner'
-	@printf '%s\n' 'does not exist at the volume_cartographer one. See BUILD_STATE.md.'
+	@printf '%s\n' 'does not exist at the volume_cartographer one.'
 	@printf '%s\n' 'build-surface-qc requires INK_IMAGE and VILLA_IMAGE, both sha256-pinned.'
 	@printf '%s\n' ''
 	@printf '%s\n' 'The assemble targets unpack a runtime tarball somebody built elsewhere.'

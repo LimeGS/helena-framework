@@ -150,11 +150,32 @@ say() { printf '  %s\n' "$*"; }
 # digest: the source rather than a digest of an image nobody published.
 villa_lock() { villa_lock_entry volume_cartographer "$1"; }
 
+# Python, wherever this runs. The deploy job runs in docker:27-cli, which has
+# no python3 -- so qc_entry below died with `python3: not found` after every
+# container was already recreated, and the job reported a failed deploy of a
+# platform that was up. villa_lock_entry had the same fault and hid it behind
+# `|| echo unknown`, which is why the villa labels read "unknown" on every CI
+# deploy while the same script on a laptop filled them in.
+#
+# The host's python3 when there is one; otherwise the same interpreter in a
+# container, with the checkout mounted at its own path so the script's
+# relative reads still resolve. Reads stdin as the program, like `python3 -`.
+py() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "$@"
+  else
+    $D run --rm -i -v "$root:$root" -w "$PWD" \
+      "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - "$@"
+  fi
+}
+
 # By entry and field: three images fetch from this lock now, each pinning its
 # own commit.
 villa_lock_entry() {
-  python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3],"unknown"))' \
-    "$root/containers/images/scrollfiesta/locks/source-lock.json" "$1" "$2" 2>/dev/null || echo unknown
+  py "$root/containers/images/scrollfiesta/locks/source-lock.json" "$1" "$2" <<'PY_LOCK' 2>/dev/null || echo unknown
+import json, sys
+print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3], "unknown"))
+PY_LOCK
 }
 
 # Seed the configuration from the templates rather than telling somebody to.
@@ -751,7 +772,7 @@ fi
 # The entry comes from the weights registry, so the repository, the path and the
 # digest are the ones this repository already pins, and a mismatch is deleted
 # rather than installed.
-qc_entry() { python3 - "$1" <<'PY_ENTRY'
+qc_entry() { py "$1" <<'PY_ENTRY'
 import json, sys
 registry = json.load(open("framework/registries/ink-weights-0.1.0.json"))
 for entry in registry["entries"]:
