@@ -31,6 +31,10 @@ if str(ROOT) not in sys.path:
 
 CATALOGUED = ("PHerc826", "PHerc1203")
 
+# The real predicate, captured before any fixture replaces it with a stub.
+import panel.app as _panel_module  # noqa: E402
+REAL_SCROLL_HAS_A_SOURCE = _panel_module.scroll_has_a_source
+
 
 @pytest.fixture
 def panel(tmp_path, monkeypatch):
@@ -142,3 +146,24 @@ def test_no_catalogue_refuses_nothing(panel, monkeypatch):
     monkeypatch.setattr(module, "scroll_has_a_source", lambda scroll: False)
 
     assert _mission(client, "qa-no-catalogue", ["PHercAnything"]).status_code == 201
+
+
+def test_the_control_scroll_has_a_volume_by_policy_not_by_catalogue(panel, monkeypatch):
+    """PHerc0139 is absent from the catalogue on purpose; its CT and m7 live in
+    the control policy. The public ink control's own step 5 -- a mission for
+    PHerc0139 -- was refused on a fresh deployment by the check added for
+    scrolls nothing can ever grow. The policy is the third place a scroll can
+    have a volume, and it counts."""
+    module, client = panel
+    monkeypatch.setattr(module, "scroll_has_a_source", REAL_SCROLL_HAS_A_SOURCE)
+    monkeypatch.setattr(module, "first_letters_control_policy", lambda: {
+        "control_cohort": {"scroll_id": "PHerc0139"},
+        "source_locks": {"ct": {"uri": "https://bucket/ct.zarr"},
+                         "m7": {"uri": "https://bucket/m7.zarr"}}})
+    monkeypatch.setattr(module, "fleet_store_read_only",
+                        lambda: (_ for _ in ()).throw(module.HTTPException(503, "no store")))
+
+    assert module.control_policy_names_a_volume_for("PHerc0139")
+    assert not module.control_policy_names_a_volume_for("PHercInventado")
+    assert _mission(client, "qa-control-scroll", ["PHerc0139"]).status_code == 201
+    assert _mission(client, "qa-still-refused", ["PHercInventado"]).status_code == 400

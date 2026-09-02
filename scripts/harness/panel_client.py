@@ -65,10 +65,14 @@ class Panel:
     """
 
     def __init__(self, base: str, timeout: float = 3600, *,
-                 trust: str | None = None, insecure: bool | None = None):
+                 trust: str | None = None, insecure: bool | None = None,
+                 cookies: CookieJar | None = None):
         self.base = base.rstrip("/")
         self.timeout = timeout
-        handlers = [urllib.request.HTTPCookieProcessor(CookieJar())]
+        # A jar handed in is a session already signed in -- curl's, typically --
+        # so a control can run where the password is not: the cookie carries
+        # what the password would have established, and nothing more.
+        handlers = [urllib.request.HTTPCookieProcessor(cookies or CookieJar())]
         trust = trust or os.environ.get("HELENA_PANEL_TLS_TRUST") or None
         if insecure is None:
             insecure = os.environ.get("HELENA_PANEL_TLS_INSECURE") == "1"

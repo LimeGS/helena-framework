@@ -217,12 +217,15 @@ Everything else is in the panel, under **Documentation**:
   to put your own tool into a phase.
 - **API reference** — the HTTP surface, from the routes themselves.
 
-One run is kept as evidence, because it is the one a stranger can reproduce:
+Two controls are kept as evidence, because they are what a stranger can reproduce: both are driven
+through the API, on a machine installed from this repository with one command.
 
-- **September 2026 — [the public ink control](docs/public-control/REPRODUCE.md)**
-  — the whole ink chain on a volume read anonymously from the open-data bucket
-  and a non-gated checkpoint verified by digest. Six boundaries, all passed,
-  receipts and logs beside it, run twice here and twice on a rented GPU.
+- **Segmentation, P0→P3 — [the public segmentation control](docs/public-control/REPRODUCE-SEGMENTATION.md)**
+  — intake, grow, geometry certification, CT-support screening, flattening. A grow is not deterministic,
+  so it passes on outcome within a bounded task budget and records surfaces by digest. <PHERC826_README_SENTENCE>
+- **Ink, P4→P7 — [the public ink control](docs/public-control/REPRODUCE.md)** — the whole ink chain on
+  a volume read anonymously from the open-data bucket and a non-gated checkpoint verified by digest.
+  Six boundaries, all passed, receipts and logs beside it, run twice here and twice on a rented GPU.
 
 The two references are generated from the code they describe, so they cannot
 drift from the deployment in front of you. That is why this file is short.

@@ -278,6 +278,48 @@ _GPU_EXHAUSTION_MARKERS = (
     "cudnn_status_alloc_failed",
 )
 
+# A card that cannot be initialised at all, as distinct from one with no room.
+# Seen on a running container after the host's cgroup state changed underneath
+# it: `nvidia-smi` present, `Failed to initialize NVML: Unknown Error`, and
+# torch.cuda.is_available() False -- while the worker went on claiming QC jobs,
+# each of which failed with "command failed with exit code 1: <path>". A
+# restart of the container is the cure; the worker's part is to say so rather
+# than spend leases finding out.
+_GPU_UNAVAILABLE_MARKERS = (
+    "failed to initialize nvml",
+    "no cuda-capable device",
+    "cuda driver version is insufficient",
+    "cuda_error_no_device",
+    "found no nvidia driver",
+)
+GPU_UNAVAILABLE = "GPU_UNAVAILABLE"
+
+
+def is_gpu_unavailable(text: object) -> bool:
+    """Whether this failure is a card that cannot be initialised at all."""
+    lowered = str(text).lower()
+    return any(marker in lowered for marker in _GPU_UNAVAILABLE_MARKERS)
+
+
+def gpu_probe_failure(*, nvidia_smi: str = "nvidia-smi") -> str | None:
+    """What nvidia-smi says when it cannot initialise the driver, else None.
+
+    None also when the binary is missing: that host has said nothing about its
+    card, and refusing every job because a binary is absent replaces an outage
+    with a worse one -- the same rule gpu_memory() follows. Only a present
+    nvidia-smi that fails *with the driver's own words* is an unavailable GPU.
+    """
+    try:
+        completed = subprocess.run(
+            [nvidia_smi, "-L"], capture_output=True, text=True, timeout=30,
+            check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode == 0:
+        return None
+    said = (completed.stdout + completed.stderr).strip()
+    return said if is_gpu_unavailable(said) else None
+
 GPU_MEMORY_EXHAUSTED = "GPU_MEMORY_EXHAUSTED"
 
 
@@ -444,6 +486,10 @@ class SurfaceQcWorker:
         # cards with anything else sets this to what a screening pass needs.
         self.minimum_free_vram_mib = minimum_free_vram_mib
 
+    def _gpu_unavailable(self) -> str | None:
+        """The driver's own words when the card cannot be initialised, else None."""
+        return gpu_probe_failure()
+
     def _vram_shortfall(self) -> tuple[int, int] | None:
         """The best card's (free, total) when it is below the floor, else None.
 
@@ -588,6 +634,33 @@ class SurfaceQcWorker:
         attempt_dir.mkdir(parents=True, exist_ok=False)
         write_json_atomic(attempt_dir / "CLAIMED_QC_JOB.json", _sanitized_claim(claim))
         with QcLeaseHeartbeat(self.store, claim, self.lease_seconds) as heartbeat:
+            unavailable = self._gpu_unavailable()
+            if unavailable is not None:
+                # Refused before the executor, like the VRAM floor below, and
+                # for the same reason: the executor would run to the point of
+                # needing the card and fail there, and the receipt would say
+                # "exit code 1" with the path scrubbed out. This says which
+                # card is missing, in the driver's own words.
+                heartbeat.ensure()
+                retry = {
+                    "schema": "campaignx.segment_qc_retryable_outage.v1",
+                    "status": "RETRYABLE_QC_UNAVAILABLE",
+                    "reason_code": GPU_UNAVAILABLE,
+                    "qc_job_id": claim["qc_job_id"],
+                    "surface_id": claim["surface_id"],
+                    "error": f"RuntimeError: this worker's GPU cannot be "
+                             f"initialised: {unavailable[:200]}",
+                    "generated_at_utc": utc_now(),
+                    "no_scientific_conclusion": True,
+                }
+                write_json_atomic(attempt_dir / "RETRYABLE_QC_RECEIPT.json", retry)
+                return _with_reason(
+                    self.store.requeue_qc_unavailable(
+                        claim["qc_job_id"], claim["lease_token"], retry,
+                        retry_delay_seconds=self.retry_delay_seconds,
+                    ),
+                    GPU_UNAVAILABLE,
+                )
             room = self._vram_shortfall()
             if room is not None:
                 # Refused before the executor, which is the whole point. The
@@ -677,6 +750,8 @@ class SurfaceQcWorker:
                 # wherever it was noticed.
                 if is_gpu_exhaustion(retry["error"]):
                     retry["reason_code"] = GPU_MEMORY_EXHAUSTED
+                elif is_gpu_unavailable(retry["error"]):
+                    retry["reason_code"] = GPU_UNAVAILABLE
                 write_json_atomic(attempt_dir / "RETRYABLE_QC_RECEIPT.json", retry)
                 _discard_bulk_output(attempt_dir)
                 return _with_reason(

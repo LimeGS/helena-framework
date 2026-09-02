@@ -1,0 +1,167 @@
+{
+  "budget": {
+    "grid_steps": [
+      896,
+      1024,
+      768,
+      1152,
+      640,
+      1280
+    ],
+    "max_tasks": 144,
+    "minutes": 90.0
+  },
+  "content_sha256": "f77b93ac47a05f3f428313a6f11faf084f01e1d32e831c01bad66fe7fcd8b02d",
+  "control_state": "CONTROL_INCOMPLETE",
+  "first_nonpassing_boundary": "PHYSICAL_QC",
+  "generated_at_utc": "2026-09-02T15:35:00Z",
+  "mission_id": "segmentation-control-358",
+  "non_claims": [
+    "This receipt records what the segmentation chain produced within a bounded budget on public data. It does not claim any particular surface, area or geometry will recur: a grow is not deterministic, and two passing runs may hold different surfaces.",
+    "A CT_SUPPORTED verdict is the platform's own physical-support screen under a hash-pinned profile. It is not independent validation and not an ink or text claim.",
+    "This is not the nine-boundary First Letters campaign control and not the public ink control; the evaluator refuses either substitution by schema."
+  ],
+  "sample_id": "PHerc358",
+  "schema": "campaignx.public_segmentation_stage_survival.v1",
+  "stages": [
+    {
+      "boundary": "PUBLIC_SOURCE",
+      "counts": {
+        "probes": {
+          "ct": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          },
+          "m7": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          }
+        }
+      },
+      "elapsed_seconds": 2.5622279230010463,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PUBLIC_SOURCE_READ_ANONYMOUSLY",
+      "resource_identity": {
+        "credentials_used": false,
+        "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0358/volumes/20250821151737-9.362um-1.2m-113keV-masked.zarr",
+        "m7_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0358/representations/predictions/surfaces/20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+        "voxel_size_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "INTAKE",
+      "counts": {},
+      "elapsed_seconds": 0.031192630995064974,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "P0_FROZEN_AND_SELECTED",
+      "resource_identity": {
+        "artifact_id": "p0:PHerc358:39b671c94eb1",
+        "content_sha256": "39b671c94eb1e2cd338a82dc47c5e972f63c98bf4a90a10b011b1fc2cec2f512"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GROW",
+      "counts": {
+        "batches": 1,
+        "surfaces": 4,
+        "task_states": {
+          "NO_SEED": 140,
+          "QC_PENDING": 4
+        }
+      },
+      "elapsed_seconds": 302.3837597909878,
+      "input_artifacts": [],
+      "output_hashes": {
+        "0cb4fefd-0235-58c1-8310-15b7375caddc": "fa263213a329c55635b70e64d7d323e713610a986d33d47ba1d893a4df5e3d08",
+        "a35deafe-add0-5e45-b603-cc5525414cbe": "d444cd60a5e234000e805ffa69ce99bcccb6133871827fe347fa54eee78b0c85",
+        "be7f4c0c-e7a1-5c55-aad1-69755b330126": "65b7776ab334ca63cee9a798610caa16a1a146ef133f6d0eed2e2cb3c4bcbccc",
+        "df1f6dca-15c6-5b76-9865-dab304505b35": "58a30d852cf47bdea94843d2a9b6671b73f26d45d0450a805e12710551c8327d"
+      },
+      "reason_code": "SURFACES_PRODUCED",
+      "resource_identity": {
+        "batches": [
+          {
+            "backend": "vc3d",
+            "generated": 144,
+            "grid_step": 896,
+            "inserted": 144,
+            "planner": "cost-aware-v2",
+            "settled_in_time": true,
+            "supported_so_far": 0,
+            "surfaces_so_far": 4,
+            "task_states": {
+              "NO_SEED": 140,
+              "QC_PENDING": 4
+            }
+          }
+        ],
+        "inserted_total": 144,
+        "through": "helena-queue"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GEOMETRY",
+      "counts": {
+        "certified": 4,
+        "geometry_states": [
+          "GEOMETRY_CERTIFIED"
+        ],
+        "of": 4
+      },
+      "elapsed_seconds": 1.5400000847876072e-06,
+      "input_artifacts": [],
+      "output_hashes": {
+        "0cb4fefd-0235-58c1-8310-15b7375caddc": "fa263213a329c55635b70e64d7d323e713610a986d33d47ba1d893a4df5e3d08",
+        "a35deafe-add0-5e45-b603-cc5525414cbe": "d444cd60a5e234000e805ffa69ce99bcccb6133871827fe347fa54eee78b0c85",
+        "be7f4c0c-e7a1-5c55-aad1-69755b330126": "65b7776ab334ca63cee9a798610caa16a1a146ef133f6d0eed2e2cb3c4bcbccc",
+        "df1f6dca-15c6-5b76-9865-dab304505b35": "58a30d852cf47bdea94843d2a9b6671b73f26d45d0450a805e12710551c8327d"
+      },
+      "reason_code": "GEOMETRY_CERTIFIED",
+      "resource_identity": {},
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "PHYSICAL_QC",
+      "counts": {
+        "of": 4,
+        "physical_states": [
+          "INK_SCREEN_INSUFFICIENT"
+        ],
+        "qc_jobs": {
+          "COMPLETED": 4
+        },
+        "supported": 0
+      },
+      "elapsed_seconds": 0.04168784299690742,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "NO_CT_SUPPORTED_SURFACE",
+      "resource_identity": {
+        "profiles": [
+          {
+            "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+            "profile_sha256": "e0e099eac347f4c590f4428dc361be8bdb5432ccb5b791c2801f131d0eaa4793"
+          }
+        ]
+      },
+      "terminal_state": "INCOMPLETE"
+    },
+    {
+      "boundary": "FLATTEN",
+      "counts": {},
+      "elapsed_seconds": 0.0,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PREREQUISITE_NOT_REACHED",
+      "resource_identity": {},
+      "terminal_state": "NOT_RUN_PREREQUISITE"
+    }
+  ]
+}

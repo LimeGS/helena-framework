@@ -558,3 +558,23 @@ def test_the_deploy_needs_nothing_the_ci_image_lacks():
 
     assert "jq " not in script and "jq\t" not in script, (
         "the deploy calls jq, which docker:27-cli does not have")
+
+
+def test_the_deploys_python_helper_mounts_nothing():
+    """py() bind-mounted the checkout at its own path. On a CI runner that path
+    is inside the runner's container and not on the host whose daemon runs the
+    image, so the mount arrived empty and the deploy died on a missing registry
+    -- one step past the python3 fault it had just fixed. The helper takes its
+    inputs as arguments now and assumes nothing about the host's filesystem."""
+    script = (ROOT / "containers/deploy-platform.sh").read_text(encoding="utf-8")
+    lines = script.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("py() {"))
+    end = next(i for i in range(start, len(lines)) if lines[i] == "}")
+    run_lines = [line for line in lines[start:end + 1] if "$D run" in line]
+    assert run_lines, "py() no longer runs a container when python3 is absent"
+    for line in run_lines:
+        assert " -v " not in line and "--mount" not in line and " -w " not in line, (
+            f"py() assumes a host path: {line.strip()}")
+    # And no caller reads a repository file from inside the interpreter.
+    for opener in ('json.load(open("framework/', "open(sys.argv[1])"):
+        assert opener not in script, f"a py() program opens a path: {opener}"
