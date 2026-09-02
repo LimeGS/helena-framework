@@ -19,9 +19,29 @@ on a rented RTX 5090 installed from the public repository.
     job_id:   p5-1ada8a67cfe743
     artifact: /artifacts/ink-maps-v1/surfaces/PHerc0139/ink-maps/p5-1ada8a67cfe743
 
-Nothing was done on the machine except through the API: the account, the
-mission, the P0 artifact and its selection, the queued job, and the artifact
-fetched back. No path on the worker's disk was read.
+## What went through the API, and what did not
+
+Through it: the account, the mission, the P0 artifact and its selection, the
+queued job, and the map itself -- fetched back by the `artifact_uri` and
+`artifact_sha256` the worker published, not read off its disk. That is the part
+the earlier receipts could not show.
+
+Not through it, and worth saying rather than leaving to be found:
+
+* The driver, the container toolkit and the installer are host setup, and the
+  installer is not the API either.
+
+Two things that were not, when this run was made, are now. The checkpoint was
+written into the `helena-models` volume with a `docker run`, because the models
+API refused both a `.pth` and a subdirectory; it accepts a pickle against a
+stated hash now, and the path, so the placement is a request like the rest. And
+the `CHECKPOINT` boundary hashed that file off the volume, which is a claim
+about the machine the control ran on rather than the one that ran the job; it
+asks the deployment now, and the receipt says which way with
+`established_by`. The receipt below predates both, and says `local-file`.
+
+An earlier version of this page said nothing was done except through the API and
+that no path on the worker's disk was read. Both were wrong.
 
 ## What differed, and what did not
 

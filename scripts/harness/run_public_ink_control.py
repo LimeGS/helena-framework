@@ -131,6 +131,7 @@ def run_public_ink_control(
     source: Any | None = None,
     inference: Callable[..., dict[str, Any]] | None = None,
     clock: Callable[[], float] | None = None,
+    installed: Callable[[str], dict[str, Any] | None] | None = None,
 ) -> dict[str, Any]:
     """Run the six boundaries and return the receipt, whatever happened."""
     import time
@@ -189,23 +190,65 @@ def run_public_ink_control(
                             "output_voxel_um": plan.output_voxel_um})
 
     # -- CHECKPOINT --------------------------------------------------------
+    #
+    # Asked of the platform when there is one, and hashed off disk only when
+    # there is not. Hashing a file the control can see proves that *this*
+    # process found the right bytes somewhere; it says nothing about what the
+    # worker will load, and it made the control mount the models volume --
+    # reaching into the machine it is testing, which is the thing the queued
+    # path exists to stop doing.
+    #
+    # The platform's answer is better evidence and a different claim: it lists
+    # the checkpoints its own frozen profiles declare, by hash, and says which
+    # are installed. A digest that no profile declares is not a checkpoint this
+    # deployment can be asked to use, however correct its bytes are.
     started = clock()
-    checkpoint = Path(checkpoint)
-    if not checkpoint.is_file():
-        _set(by["CHECKPOINT"], INCOMPLETE, "CHECKPOINT_MISSING",
-             elapsed_seconds=max(0.0, clock() - started))
-        return evaluate_survival_matrix(receipt)
-    digest = sha256_file(checkpoint)
-    if digest != expected_checkpoint_sha256:
-        _set(by["CHECKPOINT"], FAILED, "CHECKPOINT_DIGEST_MISMATCH",
+    if installed is not None:
+        try:
+            known = installed(expected_checkpoint_sha256)
+        except Exception as failure:  # noqa: BLE001
+            _set(by["CHECKPOINT"], INCOMPLETE, "CHECKPOINT_NOT_ESTABLISHED",
+                 elapsed_seconds=max(0.0, clock() - started),
+                 detail=f"{type(failure).__name__}: {failure}")
+            return evaluate_survival_matrix(receipt)
+        if known is None:
+            _set(by["CHECKPOINT"], FAILED, "CHECKPOINT_NOT_DECLARED",
+                 elapsed_seconds=max(0.0, clock() - started),
+                 detail=(f"no profile on this deployment declares "
+                         f"{expected_checkpoint_sha256}"),
+                 output_hashes={"checkpoint_sha256": expected_checkpoint_sha256})
+            return evaluate_survival_matrix(receipt)
+        if not known.get("installed"):
+            _set(by["CHECKPOINT"], INCOMPLETE, "CHECKPOINT_NOT_INSTALLED",
+                 elapsed_seconds=max(0.0, clock() - started),
+                 detail=(f"the deployment declares {expected_checkpoint_sha256} "
+                         "and does not have it"),
+                 output_hashes={"checkpoint_sha256": expected_checkpoint_sha256})
+            return evaluate_survival_matrix(receipt)
+        _set(by["CHECKPOINT"], PASS, "CHECKPOINT_IS_THE_DECLARED_ONE",
              elapsed_seconds=max(0.0, clock() - started),
-             detail=f"{digest} is not the declared {expected_checkpoint_sha256}",
-             output_hashes={"checkpoint_sha256": digest})
-        return evaluate_survival_matrix(receipt)
-    _set(by["CHECKPOINT"], PASS, "CHECKPOINT_IS_THE_DECLARED_ONE",
-         elapsed_seconds=max(0.0, clock() - started),
-         output_hashes={"checkpoint_sha256": digest},
-         resource_identity={"bytes": checkpoint.stat().st_size})
+             output_hashes={"checkpoint_sha256": expected_checkpoint_sha256},
+             resource_identity={"established_by": "helena-api",
+                                "declared_by": known.get("declared_by"),
+                                "expected_path": known.get("expected_path")})
+    else:
+        checkpoint = Path(checkpoint)
+        if not checkpoint.is_file():
+            _set(by["CHECKPOINT"], INCOMPLETE, "CHECKPOINT_MISSING",
+                 elapsed_seconds=max(0.0, clock() - started))
+            return evaluate_survival_matrix(receipt)
+        digest = sha256_file(checkpoint)
+        if digest != expected_checkpoint_sha256:
+            _set(by["CHECKPOINT"], FAILED, "CHECKPOINT_DIGEST_MISMATCH",
+                 elapsed_seconds=max(0.0, clock() - started),
+                 detail=f"{digest} is not the declared {expected_checkpoint_sha256}",
+                 output_hashes={"checkpoint_sha256": digest})
+            return evaluate_survival_matrix(receipt)
+        _set(by["CHECKPOINT"], PASS, "CHECKPOINT_IS_THE_DECLARED_ONE",
+             elapsed_seconds=max(0.0, clock() - started),
+             output_hashes={"checkpoint_sha256": digest},
+             resource_identity={"established_by": "local-file",
+                                "bytes": checkpoint.stat().st_size})
 
     # -- INK ---------------------------------------------------------------
     started = clock()
@@ -366,7 +409,11 @@ def queued_inference(panel: Any, *, mission_id: str, sample_id: str,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--surface-volume", required=True)
-    ap.add_argument("--checkpoint", type=Path, required=True)
+    # Not required with --panel: the deployment establishes the checkpoint and
+    # nothing here reads the file. Leaving it mandatory forced the caller to
+    # name a local path that is never opened, which is how the models volume
+    # stayed mounted into a control that no longer needs it.
+    ap.add_argument("--checkpoint", type=Path)
     ap.add_argument("--expected-checkpoint-sha256", required=True)
     ap.add_argument("--output", type=Path, required=True)
     # Through Helena, rather than beside it. Without --panel the ink step is a
@@ -393,6 +440,10 @@ def main() -> int:
     args = ap.parse_args()
 
     inference = None
+    installed = None
+    if not args.panel and args.checkpoint is None:
+        ap.error("--checkpoint is required without --panel: with no deployment "
+                 "to ask, the file is the only way to establish the checkpoint")
     if args.panel:
         for needed in ("user", "password", "mission", "checkpoint_path"):
             if not getattr(args, needed):
@@ -402,6 +453,21 @@ def main() -> int:
 
         panel = Panel(args.panel)
         panel.sign_in(args.user, args.password)
+
+        def installed(sha256: str) -> dict[str, Any] | None:
+            """What the deployment says about a checkpoint, by hash.
+
+            The platform lists what its own frozen profiles declare and which of
+            those are on disk. Asking it is a different claim from hashing a
+            file this process can see: one is about the deployment that will run
+            the job, the other about the machine the control happens to be on.
+            """
+            answer = panel.call("GET", "/api/models") or {}
+            for row in answer.get("checkpoints") or []:
+                if row.get("checkpoint_sha256") == sha256:
+                    return row
+            return None
+
         inference = queued_inference(
             panel, mission_id=args.mission, sample_id=args.sample_id,
             profile_id=args.profile_id,
@@ -435,7 +501,7 @@ def main() -> int:
     receipt = run_public_ink_control(
         surface_volume=args.surface_volume, checkpoint=args.checkpoint,
         expected_checkpoint_sha256=args.expected_checkpoint_sha256,
-        output=args.output, inference=inference)
+        output=args.output, inference=inference, installed=installed)
     (args.output / "PUBLIC_INK_CONTROL.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: receipt[k] for k in

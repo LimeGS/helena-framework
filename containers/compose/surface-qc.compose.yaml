@@ -22,7 +22,7 @@ services:
     # profile; taking them from the image rather than a mounted checkout is what
     # lets a machine run this with nothing on its disk. The model underneath is
     # the same model, byte for byte, that every past verdict was issued with.
-    image: ${HELENA_QC_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.23.0}}
+    image: ${HELENA_QC_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.24.0}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are
@@ -98,7 +98,15 @@ services:
       - ${HELENA_QC_RUN_ROOT:?set HELENA_QC_RUN_ROOT}/gpu${HELENA_QC_DEVICE:-0}:/artifacts/qc-runtime
       # Surfaces published to a local artifact root on this host, so a URI that
       # names a container path still resolves.
-      - ${HELENA_QC_SURFACES:?set HELENA_QC_SURFACES}:/artifacts/surfaces
+      # The whole artifacts volume at /artifacts, the way the segment stack
+      # mounts it -- not its surfaces subdirectory at /artifacts/surfaces.
+      # Mounting the subdirectory meant the two stacks had to agree on two
+      # things instead of one, and they stopped agreeing: segment published
+      # into the named volume and QC read a host bind that was empty, so
+      # every QC job failed with a FileNotFoundError whose path the receipt
+      # scrubs. One mount, one place, and the surface a worker published is
+      # the surface the next worker opens.
+      - ${HELENA_QC_ARTIFACTS:?set HELENA_QC_ARTIFACTS to helena-artifacts}:/artifacts
       # P8 publishes merged children under a separate durable namespace and
       # immediately queues the same physical QC used by P1 surfaces.  Without
       # this mount that automatic job can be claimed but can never materialize
@@ -114,4 +122,10 @@ services:
 volumes:
   helena-models:
     name: ${HELENA_MODELS_VOLUME:-helena-models}
+    external: true
+  # External, and the same volume the segment stack publishes into: a surface
+  # this stack reads was written by that one, so naming it here rather than
+  # declaring a second is what keeps them the same bytes.
+  helena-artifacts:
+    name: ${HELENA_ARTIFACTS_VOLUME:-helena-artifacts}
     external: true

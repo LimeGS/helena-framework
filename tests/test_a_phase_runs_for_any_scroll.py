@@ -102,7 +102,16 @@ def test_a_control_plane_that_cannot_be_asked_does_not_become_a_refusal(
 
 
 def test_reading_never_refused_before_and_still_does_not(monkeypatch) -> None:
+    """A scroll the catalogue does not carry is still readable.
+
+    The example used to be PHerc0841, a real scroll that the catalogue of the
+    day happened to omit -- so the test passed for a reason that had nothing to
+    do with what it checks, and broke the moment the catalogue grew to cover
+    what the open-data bucket actually publishes. A name no catalogue will ever
+    carry keeps the question the same one for good.
+    """
     import panel.app as panel_app
 
     monkeypatch.setattr(panel_app, "fleet_store_read_only", lambda: _Store(set()))
-    assert panel_app.catalog_sample_id("PHerc0841", strict=False) == "PHerc0841"
+    uncatalogued = "PHercNotInAnyCatalogue"
+    assert panel_app.catalog_sample_id(uncatalogued, strict=False) == uncatalogued

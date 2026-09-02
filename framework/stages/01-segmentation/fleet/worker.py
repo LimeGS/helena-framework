@@ -676,7 +676,46 @@ class SegmentWorker:
         if task is None:
             return None
         attempt_dir = self.run_root / task["task_id"] / task["attempt_id"]
-        attempt_dir.mkdir(parents=True, exist_ok=False)
+        try:
+            attempt_dir.mkdir(parents=True, exist_ok=False)
+        except FileExistsError:
+            # exist_ok=False is right -- an attempt id is stable_id(task,
+            # attempt_number), so a directory that is already there belongs to
+            # this same identity, and writing into it would attribute a second
+            # run's output to the first one's evidence. What was wrong is that
+            # the error escaped run_one and killed the worker: the process
+            # exited, restarted, claimed the next task and died on that one
+            # too. Three restarts in ten minutes, with each claimed task left
+            # to expire its lease.
+            #
+            # The collision belongs to the attempt. It is recorded the way the
+            # other refusals below are, and the worker goes on to the next
+            # task.
+            receipt = {
+                "status": "POLICY_REJECTED",
+                "failure_class": "CONFIGURATION_BLOCK",
+                "reason": "ATTEMPT_DIRECTORY_ALREADY_EXISTS",
+                "error": f"{attempt_dir} exists, so this attempt has already "
+                         "written here; running it again would attribute new "
+                         "output to the earlier run's identity",
+                "generated_at_utc": utc_now(),
+                "ink_used": False,
+                "non_claim": (
+                    "No candidate source was read and no grow was executed."
+                ),
+            }
+            # Only if the earlier run left none: a receipt that is already
+            # there is the record of what happened, and this is not it.
+            if not (attempt_dir / "TERMINAL_RECEIPT.json").exists():
+                write_json_atomic(attempt_dir / "TERMINAL_RECEIPT.json", receipt)
+            self.store.mark_terminal(
+                task["task_id"],
+                task["attempt_id"],
+                task["lease_token"],
+                "POLICY_REJECTED",
+                receipt,
+            )
+            return receipt
         write_json_atomic(attempt_dir / "CLAIMED_TASK.json", {key: value for key, value in task.items() if key != "lease_token"})
         try:
             benchmark_execution = (

@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, Empty, Info, Pill } from "../components/Bits";
 import { Strips } from "../components/Strips";
-import { RunPhase } from "../components/RunPhase";
 
 /**
  * P2: is this grown surface a physically plausible lamina?
@@ -59,17 +58,6 @@ export default function Certification({ mission, sample }:
 
   return (
     <>
-      <Card title={<>Give a verdict to surfaces that have none <Info
-              label="What this button runs" title="Certify">
-              Runs the same gate the fleet runs when it finalizes a surface, over the
-              surfaces that carry no verdict. Unmeasured is not a verdict; it is the
-              absence of one.
-            </Info></>}>
-        <RunPhase endpoint="/api/geometry/certify" label="Certify"
-                  invalidate="geometry" mission={mission} sample={sample}
-                  disabled={Boolean(mission && !sample)}
-                  disabledReason="Select a scroll in P0 before certification." />
-      </Card>
       <div className="strip">
         <div className="tile steady">
           <h2>certified</h2>

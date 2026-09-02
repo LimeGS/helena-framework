@@ -50,12 +50,19 @@ def test_the_script_is_valid_shell():
 
 @pytest.mark.parametrize("needle, why", [
     ("command -v docker", "must install Docker only when it is missing"),
-    ("helena-worker-cpp", "must install the worker unit"),
-    ("helena-control-tunnel", "must install the tunnel the worker reaches the "
-                                 "control plane through"),
-    ("is-active", "must report what the units ended up doing rather than assume it"),
+    ("helena-worker-cpp", "must deploy the worker"),
+    ("helena-control-tunnel", "must deploy the tunnel the worker reaches the "
+                              "control plane through"),
+    ("docker inspect", "must report what the containers ended up doing rather "
+                       "than assume it"),
 ])
 def test_the_script_does_the_four_things_registration_promised(needle, why):
+    """The four things, now that both halves are containers.
+
+    This asked for `is-active`, because both halves were systemd units -- which
+    is what the script's own header said it would never do. They are compose
+    services now, so the question is asked of Docker.
+    """
     assert needle in SCRIPT.read_text(encoding="utf-8"), why
 
 

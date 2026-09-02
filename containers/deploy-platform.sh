@@ -203,6 +203,36 @@ do
   export "$var=$env_dir/$file"
 done
 
+# The directories the workers write into, owned by the uid they run as. These
+# are host paths on purpose -- a run somebody can look at without entering a
+# container -- and Docker creates a bind path root:root, so a worker running as
+# 1000 got
+#
+#   PermissionError: '/srv/helena/runs/pherc826-p3-…'
+#
+# and, because it died before recording anything, the job sat leased for an hour
+# and then failed as LEASE_EXHAUSTION. A permission bug that presents as a
+# timeout costs a great deal more than one that presents as itself.
+for setting in "HELENA_FLEET_RUNS segment.env /srv/helena/runs" \
+               "HELENA_INK_RUNS ink.env /srv/helena/runs" \
+               "HELENA_QC_RUN_ROOT surface-qc.env /srv/helena/runs/surface-qc-v2"
+do
+  set -- $setting
+  var="$1" file="$env_dir/$2" fallback="$3"
+  [ -f "$file" ] || continue
+  path="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
+  path="${path:-$fallback}"
+  case "$path" in
+    /*) ;;                       # a host path; a volume name is not ours to make
+    *) continue ;;
+  esac
+  mkdir -p "$path" 2>/dev/null || {
+    echo "  cannot create $path for $var; the workers will fail on their first job" >&2
+    continue
+  }
+  chown -R "${HELENA_WORKER_UID:-1000}:${HELENA_WORKER_GID:-1000}" "$path" 2>/dev/null || true
+done
+
 # host-report names the machine it reports on and refuses to interpolate
 # without it, so a clean install brought the stack up and then failed with
 #
@@ -224,15 +254,21 @@ for pair in \
   "segment.env HELENA_HOST_ID" \
   "segment.env HELENA_SEGMENT_HOST_ID" \
   "ink.env HELENA_INK_HOST_ID" \
-  "surface-qc.env HELENA_QC_HOST_ID"
+  "surface-qc.env HELENA_QC_HOST_ID" \
+  "surface-qc.env QC_WORKER_ID"
 do
   file="$env_dir/${pair%% *}" var="${pair#* }"
   [ -f "$file" ] || continue
   current="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
   case "$current" in
-    ""|changeme*|this-machine|REPLACE*)
+    ""|changeme*|this-machine|this-machine-*|REPLACE*)
       if grep -qE "^$var=" "$file"; then
-        sed -i "s|^$var=.*|$var=$this_host|" "$file"
+        # QC_WORKER_ID is a worker name and the others are host names, so the
+        # placeholder's own suffix is kept: this-machine-surface-qc becomes
+        # <host>-surface-qc, not <host>.
+        suffix=""
+        case "$current" in this-machine-*) suffix="${current#this-machine}" ;; esac
+        sed -i "s|^$var=.*|$var=$this_host$suffix|" "$file"
       else
         printf '%s=%s\n' "$var" "$this_host" >> "$file"
       fi
@@ -365,7 +401,7 @@ if [ "$profile" = gpu ]; then
     ink_image="${HELENA_INK_IMAGE_BASE:-helena-ink:local}"
     $D image inspect "$ink_image" >/dev/null 2>&1 || {
       say "building $ink_image, the frozen TimeSformer runtime"
-      $D build -q --build-arg BASE_IMAGE="${HELENA_TORCH_IMAGE:-pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime}" \
+      $D build -q --build-arg BASE_IMAGE="${HELENA_TORCH_IMAGE:-pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime}" \
         --build-arg BUILD_COMMIT="$commit" \
         -f "$root/containers/images/Containerfile.ink" \
         -t "$ink_image" "$root/containers/images" >/dev/null \
@@ -700,6 +736,74 @@ if $D image inspect "$spiral_lane" >/dev/null 2>&1; then
   unset HELENA_SPIRAL_IMAGE HELENA_SPIRAL_RUNTIME
 else
   say "no $spiral_lane image on this host: the spiral slot is not deployed here"
+fi
+
+# The QC checkpoint, before the stack that loads it. Without it the container
+# starts, fails on `QC checkpoint does not exist: /models/model.safetensors` and
+# restarts forever -- so `install.sh --gpu` left nine services up and one
+# looping, which is not an installation somebody can use.
+#
+# Fetched here rather than through the models API because at install time there
+# is no account to authenticate with: the first one is claimed after the panel
+# is up. This is the installer provisioning its own volume, not a client
+# reaching into a deployment.
+#
+# The entry comes from the weights registry, so the repository, the path and the
+# digest are the ones this repository already pins, and a mismatch is deleted
+# rather than installed.
+qc_entry() { python3 - "$1" <<'PY_ENTRY'
+import json, sys
+registry = json.load(open("framework/registries/ink-weights-0.1.0.json"))
+for entry in registry["entries"]:
+    if entry.get("destination", "").endswith("timesformer_GP_scroll1/model.safetensors"):
+        print(entry[sys.argv[1]])
+        break
+PY_ENTRY
+}
+qc_dest="$(cd "$root" && qc_entry destination)"
+qc_sha="$(cd "$root" && qc_entry sha256)"
+qc_repo="$(cd "$root" && qc_entry repo)"
+qc_file="$(cd "$root" && qc_entry upstream_path)"
+qc_volume="${HELENA_MODELS_VOLUME:-helena-models}"
+
+if [ -n "$qc_dest" ] && [ -n "$qc_sha" ]; then
+  have="$($D run --rm -v "$qc_volume:/models" "${HELENA_BUSYBOX_IMAGE:-busybox:1.37.0}" \
+    sh -c "sha256sum /models/$qc_dest 2>/dev/null | cut -d' ' -f1" 2>/dev/null || true)"
+  if [ "$have" = "$qc_sha" ]; then
+    say "the QC checkpoint is already installed"
+  else
+    say "fetching the QC checkpoint, 150 MB, once"
+    # --user 0:0: curlimages/curl runs as uid 100 and the volume is not
+    # writable by it, so the download fails as `client returned ERROR on write`
+    # -- which reads like a network problem and is a permission one. The file
+    # lands root-owned and the workers mount /models read-only, so that is all
+    # the access it needs.
+    if $D run --rm --user 0:0 -v "$qc_volume:/models" \
+         "${HELENA_CURL_IMAGE:-curlimages/curl:8.11.1}" --silent --show-error --fail \
+         --location --create-dirs --output "/models/$qc_dest" \
+         "https://huggingface.co/$qc_repo/resolve/main/$qc_file" >/dev/null 2>&1
+    then
+      # --create-dirs makes the directory with root's umask, so it lands 0750
+      # and the worker -- uid 1000 -- cannot traverse it. The file inside is
+      # 0644 and unreachable, and the worker says the checkpoint does not exist
+      # while it is plainly on the volume. Readable and traversable, not
+      # writable: a+rX, which is what the images do for the same reason.
+      $D run --rm --user 0:0 -v "$qc_volume:/models" \
+        "${HELENA_BUSYBOX_IMAGE:-busybox:1.37.0}" \
+        chmod -R a+rX "/models/$(dirname "$qc_dest")" >/dev/null 2>&1 || true
+      got="$($D run --rm -v "$qc_volume:/models" "${HELENA_BUSYBOX_IMAGE:-busybox:1.37.0}" \
+        sh -c "sha256sum /models/$qc_dest | cut -d' ' -f1" 2>/dev/null || true)"
+      if [ "$got" != "$qc_sha" ]; then
+        $D run --rm -v "$qc_volume:/models" "${HELENA_BUSYBOX_IMAGE:-busybox:1.37.0}" \
+          rm -f "/models/$qc_dest" >/dev/null 2>&1 || true
+        echo "  the QC checkpoint downloaded as $got, not $qc_sha; it has been" >&2
+        echo "  deleted. Surface QC will not start until it is installed." >&2
+      fi
+    else
+      echo "  could not fetch the QC checkpoint. Surface QC will start and fail" >&2
+      echo "  on a missing model; everything else on this host is unaffected." >&2
+    fi
+  fi
 fi
 
 set_image surface-qc.env HELENA_QC_IMAGE "$ink_tag"

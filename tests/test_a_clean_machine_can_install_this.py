@@ -344,3 +344,187 @@ def test_the_e2e_env_file_cannot_be_poisoned_by_a_commit_message():
         assert "=" in line.split("grep", 1)[1].split(">")[0], (
             f"this collects any line starting with the prefix, so a commit "
             f"message can name a variable: {line.strip()!r}")
+
+
+def test_the_gpu_profile_installs_the_checkpoint_its_qc_stack_loads():
+    """`install.sh --gpu` left nine services up and one looping.
+
+    surface-qc mounts the models volume and loads
+    timesformer_GP_scroll1/model.safetensors. Nothing put it there, so on every
+    clean machine the container started, failed on `QC checkpoint does not
+    exist`, and restarted forever -- measured on a rented 5090, where it was the
+    last thing between one command and a platform somebody can use.
+
+    The deploy fetches it, and the three things that make that defensible are
+    what this checks: it comes from the weights registry rather than a URL
+    written here, the digest is verified, and a file that does not match is
+    deleted rather than left for the worker to load.
+    """
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
+    qc = deploy[deploy.index("qc_entry()"):deploy.index("set_image surface-qc.env")]
+
+    assert "ink-weights-0.1.0.json" in qc, (
+        "the checkpoint is fetched from somewhere other than the registry, so "
+        "the digest this repository pins is not the one being installed")
+    assert "sha256sum" in qc and '"$got" != "$qc_sha"' in qc, (
+        "nothing compares what arrived against what was pinned")
+    assert "rm -f" in qc, (
+        "a checkpoint that fails its digest is left on the volume for a worker "
+        "to load, which is worse than not having fetched it")
+
+    import json  # noqa: PLC0415
+    registry = json.loads(
+        (ROOT / "framework/registries/ink-weights-0.1.0.json").read_text())
+    entry = next(e for e in registry["entries"]
+                 if e["destination"].endswith("timesformer_GP_scroll1/model.safetensors"))
+    compose = (ROOT / "containers/compose/surface-qc.compose.yaml").read_text()
+    assert entry["destination"] in compose, (
+        f"the registry installs {entry['destination']} and the compose file "
+        "loads something else, so the fetch satisfies nothing")
+
+    # And the template, which is what a clean machine actually gets. It said
+    # /models/model.safetensors -- one file bind-mounted, the way this fleet had
+    # it -- so the deploy fetched to the registry's path, the worker looked
+    # somewhere else, and it restarted forever with the file on the volume. Three
+    # places name this path and all three have to agree.
+    example = (ROOT / "containers/compose/surface-qc.env.example").read_text()
+    assert f"HELENA_QC_CHECKPOINT=/models/{entry['destination']}" in example, (
+        "the template points the QC worker somewhere other than where the "
+        "registry installs the checkpoint")
+
+
+def test_the_deploy_owns_the_directories_its_workers_write_into():
+    """A worker that cannot write its run directory fails as a timeout.
+
+    HELENA_FLEET_RUNS and its siblings are host paths on purpose -- a run
+    somebody can look at without entering a container. Docker creates a bind
+    path root:root and the workers run as 1000, so P3 died with
+
+      PermissionError: '/srv/helena/runs/pherc826-p3-c6213fdcc58847'
+
+    before it had recorded anything. The job stayed leased for an hour and then
+    failed LEASE_EXHAUSTION, which says the worker went away and says nothing
+    about why. Measured on a rented 5090, and it cost an hour to read as a
+    timeout what was a permission bug.
+    """
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
+    block = deploy[deploy.index("The directories the workers write into"):
+                   deploy.index("host-report names the machine")]
+
+    for var in ("HELENA_FLEET_RUNS", "HELENA_INK_RUNS", "HELENA_QC_RUN_ROOT"):
+        assert var in block, f"{var} is not prepared, so its worker fails on first write"
+    assert "chown" in block, "the directories are created and left owned by root"
+    assert "HELENA_WORKER_UID" in block, (
+        "the owner is hardcoded; a deployment whose workers run as another uid "
+        "has no way to say so")
+    # A volume name is not a path and must not be mkdir'd into the host root.
+    assert "/*)" in block, (
+        "nothing distinguishes a host path from a named volume, so a volume "
+        "name would be created as a directory next to /")
+
+
+def test_the_qc_profile_pin_matches_the_profile_it_names():
+    """The pin catches a profile edited without a version bump. A stale pin
+    catches nothing and blocks everything.
+
+    HELENA_QC_PROFILE_SHA256 named a digest no file had. The worker compared,
+    refused, and parked the QC job in BLOCKED_CONFIGURATION -- correctly, since
+    a verdict must name the profile that produced it. But it meant surface QC
+    could never run on a clean machine, so no surface was ever CT-measured, so
+    P3 found nothing admissible and reported success having flattened nothing.
+    One stale constant, four phases downstream.
+
+    Deriving the hash at deploy time would make the check always pass, which is
+    the protection removed rather than kept. So it stays pinned, and this keeps
+    the pin honest.
+    """
+    import hashlib  # noqa: PLC0415
+    import re  # noqa: PLC0415
+
+    example = (ROOT / "containers/compose/surface-qc.env.example").read_text()
+    pinned = re.search(r"^HELENA_QC_PROFILE_SHA256=([0-9a-f]{64})$", example, re.M)
+    assert pinned, "no pinned profile hash in surface-qc.env.example"
+
+    named = re.search(r"^HELENA_QC_PROFILE=(\S+)$", example, re.M)
+    assert named, "the pin names no profile"
+    profile = ROOT / named.group(1).replace("/workspace/campaign-x/", "")
+    assert profile.is_file(), f"the pinned profile is not at {profile}"
+
+    assert hashlib.sha256(profile.read_bytes()).hexdigest() == pinned.group(1), (
+        f"{profile.name} does not hash to the pinned value, so every surface-QC "
+        "job on a fresh deployment parks in BLOCKED_CONFIGURATION")
+
+
+def test_no_template_ships_a_placeholder_the_deploy_does_not_replace():
+    """The failure of the night, as one check.
+
+    Every env template is copied verbatim onto a new machine, so a value that
+    reads as "fill this in" becomes the value the deployment runs with. Tonight
+    that cost, separately: workers pointed at another fleet's control plane with
+    a CHANGEME password; a scroll queued as `this-machine`; an ink lane with the
+    literal string `postgresql://REPLACE` as its database; and QC evidence
+    written to `s3://your-bucket`, which surfaced as a FileNotFoundError
+    scrubbed to `<path>` and a job retrying every five minutes without ever
+    naming what was missing.
+
+    Each was found by watching a phase fail four steps downstream. This finds
+    them by reading the file.
+
+    A placeholder is allowed only where the deploy demonstrably replaces it --
+    it names the variable and writes a real value -- which is what makes the
+    template's copy a seed rather than a lie.
+    """
+    import re  # noqa: PLC0415
+
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
+    suspicious = re.compile(
+        r"your-bucket|REPLACE|CHANGEME|changeme|this-machine|example\.com|<[a-z-]+>",
+        re.IGNORECASE)
+
+    offenders = []
+    for template in sorted((ROOT / "containers/compose").glob("*.env.example")):
+        for line in template.read_text().splitlines():
+            if line.startswith("#") or "=" not in line:
+                continue
+            name, _, value = line.partition("=")
+            if not suspicious.search(value):
+                continue
+            # Replaced by the deploy: it has to name the variable somewhere.
+            if re.search(rf"\b{re.escape(name)}\b", deploy):
+                continue
+            offenders.append(f"{template.name}: {line}")
+
+    assert not offenders, (
+        "these ship a placeholder onto every clean machine and nothing "
+        "replaces it:\n  " + "\n  ".join(offenders))
+
+
+def test_the_panel_can_name_the_store_it_mounts(compose):
+    """Queueing P1 through /api/jobs needs a store the panel can name.
+
+    The panel mounts the artifact volume and then had no variable for it, so
+    the route that composes a P1 job answered 409 "neither ARTIFACT_ROOT nor
+    HELENA_SEGMENT_ARTIFACTS is set" on a correctly deployed machine -- which
+    makes P1 the one phase the API could not start.
+
+    The value has to be the mount *destination*. HELENA_SEGMENT_ARTIFACTS is
+    the volume's source and is a Docker volume name on a default install, so a
+    job carrying it as its store would publish nowhere.
+    """
+    panel = compose["services"]["panel"]
+    store = panel.get("environment", {}).get("ARTIFACT_ROOT")
+    assert store, ("the panel declares no artifact root, so /api/jobs cannot "
+                   "queue P1: " + repr(sorted(panel.get("environment", {}))))
+
+    # The sources are ${VAR:-default} expressions, whose own colons would
+    # split a mount into the wrong pieces; the destinations are literals.
+    import re
+
+    destinations = []
+    for volume in panel["volumes"]:
+        parts = [part for part in
+                 re.sub(r"\$\{[^}]*\}", "", volume).split(":") if part]
+        destinations += [part for part in parts if part.startswith("/")]
+    assert store in destinations, (
+        f"ARTIFACT_ROOT is {store}, which the panel does not mount: "
+        f"{destinations}")

@@ -1,0 +1,51 @@
+# The forward a worker host uses to reach the control plane.
+#
+#   docker compose -p helena-tunnel -f control-tunnel.compose.yaml \
+#     --env-file /etc/helena/tunnel.env up -d
+#
+# This was two systemd units installed by provision-host.sh. Nothing on a
+# Helena host runs outside a container -- a per-host unit is a second way to
+# deploy, with its own failure mode, its own logs and nothing that reports it
+# to the panel -- so it is a compose service like everything else.
+#
+# Only needed where the worker cannot reach the control plane's database
+# directly. A single-machine install has the database on 127.0.0.1 already and
+# does not deploy this stack at all.
+name: helena-tunnel
+
+services:
+  tunnel:
+    image: ${HELENA_TUNNEL_IMAGE:-helena-control-tunnel:${HELENA_VERSION:-0.24.0}}
+    container_name: helena-control-tunnel
+    # Host networking, because the point is to bind 127.0.0.1:55432 on the
+    # host: that is the address every worker's FLEET_DB names, and a forward
+    # bound inside a container namespace would be reachable from nothing.
+    network_mode: host
+    restart: unless-stopped
+    # The forward dies rather than carrying nothing (ExitOnForwardFailure), and
+    # the restart policy brings it back. A tunnel that stays up while forwarding
+    # nothing is the failure the unit had: every worker times out on the
+    # database and the tunnel reports active.
+    stop_grace_period: 5s
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    cap_drop:
+      - ALL
+    user: "${HELENA_RUN_AS:-1000:1000}"
+    tmpfs:
+      # ssh writes its known_hosts here, and read_only would refuse it.
+      - /tmp
+    environment:
+      HELENA_CONTROL_HOST: ${HELENA_CONTROL_HOST:?set it to user@host of the control plane}
+      HELENA_CONTROL_PORT: ${HELENA_CONTROL_PORT:-55432}
+      HELENA_CONTROL_KEY: /keys/helena_fleet
+    volumes:
+      # Read-only, and a key of its own rather than the operator's: this key
+      # opens one forward to one port on one host and should be able to do
+      # nothing else. Restrict it on the control plane's side with
+      # `command="",permitopen="127.0.0.1:55432"` in authorized_keys.
+      - ${HELENA_CONTROL_KEY:?set it to the private key that opens the forward}:/keys/helena_fleet:ro

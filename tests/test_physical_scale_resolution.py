@@ -33,9 +33,23 @@ EIGHT_SIX_FOUR = {"PHerc268", "PHerc800", "PHerc1218", "PHerc1447"}
 LEGACY_CLI_DEFAULT = 9.362
 
 
-def test_catalog_is_the_thirteen_frozen_volumes() -> None:
-    assert len(ENTRIES) == 13
-    assert len({entry["sample_id"] for entry in ENTRIES}) == 13
+def test_every_catalogued_volume_is_one_scroll_and_only_one() -> None:
+    """It asserted the catalogue holds exactly thirteen.
+
+    Thirteen was the Campania filter of the day, not a property of the
+    catalogue: the open-data bucket carries forty-five scroll prefixes and
+    twenty-six of them have everything P0 and P1 need. Freezing the count meant
+    that adding a scroll anyone can already download failed a test about
+    physical scale, which is not what this file is for.
+
+    What has to hold is that the catalogue does not carry a scroll twice --
+    two rows for one sample_id are two scales for one scroll, and every
+    resolution question below picks whichever it saw first.
+    """
+    assert ENTRIES, "the catalogue is empty"
+    samples = [entry["sample_id"] for entry in ENTRIES]
+    duplicated = sorted({s for s in samples if samples.count(s) > 1})
+    assert not duplicated, f"catalogued more than once: {duplicated}"
 
 
 @pytest.mark.parametrize(

@@ -100,17 +100,38 @@ Two runs on the same GPU, nine days apart and from different working trees,
 produced **bit-identical** `probability.npy`, `ink.tif` and `ink_reverse.tif` --
 same SHA-256, three for three.
 
-A third run, on a rented RTX 5090, did **not**: same volume, same checkpoint,
-same scale, different bytes. `fc9f91da…` on ours, `f4abc1b4…` there. What did
-match is the map's statistics, to four decimals -- p50 0.2784, p99 0.7765, std
-0.1674 -- because the difference is floating-point accumulation on different
-hardware, not a different result.
+Two more, on a rented RTX 5090, matched each other and not us: `f4abc1b4…`
+there, `fc9f91da…` here, same volume and checkpoint and scale. What matched
+across all five is the map's statistics, to four decimals -- p50 0.2784, p99
+0.7765, std 0.1674 -- because the difference is floating-point accumulation on
+different hardware, not a different result.
+
+The second of those two was on a machine installed with one command from the
+published repository, with nothing edited by hand: `run-2026-09-01-clean`.
 
 So the claim is narrower than "compare the digests". On the same GPU the digest
 is a fair check and a cheap one. Across different GPUs it is not, and a reviewer
 who reproduced this and found a different hash would be right to be suspicious
 of a page that had promised one. Compare the liveness statistics instead, which
 the receipt records.
+
+## What is still not through the interface
+
+The ink step is queued and its result fetched back through the API. Two things
+around it are not, and a reviewer should know which:
+
+Both of these were true when the receipts below were made, and are not any
+more:
+
+* Placing the checkpoint had no API -- the models endpoint refused a `.pth` and
+  refused a subdirectory -- so it was written into the volume from outside. It
+  accepts a pickle against a stated hash now, and the path with it.
+* The `CHECKPOINT` boundary hashed that file directly, which establishes what
+  the control's own machine holds rather than what the deployment does. It asks
+  the platform now, and the receipt records `established_by` so the two cannot
+  be read as the same claim.
+
+The receipts below say `local-file`, because they predate the change.
 
 ## 5. An end-to-end test log without skipped pipeline stages
 

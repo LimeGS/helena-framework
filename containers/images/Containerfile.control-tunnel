@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# The tunnel to the control plane, as an image rather than a systemd unit.
+#
+# A worker host reaches the fleet database on 127.0.0.1:55432, and on a fleet
+# whose machines can only route to each other on 22 that address is an SSH
+# forward. It used to be a unit installed into /etc/systemd/system by
+# provision-host.sh, which is the one thing this platform does not do: nothing
+# on a host runs outside a container, so a per-host unit is a second way to
+# deploy, with its own failure mode and nothing that reports it.
+#
+# alpine and not the worker image: the worker image is nine gigabytes and has no
+# ssh client in it, and this needs an ssh client and nothing else.
+ARG BASE_IMAGE=alpine:3.20
+FROM ${BASE_IMAGE}
+ARG BUILD_COMMIT=unknown
+ARG FRAMEWORK_VERSION=0.24.0
+LABEL org.opencontainers.image.title="helena-control-tunnel" \
+      org.opencontainers.image.description="SSH forward to the control plane" \
+      org.opencontainers.image.revision="${BUILD_COMMIT}" \
+      org.opencontainers.image.version="${FRAMEWORK_VERSION}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE}"
+RUN apk add --no-cache openssh-client
+COPY containers/images/control_tunnel.sh /usr/local/bin/control-tunnel
+RUN chmod +x /usr/local/bin/control-tunnel
+# Not root: this holds a private key and opens one outbound connection.
+RUN adduser -D -u 1000 helena
+USER 1000:1000
+ENTRYPOINT ["/usr/local/bin/control-tunnel"]

@@ -33,6 +33,7 @@ import shutil
 import subprocess
 import tempfile
 import sys
+import threading
 import uuid
 import time
 import urllib.request
@@ -244,8 +245,14 @@ TLS_CERT = _setting(
 TLS_KEY = _setting(
     "CX_TLS_KEY", "",
     "The private key for CX_TLS_CERT.")
+# Beside the panel's own state and not inside the checkout: the panel does not
+# own the repository it runs from, so uploading a strip failed with
+# PermissionError on workspace/strips and answered 500. AUTH_ROOT is the one
+# directory the panel is guaranteed to write to -- it keeps password hashes
+# there -- so its parent is the state root whatever the deployment calls it.
+# RUNS' parent is not: in a container that is a bind mount owned by root.
 STRIPS = Path(_setting(
-    "CX_STRIPS", str(HERE.parent / "workspace" / "strips"),
+    "CX_STRIPS", str(AUTH_ROOT.parent / "strips"),
     "Where qualified reference strips live. A strip is one strip-v0 .npz plus "
     "its qualification report; scoring reads from here.",
     example="workspace/strips"))
@@ -281,6 +288,73 @@ app = FastAPI(title="Helena Framework", docs_url="/api/swagger",
 # compresses to a fraction of that and is the only large payload the API emits,
 # so compression is worth more here than anywhere else in the app.
 app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+
+@app.middleware("http")
+async def _no_nul_in_a_url(http: Request, call_next):
+    """Refuse a URL with a NUL byte in it, before any route sees it.
+
+    %00 in a path or query parameter answered 500 on a dozen routes: an id goes
+    to PostgreSQL, which raises DataError because a text field cannot hold NUL,
+    or to Path(), which raises "embedded null byte" -- and neither is an
+    HTTPException, so the caller was told the server broke.
+
+    Here rather than in each route, because no route wants one. Every id this
+    API takes is a name, a hash or a uuid; there is no request where a NUL is
+    the caller meaning something. Fixing the twelve found would leave the
+    thirteenth to be found later.
+    """
+    # The path arrives decoded and the query does not, so the query is decoded
+    # here: %00 in `?state=` reached the route untouched and answered 500 while
+    # the same byte in the path was already refused.
+    from urllib.parse import unquote
+
+    if "\x00" in http.url.path or "\x00" in unquote(http.url.query or ""):
+        return JSONResponse({"detail": "a NUL byte is not valid in a URL"},
+                            status_code=400)
+    return await call_next(http)
+
+
+@app.on_event("startup")
+def _keep_the_catalogue_current() -> None:
+    """Refresh the eligible catalogue in the background, then once a day.
+
+    The catalogue was a file somebody edited, which is why P0 could take in
+    thirteen scrolls while the bucket published forty-five. Making it derivable
+    is only half the fix: a generator nobody runs is the same stale file with an
+    extra step, so the deployment refreshes its own.
+
+    A daemon thread and not a request path. The walk is forty-five prefixes and
+    a `.zarray` read for each, which is a minute of somebody else's S3 -- fine
+    to spend in the background on a schedule, not fine to spend while a page
+    waits. Failure leaves the previous catalogue in place and says so; the
+    deployment keeps working on what it knew yesterday.
+
+    Off by default in tests: CX_CATALOG_REFRESH=0 stops a suite from walking a
+    bucket it did not ask about.
+    """
+    if _setting("CX_CATALOG_REFRESH", "1",
+                "Whether the panel refreshes the eligible catalogue from the "
+                "bucket on startup and daily. Set 0 to pin it to the file on "
+                "disk.", example="1") != "1":
+        return
+
+    def loop() -> None:
+        while True:
+            try:
+                changed = refresh_eligible_catalogue()
+                added, removed = changed.get("added") or [], changed.get("removed") or []
+                if added or removed:
+                    print(f"  eligible catalogue refreshed: +{len(added)} "
+                          f"-{len(removed)}", file=sys.stderr, flush=True)
+            except Exception as failure:  # noqa: BLE001 -- never kill the thread
+                print(f"  the eligible catalogue could not be refreshed from "
+                      f"{SCROLL_SOURCE} ({type(failure).__name__}: {failure}); "
+                      f"keeping {eligible_catalogue_path()}",
+                      file=sys.stderr, flush=True)
+            time.sleep(max(600, SCROLL_TTL))
+
+    threading.Thread(target=loop, name="eligible-catalogue", daemon=True).start()
 
 
 # The paths that must answer before anybody is logged in. Everything else --
@@ -857,10 +931,11 @@ def growable_scrolls() -> list[str]:
     bucket prefix P0 lists (`PHerc0826`) -- so this returns what the bootstrap
     would accept, not what the inventory shows.
     """
-    if not CATALOG.exists():
+    catalogue = eligible_catalogue_path()
+    if not catalogue.exists():
         return []
     try:
-        entries = json.loads(CATALOG.read_text()).get("entries", [])
+        entries = json.loads(catalogue.read_text()).get("entries", [])
     except (OSError, json.JSONDecodeError):
         return []
     return sorted({str(e["sample_id"]) for e in entries if e.get("sample_id")})
@@ -874,10 +949,11 @@ def catalog_metadata() -> dict[str, dict]:
     is left doing the one thing only it can: telling you the voxel size and
     beam energy of a scan, which every micron figure downstream depends on.
     """
-    if not CATALOG.exists():
+    catalogue = eligible_catalogue_path()
+    if not catalogue.exists():
         return {}
     out = {}
-    for entry in json.loads(CATALOG.read_text()).get("entries", []):
+    for entry in json.loads(catalogue.read_text()).get("entries", []):
         uri = entry.get("ct_uri", "")
         sample = uri.split("/")[3] if uri.count("/") > 3 else None
         if not sample:
@@ -1007,6 +1083,84 @@ def check_source_is_fetchable(source: str) -> None:
                 f"{parsed.hostname} resolves to {ip}, which is not a public address; "
                 "the panel will not fetch a listing from its own network",
             )
+
+
+ELIGIBLE_BUILDER = (HERE.parent / "framework/stages/01-segmentation/scripts"
+                    / "build_eligible_volumes_catalog.py")
+ELIGIBLE_CACHE = CACHE / "eligible_volumes.json"
+
+
+def eligible_catalogue_path() -> Path:
+    """Where the eligible catalogue is right now. Never touches the network.
+
+    Reading and refreshing are split on purpose. Every phase reads this -- P0 to
+    freeze a scale, P1 to know where the m7 volume is -- and a read that can
+    walk forty-five bucket prefixes is a read that hangs a page, and one that
+    makes a test depend on somebody else's S3. Refreshing is
+    `refresh_eligible_catalogue`, and it is called on a schedule and from the
+    intake endpoint, not from here.
+
+    The cache wins when it is usable, because it is the fresher of the two; the
+    checked-in file is the seed a new deployment starts from and the floor it
+    falls back to.
+
+    Usable, not merely present: a cache truncated by a full disk or written by
+    an older shape is a file that exists and answers nothing, and every phase
+    reading it would see a deployment that knows no scrolls at all. Falling back
+    to a stale-but-whole catalogue beats answering "none".
+    """
+    try:
+        if json.loads(ELIGIBLE_CACHE.read_text()).get("entries"):
+            return ELIGIBLE_CACHE
+    except (OSError, json.JSONDecodeError, AttributeError):
+        pass
+    return CATALOG
+
+
+def refresh_eligible_catalogue() -> dict:
+    """Rebuild the catalogue from the bucket. Returns what changed.
+
+    The file used to be maintained by hand, which made P0 -- the phase whose
+    whole job is taking sources in -- able to take in only the thirteen scrolls
+    somebody had written down, while the bucket published forty-five. A scroll
+    missing from it did not fail as "not catalogued": it reached P1 and came
+    back NO_M7_CANDIDATES in a second, which reads as "there is nothing there".
+
+    A bucket that cannot be reached leaves the previous catalogue in place. Not
+    as many scrolls as the bucket has is a bad day; none is a broken deployment,
+    and every phase downstream depends on this answer.
+    """
+    import importlib.util  # noqa: PLC0415
+
+    spec = importlib.util.spec_from_file_location(
+        "build_eligible_volumes_catalog", ELIGIBLE_BUILDER)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"no catalogue builder at {ELIGIBLE_BUILDER}")
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+
+    before = eligible_catalogue_path()
+    previous = {}
+    if before.exists():
+        try:
+            previous = json.loads(before.read_text())
+        except (OSError, json.JSONDecodeError):
+            previous = {}
+
+    catalog = builder.build(
+        builder.BucketClient(SCROLL_SOURCE),
+        excluded=builder.default_exclusions(HERE.parent))
+    catalog["fetched_at"] = time.time()
+
+    CACHE.mkdir(parents=True, exist_ok=True)
+    temporary = ELIGIBLE_CACHE.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(catalog, indent=2, sort_keys=True) + "\n",
+                         encoding="utf-8")
+    temporary.replace(ELIGIBLE_CACHE)
+    return builder.compare(previous, catalog) if previous else {
+        "added": sorted(e["sample_id"] for e in catalog.get("entries", [])),
+        "removed": [], "changed": [],
+    }
 
 
 def scroll_inventory(refresh: bool = False, source: str | None = None) -> dict:
@@ -2793,8 +2947,52 @@ def api_missions():
     return JSONResponse({"missions": missions, "runs_root": str(RUNS)})
 
 
+def refuse_scrolls_with_no_volume(scrolls: list[str], doing: str) -> None:
+    """Refuse a mission that freezes a scroll nothing can ever grow.
+
+    /api/missions took any string at all: "PHercInventado" and "PHerc9999" both
+    created missions, and so did PHerc0139 on a control plane that had never
+    registered its source. Nothing said so until P1, which refused every task
+    with "resolves to no volume" -- so a mission looked frozen and correct for
+    as long as nobody tried to grow in it.
+
+    scroll_has_a_source is the same predicate P1 uses, and it passes anything in
+    the frozen eligible catalog, so this does not force an order on the work: a
+    catalogued scroll can be named here long before P0 has frozen anything for
+    it. What it refuses is a name with no address in the catalog and none on
+    this control plane -- the case that no run will ever change.
+    """
+    # Nothing to check against is not evidence of anything. A fresh deployment
+    # has no catalogue until the first refresh finishes, and refusing every
+    # mission until then would make a clean install unable to start work at all.
+    if not growable_scrolls():
+        return
+    # In the spelling the control plane stores. A mission is named the way the
+    # bucket spells it -- PHerc0826, which is what P0 read -- and the catalogue
+    # keys on its own sample_id, PHerc826. Checking the raw name refused the
+    # same scroll the catalogue lists, which is the exact confusion
+    # stored_scroll exists to end.
+    missing = [scroll for scroll in scrolls
+               if not scroll_has_a_source(stored_scroll(scroll))]
+    if not missing:
+        return
+    raise HTTPException(400, {
+        "detail": f"{doing} cannot include {', '.join(missing)}: "
+                  "no volume this deployment can read.",
+        "why": "A mission freezes what will be worked on, and P1 grows from a "
+               "CT volume and the m7 surface prediction over it. These names "
+               "are in neither the frozen eligible catalog nor the sources "
+               "registered on this control plane, so a mission holding them "
+               "could never grow anything -- and would say so only at P1.",
+        "how": "Name a scroll from the catalog below, or register a source for "
+               "this one first.",
+        "known": growable_scrolls(),
+    })
+
+
 @app.post("/api/missions")
 def api_create_mission(request: MissionRequest, http: Request):
+    refuse_scrolls_with_no_volume(list(request.scrolls or []), "a mission")
     try:
         campaign = (
             {
@@ -3016,6 +3214,10 @@ def api_freeze_p0(mission_id: str, http: Request):
 def api_amend_mission(mission_id: str, request: AmendRequest, http: Request):
     """Widen a frozen selection, on the record, and record what it produced."""
     _refuse_implicit(mission_id)
+    # The other way a scroll enters a mission, and the same refusal: widening a
+    # frozen selection onto a name with no volume is the same dead mission,
+    # reached later.
+    refuse_scrolls_with_no_volume(list(request.add or []), "an amendment")
     try:
         directory, _ = mission_contract.resolve(RUNS, mission_id)
         manifest = mission_contract.amend_scrolls(
@@ -3138,7 +3340,7 @@ def resolve_source_scale(sample_id: str | None) -> tuple[float | None, list[floa
     # bucket path of its `ct_uri`, and jobs are queued under either -- looking
     # up only one of them is how a scale that is on record reads as missing.
     try:
-        entries = json.loads(CATALOG.read_text()).get("entries", [])
+        entries = json.loads(eligible_catalogue_path().read_text()).get("entries", [])
     except (OSError, json.JSONDecodeError):
         return None, []
     scales: dict[str, float] = {}
@@ -4271,7 +4473,7 @@ def seed_probe_select_readiness(sample: str | None = None) -> dict:
             }
     locked_samples: set[str] = set()
     try:
-        document = json.loads(CATALOG.read_text(encoding="utf-8"))
+        document = json.loads(eligible_catalogue_path().read_text(encoding="utf-8"))
         entries = document.get("entries", []) if isinstance(document, dict) else document
         locked_samples = {
             str(entry["sample_id"])
@@ -5732,6 +5934,66 @@ def api_release_qc_jobs(request: QcReleaseRequest, http: Request):
         request.sample_id, by=who_asked(http)))
 
 
+class QcRequeueRequest(BaseModel):
+    """Take a sample's configuration-blocked QC back into the queue."""
+
+    mission_id: str | None = Field(default=None, max_length=64)
+    sample_id: str | None = Field(default=None, max_length=64)
+    # Required. A blocked job is blocked because a person has to change
+    # something, so the one fact worth having on the record is what they
+    # changed; a requeue with no answer to that is the retry loop again, typed
+    # by hand.
+    # Stripped before the length check, not after: "   " passed min_length=1,
+    # reached the store, and came back as a 500 from the ValueError there --
+    # a bad request answered as a server fault. A reason made of spaces is the
+    # retry loop again, typed by hand, which is what this field exists to stop.
+    fixed: str = Field(min_length=1, max_length=500)
+
+    @field_validator("fixed")
+    @classmethod
+    def _a_reason_is_not_whitespace(cls, given: str) -> str:
+        stripped = given.strip()
+        if not stripped:
+            raise ValueError("say what was fixed; a blocked job is blocked "
+                             "until somebody changes something")
+        return stripped
+
+
+@app.post("/api/segmentation/qc-jobs/requeue")
+def api_requeue_blocked_qc_jobs(request: QcRequeueRequest, http: Request):
+    """Send configuration-blocked QC back to PENDING, after somebody fixed it.
+
+    BLOCKED_CONFIGURATION is terminal on purpose -- a wrong profile pin fails
+    identically on every retry, and the fleet once spent two days proving it --
+    but the pin does get corrected, and there was no way back. The correction
+    then read as no correction at all: the job stayed blocked quoting the old
+    hash, nothing downstream ran, and P3 reported success having flattened
+    nothing, four phases from the cause. The way out was an UPDATE typed into
+    psql, which is the habit this panel exists to remove.
+
+    So: explicit, scoped to one scroll in its mission, attributed, and saying
+    what was fixed. Nothing here runs on a timer; a blocked job moves because
+    somebody asked, or it does not move.
+    """
+    sample = require_write_sample(
+        request.mission_id, request.sample_id, "QC requeue")
+    try:
+        record = fleet_store().requeue_blocked_qc_jobs(
+            sample, fixed=request.fixed, by=who_asked(http))
+    except ValueError as refused:
+        raise HTTPException(422, str(refused)) from None
+    # A zero here is the common answer -- the requeue is what somebody tries
+    # first when a scroll looks stuck -- and on its own it says neither "already
+    # done" nor "you are looking at the wrong problem".
+    moved = record["requeued"]
+    return JSONResponse({**record, "detail": (
+        f"{moved} blocked QC job{'' if moved == 1 else 's'} in {sample} went "
+        f"back to the queue; a worker claims {'it' if moved == 1 else 'them'} next."
+        if moved else
+        f"no QC job in {sample} is blocked on configuration, so nothing "
+        "changed. Whatever is holding this scroll up is somewhere else.")})
+
+
 @app.get("/api/segmentation/qc-jobs")
 def api_segmentation_qc_jobs(
         mission: str = Query(..., min_length=1, max_length=128),
@@ -6384,9 +6646,19 @@ def api_model_download(request: ModelDownloadRequest):
 
     Three refusals, and each is the point rather than paperwork:
 
-    `.safetensors` only. A `.bin` or `.pt` checkpoint is a pickle that executes
-    arbitrary code the moment something loads it, and this platform loads
-    checkpoints on GPU workers. Safetensors cannot carry code.
+    `.safetensors` freely; a pickle only against a hash. A `.bin`, `.pt` or
+    `.pth` checkpoint executes arbitrary code the moment something loads it, and
+    this platform loads checkpoints on GPU workers -- so one may be fetched only
+    when the caller states the sha256 it must have, and it is deleted rather
+    than installed if the bytes disagree.
+
+    That is weaker than refusing them, and the difference is worth being exact
+    about: it stops a repository serving different weights under a name somebody
+    trusted, and it does not stop a caller who knows the hash of a malicious
+    file from asking for it. What it buys is that the ink lane's own checkpoint
+    -- upstream publishes .pth and we do not get to choose -- can be placed
+    through this API instead of by writing into the volume from outside, which
+    is what every reproduction of the public control had to do.
 
     The hash is recorded on arrival and compared against every profile. A file
     that matches one is reported as satisfying it; a file that matches none is
@@ -6396,14 +6668,26 @@ def api_model_download(request: ModelDownloadRequest):
     Nothing is loaded, imported or executed here. The panel writes bytes to a
     volume and hashes them.
     """
-    if not request.file.endswith(".safetensors"):
+    if not request.file.endswith(".safetensors") and not request.expect_sha256:
         raise HTTPException(
             400,
-            f"{request.file} is not a .safetensors file. A .bin or .pt checkpoint is "
-            "a pickle that runs code when it is loaded, and these are loaded on GPU "
-            "workers, so only safetensors is accepted.")
-    if "/" in request.file or ".." in request.file:
-        raise HTTPException(400, "the file is a name inside the repository, not a path")
+            f"{request.file} is not a .safetensors file. A .bin, .pt or .pth "
+            "checkpoint is a pickle that runs code when it is loaded, and these are "
+            "loaded on GPU workers, so one may only be fetched against the sha256 it "
+            "must have. Send expect_sha256, from the profile or registry that "
+            "declares it.")
+
+    # A path inside the repository, not a name: upstream keeps checkpoints in
+    # directories -- hybrid_3d2d-seed42/step-075000.pth -- and refusing the
+    # slash meant those could not be fetched at all. Every segment is checked
+    # instead, and the resolved target is checked again below: `a/..` once made
+    # the destination the models root's parent, and a check on the string alone
+    # is the kind that misses the next spelling of it.
+    segments = request.file.split("/")
+    if any(part in ("", ".", "..") or part.startswith("-") for part in segments):
+        raise HTTPException(
+            400, "the file is a path inside the repository, and every part of it "
+                 "has to be an ordinary name")
 
     import urllib.error  # noqa: PLC0415
     import urllib.request  # noqa: PLC0415
@@ -6442,6 +6726,15 @@ def api_model_download(request: ModelDownloadRequest):
                  "mounted read-write on the panel.") from None
 
     target = destination / request.file
+    # Checked on the resolved path, after the segment check above, because the
+    # two catch different things: one a spelling, the other a symlink or a
+    # normalisation nobody predicted.
+    try:
+        target.resolve().relative_to(destination.resolve())
+    except ValueError:
+        raise HTTPException(
+            400, f"{request.file} resolves outside {destination}") from None
+    target.parent.mkdir(parents=True, exist_ok=True)
     url = (f"https://huggingface.co/{request.repo}/resolve/{commit}/{request.file}")
     digest = hashlib.sha256()
     written = 0
@@ -9623,7 +9916,7 @@ def catalog_sample_id(name: str, *, strict: bool = True) -> str:
                       value.replace("-", "").replace("_", "").lower())
 
     try:
-        rows = json.loads(CATALOG.read_text(encoding="utf-8"))
+        rows = json.loads(eligible_catalogue_path().read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return name
     # The same rule bootstrap_sources uses, so the panel and the fleet cannot
@@ -11705,8 +11998,13 @@ def api_queue_segmentation(request: SegmentationRunRequest, http: Request):
                     ),
                 },
             )
-    if not CATALOG.exists():
-        raise HTTPException(409, f"the frozen catalog is not at {CATALOG}")
+    # The refreshed one, which falls back to the checked-in file when the bucket
+    # is unreachable. Checking CATALOG here while passing the refreshed path to
+    # the bootstrap below would refuse on a deployment that has a good cache and
+    # no checked-in file.
+    catalogue = eligible_catalogue_path()
+    if not catalogue.exists():
+        raise HTTPException(409, f"the eligible catalogue is not at {catalogue}")
 
     script = REPO / "framework/stages/01-segmentation/scripts/helena_segment_search_fleet.py"
     if not script.exists():
@@ -11867,11 +12165,31 @@ def api_queue_segmentation(request: SegmentationRunRequest, http: Request):
         raise HTTPException(
             409, "campaign resume authorization requires a controlled task budget")
 
+    # The bootstrap writes a receipt, and without --receipt it writes it to a
+    # relative path -- the repository root, which is where the panel's working
+    # directory is and which the panel does not own. On this fleet that
+    # directory happened to be writable; on a clean machine every P1 request
+    # died with
+    #
+    #   PermissionError: '/workspace/campaign-x/.SEGMENT_FLEET_BOOTSTRAP_RECEIPT.json.…'
+    #
+    # after the planner had done its work. It belongs beside the mission's other
+    # records anyway, which is where manual-seeds already puts its own.
+    bootstrap_receipt = (
+        mission_directory(request.mission_id) / "SEGMENT_FLEET_BOOTSTRAP_RECEIPT.json"
+        if request.mission_id else
+        Path(RUNS) / "SEGMENT_FLEET_BOOTSTRAP_RECEIPT.json")
+    bootstrap_receipt.parent.mkdir(parents=True, exist_ok=True)
+
     argv = [
         sys.executable, str(script), "bootstrap",
         "--db", DSN_ARGUMENT,
-        "--eligible", str(CATALOG),
+        # The refreshed catalogue, not the checked-in file: a scroll the bucket
+        # publishes and this file has not heard of comes back from P1 as
+        # NO_M7_CANDIDATES, which reads as "nothing is there".
+        "--eligible", str(eligible_catalogue_path()),
         "--catalog", str(GEOMETRY_CATALOG),
+        "--receipt", str(bootstrap_receipt),
         "--sample", fleet_sample,
         "--max-tasks-per-sample", str(max_tasks),
         "--grid-step", str(grid_step),
@@ -13038,7 +13356,16 @@ def api_register_host(request: HostRequest):
 
     script = REPO / "containers" / "provision-host.sh"
     if not script.exists():
-        raise HTTPException(500, f"the provisioning script is missing at {script}")
+        # 503 and not 500. The panel image does not carry containers/, so this
+        # is what every deployment answers, not a fault in this request -- and
+        # the host was registered a few lines up, so the caller needs to know
+        # that provisioning is the part that did not happen. The app already
+        # answers 503 for "not configured" elsewhere; a 500 here read as a bug
+        # in the request and sent whoever hit it looking in the wrong place.
+        raise HTTPException(
+            503, "this deployment cannot provision hosts: it does not carry "
+                 "containers/provision-host.sh. The host is registered; bring "
+                 "it up with the compose files and it will report itself.")
     PROVISION_LOG.mkdir(parents=True, exist_ok=True)
     log = PROVISION_LOG / f"{_safe_id(request.host_id)}.log"
     role = (request.roles or ["worker"])[0]
@@ -14363,7 +14690,27 @@ def _artifact_path(key: str) -> Path:
     point anywhere at all. Comparing the real path to the real root is the only
     form of this that holds.
     """
+    # Length before resolution: a 3000-character key got past every check here
+    # and reached open(), which raised OSError ENAMETOOLONG -- a 500 for a key
+    # the filesystem could never have held. 255 bytes is the limit on ext4 and
+    # every filesystem this runs on, and it is per component, not per path.
+    for component in str(key).split("/"):
+        if len(component.encode("utf-8", "surrogateescape")) > 255:
+            raise HTTPException(
+                400, "that key has a component longer than 255 bytes, which no "
+                     "filesystem here can name")
     root = ARTIFACTS.resolve()
+    # And the whole path, which has its own limit -- 4096 on Linux, 1024 on
+    # macOS -- reached independently of any component being nameable. Asked of
+    # the filesystem rather than assumed, because the two differ by 4x.
+    try:
+        longest = os.pathconf(str(root), "PC_PATH_MAX")
+    except (OSError, ValueError, AttributeError):  # not every platform answers
+        longest = 1024
+    if len(str(root / key).encode("utf-8", "surrogateescape")) > longest:
+        raise HTTPException(
+            400, f"that key makes a path longer than {longest} bytes, which is "
+                 "this filesystem's limit")
     candidate = (root / key).resolve()
     if candidate != root and root not in candidate.parents:
         raise HTTPException(400, "that key is outside the artifact root")
@@ -14424,7 +14771,20 @@ async def api_artifact_copy(key: str, http: Request):
     twice as expensive for no gain.
     """
 
-    body = await http.json()
+    # A request with no body, or one that is not JSON, reached http.json() and
+    # raised JSONDecodeError -- which is not an HTTPException, so it became a
+    # bare 500 with the word "Internal Server Error" and nothing else. The
+    # caller sent a bad request and the answer said the server broke.
+    try:
+        body = await http.json()
+    except Exception:  # noqa: BLE001 -- any unparseable body is the same refusal
+        raise HTTPException(
+            400, "this endpoint takes a JSON body naming what to copy: "
+                 '{"copy_from": "<the key you staged>"}') from None
+    if not isinstance(body, dict):
+        raise HTTPException(
+            400, 'the body has to be a JSON object naming what to copy: '
+                 '{"copy_from": "<the key you staged>"}')
     source = _artifact_path(str(body.get("copy_from", "")))
     # The source too, and to the writable set rather than the promotable one: a
     # promotion copies what this token staged, so a copy_from naming a
@@ -14602,6 +14962,15 @@ if DIST.exists():
         check itself. This route did not, and it is the one that answers
         everything else.
         """
+        # An /api/ path that reached here matches no route, and answering it
+        # with the app shell tells a client that parses JSON that everything is
+        # fine. openapi_url was already moved under /api/ for exactly this, but
+        # that fixed one path rather than the shape: a typo, a renamed route or
+        # a version skew all answer 200 with HTML. `/api/health` -- which this
+        # app has never declared -- answers 200 to anything that polls it, so a
+        # readiness check written against it passes while the API is down.
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(404, f"no API route at /{full_path}")
         candidate = (DIST / full_path).resolve()
         if (full_path and candidate.is_file()
                 and candidate.is_relative_to(DIST_ROOT)):

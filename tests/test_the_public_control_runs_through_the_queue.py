@@ -241,3 +241,85 @@ def test_the_default_inference_names_itself(tmp_path) -> None:
     from run_public_ink_control import _default_inference
 
     assert '"through": "local-subprocess"' in inspect.getsource(_default_inference)
+
+
+# --- the CHECKPOINT boundary, asked of the platform ------------------------
+#
+# It used to hash a file this process could see, which required mounting the
+# models volume into the control -- reaching into the machine under test, which
+# is the thing the queued path exists to stop doing. Hashing a local file also
+# proves the wrong thing: that *this* process found the right bytes somewhere,
+# not that the deployment about to run the job has them.
+
+from run_public_ink_control import run_public_ink_control  # noqa: E402
+
+SHA = "e" * 64
+
+
+def _boundary(receipt, name):
+    return next(s for s in receipt["stages"] if s["boundary"] == name)
+
+
+def _control(installed, tmp_path):
+    """The two boundaries before CHECKPOINT are not what these tests are about,
+    so the run is allowed to stop there; CHECKPOINT is reached either way."""
+    return run_public_ink_control(
+        surface_volume="https://example.invalid/v.zarr",
+        checkpoint=tmp_path / "absent.pth",
+        expected_checkpoint_sha256=SHA,
+        output=tmp_path, installed=installed,
+        source=_AlwaysPublic(), inference=lambda **_: {"through": "test"})
+
+
+class _AlwaysPublic:
+    """The scale the model wants, so PUBLIC_SOURCE and SCALE pass and CHECKPOINT
+    is the boundary under test."""
+
+    def read_metadata(self, _uri):
+        return {"voxel_size_um": 9.362, "axes": "zyx",
+                "canvas_size": [1, 1, 1]}
+
+
+def test_a_declared_and_installed_checkpoint_passes_without_a_local_file(tmp_path):
+    """The file is deliberately absent: nothing hashes it any more."""
+    row = {"checkpoint_sha256": SHA, "installed": True,
+           "declared_by": ["ink-9um-hybrid-3d2d@1.0.0"],
+           "expected_path": "ink_9um/hybrid_3d2d-seed42/step-075000.pth"}
+    stage = _boundary(_control(lambda _s: row, tmp_path), "CHECKPOINT")
+    assert stage["terminal_state"] == "PASS", stage
+    assert stage["resource_identity"]["established_by"] == "helena-api", (
+        "the receipt does not say the platform established this, so a reader "
+        "cannot tell it from a run that hashed a file beside itself")
+
+
+def test_a_hash_no_profile_declares_is_refused(tmp_path):
+    """Correct bytes are not enough: a deployment cannot be asked to use a
+    checkpoint none of its frozen profiles names."""
+    stage = _boundary(_control(lambda _s: None, tmp_path), "CHECKPOINT")
+    assert stage["terminal_state"] == "FAILED"
+    assert stage["reason_code"] == "CHECKPOINT_NOT_DECLARED"
+
+
+def test_declared_but_absent_is_incomplete_rather_than_failed(tmp_path):
+    """Nothing is wrong with the checkpoint; it is not there yet. Those are
+    different answers and the receipt keeps them apart."""
+    row = {"checkpoint_sha256": SHA, "installed": False, "declared_by": ["x"]}
+    stage = _boundary(_control(lambda _s: row, tmp_path), "CHECKPOINT")
+    assert stage["terminal_state"] == "INCOMPLETE"
+    assert stage["reason_code"] == "CHECKPOINT_NOT_INSTALLED"
+
+
+def test_without_a_platform_it_still_hashes_the_file(tmp_path):
+    """The local path is what `--panel` is not, and it has to keep working: it
+    is how the control runs against tooling with no deployment at all."""
+    import hashlib
+    f = tmp_path / "ckpt.pth"
+    f.write_bytes(b"weights")
+    receipt = run_public_ink_control(
+        surface_volume="https://example.invalid/v.zarr", checkpoint=f,
+        expected_checkpoint_sha256=hashlib.sha256(b"weights").hexdigest(),
+        output=tmp_path, source=_AlwaysPublic(),
+        inference=lambda **_: {"through": "test"})
+    stage = _boundary(receipt, "CHECKPOINT")
+    assert stage["terminal_state"] == "PASS"
+    assert stage["resource_identity"]["established_by"] == "local-file"

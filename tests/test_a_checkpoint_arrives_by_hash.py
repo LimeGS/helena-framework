@@ -4,11 +4,18 @@ The panel can now fetch a checkpoint from Hugging Face, which means the panel
 now writes a file that a GPU worker will load. Three things have to hold, and
 each is a different kind of wrong:
 
-  * only safetensors. Every other checkpoint format in this ecosystem is a
-    Python pickle, and loading one executes whatever was serialised into it. A
-    download button that accepts `.ckpt` is a remote code execution primitive
-    with a friendly label.
-  * the file name is a name, not a path. It reaches a filesystem write.
+  * safetensors freely, a pickle only against a hash. Every other checkpoint
+    format in this ecosystem is a Python pickle, and loading one executes
+    whatever was serialised into it. A download button that accepts `.ckpt` is
+    a remote code execution primitive with a friendly label -- so one may be
+    fetched only when the caller states the sha256 it must have, which is how
+    the ink lane's own .pth (upstream publishes no safetensors) can arrive
+    through the API instead of being written into the volume from outside.
+    It does not stop a caller who knows a malicious file's hash; it stops a
+    repository serving different bytes under a trusted name.
+  * the file may be a path inside the repository, and may not escape the models
+    root. Upstream keeps checkpoints in directories, so the separator cannot
+    simply be banned. It reaches a filesystem write.
   * what arrives is what was asked for. A profile identifies a checkpoint by
     hash and treats the path as runtime input, so a repository that was
     re-uploaded since the profile was frozen must not install under the old
@@ -20,6 +27,8 @@ to check a `.ckpt` refusal is a test that goes yellow when the network does.
 """
 
 from __future__ import annotations
+
+import json
 
 import sys
 from pathlib import Path
@@ -83,13 +92,65 @@ def test_a_pickle_is_refused_whatever_it_is_called(client, filename):
     assert not list(client.models.rglob("*")), "something was written anyway"
 
 
-def test_the_file_is_a_name_and_not_a_path(client):
-    """It is joined onto the models root, so a separator is an escape."""
+def test_a_pickle_needs_the_hash_it_must_have(client):
+    """The rule that replaced "safetensors only", and the reason it is narrower
+    than it looks.
+
+    Upstream publishes the ink lane's checkpoint as .pth and we do not get to
+    choose the format, so refusing pickles outright meant the one checkpoint
+    this platform's own public control needs could not be placed through the
+    API at all -- every reproduction wrote it into the volume from outside,
+    which is not an interface anybody can be asked to trust.
+
+    Against a stated hash it is fetched and, if the bytes disagree, deleted
+    rather than installed. That stops a repository serving different weights
+    under a trusted name. It does not stop somebody who knows the hash of a
+    malicious file, and this test does not pretend otherwise.
+    """
+    bare = client.post("/api/models/download",
+                       json={"repo": "a/b", "file": "step-075000.pth"})
+    assert bare.status_code == 400, "a pickle was accepted with no hash to check"
+    assert "expect_sha256" in json.dumps(bare.json()), (
+        "the refusal does not say what would make it acceptable")
+
+    with_hash = client.post("/api/models/download",
+                            json={"repo": "a/b", "file": "step-075000.pth",
+                                  "expect_sha256": "e" * 64})
+    assert with_hash.status_code != 400, (
+        "a pickle with a stated hash is still refused on its format")
+
+    # safetensors still needs no hash: the format cannot carry code, which is
+    # why that half of the rule did not have to move.
+    plain = client.post("/api/models/download",
+                        json={"repo": "a/b", "file": "model.safetensors"})
+    assert plain.status_code != 400
+
+
+def test_the_file_may_be_a_path_but_never_an_escape(client):
+    """It is joined onto the models root, so a separator has to be safe rather
+    than absent.
+
+    A subdirectory used to be refused with the rest, which meant the ink lane's
+    checkpoint -- hybrid_3d2d-seed42/step-075000.pth -- could not be fetched at
+    all and was written into the volume by hand instead. Every segment is
+    checked now, and the resolved path is checked again against the root.
+    """
     for attempt in ("../../etc/cron.d/model.safetensors",
-                    "subdir/model.safetensors"):
+                    "../model.safetensors",
+                    "a/../../model.safetensors",
+                    "/etc/model.safetensors",
+                    "sub//model.safetensors",
+                    "./model.safetensors"):
         answer = client.post("/api/models/download",
                              json={"repo": "a/b", "file": attempt})
         assert answer.status_code == 400, f"{attempt} was accepted"
+
+    # An ordinary subdirectory gets past the path check. It fails later, on the
+    # network or the repository, which is a different refusal and not this one.
+    answer = client.post("/api/models/download",
+                         json={"repo": "a/b", "file": "subdir/model.safetensors"})
+    assert answer.status_code != 400, (
+        "a legitimate subdirectory is still refused as a path")
 
 
 def test_a_repository_name_that_is_not_one_never_reaches_the_network(client):

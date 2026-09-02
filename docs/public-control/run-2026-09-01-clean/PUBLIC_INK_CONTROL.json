@@ -1,0 +1,128 @@
+{
+  "content_sha256": "eb90c16981202803c4b76a0bb3db96c2cf9fc49078bacc4db75634c9dba7545f",
+  "control_state": "CONTROL_PASS",
+  "first_nonpassing_boundary": null,
+  "generated_at_utc": "2026-09-01T15:56:23Z",
+  "non_claims": [
+    "This is not a reading, not an ink claim, and not a letter claim.",
+    "Passing says this platform drove the recommended tooling end to end on public data. It says nothing about whether the resulting map is correct.",
+    "This is not the nine-boundary campaign control and cannot be published as one; that is a different receipt with a different schema.",
+    "One checkpoint of the several upstream publishes, at one z window."
+  ],
+  "schema": "campaignx.public_ink_stage_survival.v1",
+  "stages": [
+    {
+      "boundary": "PUBLIC_SOURCE",
+      "counts": {},
+      "elapsed_seconds": 0.5335336279999865,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PUBLIC_SOURCE_READ_ANONYMOUSLY",
+      "resource_identity": {
+        "axes": [
+          "z",
+          "y",
+          "x"
+        ],
+        "canvas_size": [
+          8120,
+          6120
+        ],
+        "credentials_used": false,
+        "uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20260112000000-w043_2026011217/surface-volumes/9.362um-1.2m-113keV-volume-20250728140407.zarr",
+        "voxel_size_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "SCALE",
+      "counts": {
+        "xy_factor": 1,
+        "z_factor": 1
+      },
+      "elapsed_seconds": 8.800000159681076e-06,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "NATIVE_MODEL_SCALE",
+      "resource_identity": {
+        "model_scale_um": 9.6,
+        "output_voxel_um": 9.362,
+        "source_voxel_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "CHECKPOINT",
+      "counts": {},
+      "elapsed_seconds": 0.05766443199991045,
+      "input_artifacts": [],
+      "output_hashes": {
+        "checkpoint_sha256": "e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab"
+      },
+      "reason_code": "CHECKPOINT_IS_THE_DECLARED_ONE",
+      "resource_identity": {
+        "bytes": 138360039
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "INK",
+      "counts": {
+        "shape": [
+          6120,
+          8120
+        ]
+      },
+      "elapsed_seconds": 1550.0825422029998,
+      "input_artifacts": [],
+      "output_hashes": {
+        "probability_sha256": "f4abc1b46d212711f825be04126a86944798931eaaa31f8a3ac0a8963e585566"
+      },
+      "reason_code": "PROBABILITY_MAP_WRITTEN",
+      "resource_identity": {
+        "artifact_sha256": "a8c5f704aebed98401724135a8f3e71d6dc0afa36c2e1678928109ebd035856e",
+        "artifact_uri": "/artifacts/ink-maps-v1/surfaces/PHerc0139/ink-maps/p5-2e942b941a3349",
+        "job_id": "p5-2e942b941a3349",
+        "manifest_sha256": "3cca87228b30c43a5789edde14f3e0d5c802a2b1ac462456db9225820ce0e988",
+        "runtime_seconds": 1526.5,
+        "through": "helena-queue"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "LIVENESS",
+      "counts": {
+        "fraction_near_half": 0.07032082085707847,
+        "p50": 0.27843138575553894,
+        "p99": 0.7764706015586853,
+        "spread_p99_p50": 0.49803921580314636,
+        "std": 0.16737750130654475,
+        "top1_components": 10690,
+        "top1_largest_component_px": 8124,
+        "top1_median_component_px": 1,
+        "top1_share_in_components_over_10px": 0.9676,
+        "valid_pixels": 49694400
+      },
+      "elapsed_seconds": 1.1131807899996602,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "MAP_CARRIES_A_DECISION",
+      "resource_identity": {},
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "HUMAN_REVIEW",
+      "counts": {},
+      "elapsed_seconds": 4.399998942972161e-07,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "ROUTED_TO_REVIEW_WITHOUT_A_CLAIM",
+      "resource_identity": {
+        "claims_nothing": true,
+        "map": "/out/probability.npy"
+      },
+      "terminal_state": "PASS"
+    }
+  ],
+  "surface_volume": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20260112000000-w043_2026011217/surface-volumes/9.362um-1.2m-113keV-volume-20250728140407.zarr"
+}

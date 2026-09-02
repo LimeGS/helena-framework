@@ -62,6 +62,29 @@ def panel(tmp_path, monkeypatch):
     return module, client
 
 
+def test_an_unknown_api_path_is_a_404_and_not_the_app_shell(panel):
+    """The same catch-all, answering for the API it does not implement.
+
+    `/api/health` is not a route this app declares, and the shell answered it
+    200 with HTML -- so anything polling it for readiness passes while the API
+    is unreachable. openapi_url was already moved under /api/ for this reason;
+    that fixed one path, not the shape.
+    """
+    module, client = panel
+    if not module.DIST.exists():
+        pytest.skip("the frontend is not built in this checkout")
+
+    for missing in ("/api/health", "/api/openapi.json.bak", "/api/no-such-route"):
+        response = client.get(missing)
+        assert response.status_code == 404, (
+            f"{missing} answered {response.status_code} "
+            f"{response.headers.get('content-type')}")
+        assert "text/html" not in response.headers.get("content-type", "")
+
+    # The client-side routes still get the shell: this narrows /api/, not more.
+    assert client.get("/missions/full-pipeline").status_code == 200
+
+
 # -- the traversal ---------------------------------------------------------
 
 def test_the_spa_route_refuses_to_leave_its_own_directory(panel):

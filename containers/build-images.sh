@@ -17,7 +17,7 @@ context="${1:-$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)}"
 # them from the daemon that built them. Pass one, or set HELENA_REGISTRY,
 # to tag for a push.
 registry="${2:-${HELENA_REGISTRY:-}}"
-# Empty registry means local tags: `helena-panel:0.23.0`, which is exactly what
+# Empty registry means local tags: `helena-panel:0.24.0`, which is exactly what
 # the compose files default to. With one set, everything is prefixed and pushed.
 if [ -n "$registry" ]; then prefix="$registry/"; else prefix=""; fi
 # The version, from the one file that holds it. A commit hash is an identity
@@ -36,7 +36,8 @@ test -f "$context/panel/web/dist/index.html" || {
 set -- \
   "panel:Containerfile.panel:${PANEL_BASE_IMAGE:-python:3.11-slim}" \
   "ink-worker:Containerfile.worker-gpu:${PHASE_BASE_IMAGE:-${prefix}helena-gpu-runtime:0.1.1}" \
-  "backup:Containerfile.backup:${BACKUP_BASE_IMAGE:-postgres:16-alpine}"
+  "backup:Containerfile.backup:${BACKUP_BASE_IMAGE:-postgres:16-alpine}" \
+  "control-tunnel:Containerfile.control-tunnel:${TUNNEL_BASE_IMAGE:-alpine:3.20}"
 
 for spec in "$@"; do
   name=$(printf '%s' "$spec" | cut -d: -f1)

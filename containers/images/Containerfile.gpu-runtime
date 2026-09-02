@@ -130,8 +130,12 @@ RUN if [ -f /opt/campaignx/vc3d/PYTHON_REQUIREMENTS ]; then \
       python -m pip install --no-cache-dir -r /opt/campaignx/vc3d/PYTHON_REQUIREMENTS; \
     fi
 
+# torch.version.cuda and not get_arch_list(): the arch list is empty without a
+# device, and a build host has none, so asserting sm_120 there would refuse
+# every build. The CUDA line torch was compiled against is available with no
+# GPU present and is what decides whether Blackwell kernels exist at all.
 RUN python -m pip install --no-cache-dir -r /opt/campaignx/requirements.surface-qc.txt \
- && python -c 'import boto3, numpy, PIL, psycopg, psycopg2, scipy, torch; assert torch.__version__.startswith("2.5.1")'
+ && python -c 'import boto3, numpy, PIL, psycopg, psycopg2, scipy, torch; assert torch.__version__.startswith("2.7.1"); assert tuple(int(p) for p in torch.version.cuda.split(".")) >= (12, 8), torch.version.cuda'
 
 # Every half, started rather than looked for. `test -x` cannot tell whether what
 # a launcher starts is there, and the MCP launcher is a shell shim over a Python
