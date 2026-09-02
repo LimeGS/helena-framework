@@ -257,7 +257,7 @@ def test_a_surface_with_no_second_run_is_unpaired_not_zero(tmp_path):
     out = agreement.unpaired(tmp_path / "a")
 
     assert out["state"] == agreement.UNPAIRED
-    assert "SIN PAREJA" in agreement.headline(out)
+    assert "UNPAIRED" in agreement.headline(out)
     # A state, not a missing field: no error bar is a different thing from a
     # large one. The large one can be defended with its number beside it.
     assert out["defensible"] is False
@@ -322,7 +322,7 @@ def test_the_table_cell_is_a_state_and_one_number(tmp_path):
 
 
 def test_an_unpaired_surface_reads_as_a_state_in_the_cell(tmp_path):
-    assert agreement.cell(agreement.unpaired(tmp_path / "a")) == "SIN PAREJA"
+    assert agreement.cell(agreement.unpaired(tmp_path / "a")) == "UNPAIRED"
 
 
 def test_the_normalised_form_is_named_for_its_divisor(tmp_path):

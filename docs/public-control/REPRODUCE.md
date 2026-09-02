@@ -71,8 +71,12 @@ it for you, because that is a system package and your machine's business.
     curl -fsSL https://raw.githubusercontent.com/LimeGS/helena-framework/main/install.sh | sh -s -- --gpu
 
 One command. It clones, builds the panel, compiles volume-cartographer -- expect
-an hour or two -- and starts the workers. On the machine this page was written
-from it brought up nine containers and left four workers polling.
+an hour or two -- and starts the workers. It wants `git`, `curl` and Docker
+with Compose v2, and about 6 GB free under Docker's root, and it checks all of
+that before it downloads anything. The checkout lands in `./helena` (set
+`HELENA_DIR` to put it elsewhere); that directory is `<checkout>` in step 7. On
+the machine this page was written from it brought up nine containers and left
+four workers polling.
 
 The tenth was the surface-QC runtime, which wanted a checkpoint nothing
 downloaded, and sat restarting. The deploy fetches that checkpoint from Hugging
@@ -82,11 +86,14 @@ this control does not touch it.
 
 ## 3. Claim the first account
 
-    curl -sk https://127.0.0.1:8800/api/session/bootstrap \
+    curl -sk -c cookies https://127.0.0.1:8800/api/session/bootstrap \
       -H 'Content-Type: application/json' \
       -d '{"username":"you","password":"at-least-ten-characters"}'
 
-Loopback only, and it closes once an account exists.
+Loopback only, and it closes once an account exists. The answer signs you in
+and sets the session cookie, so `-c cookies` keeps it in a jar, and every
+`curl` below sends it back with `-b cookies`. To sign in again later, `POST
+/api/session` with the same body and `-c cookies` again.
 
 ## 4. Ask the panel for the checkpoint
 
@@ -118,17 +125,23 @@ the panel.
       -d '{"mission_id":"public-control","name":"Public ink control",
            "scrolls":["PHerc0139"]}'
 
-(Sign in first with `POST /api/session` and keep the cookie jar; every call
-below uses it.)
+PHerc0139 is the scroll on purpose. It is absent from the frozen eligible
+catalogue: the First Letters control policy pins it as the development control,
+and a control scroll may never be an evaluation scroll. The panel accepts it
+here because that policy names its volumes. Any other name has to be in the
+catalogue, or the request is refused with the names the deployment knows.
 
 ## 6. Freeze and select the P0 artifact
 
-The control sample needs its volume chosen explicitly -- a control run has to
-name which scan it used, and the panel refuses to guess:
+The segmentation control makes these two requests itself. Here they are yours
+to make: PHerc0139 is the control scroll, and the panel will not queue an ink
+job on the control scroll until the mission has selected a P0 artifact -- a
+control run has to name which scan it used, and the panel refuses to guess:
 
     409: control scope requires an explicit selected P0 artifact
 
-Two calls. The first registers what P0 produced and returns an `artifact_id`;
+Two calls. The first registers what P0 produced and returns `artifacts`, one
+per scroll, each with an `artifact_id` of the form `p0:PHerc0139:<12 hex>`;
 the second chooses it. The selection is the whole map, never a patch.
 
     curl -sk -b cookies -X POST \
@@ -155,12 +168,19 @@ the second chooses it. The selection is the whole map, never a patch.
         --surface-volume <the volume URL above> \
         --output /out
 
+`helena-ink-9um:local` is the 9 um lane image the GPU deploy built in step 2;
+`docker images | grep helena-ink-9um` shows it. The control runs in it because
+it reads the map back with numpy, which the panel image does not carry.
+`<checkout>` is the directory the installer cloned into and `<output dir>` any
+empty directory of yours. `--user` is the account from step 3; the password
+comes from `HELENA_PANEL_PASSWORD` or `--password`.
+
 `HELENA_PANEL_TLS_INSECURE=1` because the panel's certificate is self-signed on
 first boot. Point `--panel` at a name that certificate covers and you can drop
 it; on the machine that just installed itself, you cannot.
 
-Exit status is 0 on `CONTROL_PASS` and 3 otherwise. Inference took about
-twenty-six minutes on one 5090.
+Exit status is 0 on `CONTROL_PASS` and 3 otherwise. Inference took twenty-four
+to twenty-eight minutes on one 5090 across the three runs below.
 
 ## What is not an API call, and why
 
@@ -187,10 +207,16 @@ deployment's host.
 
 ## Reading the receipt
 
-`control_state` is `CONTROL_PASS` only when every boundary passed. The first
-non-passing boundary owns the outcome and every row after it is normalised to
-`NOT_RUN_PREREQUISITE`, so a receipt cannot show a later boundary passing over
-an earlier failure.
+Each row of `stages` carries a `boundary`, a `terminal_state` -- `PASS`,
+`INCOMPLETE`, `FAILED` or `NOT_RUN_PREREQUISITE` -- a `reason_code` saying why,
+and `elapsed_seconds`. `control_state` is `CONTROL_PASS` only when every
+boundary passed. The first non-passing boundary owns the outcome and is named
+in `first_nonpassing_boundary`; every row after it is normalised to
+`NOT_RUN_PREREQUISITE` with its counts and hashes emptied, so a receipt cannot
+show a later boundary passing over an earlier failure. `content_sha256` is the
+SHA-256 of the receipt itself, serialised with sorted keys and no whitespace
+before that field was added; a receipt that has been edited no longer matches
+its own digest.
 
 Four fields are worth reading directly:
 
@@ -211,6 +237,9 @@ Four fields are worth reading directly:
   exactly that, exit 0 and all, and the liveness gate is what caught it.
 
 ## Runs
+
+    2026-09-02  CONTROL_PASS  helena-queue  the same fresh machine as the
+                                              segmentation control      run-2026-09-02-clean
 
     2026-09-01  CONTROL_PASS  helena-queue  rented 5090          run-2026-09-01-vast
     2026-09-01  CONTROL_PASS  helena-queue  the same, reinstalled from scratch

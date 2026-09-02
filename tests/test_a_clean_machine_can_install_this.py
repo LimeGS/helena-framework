@@ -578,3 +578,53 @@ def test_the_deploys_python_helper_mounts_nothing():
     # And no caller reads a repository file from inside the interpreter.
     for opener in ('json.load(open("framework/', "open(sys.argv[1])"):
         assert opener not in script, f"a py() program opens a path: {opener}"
+
+
+def test_every_required_compose_variable_has_a_template_key_to_inherit():
+    """A host configured before a template grew a key failed its deploy with
+    `required variable HELENA_QC_ARTIFACTS is missing a value`, while a machine
+    installed from the same commit came up. The deploy now appends any key the
+    template has and an existing env file lacks -- which only works if every
+    variable a compose file requires is in its stack's template, or is one the
+    deploy fills itself."""
+    import re
+
+    compose_dir = ROOT / "containers/compose"
+    filled_by_the_deploy = {
+        "HELENA_HOST_ID", "HELENA_SEGMENT_HOST_ID", "HELENA_INK_HOST_ID",
+        "HELENA_QC_HOST_ID", "QC_WORKER_ID", "HELENA_QC_DEVICE",
+        "HELENA_SEGMENT_IMAGE", "HELENA_INK_IMAGE", "HELENA_QC_IMAGE",
+        "FLEET_DB", "CX_DB", "HELENA_CONTROL_HOST", "HELENA_CONTROL_KEY",
+    }
+    stacks = {"segment.compose.yaml": "segment.env.example",
+              "spiral.compose.yaml": "segment.env.example",
+              "ink.compose.yaml": "ink.env.example",
+              "surface-qc.compose.yaml": "surface-qc.env.example",
+              "host-report.compose.yaml": "segment.env.example"}
+    missing = []
+    for compose_name, template_name in stacks.items():
+        compose = (compose_dir / compose_name).read_text(encoding="utf-8")
+        template = (compose_dir / template_name).read_text(encoding="utf-8")
+        keys = set(re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)=", template, re.M))
+        for var in set(re.findall(r"\$\{([A-Za-z_][A-Za-z0-9_]*):\?", compose)):
+            if var not in keys and var not in filled_by_the_deploy:
+                missing.append(f"{compose_name} requires {var}; {template_name} has no such key")
+    assert not missing, "\n".join(missing)
+
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text(encoding="utf-8")
+    assert "# BEGIN inherit-template-keys" in deploy and "# END inherit-template-keys" in deploy, (
+        "the deploy no longer inherits template keys into existing env files")
+
+
+def test_the_deploy_prepares_every_host_path_surface_qc_mounts():
+    """surface-qc.compose.yaml bind-mounts `$HELENA_QC_RUN_ROOT/gpu<device>` onto
+    /artifacts/qc-runtime and `$HELENA_QC_RECONSTRUCTIONS` onto its own place,
+    and Docker creates a bind mount's source as root:root. On a fresh install
+    the QC runtime, uid 1000, claimed its first job and died on PermissionError
+    in the gpu0 directory Docker had just made. The deploy owns both now."""
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text(encoding="utf-8")
+    assert '"HELENA_QC_RECONSTRUCTIONS surface-qc.env ' in deploy, (
+        "the reconstructions directory is not in the deploy's directory list")
+    assert "# BEGIN qc-run-root-per-device" in deploy and "# END qc-run-root-per-device" in deploy
+    block = deploy.split("# BEGIN qc-run-root-per-device", 1)[1].split("# END qc-run-root-per-device", 1)[0]
+    assert '"$qc_root/gpu$device"' in block and "chown -R" in block and "for device in" in block

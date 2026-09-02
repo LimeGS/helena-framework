@@ -43,8 +43,12 @@ def test_the_entrypoint_hands_every_process_the_name_not_the_value():
         assert '--db "$FLEET_DB"' not in line and "--db $FLEET_DB" not in line, (
             f"the DSN is on a command line: {line.strip()}")
     # Three processes take a database: the host reporter, the preflight worker
-    # and the segmentation worker. Each is handed the variable's name.
-    assert text.count("--db postgres-env://FLEET_DB") == 3
+    # and the segmentation worker. Each is handed the variable's name -- or the
+    # name the stack already handed this entrypoint, unchanged: wrapping a name
+    # in a name is what crash-looped the QC runtime on a fresh install.
+    assert text.count('--db "$FLEET_DB_ARG"') == 3
+    assert 'postgres-env://*) FLEET_DB_ARG="$FLEET_DB"' in text
+    assert '*) FLEET_DB_ARG="postgres-env://FLEET_DB"' in text
 
 
 @pytest.mark.parametrize("script", ["run_surface_qc_watch.sh",
@@ -171,3 +175,24 @@ def test_no_compose_command_carries_the_dsn_by_value():
                         f"after --db: {value}")
                     assert value.startswith("postgres-env://"), (
                         f"{compose.name}: service {name} passes --db {value}")
+
+
+@pytest.mark.parametrize("script", ["run_surface_qc_watch.sh",
+                                    "run_autosegment_after_qc.sh"])
+def test_a_value_that_is_already_a_name_is_passed_through(script):
+    """The surface-qc stack hands FLEET_DB=postgres-env://SEGMENT_FLEET_DATABASE_URL
+    through its secrets wrapper. The first version of this wrapped anything
+    starting with `postgres`, so the resolver read a name where it expected a
+    URL and the QC runtime crash-looped on a fresh install."""
+    import subprocess
+
+    text = (SCRIPTS / script).read_text(encoding="utf-8")
+    expression = re.search(r'--db "\$\((case .*?esac)\)"', text).group(1)
+    def resolve(value):
+        return subprocess.run(["sh", "-c", f'FLEET_DB="{value}"; {expression}'],
+                              capture_output=True, text=True).stdout.strip()
+    assert resolve("postgresql://u:p@h/db") == "postgres-env://FLEET_DB"
+    assert resolve("postgres://u:p@h/db") == "postgres-env://FLEET_DB"
+    assert resolve("postgres-env://SEGMENT_FLEET_DATABASE_URL") == (
+        "postgres-env://SEGMENT_FLEET_DATABASE_URL")
+    assert resolve("/tmp/fleet.sqlite") == "/tmp/fleet.sqlite"

@@ -10,40 +10,41 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
 </p>
 
-An orchestration and evidence layer for the volume → surface → ink → page
-pipeline. It re-implements none of it. **VC3D, m7, ScrollFiesta, the Volume
-Cartographer flatteners and the ink models stay exactly what they are**, behind
-stable adapters — Helena remembers what each was given and what it returned.
+Helena is the orchestration and evidence layer for the volume → surface → ink →
+page pipeline of the [Vesuvius Challenge](https://scrollprize.org). It
+re-implements none of it. **VC3D, m7, ScrollFiesta, the Volume Cartographer
+flatteners and the ink models stay exactly what they are**, behind stable
+adapters. Helena records what each was given and what it returned.
 
 **It solves the problems that begin once the methods work.** A campaign produces
 thousands of surfaces and detections, across several machines, over weeks. By
 then the algorithms are not what costs you time. Reproducing a result a month
-later is. So is putting another machine to work without babysitting it, comparing
-two lanes fairly, knowing which volume and which checkpoint produced a given
-output — and telling a phase that exited zero from one that actually decided
+later is. So is putting another machine to work without babysitting it,
+comparing two lanes fairly, knowing which volume and which checkpoint produced
+an output, and telling a phase that exited zero from one that actually decided
 something.
 
-Three things follow from treating those as first-class.
+Treat those as first-class and three things follow.
 
 **A tool becomes comparable.** Code, model, parameters, preprocessing and
-dependencies are frozen against content: the base image resolves to
-`repository@sha256` or the build refuses, checkpoints are pinned by SHA-256, and
-profiles, plans and artifacts each carry their own. Hold two lanes against each
-other. Replace one without invalidating what came before.
+dependencies are frozen against content. The base image resolves to
+`repository@sha256` or the build refuses, checkpoints are pinned by SHA-256,
+and profiles, plans and artifacts each carry their own digest. Hold two lanes
+against each other, or replace one without invalidating what came before.
 
 **Hardware becomes poolable.** Trusted teams put their servers and GPUs behind
-one auditable queue. It routes work to hardware that can run it, recovers what an
-interrupted host was holding, never hands the same row to two workers, and
+one auditable queue. It routes work to hardware that can run it, recovers what
+an interrupted host was holding, never hands the same row to two workers, and
 publishes hash-verified artifacts to shared storage.
 
-**Evidence stays separable.** Geometry certification, CT support, model response
-and human review are four distinct judgements, recorded separately. A surface can
-be CT-supported and geometrically rejected at once — they answer different
-questions, and collapsing them into one number is how a campaign convinces
-itself.
+**Evidence stays separable.** Geometry certification, CT support, model
+response and human review are four distinct judgements, recorded separately. A
+surface can be CT-supported and geometrically rejected at once. They answer
+different questions, and collapsing them into one number is how a campaign
+convinces itself.
 
-**The result is a path from one breakthrough to something a second person can
-reproduce, audit and build on.**
+The result is a path from one breakthrough to something a second person can
+reproduce, audit and build on.
 
 ## Quickstart
 
@@ -51,29 +52,31 @@ reproduce, audit and build on.**
 curl -fsSL https://raw.githubusercontent.com/LimeGS/helena-framework/main/install.sh | sh
 ```
 
-It asks what this machine should be — the panel alone, or the panel plus CPU or
-GPU workers — and puts the panel on `https://localhost:8800`. `--panel`,
-`--cpu`, `--gpu` or `HELENA_INSTALL` answer ahead of time; with no terminal to
-ask on it installs the panel, which runs no phase. See [Deploying](#deploying)
-for the first account. **Needs** `git`, Docker with **Compose v2**, port 8800,
-and 6 GB free *where Docker stores images* (`docker info --format
-'{{.DockerRootDir}}'` — often not `$HOME`); the user running it must reach the
-daemon, so `sudo usermod -aG docker "$USER"` and a new login, or run it under
-`sudo`. **Not** needed: Node, Python, CUDA, a GPU — the frontend compiles inside
-the image build and the panel runs on CPU.
+The installer asks what this machine should be, the panel alone or the panel
+plus CPU or GPU workers, and puts the panel on `https://localhost:8800`. Pass
+`--panel`, `--cpu` or `--gpu`, or set `HELENA_INSTALL`, to answer ahead of
+time. With no terminal to ask on it installs the panel only.
 
----
+You need `git`, Docker with **Compose v2**, a free port 8800, and about 6 GB
+where Docker stores images: `docker info --format '{{.DockerRootDir}}'`, which
+is often not under `$HOME`. The user running it must reach the daemon, so
+`sudo usermod -aG docker "$USER"` and a new login, or run it under `sudo`.
 
-Built for the [Vesuvius Challenge](https://scrollprize.org). MIT licensed.
-`NOTICE.md` states what this project claims and what it does not; read it
-before quoting any number from here.
+You do not need Node, Python, CUDA or a GPU. The frontend builds inside the
+image and the panel runs on CPU.
 
----
+Read the script before piping it to a shell; `curl -fsSLO` then `less` is the
+better habit. It wraps `git clone`, `docker compose up` for the panel and
+`containers/deploy-platform.sh` for workers. Nothing is pulled from a registry;
+every image is built where it runs. Then [claim the first account](#deploying).
+
+MIT licensed. `NOTICE.md` states what this project claims and what it does not.
+Read it before quoting any number from here.
 
 ## The pipeline
 
 Ten phases, defined once in `framework/contracts/pipeline_phases.json`. The
-panel, the queue, the job schemas and the in-app documentation are all generated
+panel, the queue, the job schemas and the in-app documentation are generated
 from that file, so a phase cannot mean one thing in the UI and another in the
 worker.
 
@@ -83,79 +86,67 @@ worker.
 | **P1** | Segmentation | Find sheet surfaces inside the volume |
 | **P2** | Geometry certification | Is this a physically plausible lamina? |
 | **P3** | Flattening | Unroll it, keeping the coordinate map |
-| **P4** | Surface volume rendering | Sample the CT along the normal → layer stack |
-| **P5** | Ink detection | Run a detector → probability map |
+| **P4** | Surface volume rendering | Sample the CT along the normal into a layer stack |
+| **P5** | Ink detection | Run a detector, get a probability map |
 | **P6** | Liveness | Does that map carry a decision at all? |
-| **P7** | Screening and adjudication | Probability map → verdict about text-like structure |
+| **P7** | Screening and adjudication | Turn the map into a verdict about text-like structure |
 | **P8** | Reconstruction | Stitch segments into one continuous sheet |
 | **P9** | Rendering and reading | Compose the sheet into a readable page |
 
 P2 and P6 are gates, not transformations.
 
-Several phases have more than one way of doing the work, and the choice is a
-**lane** the job records rather than a setting somebody remembers: P1 grows a
-surface or fits a spiral through the whole scroll, P4 renders through tifxyz or
-bridges a legacy PPM onto a newer rescan, and P5 has five adapters across 23
-profiles and 32 pinned checkpoints. A run names its lane, so two results are
+Where a phase has more than one way of doing the work, the choice is a **lane**
+the job records rather than a setting somebody remembers. P1 grows a surface or
+fits a spiral through the whole scroll. P4 renders through tifxyz or bridges a
+legacy PPM onto a newer rescan. P5 runs several detectors, each behind a profile
+that pins its checkpoint by digest. A run names its lane, so two results are
 comparable or visibly not.
 
 <p align="center">
   <img src="docs/screenshots/p5-ink-detection.png"
-       alt="P5 ink detection: runs with their lane, normalization, contract match and liveness verdict"
+       alt="P5 ink detection: the public ink control's probability map with its lane, state, liveness verdict and percentiles"
        width="900">
 </p>
 
-P5 on a real deployment. Each run names its lane and normalization; `MATCHES` is
-the profile contract holding, `ALIVE` the liveness verdict — the column that
-exists so a uniform map cannot pass as a result.
+P5 after the public ink control, on a machine installed with one command. The
+map names its job, lane and state; `ALIVE` is the liveness verdict, the column
+that exists so a uniform map cannot pass as a result.
 
 ## How that is enforced
 
-**`checkpoint_path` is a runtime input, never provenance.** A worker handed a
-file whose digest is not the profile's fails the job instead of using it.
+**`checkpoint_path` is an input, never provenance.** A worker handed a file
+whose digest is not the profile's fails the job instead of using it.
 
-**Liveness is asked explicitly.** A detector producing a uniform map exits zero
-and writes a file. Liveness classifies it — ALIVE, DEGENERATE, EMPTY — and a P5
-job finishing without one is recorded as failed. Every ink lane computes it, and
-one that does not fails the suite.
+**Liveness is asked explicitly.** A detector that produces a uniform map still
+exits zero and writes a file. Liveness gives every map a verdict (ALIVE,
+DEGENERATE, EMPTY), and a P5 job that finishes without one is recorded as
+failed.
 
 **Claims expire.** `FOR UPDATE SKIP LOCKED`, a lease with a deadline, a bounded
-attempt count, and a filter on the capability the job declares — so a dead host
-returns its work without an operator and a CPU box is never handed GPU work.
+attempt count and a filter on the capability the job declares. A dead host
+returns its work without an operator, and a CPU box is never handed GPU work.
 
-**Publication is atomic and origin-tagged.** Surfaces are staged then promoted,
-never written in place, and the totals separate what this fleet grew from what
-was imported. Summing the table was wrong in the flattering direction.
+**Publication is atomic and origin-tagged.** Surfaces are staged, then
+promoted, never written in place. The totals keep what this fleet grew apart
+from what was imported.
 
 **Deploys verify themselves.** After bringing the stacks up, the deploy checks
-each container against the image it built, by resolved ID rather than tag, and
-exits non-zero otherwise.
+every container against the image it just built, by image IDs rather than tag
+strings, and exits non-zero on a mismatch.
 
 Phases implemented elsewhere are registered in `framework/registries/` and
 vendored under `framework/vendored/` with a `VENDOR.json` recording source,
 commit and a per-file hash. Only technique is imported; findings stay at the
 source.
 
----
-
 ## Deploying
 
-The Quickstart line clones, builds and starts what you chose, checking first
-what is illegible from inside Docker: a full disk surfaces as `apt-get` exiting
-100 about `/var/cache/apt`, a compose v1 shim as a YAML error about a valid key,
-a busy port only after the build. It refuses a machine that already runs Helena
-— or merely still has its volumes, which outlive `compose down` and, if written
-by another user, fail from inside uvicorn as `PermissionError` on the
-certificate. `HELENA_ADOPT_VOLUMES=1` proceeds anyway.
+The Quickstart line clones, builds and starts what you chose. It refuses a
+machine that already runs Helena, or that still has its volumes from an earlier
+install. `HELENA_ADOPT_VOLUMES=1` proceeds anyway.
 
-Read it before you run it; `curl -fsSLO` then `less` is the better habit. What
-it wraps is no secret: `git clone`, `docker compose -f
-containers/compose/platform.compose.yaml up -d` for the panel, and
-`containers/deploy-platform.sh nogpu|gpu` for workers. Nothing is published, so
-every image is built where it runs.
-
-Then claim the first account. Opening the panel offers a form for it; from a
-shell on that host:
+Then claim the first account. The panel offers a form for it when first opened;
+from a shell on that host:
 
 ```bash
 curl -sk https://localhost:8800/api/session/bootstrap \
@@ -163,74 +154,76 @@ curl -sk https://localhost:8800/api/session/bootstrap \
   -d '{"username":"you","password":"at-least-ten-characters"}'
 ```
 
-`-k` because the certificate is self-signed; the log prints its fingerprint.
-That endpoint answers only on loopback and closes permanently once an account
-exists — being first through the door is not a way in. Later accounts are made
-under **Users**; there are no roles, so an account is the whole boundary.
+`-k` because the certificate is self-signed; the panel log prints its
+fingerprint. The endpoint answers only on loopback and closes for good once an
+account exists. Later accounts are made under **Users**. There are no roles, so
+an account is the whole boundary.
 
-**Object storage is optional and off by default** — artifacts go to a volume on
-the panel host, and `HELENA_BACKUP_S3` is only for off-site copies.
+Artifacts go to a volume on the panel host. Object storage is off by default,
+and `HELENA_BACKUP_S3` is only for off-site copies.
 
 ### Workers
 
-Phases need workers and P5 needs a CUDA device.
+The panel runs no phase. Phases need workers, and P5 needs a CUDA device.
 
 ```bash
 containers/deploy-platform.sh nogpu   # segmentation, flattening, reconstruction
 containers/deploy-platform.sh gpu     # adds ink detection and surface QC
 ```
 
-On first run the deploy writes `config/*.env` from the templates, never touching
-what you put there: in the checkout, git-ignored, yours to delete — nothing
-privileged, nothing left in `/etc`. Object-storage credentials go on the panel
-instead, so a worker starts from a database URL alone.
+On first run the deploy writes `config/*.env` from the templates and never
+overwrites what you put there. The files live in the checkout, git-ignored;
+nothing goes in `/etc`. Object-storage credentials belong on the panel, so a
+worker starts from a database URL alone.
 
-Neither profile needs anything external: the deploy builds what it runs, Volume
-Cartographer **compiled from source** — cloned at the commit its lock pins and
-checked against that commit's tree hash. Expect an hour or two, and more for
-`gpu`. `provision-host.sh` is for a *second* machine joining an existing fleet.
+Nothing external is needed. The deploy builds what it runs, including Volume
+Cartographer **compiled from source** at the commit its lock pins and checked
+against that commit's tree hash. Expect an hour or two, more for `gpu`.
 
-A worker off the panel's host needs a machine token: mint one under **Users →
-Machine tokens** and set `HELENA_PANEL_TOKEN`. It reaches the artifact endpoints
-and nothing else, revocable on its own.
-
----
+A worker on another host needs a machine token: mint one under **Users →
+Machine tokens** and set `HELENA_PANEL_TOKEN`. It reaches the artifact
+endpoints and nothing else, and can be revoked on its own. `provision-host.sh`
+prepares such a second machine to join an existing fleet.
 
 <p align="center">
   <img src="docs/screenshots/p1-segments.png"
-       alt="P1 segments: each surface with its origin, CT support, geometry verdict and human review as separate columns"
+       alt="P1 segments: the surfaces grown by the public segmentation control, with origin, CT support, geometry verdict and human review as separate columns"
        width="900">
 </p>
 
-Surfaces from P1 with the four judgements kept apart: origin, CT support,
-geometry verdict, human review. A surface can be `CERTIFIED` and `UNVALIDATED`
-at once — they answer different questions.
+The surfaces the public segmentation control grew, with the four judgements
+kept apart: origin, CT support, geometry verdict, human review. Every one is
+`CERTIFIED` and two are `CT SUPPORTED`; the columns answer different questions.
+
+## Two controls you can rerun
+
+Two controls are kept as evidence because a stranger can reproduce them. Both
+drive the API on a machine installed from this repository with one command, and
+both leave a receipt naming the boundary each stage passed or failed at. Both
+passed on a fresh machine; the receipts sit beside each document, and the two
+screenshots on this page were taken there.
+
+- **Segmentation, P0 to P3.** Intake, grow, geometry certification, CT-support
+  screening and flattening on PHerc826. A grow is not deterministic, so the
+  control passes on outcome within a bounded task budget and records surfaces
+  by digest. [Reproduce it](docs/public-control/REPRODUCE-SEGMENTATION.md).
+- **Ink, P4 to P7.** The whole ink chain on a volume read anonymously from the
+  open-data bucket, with a non-gated checkpoint verified by digest.
+  [Reproduce it](docs/public-control/REPRODUCE.md).
 
 ## Where to look next
 
 Everything else is in the panel, under **Documentation**:
 
-- **Handbook** — the whole of it in one place: a walkthrough from a scan to a
-  picture of letters, a page per phase with its traps, and every panel page with
-  what its controls do and when to leave them alone.
-- **Developer reference** — contracts, profiles, receipts, versioning, and how
+- **Handbook**: a walkthrough from a scan to a picture of letters, a page per
+  phase with its traps, and every panel page with what its controls do and when
+  to leave them alone.
+- **Developer reference**: contracts, profiles, receipts, versioning, and how
   to put your own tool into a phase.
-- **API reference** — the HTTP surface, from the routes themselves.
-
-Two controls are kept as evidence, because they are what a stranger can reproduce: both are driven
-through the API, on a machine installed from this repository with one command.
-
-- **Segmentation, P0→P3 — [the public segmentation control](docs/public-control/REPRODUCE-SEGMENTATION.md)**
-  — intake, grow, geometry certification, CT-support screening, flattening. A grow is not deterministic,
-  so it passes on outcome within a bounded task budget and records surfaces by digest. <PHERC826_README_SENTENCE>
-- **Ink, P4→P7 — [the public ink control](docs/public-control/REPRODUCE.md)** — the whole ink chain on
-  a volume read anonymously from the open-data bucket and a non-gated checkpoint verified by digest.
-  Six boundaries, all passed, receipts and logs beside it, run twice here and twice on a rented GPU.
+- **API reference**: the HTTP surface, from the routes themselves.
 
 The two references are generated from the code they describe, so they cannot
 drift from the deployment in front of you. That is why this file is short.
-
----
 
 ## Repository layout
 
@@ -250,20 +243,15 @@ containers/run-tests.sh tests/ -q --ignore=tests/e2e   # as CI runs it
 cd panel/web && npm ci && npx vitest run               # frontend
 ```
 
-Not `pytest` directly: without a database eighty-odd tests skip silently, and
-without a registry configured a build script takes a branch it never takes on
-the runner. Both have shipped failures that were green locally. The script
-builds the CI image, starts a throwaway postgres and runs the suite in it.
+Use the script rather than `pytest` directly: without a database eighty-odd
+tests skip silently. It builds the CI image, starts a throwaway postgres and
+runs the suite inside it.
 
 The suite is the specification. Tests are named after the failure they prevent,
-and the docstring says what went wrong and why the check is shaped as it is —
-several exist because a phase reported success while producing nothing usable.
-If you change behaviour, change the test that describes it.
+and the docstring says what went wrong and why the check is shaped as it is. If
+you change behaviour, change the test that describes it. `tests/e2e` needs a
+running deployment and is skipped without one.
 
-`tests/e2e` needs a running deployment and is skipped without one. It refuses to
-pass by skipping everything: a run where nothing asserted is a failed run.
-
-Code follows Semantic Versioning and the current version is in `VERSION`, which
-the compose defaults and the build script are checked against. Profiles, runs and
-receipts carry their own immutable identities — those are not the platform's
-version and never move with it.
+Versions follow Semantic Versioning and the current one is in `VERSION`, which
+the compose defaults and the build script are checked against. Profiles, runs
+and receipts carry their own immutable identities, which never move with it.

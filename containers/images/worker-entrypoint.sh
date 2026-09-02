@@ -11,6 +11,14 @@
 set -eu
 
 : "${FLEET_DB:?FLEET_DB is required: the control plane connection string}"
+# Either the URL itself, or already the name of the variable holding it: the
+# surface-qc stack hands its workers `postgres-env://SEGMENT_FLEET_DATABASE_URL`
+# through a secrets wrapper, and wrapping that again names a variable whose
+# value is a name. Only a URL gets the indirection.
+case "$FLEET_DB" in
+  postgres-env://*) FLEET_DB_ARG="$FLEET_DB" ;;
+  *) FLEET_DB_ARG="postgres-env://FLEET_DB" ;;
+esac
 # Passed to every process below by name -- `postgres-env://FLEET_DB` -- and never
 # by value. The value is postgresql://user:password@host/db, and `--db "$FLEET_DB"`
 # put it in argv, where any user on the host reads it with `ps`. The fleet CLI
@@ -149,7 +157,7 @@ done
 # the host table. Failures here are logged and ignored -- a machine that cannot
 # report its cores must still be able to segment.
 /opt/venv/bin/python /workspace/campaign-x/framework/contracts/host_report.py \
-  --db postgres-env://FLEET_DB \
+  --db "$FLEET_DB_ARG" \
   --host-id "${HELENA_HOST_ID:-$(hostname)}" \
   --disk "$ARTIFACT_ROOT" \
   --every "${HELENA_HOST_REPORT_SECONDS:-60}" &
@@ -182,7 +190,7 @@ if [ "$HELENA_WORKER_KIND" = "preflight" ]; then
   # panel, where the measurement had neither service nor token.
   exec /opt/venv/bin/python "$FLEET_ENTRY" \
     preflight-worker run \
-    --db postgres-env://FLEET_DB \
+    --db "$FLEET_DB_ARG" \
     --worker-id "$WORKER_ID" \
     "$@"
 fi
@@ -190,7 +198,7 @@ fi
 exec /opt/venv/bin/python \
   "$FLEET_ENTRY" \
   worker run \
-  --db postgres-env://FLEET_DB \
+  --db "$FLEET_DB_ARG" \
   --worker-id "$WORKER_ID" \
   --run-root "$RUN_ROOT" \
   --artifact-root "$ARTIFACT_ROOT" \

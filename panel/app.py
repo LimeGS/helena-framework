@@ -2375,6 +2375,18 @@ def segmentation_state(sample: str | None = None,
     private_rows = ([] if mission_id else fleet.get("surfaces_by_sample", []))
     private = {row["sample_id"]: row for row in private_rows}
     in_scope = sample is None or effective is None or sample in effective
+    # Under a mission the per-scroll rows are the whole fleet's and are dropped,
+    # and the page then read the selected scroll's count as zero beside a table
+    # of seventeen. The scoped query is already restricted to that scroll, so
+    # it is the per-scroll answer.
+    for_sample = None
+    if sample and in_scope:
+        if mission_id and scope is not None:
+            for_sample = {"sample_id": sample, "count": scope.get("surfaces", 0),
+                          "area_cm2": scope.get("area_cm2"),
+                          "imported": scope.get("imported", 0)}
+        else:
+            for_sample = private.get(sample)
     return {
         "public": {
             "total": (public.get("total", 0) if effective is None
@@ -2401,7 +2413,7 @@ def segmentation_state(sample: str | None = None,
             "ct_supported_area_cm2": (scope.get("ct_supported_area_cm2")
                                        if scope is not None else None),
             "by_sample": private_rows,
-            "for_sample": (private.get(sample) if sample and in_scope else None),
+            "for_sample": for_sample,
         },
         "queue": {
             **({"tasks": fleet.get("tasks", 0),
