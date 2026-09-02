@@ -1,0 +1,216 @@
+{
+  "budget": {
+    "grid_steps": [
+      896,
+      1024,
+      768,
+      1152,
+      640,
+      1280
+    ],
+    "max_tasks": 144,
+    "minutes": 90.0
+  },
+  "content_sha256": "d21cca31305207e4298088116e032186ed7894c263e6cddfd14e0e359d52f6dc",
+  "control_state": "CONTROL_INCOMPLETE",
+  "first_nonpassing_boundary": "FLATTEN",
+  "generated_at_utc": "2026-09-02T16:27:27Z",
+  "mission_id": "segmentation-control",
+  "non_claims": [
+    "This receipt records what the segmentation chain produced within a bounded budget on public data. It does not claim any particular surface, area or geometry will recur: a grow is not deterministic, and two passing runs may hold different surfaces.",
+    "A CT_SUPPORTED verdict is the platform's own physical-support screen under a hash-pinned profile. It is not independent validation and not an ink or text claim.",
+    "This is not the nine-boundary First Letters campaign control and not the public ink control; the evaluator refuses either substitution by schema."
+  ],
+  "sample_id": "PHerc826",
+  "schema": "campaignx.public_segmentation_stage_survival.v1",
+  "stages": [
+    {
+      "boundary": "PUBLIC_SOURCE",
+      "counts": {
+        "probes": {
+          "ct": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          },
+          "m7": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          }
+        }
+      },
+      "elapsed_seconds": 2.6442368019925198,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PUBLIC_SOURCE_READ_ANONYMOUSLY",
+      "resource_identity": {
+        "credentials_used": false,
+        "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr",
+        "m7_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0826/representations/predictions/surfaces/20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+        "voxel_size_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "INTAKE",
+      "counts": {},
+      "elapsed_seconds": 0.09350291900045704,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "P0_FROZEN_AND_SELECTED",
+      "resource_identity": {
+        "artifact_id": "p0:PHerc826:4bcd756938d6",
+        "content_sha256": "4bcd756938d669077d1a5e9c00173e4c2d6e67c87b7d8da19c4d447fa6f9bed9"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GROW",
+      "counts": {
+        "batches": 1,
+        "surfaces": 17,
+        "task_states": {
+          "NO_SEED": 127,
+          "QC_PENDING": 17
+        }
+      },
+      "elapsed_seconds": 3127.4519922200125,
+      "input_artifacts": [],
+      "output_hashes": {
+        "0836a574-06ef-5698-ae99-fcb69a500702": "efe69b123830c20d8a932e4704902870ce4151481820599486493959f8cfa03f",
+        "10f7b846-85de-5c45-befe-682b563692bf": "c2d356f59554aa34152eb94cd6a75014a0538ddfbb9a6ac6020e991ec485a38e",
+        "392a639d-be2e-5c47-9385-7fdcf6cbfbac": "e29562f2eeea41021fb8c8ba0d1cd3fe094ecaccabf918379cc5acd8aedc52cf",
+        "3d740b34-d545-55bb-a50d-f65427747c0b": "df6c93d336fef680323d7fe4c09b7d4100468c6987f954ad1e5e5bdcca476136",
+        "440f17f1-f915-572b-958f-06c4cd474d55": "66d4bcc0dabbc482bdde220b12d995e34b72fab00070384bfda1da9403c29182",
+        "4dd8076d-cf8e-5fcc-844e-9142b581a5b5": "d38d0810fe3470624a37aabbf25412a115f29c105aab4f544d9aaacd8a15a4c2",
+        "785db135-66b5-5003-ad3f-f9d55d9df044": "3067f9477f3591bb9ce0ec7bc2c77ffd09bb8129ee41366dfb15c0c99c59d9e5",
+        "7ce8ef06-39d5-56ae-b7de-bb2c3365d214": "e8fe53095c0a609b240fad6117cdcf4a716a645a4506887a9166c80e5bc5f32b",
+        "7de945ee-b64f-5916-a314-c2ad6a6d043c": "448f9a098ebb64d4856401bed1359c5c61ec5a41610d0092756abe5708e0ac2e",
+        "836fc053-ac0c-5579-aa4a-4eda38c1f29f": "7fcaf11b3fe7daef3dc0f3f75a9d2f4212cbc08125664f0f6ce5878ce7679f7f",
+        "8ef18632-e534-5393-a1fc-bf57bd5ea3c6": "5924f0834be143953966e63192d5456b6db24fccbf8598fc5a37ef8eaa1e1292",
+        "99f72d4e-6880-5911-9b4d-7432a6301f87": "a98eff9acd50657338225406954b3f692e0aad1351197e03745e912bde9ea84e",
+        "a32f02bc-5436-5dac-b92f-5ffd8026600a": "035bff7591e23544b6ee5e51c18d2054a747013215d6e7bb59d4c14264d2b02d",
+        "a4741280-f1cc-55df-b40f-3a605125b5bf": "402f2cf5e12dcede94b8f8624d0f98d8b10590c8dede5ba3222e7b04ea802b97",
+        "bc1c79d5-d594-56a1-8652-b31bb367df00": "42fc01d906f2407ff58935fb6f5de052c09ae467eaeb23d50ba3f47c407590e3",
+        "c8ea6e51-fa3e-5f93-a5e5-bc5d3639bc08": "c5e8d9c99317560b357c0d65fadb4430a993842204bb44f21a525ff476c2c42c",
+        "e097827c-140b-5075-9a10-c5411e1aab23": "18a3bd33bfe747aee29b4f894cb2cb3490586512abd6ae803883e4d5f4731970"
+      },
+      "reason_code": "SURFACES_PRODUCED",
+      "resource_identity": {
+        "batches": [
+          {
+            "backend": "vc3d",
+            "generated": 144,
+            "grid_step": 896,
+            "inserted": 144,
+            "planner": "cost-aware-v2",
+            "settled_in_time": true,
+            "supported_so_far": 4,
+            "surfaces_so_far": 17,
+            "task_states": {
+              "NO_SEED": 127,
+              "QC_PENDING": 17
+            }
+          }
+        ],
+        "inserted_total": 144,
+        "through": "helena-queue"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GEOMETRY",
+      "counts": {
+        "certified": 17,
+        "geometry_states": [
+          "GEOMETRY_CERTIFIED"
+        ],
+        "of": 17
+      },
+      "elapsed_seconds": 2.8300128178671002e-06,
+      "input_artifacts": [],
+      "output_hashes": {
+        "0836a574-06ef-5698-ae99-fcb69a500702": "efe69b123830c20d8a932e4704902870ce4151481820599486493959f8cfa03f",
+        "10f7b846-85de-5c45-befe-682b563692bf": "c2d356f59554aa34152eb94cd6a75014a0538ddfbb9a6ac6020e991ec485a38e",
+        "392a639d-be2e-5c47-9385-7fdcf6cbfbac": "e29562f2eeea41021fb8c8ba0d1cd3fe094ecaccabf918379cc5acd8aedc52cf",
+        "3d740b34-d545-55bb-a50d-f65427747c0b": "df6c93d336fef680323d7fe4c09b7d4100468c6987f954ad1e5e5bdcca476136",
+        "440f17f1-f915-572b-958f-06c4cd474d55": "66d4bcc0dabbc482bdde220b12d995e34b72fab00070384bfda1da9403c29182",
+        "4dd8076d-cf8e-5fcc-844e-9142b581a5b5": "d38d0810fe3470624a37aabbf25412a115f29c105aab4f544d9aaacd8a15a4c2",
+        "785db135-66b5-5003-ad3f-f9d55d9df044": "3067f9477f3591bb9ce0ec7bc2c77ffd09bb8129ee41366dfb15c0c99c59d9e5",
+        "7ce8ef06-39d5-56ae-b7de-bb2c3365d214": "e8fe53095c0a609b240fad6117cdcf4a716a645a4506887a9166c80e5bc5f32b",
+        "7de945ee-b64f-5916-a314-c2ad6a6d043c": "448f9a098ebb64d4856401bed1359c5c61ec5a41610d0092756abe5708e0ac2e",
+        "836fc053-ac0c-5579-aa4a-4eda38c1f29f": "7fcaf11b3fe7daef3dc0f3f75a9d2f4212cbc08125664f0f6ce5878ce7679f7f",
+        "8ef18632-e534-5393-a1fc-bf57bd5ea3c6": "5924f0834be143953966e63192d5456b6db24fccbf8598fc5a37ef8eaa1e1292",
+        "99f72d4e-6880-5911-9b4d-7432a6301f87": "a98eff9acd50657338225406954b3f692e0aad1351197e03745e912bde9ea84e",
+        "a32f02bc-5436-5dac-b92f-5ffd8026600a": "035bff7591e23544b6ee5e51c18d2054a747013215d6e7bb59d4c14264d2b02d",
+        "a4741280-f1cc-55df-b40f-3a605125b5bf": "402f2cf5e12dcede94b8f8624d0f98d8b10590c8dede5ba3222e7b04ea802b97",
+        "bc1c79d5-d594-56a1-8652-b31bb367df00": "42fc01d906f2407ff58935fb6f5de052c09ae467eaeb23d50ba3f47c407590e3",
+        "c8ea6e51-fa3e-5f93-a5e5-bc5d3639bc08": "c5e8d9c99317560b357c0d65fadb4430a993842204bb44f21a525ff476c2c42c",
+        "e097827c-140b-5075-9a10-c5411e1aab23": "18a3bd33bfe747aee29b4f894cb2cb3490586512abd6ae803883e4d5f4731970"
+      },
+      "reason_code": "GEOMETRY_CERTIFIED",
+      "resource_identity": {},
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "PHYSICAL_QC",
+      "counts": {
+        "of": 17,
+        "physical_states": [
+          "CT_SUPPORTED",
+          "INK_SCREEN_INSUFFICIENT",
+          "UNVALIDATED"
+        ],
+        "qc_jobs": {
+          "COMPLETED": 15,
+          "SMALL_SURFACE_DIAGNOSTIC": 2
+        },
+        "supported": 4
+      },
+      "elapsed_seconds": 0.06794817899935879,
+      "input_artifacts": [],
+      "output_hashes": {
+        "0836a574-06ef-5698-ae99-fcb69a500702": "efe69b123830c20d8a932e4704902870ce4151481820599486493959f8cfa03f",
+        "10f7b846-85de-5c45-befe-682b563692bf": "c2d356f59554aa34152eb94cd6a75014a0538ddfbb9a6ac6020e991ec485a38e",
+        "785db135-66b5-5003-ad3f-f9d55d9df044": "3067f9477f3591bb9ce0ec7bc2c77ffd09bb8129ee41366dfb15c0c99c59d9e5",
+        "836fc053-ac0c-5579-aa4a-4eda38c1f29f": "7fcaf11b3fe7daef3dc0f3f75a9d2f4212cbc08125664f0f6ce5878ce7679f7f"
+      },
+      "reason_code": "CT_SUPPORTED_SURFACE",
+      "resource_identity": {
+        "profiles": [
+          {
+            "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+            "profile_sha256": "e0e099eac347f4c590f4428dc361be8bdb5432ccb5b791c2801f131d0eaa4793"
+          }
+        ]
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "FLATTEN",
+      "counts": {},
+      "elapsed_seconds": 15.088510357003543,
+      "input_artifacts": [
+        {
+          "artifact_sha256": "7fcaf11b3fe7daef3dc0f3f75a9d2f4212cbc08125664f0f6ce5878ce7679f7f",
+          "surface_id": "836fc053-ac0c-5579-aa4a-4eda38c1f29f"
+        }
+      ],
+      "output_hashes": {
+        "receipt_sha256": null,
+        "sheet_sha256": null
+      },
+      "reason_code": "FLATTEN_DID_NOT_PUBLISH",
+      "resource_identity": {
+        "artifact_uri": null,
+        "job_id": "p3-a884ab5e0e7749",
+        "job_state": "succeeded",
+        "profile_id": null,
+        "surface_id": "836fc053-ac0c-5579-aa4a-4eda38c1f29f",
+        "through": "helena-queue"
+      },
+      "terminal_state": "INCOMPLETE"
+    }
+  ]
+}

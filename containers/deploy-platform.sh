@@ -240,9 +240,9 @@ done
 # timeout costs a great deal more than one that presents as itself.
 for setting in "HELENA_FLEET_RUNS segment.env /srv/helena/runs" \
                "HELENA_INK_RUNS ink.env /srv/helena/runs" \
-               "HELENA_QC_RUN_ROOT surface-qc.env /srv/helena/runs/surface-qc-v2"
-do
-  set -- $setting
+               "HELENA_QC_RUN_ROOT surface-qc.env /srv/helena/runs/surface-qc-v2" \
+               "HELENA_QC_RECONSTRUCTIONS surface-qc.env /srv/helena/artifacts/reconstruction-v1"
+do  set -- $setting
   var="$1" file="$env_dir/$2" fallback="$3"
   [ -f "$file" ] || continue
   path="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
@@ -257,6 +257,28 @@ do
   }
   chown -R "${HELENA_WORKER_UID:-1000}:${HELENA_WORKER_GID:-1000}" "$path" 2>/dev/null || true
 done
+
+# The QC run root is mounted per device -- `$HELENA_QC_RUN_ROOT/gpu0` onto
+# /artifacts/qc-runtime -- and Docker creates a bind mount's source as
+# root:root when it does not exist. Owning the parent above was not enough:
+# on a fresh install the runtime, uid 1000, claimed its first QC job and died on
+#
+#   PermissionError: '/artifacts/qc-runtime/d210ab66-…'
+#
+# which is the gpu0 directory Docker had just made. Prepared here, per device,
+# before the surface-qc stacks come up.
+# BEGIN qc-run-root-per-device
+qc_root="$(grep -oE '^HELENA_QC_RUN_ROOT=.*' "$env_dir/surface-qc.env" 2>/dev/null | cut -d= -f2- || true)"
+qc_root="${qc_root:-/srv/helena/runs/surface-qc-v2}"
+case "$qc_root" in
+  /*)
+    for device in ${devices:-0}; do
+      mkdir -p "$qc_root/gpu$device" 2>/dev/null \
+        && chown -R "${HELENA_WORKER_UID:-1000}:${HELENA_WORKER_GID:-1000}" "$qc_root/gpu$device" 2>/dev/null \
+        || echo "  cannot prepare $qc_root/gpu$device; surface-qc on gpu $device will fail on its first job" >&2
+    done ;;
+esac
+# END qc-run-root-per-device
 
 # host-report names the machine it reports on and refuses to interpolate
 # without it, so a clean install brought the stack up and then failed with
@@ -300,6 +322,28 @@ do
       say "set $var to $this_host in $(basename "$file")" ;;
   esac
 done
+
+# A key the template grew after this host's env file was written. The
+# templates are the contract the compose files interpolate against, and a
+# compose file refuses a required variable rather than guessing -- so gpu-1,
+# configured before surface-qc.env.example carried HELENA_QC_ARTIFACTS,
+# failed its deploy with `required variable HELENA_QC_ARTIFACTS is missing a
+# value` while a machine installed from the same commit came up. Every
+# uncommented KEY=value the template has and the env file lacks is appended
+# with the template's value, and the deploy says which. Placeholders are the
+# block above's business; a key that exists is never touched.
+# BEGIN inherit-template-keys
+for template in "$compose"/*.env.example; do
+  file="$env_dir/$(basename "$template" .example)"
+  [ -f "$file" ] || continue
+  grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$template" | while IFS= read -r line; do
+    key="${line%%=*}"
+    grep -qE "^$key=" "$file" && continue
+    printf '%s\n' "$line" >> "$file"
+    say "inherited $key from $(basename "$template") into $(basename "$file")"
+  done
+done
+# END inherit-template-keys
 
 # The workers' database URL, written from what the panel's postgres actually
 # runs with. The templates shipped this fleet's address and a placeholder

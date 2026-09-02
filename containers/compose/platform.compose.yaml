@@ -32,7 +32,7 @@ name: helena
 # Both places the panel image is named. An anchor, so a deployment that pins
 # HELENA_PANEL_IMAGE to a registry gets it in both and the schema is never
 # created by a different build from the one that reads it.
-x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.25.0}}
+x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.25.1}}
 
 x-panel-build: &panel-build
   context: ../..
@@ -304,7 +304,7 @@ services:
   #   docker compose --profile backup up -d
   backup:
     profiles: [backup]
-    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.25.0}}
+    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.25.1}}
     build:
       context: ../..
       dockerfile: containers/images/Containerfile.backup

@@ -253,3 +253,44 @@ def test_same_cell_can_be_queued_once_per_mission(tmp_path):
     assert store.create_tasks([{**base, "mission_id": "mission-a"}]) == (1, 1)
     assert store.create_tasks([{**base, "mission_id": "mission-a"}]) == (0, 1)
     assert store.create_tasks([{**base, "mission_id": "mission-b"}]) == (1, 1)
+
+
+def test_a_mission_page_counts_the_selected_scrolls_surfaces(monkeypatch):
+    """The P1 tile said "none grown yet" beside a table of seventeen.
+
+    Under a mission the fleet's per-scroll rows are dropped, since they are not
+    the mission's, and the selected scroll's count fell through to nothing. The
+    scoped query is restricted to that scroll already; it has to be the answer.
+    """
+    import panel.app as app
+
+    def fleet(samples=None):
+        return {"available": True, "tasks": 0, "attempts": 0, "surfaces": 0,
+                "imported": 0, "leased": 0, "stale_leases": 0, "task_states": [],
+                "workers": [], "surfaces_by_sample": []}
+
+    asked = []
+
+    def scoped(samples, mission_id=None):
+        asked.append((samples, mission_id))
+        return {"tasks": 144, "leased": 0, "stale_leases": 0, "attempts": 144,
+                "by_state": {}, "surfaces": 17, "area_cm2": 7.86, "imported": 0,
+                "imported_area_cm2": 0.0, "certified": 17,
+                "certified_area_cm2": 7.86, "ct_supported": 4,
+                "ct_supported_area_cm2": 0.91}
+
+    monkeypatch.setattr(app, "fleet_status", fleet)
+    monkeypatch.setattr(app, "scoped_queue", scoped)
+    monkeypatch.setattr(app, "public_segments", lambda: {
+        "total": 0, "by_sample": {}, "origin": "fixture"})
+    scroll = app.stored_scroll("PHerc826") or "PHerc826"
+    state = app.segmentation_state(sample="PHerc826", samples={scroll},
+                                   mission_id="segmentation-control")
+    assert asked == [({scroll}, "segmentation-control")]
+    assert state["private"]["total"] == 17
+    assert state["private"]["for_sample"]["count"] == 17
+    assert state["private"]["for_sample"]["area_cm2"] == 7.86
+
+    outside = app.segmentation_state(sample="PHerc826", samples={"PHerc0139"},
+                                     mission_id="ink-control")
+    assert outside["private"]["for_sample"] is None

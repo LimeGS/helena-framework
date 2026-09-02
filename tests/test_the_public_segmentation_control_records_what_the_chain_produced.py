@@ -53,6 +53,8 @@ class ScriptedPanel:
         self.p3_state, self.p3_result, self.inserted = p3_state, p3_result, inserted
         self.calls: list[tuple[str, str, dict | None]] = []
         self.selected: dict[str, str] = {}
+        self.p3_jobs: list[dict] = []
+        self.p3_queued = 0
         self.batches = 0
         self.polls = 0
 
@@ -88,14 +90,29 @@ class ScriptedPanel:
         if path.startswith("/api/segmentation/qc-jobs"):
             return {"jobs": list(self.qc_jobs)}
         if path == "/api/flattening/run":
+            self.p3_queued += 1
             return {"job_id": "p3-1"}
+        if path.startswith("/api/jobs?phase=P3"):
+            return {"jobs": list(self.p3_jobs)}
         raise AssertionError(f"unexpected call {method} {path}")
 
     def wait_until(self, predicate, *, minutes, tick):
         return predicate()
 
     def wait_for_job(self, job_id, *, minutes):
-        return {"state": self.p3_state, "result": self.p3_result or {}}
+        return {"job_id": job_id, "state": self.p3_state, "result": self.p3_result or {}}
+
+
+def _flattened(sid, sheet=None, source=None):
+    """A P3 job's result, in the shape the queue reports it: the sheet under
+    result.surfaces, one entry per surface, digest beside it."""
+    return {"surfaces": [{"state": "FLATTENED", "surface_id": sid,
+                          "artifact_id": "flat-" + sid, "artifact_uri": "/artifacts/flat/" + sid,
+                          "profile_id": "flatten-abf-v1@1.0.0", "profile_file_sha256": "9" * 64,
+                          "receipt_sha256": "7" * 64,
+                          "artifact_sha256": sheet or SHA["sheet"],
+                          "source_artifact_sha256": source or SHA[sid]}],
+            "exit_code": 0}
 
 
 def _surface(sid, geometry="GEOMETRY_CERTIFIED", physical="CT_SUPPORTED"):
@@ -115,8 +132,7 @@ def test_a_chain_that_produced_a_supported_surface_passes_every_row(tmp_path):
         surfaces=[_surface("a"), _surface("b", physical="INK_SCREEN_INSUFFICIENT")],
         qc_jobs=[{"state": "COMPLETED", "profile_id": "surface-qc@1.0.0",
                   "profile_sha256": "e" * 64}],
-        p3_result={"artifact_sha256": SHA["sheet"], "artifact_uri": "/artifacts/flat/x",
-                   "profile_id": "flatten@1.0.0", "receipt_sha256": "7" * 64})
+        p3_result=_flattened("a"))
     receipt = _run(panel, tmp_path)
 
     assert receipt["control_state"] == "CONTROL_PASS", receipt["stages"]
@@ -132,12 +148,14 @@ def test_a_chain_that_produced_a_supported_surface_passes_every_row(tmp_path):
         {"profile_id": "surface-qc@1.0.0", "profile_sha256": "e" * 64}]
     assert by["FLATTEN"]["output_hashes"]["sheet_sha256"] == SHA["sheet"]
     assert by["FLATTEN"]["input_artifacts"] == [{"surface_id": "a", "artifact_sha256": SHA["a"]}]
+    assert by["FLATTEN"]["resource_identity"]["queued_this_run"] is True
+    assert by["FLATTEN"]["resource_identity"]["artifact_id"] == "flat-a"
     assert (tmp_path / "out/PUBLIC_SEGMENTATION_CONTROL.json").is_file()
     assert (tmp_path / "out/SURFACES.json").is_file()
 
 
 def test_the_calls_go_in_the_order_a_stranger_would_make_them(tmp_path):
-    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result={"artifact_sha256": SHA["sheet"]})
+    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result=_flattened("a"))
     _run(panel, tmp_path)
     writes = [(m, p) for m, p, _ in panel.calls if m == "POST"]
     assert writes == [
@@ -208,7 +226,7 @@ def test_a_flattening_that_published_no_sheet_is_not_a_pass(tmp_path):
 
 
 def test_the_receipt_is_content_addressed_and_rereadable(tmp_path):
-    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result={"artifact_sha256": SHA["sheet"]})
+    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result=_flattened("a"))
     receipt = _run(panel, tmp_path)
     written = json.loads((tmp_path / "out/PUBLIC_SEGMENTATION_CONTROL.json").read_text())
     assert written["content_sha256"] == receipt["content_sha256"]
@@ -230,7 +248,7 @@ def test_the_budget_is_spent_across_tilings_until_a_surface_is_supported(tmp_pat
     surface, CT screen insufficient. A second tiling is not a second control;
     it is the rest of the same budget."""
     panel = ScriptedPanel(surfaces=[_surface("a")], surfaces_after_batch=2,
-                          p3_result={"artifact_sha256": SHA["sheet"]})
+                          p3_result=_flattened("a"))
     receipt = _run(panel, tmp_path)
     assert receipt["control_state"] == "CONTROL_PASS"
     batches = {r["boundary"]: r for r in receipt["stages"]}["GROW"]["resource_identity"]["batches"]
@@ -245,7 +263,7 @@ def test_a_second_run_on_the_same_mission_does_not_reselect(tmp_path):
     """The deployment refuses a selection that is already current with a 400,
     and the second run of this control on one mission stopped at INTAKE on
     exactly that. Agreeing with the deployment is not a refusal."""
-    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result={"artifact_sha256": SHA["sheet"]})
+    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result=_flattened("a"))
     panel.selected = {"P0/PHercX": "p0:PHercX:abc"}
     receipt = _run(panel, tmp_path)
     assert receipt["control_state"] == "CONTROL_PASS"
@@ -258,7 +276,7 @@ def test_a_tiling_already_covered_is_skipped_not_a_refusal(tmp_path):
     task. The second run of this control stopped on that with four tilings
     and most of its budget unspent; it moves to the next grid now."""
     panel = ScriptedPanel(surfaces=[_surface("a")], surfaces_after_batch=2,
-                          covered={896}, p3_result={"artifact_sha256": SHA["sheet"]})
+                          covered={896}, p3_result=_flattened("a"))
     receipt = _run(panel, tmp_path)
     assert receipt["control_state"] == "CONTROL_PASS"
     batches = {r["boundary"]: r for r in receipt["stages"]}["GROW"]["resource_identity"]["batches"]
@@ -276,3 +294,38 @@ def test_any_other_refusal_of_the_queue_still_stops_the_control(tmp_path):
     receipt = _run(Refusing(surfaces=[_surface("a")]), tmp_path)
     assert receipt["first_nonpassing_boundary"] == "GROW"
     assert receipt["stages"][2]["reason_code"] == "QUEUE_REFUSED"
+
+
+def test_a_sheet_from_another_surface_is_not_this_surfaces_evidence(tmp_path):
+    """The sheet names the surface it came from by digest. A sheet whose source
+    digest is not the supported surface's is somebody else's evidence."""
+    panel = ScriptedPanel(surfaces=[_surface("a")], p3_result=_flattened("a", source=SHA["b"]))
+    receipt = _run(panel, tmp_path)
+    assert receipt["first_nonpassing_boundary"] == "FLATTEN"
+    assert receipt["stages"][5]["reason_code"] == "SHEET_LINEAGE_MISMATCH"
+
+
+def test_a_second_run_on_the_same_mission_reuses_what_it_holds(tmp_path):
+    """The first run of this control on a fresh machine reached FLATTEN and
+    read the wrong field of a job that had succeeded. A second run on that
+    mission does not re-spend the budget: GROW counts the mission's own tasks,
+    QC is already measured, and the sheet the mission already published is
+    the same evidence whether this run queued it or the run before did. The
+    receipt says which was the case."""
+    panel = ScriptedPanel(surfaces=[_surface("a")], inserted=0)
+    panel.selected = {"P0/PHercX": "p0:PHercX:abc"}
+    panel.p3_jobs = [{"job_id": "p3-earlier", "state": "succeeded",
+                      "result": _flattened("a")}]
+    # The mission already holds tasks: the fleet reports them, and the queue
+    # answers 409 for every tiling because every cell is covered.
+    panel.covered = {896, 1024, 768}
+    receipt = _run(panel, tmp_path)
+
+    assert receipt["control_state"] == "CONTROL_PASS", receipt["stages"]
+    by = {r["boundary"]: r for r in receipt["stages"]}
+    assert by["GROW"]["reason_code"] == "SURFACES_HELD_BY_THE_MISSION"
+    assert by["GROW"]["resource_identity"]["queued_this_run"] == 0
+    assert by["GROW"]["resource_identity"]["mission_task_states"]["NO_SEED"] == 40
+    assert by["FLATTEN"]["resource_identity"]["job_id"] == "p3-earlier"
+    assert by["FLATTEN"]["resource_identity"]["queued_this_run"] is False
+    assert panel.p3_queued == 0

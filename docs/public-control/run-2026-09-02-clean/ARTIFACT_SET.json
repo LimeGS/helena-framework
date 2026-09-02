@@ -1,0 +1,15 @@
+{
+  "artifact_sha256": "a8c5f704aebed98401724135a8f3e71d6dc0afa36c2e1678928109ebd035856e",
+  "files": {
+    "probability.npy": {
+      "sha256": "f4abc1b46d212711f825be04126a86944798931eaaa31f8a3ac0a8963e585566",
+      "size_bytes": 198777728
+    },
+    "probability_reverse.npy": {
+      "sha256": "b5d650d7bcd96e98a2b15579d26e7b23a803d86fd7cf4280c3366238d965b1dd",
+      "size_bytes": 198777728
+    }
+  },
+  "job_id": "p5-6df06c3f10674e",
+  "schema": "campaignx.ink_probability_map.v1"
+}

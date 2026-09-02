@@ -38,7 +38,8 @@ stated hash now, and the path, so the placement is a request like the rest. And
 the `CHECKPOINT` boundary hashed that file off the volume, which is a claim
 about the machine the control ran on rather than the one that ran the job; it
 asks the deployment now, and the receipt says which way with
-`established_by`. The receipt below predates both, and says `local-file`.
+`established_by`. The receipt beside this file predates both: its CHECKPOINT
+row carries the byte count and no `established_by` at all.
 
 An earlier version of this page said nothing was done except through the API and
 that no path on the worker's disk was read. Both were wrong.

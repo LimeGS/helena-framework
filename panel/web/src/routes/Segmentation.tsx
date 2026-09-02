@@ -740,7 +740,7 @@ function SegmentTable({ segments }: { segments: Segment[] }) {
                               ? "none"
                             : s.seed_agreement_state === "SEED_OVERRIDE_DID_NOT_TAKE"
                               ? "crit" : "neg"}>
-                    {s.seed_agreement_state === "SEED_UNPAIRED" ? "sin pareja"
+                    {s.seed_agreement_state === "SEED_UNPAIRED" ? "unpaired"
                      : s.seed_agreement_state === "SEED_AGREEMENT_MEASURED"
                        ? "paired" : s.seed_agreement_state
                            .replace("SEED_", "").replaceAll("_", " ").toLowerCase()}

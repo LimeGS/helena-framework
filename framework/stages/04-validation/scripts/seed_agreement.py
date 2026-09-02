@@ -423,7 +423,7 @@ def headline(result: dict[str, Any]) -> str:
     reads as failure, and the component that answers the question is 12.
     """
     if result["state"] == UNPAIRED:
-        return "SIN PAREJA -- one seed, so no error bar"
+        return "UNPAIRED -- one seed, so no error bar"
     if result["state"] != MEASURED:
         return f"{result['state']} -- {result.get('reason', '')}"
     normal, lateral = result["normal_um"], result["lateral_um"]
@@ -446,7 +446,7 @@ def cell(result: dict[str, Any]) -> str:
     each was measured against.
     """
     if result["state"] == UNPAIRED:
-        return "SIN PAREJA"
+        return "UNPAIRED"
     if result["state"] != MEASURED:
         return result["state"]
     return f"{result['normal_um']['median']:.0f} um normal"

@@ -69,9 +69,14 @@ while :; do
     vram_flag="--minimum-free-vram-mib ${minimum_free_vram_mib}"
   fi
   # shellcheck disable=SC2086 - vram_flag is either empty or two known words
+  # only a URL is wrapped: the surface-qc stack already hands this script
+  # `postgres-env://SEGMENT_FLEET_DATABASE_URL`, and wrapping a name in a name
+  # made the resolver read a name where it expected a URL -- the QC runtime
+  # then crash-looped on a fresh install. A SQLite path passes through too.
+  # (already the name form -> unchanged)
   "$python_bin" "$script_dir/helena_segment_search_fleet.py" qc run \
     ${vram_flag} \
-    --db "$(case "$FLEET_DB" in postgres*) echo postgres-env://FLEET_DB;; *) echo "$FLEET_DB";; esac)" \
+    --db "$(case "$FLEET_DB" in postgresql://*|postgres://*) echo postgres-env://FLEET_DB;; *) echo "$FLEET_DB";; esac)" \
     --worker-id "$worker_id" \
     --run-root "$QC_RUN_ROOT" \
     --qc-executable "$SURFACE_QC_EXECUTABLE" \

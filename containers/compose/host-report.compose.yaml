@@ -52,7 +52,7 @@ services:
     #
     # One variable rather than a fallback chain: compose does not resolve a
     # default nested inside another default, and quietly used the innermost.
-    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.25.0}}
+    image: ${HELENA_SEGMENT_IMAGE:-helena-worker-cpp:${HELENA_VERSION:-0.25.1}}
     container_name: helena-host-report
     restart: unless-stopped
     logging:

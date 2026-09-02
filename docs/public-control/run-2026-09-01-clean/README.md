@@ -14,8 +14,9 @@ from the published repository, and nothing edited by hand.
 One command brought up nine of ten containers and left four workers polling with
 this host's own name and no database errors. The tenth is the surface-QC
 runtime, which wants a checkpoint nothing downloads -- P2's, not the ink lane's,
-so the control does not touch it. It is the one finding on the list that is
-still open.
+so the control does not touch it. It was the one finding on the list still
+open when this was written; the GPU deploy fetches that checkpoint itself now
+(`REPRODUCE.md`, step 2).
 
 Two prerequisites were installed by hand, and neither is Helena's: the NVIDIA
 open kernel modules, which Blackwell requires and this VM template does not

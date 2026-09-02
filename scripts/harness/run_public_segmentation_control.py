@@ -290,15 +290,21 @@ def run_public_segmentation_control(
         batch["supported_so_far"] = len(supported_now())
 
     surfaces = _surfaces(panel, mission_id)
-    states = _task_states(panel, mission_id) if batches else {}
+    states = _task_states(panel, mission_id)
+    held_before = sum(states.values()) > 0 and not any(b.get("inserted") for b in batches)
     grow_identity = {"through": "helena-queue", "batches": batches,
                      "inserted_total": inserted_total,
+                     # A second run on a mission that already holds the work
+                     # queues nothing and says so: the tasks it counts are the
+                     # mission's, made through the same queue by the run before.
+                     "queued_this_run": inserted_total,
+                     "mission_task_states": states,
                      **({"refused": refused} if refused else {})}
-    if not batches and refused:
+    if not batches and refused and not surfaces:
         _set(by["GROW"], INCOMPLETE, "QUEUE_REFUSED",
              elapsed_seconds=clock() - started, resource_identity=grow_identity)
         return finish()
-    if inserted_total <= 0:
+    if inserted_total <= 0 and not (surfaces and held_before):
         _set(by["GROW"], INCOMPLETE, "NOTHING_QUEUED",
              elapsed_seconds=clock() - started, resource_identity=grow_identity)
         return finish()
@@ -309,7 +315,8 @@ def run_public_segmentation_control(
              elapsed_seconds=clock() - started, resource_identity=grow_identity,
              counts={"task_states": states, "surfaces": 0})
         return finish()
-    _set(by["GROW"], PASS, "SURFACES_PRODUCED",
+    _set(by["GROW"], PASS,
+         "SURFACES_PRODUCED" if inserted_total else "SURFACES_HELD_BY_THE_MISSION",
          elapsed_seconds=clock() - started, resource_identity=grow_identity,
          counts={"task_states": states, "surfaces": len(surfaces),
                  "batches": len(batches)},
@@ -352,32 +359,68 @@ def run_public_segmentation_control(
 
     # -- FLATTEN -------------------------------------------------------------
     started = clock()
-    chosen = supported[0]
+    chosen_ids = {s["surface_id"] for s in supported}
+
+    def flattened_entry(job: dict[str, Any]) -> dict[str, Any] | None:
+        """The FLATTENED entry for one of the supported surfaces, if the job has one.
+
+        A P3 job reports what it flattened under result.surfaces, one entry per
+        surface with the sheet's digest beside it. The first version of this
+        read result.artifact_sha256 -- a field no P3 job has -- and reported a
+        succeeded job as having published nothing.
+        """
+        if job.get("state") != "succeeded":
+            return None
+        for entry in (job.get("result") or {}).get("surfaces") or []:
+            if entry.get("state") == "FLATTENED" and entry.get("surface_id") in chosen_ids \
+                    and entry.get("artifact_sha256"):
+                return entry
+        return None
+
     try:
-        queued_p3 = panel.call("POST", "/api/flattening/run", {
-            "sample_id": sample_id, "mission_id": mission_id,
-            "surface_id": chosen["surface_id"], "limit": 1})
-        job_id = queued_p3.get("job_id")
-        finished = panel.wait_for_job(job_id, minutes=minutes) if job_id else {}
+        # A sheet the mission already holds for one of these surfaces is the
+        # same evidence whether this run queued it or the run before did.
+        existing = panel.call("GET", f"/api/jobs?phase=P3&mission={mission_id}") or {}
+        jobs = existing.get("jobs", existing) if isinstance(existing, dict) else existing
+        finished = next((j for j in jobs if flattened_entry(j)), None)
+        queued_this_run = finished is None
+        if finished is None:
+            chosen = supported[0]
+            queued_p3 = panel.call("POST", "/api/flattening/run", {
+                "sample_id": sample_id, "mission_id": mission_id,
+                "surface_id": chosen["surface_id"], "limit": 1})
+            job_id = queued_p3.get("job_id")
+            finished = panel.wait_for_job(job_id, minutes=minutes) if job_id else {}
     except Exception as refused:  # noqa: BLE001
         _set(by["FLATTEN"], INCOMPLETE, "FLATTEN_REFUSED",
              elapsed_seconds=clock() - started, counts={"error": str(refused)[:400]})
         return finish()
-    result = finished.get("result") or {}
-    sheet_sha = result.get("artifact_sha256")
-    ok = finished.get("state") == "succeeded" and bool(sheet_sha)
+    entry = flattened_entry(finished) or {}
+    source = next((s for s in supported if s["surface_id"] == entry.get("surface_id")), None)
+    # The sheet names the surface it came from by digest; that digest has to be
+    # the one the deployment reports for the surface, or the sheet is somebody
+    # else's evidence.
+    lineage_holds = bool(source) and (
+        not entry.get("source_artifact_sha256")
+        or entry.get("source_artifact_sha256") == source.get("artifact_sha256"))
+    ok = bool(entry) and lineage_holds
     _set(by["FLATTEN"], PASS if ok else INCOMPLETE,
-         "SHEET_PUBLISHED_BY_DIGEST" if ok else "FLATTEN_DID_NOT_PUBLISH",
+         "SHEET_PUBLISHED_BY_DIGEST" if ok else (
+             "SHEET_LINEAGE_MISMATCH" if entry and not lineage_holds else "FLATTEN_DID_NOT_PUBLISH"),
          elapsed_seconds=clock() - started,
-         resource_identity={"through": "helena-queue", "job_id": job_id,
-                            "surface_id": chosen["surface_id"],
-                            "artifact_uri": result.get("artifact_uri"),
-                            "profile_id": result.get("profile_id"),
+         resource_identity={"through": "helena-queue",
+                            "job_id": finished.get("job_id"),
+                            "queued_this_run": queued_this_run,
+                            "surface_id": entry.get("surface_id"),
+                            "artifact_id": entry.get("artifact_id"),
+                            "artifact_uri": entry.get("artifact_uri"),
+                            "profile_id": entry.get("profile_id"),
+                            "profile_file_sha256": entry.get("profile_file_sha256"),
                             "job_state": finished.get("state")},
-         input_artifacts=[{"surface_id": chosen["surface_id"],
-                           "artifact_sha256": chosen.get("artifact_sha256")}],
-         output_hashes={"sheet_sha256": sheet_sha,
-                        "receipt_sha256": result.get("receipt_sha256")})
+         input_artifacts=[{"surface_id": source["surface_id"],
+                           "artifact_sha256": source.get("artifact_sha256")}] if source else [],
+         output_hashes={"sheet_sha256": entry.get("artifact_sha256"),
+                        "receipt_sha256": entry.get("receipt_sha256")})
     return finish()
 
 
