@@ -100,3 +100,39 @@ def test_the_nine_boundary_control_still_evaluates_exactly_as_before():
     receipt = evaluate_survival_matrix({"schema": SCHEMA, "stages": rows(BOUNDARIES)})
     assert receipt["control_state"] == "CONTROL_PASS"
     assert [r["boundary"] for r in receipt["stages"]] == list(BOUNDARIES)
+
+
+# -- the segmentation control is a third shape, and not the other two ---------
+
+SEGMENTATION_SCHEMA = "campaignx.public_segmentation_stage_survival.v1"
+SEGMENTATION_BOUNDARIES = (
+    "PUBLIC_SOURCE", "INTAKE", "GROW", "GEOMETRY", "PHYSICAL_QC", "FLATTEN",
+)
+
+
+def test_the_segmentation_control_is_evaluated_by_the_same_rule():
+    receipt = evaluate_survival_matrix(
+        {"schema": SEGMENTATION_SCHEMA, "stages": rows(SEGMENTATION_BOUNDARIES)})
+    assert receipt["control_state"] == "CONTROL_PASS"
+    assert receipt["first_nonpassing_boundary"] is None
+
+
+def test_a_grow_that_produced_nothing_owns_the_segmentation_outcome():
+    stages = rows(SEGMENTATION_BOUNDARIES)
+    stages[2]["terminal_state"] = "INCOMPLETE"
+    stages[2]["reason_code"] = "NO_SURFACE_WITHIN_BUDGET"
+    receipt = evaluate_survival_matrix(
+        {"schema": SEGMENTATION_SCHEMA, "stages": stages})
+    assert receipt["control_state"] == "CONTROL_INCOMPLETE"
+    assert receipt["first_nonpassing_boundary"] == "GROW"
+    assert [r["terminal_state"] for r in receipt["stages"][3:]] == [
+        "NOT_RUN_PREREQUISITE"] * 3
+
+
+def test_a_segmentation_receipt_cannot_be_read_as_an_ink_one():
+    with pytest.raises(ValueError):
+        evaluate_survival_matrix(
+            {"schema": PUBLIC_SCHEMA, "stages": rows(SEGMENTATION_BOUNDARIES)})
+    with pytest.raises(ValueError):
+        evaluate_survival_matrix(
+            {"schema": SEGMENTATION_SCHEMA, "stages": rows(PUBLIC_BOUNDARIES)})

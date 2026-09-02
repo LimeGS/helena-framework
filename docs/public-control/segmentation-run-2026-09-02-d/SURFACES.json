@@ -1,0 +1,646 @@
+[
+  {
+    "area_cm2": 1.584376977029939,
+    "artifact_sha256": "65b7776ab334ca63cee9a798610caa16a1a146ef133f6d0eed2e2cb3c4bcbccc",
+    "artifact_uri": "/artifacts/surfaces/surfaces/PHerc358/be7f4c0c-e7a1-5c55-aad1-69755b330126",
+    "attempt_id": "6334a609-a086-5fa0-aaba-0dbf6c441b35",
+    "created_at": "2026-09-02T15:37:22.719138+00:00",
+    "geometry_certification": {
+      "geometry_qc_state": "GEOMETRY_CERTIFIED",
+      "hard_defects_observed": 0,
+      "profile_id": "tifxyz-geometry-certification@1.0.0",
+      "profile_sha256": "ec9988dbaf9851a3f2fcd4b5ede36c06f30f73f880cb355e357ab009fc0aec89",
+      "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+      "receipt_path": "/artifacts/attempts/411238b3-e8d1-52b6-b34c-5b000df9d501/6334a609-a086-5fa0-aaba-0dbf6c441b35/GEOMETRY_CERTIFICATION.json",
+      "receipt_sha256": "93b90c803a2b49a4c6c8e7f64ebf6496034af964e5270c7667083097aae95aba",
+      "resolution_limited": true,
+      "result": {
+        "coverage_failures": [],
+        "error": null,
+        "exact_self_intersection": {
+          "intersecting_pair_count": 0,
+          "schema": "campaignx.mesh_self_intersection.v1",
+          "self_intersections_present": false,
+          "triangles": 8978,
+          "vertices": 4624
+        },
+        "fold_back": {
+          "angle_deg": 150.0,
+          "ceiling": 0.05,
+          "cells": 0,
+          "components": 0,
+          "components_over_five_cells": 0,
+          "fraction": 0.0,
+          "live_cells": 4489,
+          "pairs": 0,
+          "rows": 71,
+          "rows_touched": 0
+        },
+        "fold_back_fraction": 0.0,
+        "fold_back_within_ceiling": true,
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "grid": {
+          "adjacent_edge_count": 9112,
+          "connected_component_count": 1,
+          "degenerate_triangle_count": 0,
+          "grid_far_candidate_pair_count": 0,
+          "largest_component_fraction": 1.0,
+          "maximum_edge_voxels": 20.156883229799302,
+          "median_edge_voxels": 20.068033299825125,
+          "minimum_far_separation_voxels": null,
+          "non_local_stage": "COMPLETE",
+          "shape": [
+            72,
+            72
+          ],
+          "valid_coordinate_count": 4624,
+          "valid_fraction": 0.8919753086419753,
+          "valid_triangle_count": 8978
+        },
+        "hard_defects_observed": 0,
+        "inputs": {
+          "meta.json": {
+            "sha256": "60c0385817bb67ce5af0a5ce89146a035b166ffed0e11b29025f5845e92ba398",
+            "size_bytes": 996
+          },
+          "x.tif": {
+            "sha256": "54430c9765abde3c9b3541f6fc29cd3ce8122a05f1ad6e24513b0c13d40b8b0e",
+            "size_bytes": 20922
+          },
+          "y.tif": {
+            "sha256": "33053de97c84dc55515f97ccf8246b9672d49d312bec14cc3c46b3cc3d45622a",
+            "size_bytes": 20922
+          },
+          "z.tif": {
+            "sha256": "1e08433c37310b149998e975885ce4e5bb7ee515f01646270304fd3b61a88df8",
+            "size_bytes": 20922
+          }
+        },
+        "measurement_complete": true,
+        "non_claims": [
+          "GEOMETRY_CERTIFIED is not physical-sheet acceptance, ink, text, or First Letters",
+          "the gate cannot resolve a defect finer than the TIFXYZ grid step",
+          "an unmeasured surface is not a certified surface",
+          "a certified surface may still carry folded cells: fold-back is an area measure here and not a hard defect, because on the corpus where it was looked at the folds were wrinkles in a flattened scroll and rejecting them capped the certifiable area at half a square centimetre",
+          "the fold-back mask is not advisory. Each marked cell has a normal inverted against its neighbours, and the platform's orientation fix sets one sign per mesh -- so a renderer that samples those cells samples the far side of the sheet, which is the failure that produced an ink map correlating 0.09 with the published one"
+        ],
+        "policy": {
+          "band_cells": 3,
+          "band_um": 480.0,
+          "fold_angle_deg": 150.0,
+          "gap_voxels": 3.0,
+          "maximum_candidate_pairs": 20000000,
+          "maximum_fold_back_fraction": 0.05,
+          "minimum_largest_component_fraction": 0.9,
+          "minimum_valid_fraction": 0.25,
+          "minimum_valid_triangles": 64,
+          "parallel_angle_deg": 20.0,
+          "resolution_limit_um": 150.0,
+          "resolution_limit_voxels": 16.022217474898525,
+          "step_discontinuity_factor": 8.0,
+          "step_window_cells": 3
+        },
+        "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+        "resolution_limit_measured_here": false,
+        "resolution_limited": true,
+        "scale": {
+          "derived": [
+            {
+              "from_um": 480.0,
+              "name": "band_cells",
+              "now": 3,
+              "was": 4
+            },
+            {
+              "from_um": 150.0,
+              "name": "step_window_cells",
+              "now": 3,
+              "was": null
+            },
+            {
+              "from_um": 150.0,
+              "measured": false,
+              "name": "resolution_limit_voxels",
+              "now": 16.022217474898525,
+              "was": 16.0
+            }
+          ],
+          "inter_lamina_um": null,
+          "reason": "this scroll's inter-lamina spacing was not supplied, so the resolution limit falls back to the frozen 150.0 um floor rather than a spacing measured here",
+          "voxel_um": 9.362
+        },
+        "schema": "campaignx.tifxyz_geometry_certification.v1",
+        "seam": {
+          "interpenetration_pairs": 0,
+          "lamina_step_discontinuity_edges": 0,
+          "near_coincident_overlap_pairs": 0,
+          "offending_triangles": 0
+        },
+        "status": "PASS",
+        "surface_dir": "/artifacts/attempts/411238b3-e8d1-52b6-b34c-5b000df9d501/6334a609-a086-5fa0-aaba-0dbf6c441b35/surface",
+        "surface_name": "surface"
+      },
+      "result_sha256": "93b90c803a2b49a4c6c8e7f64ebf6496034af964e5270c7667083097aae95aba",
+      "schema": "campaignx.tifxyz_geometry_certification.v1",
+      "source_attempt_id": "6334a609-a086-5fa0-aaba-0dbf6c441b35",
+      "surface_artifact_sha256": "65b7776ab334ca63cee9a798610caa16a1a146ef133f6d0eed2e2cb3c4bcbccc"
+    },
+    "geometry_qc_state": "GEOMETRY_CERTIFIED",
+    "human_review": null,
+    "lamina_assessment": null,
+    "lamina_qc_state": "LAMINA_UNMEASURED",
+    "origin": "GROWN_HERE",
+    "owner": "campaign-x",
+    "physical_qc_state": "INK_SCREEN_INSUFFICIENT",
+    "sample_id": "PHerc358",
+    "seed_agreement": null,
+    "seed_agreement_normal_um": null,
+    "seed_agreement_state": "SEED_UNPAIRED",
+    "source_catalog": null,
+    "state": "QC_INK_SCREEN_INSUFFICIENT",
+    "surface_id": "be7f4c0c-e7a1-5c55-aad1-69755b330126"
+  },
+  {
+    "area_cm2": 1.5843488807464863,
+    "artifact_sha256": "d444cd60a5e234000e805ffa69ce99bcccb6133871827fe347fa54eee78b0c85",
+    "artifact_uri": "/artifacts/surfaces/surfaces/PHerc358/a35deafe-add0-5e45-b603-cc5525414cbe",
+    "attempt_id": "b36036d3-2d10-5ce9-87d9-06bb133013dd",
+    "created_at": "2026-09-02T15:37:03.105487+00:00",
+    "geometry_certification": {
+      "geometry_qc_state": "GEOMETRY_CERTIFIED",
+      "hard_defects_observed": 0,
+      "profile_id": "tifxyz-geometry-certification@1.0.0",
+      "profile_sha256": "ec9988dbaf9851a3f2fcd4b5ede36c06f30f73f880cb355e357ab009fc0aec89",
+      "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+      "receipt_path": "/artifacts/attempts/db482a55-c140-5587-a124-982cd95dc8f6/b36036d3-2d10-5ce9-87d9-06bb133013dd/GEOMETRY_CERTIFICATION.json",
+      "receipt_sha256": "9fe7cae88bcd73e1cbb6deb93970ed2fd35932269391df7508db3b6f2ef8999a",
+      "resolution_limited": true,
+      "result": {
+        "coverage_failures": [],
+        "error": null,
+        "exact_self_intersection": {
+          "intersecting_pair_count": 0,
+          "schema": "campaignx.mesh_self_intersection.v1",
+          "self_intersections_present": false,
+          "triangles": 8978,
+          "vertices": 4624
+        },
+        "fold_back": {
+          "angle_deg": 150.0,
+          "ceiling": 0.05,
+          "cells": 0,
+          "components": 0,
+          "components_over_five_cells": 0,
+          "fraction": 0.0,
+          "live_cells": 4489,
+          "pairs": 0,
+          "rows": 71,
+          "rows_touched": 0
+        },
+        "fold_back_fraction": 0.0,
+        "fold_back_within_ceiling": true,
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "grid": {
+          "adjacent_edge_count": 9112,
+          "connected_component_count": 1,
+          "degenerate_triangle_count": 0,
+          "grid_far_candidate_pair_count": 0,
+          "largest_component_fraction": 1.0,
+          "maximum_edge_voxels": 20.19523972142164,
+          "median_edge_voxels": 20.06744252827561,
+          "minimum_far_separation_voxels": null,
+          "non_local_stage": "COMPLETE",
+          "shape": [
+            72,
+            72
+          ],
+          "valid_coordinate_count": 4624,
+          "valid_fraction": 0.8919753086419753,
+          "valid_triangle_count": 8978
+        },
+        "hard_defects_observed": 0,
+        "inputs": {
+          "meta.json": {
+            "sha256": "34d3bfda0093cdb85bb8b0d8e29c5c1f79d61e66bda67c810f86d1e880286da9",
+            "size_bytes": 996
+          },
+          "x.tif": {
+            "sha256": "f9a97c10d370c3de9ee29ff3bfda9ff5f910fb5368a919126f9a1108d37fac58",
+            "size_bytes": 20922
+          },
+          "y.tif": {
+            "sha256": "b0130e0c7f543ac74a8d01a6eca473117290c449dbaecd9c66bed361c52f3c6e",
+            "size_bytes": 20922
+          },
+          "z.tif": {
+            "sha256": "37138493bb2642c3cd70c525c7c2fd6b1a4ee36eeca5b56f0b38aced6a4571b8",
+            "size_bytes": 20922
+          }
+        },
+        "measurement_complete": true,
+        "non_claims": [
+          "GEOMETRY_CERTIFIED is not physical-sheet acceptance, ink, text, or First Letters",
+          "the gate cannot resolve a defect finer than the TIFXYZ grid step",
+          "an unmeasured surface is not a certified surface",
+          "a certified surface may still carry folded cells: fold-back is an area measure here and not a hard defect, because on the corpus where it was looked at the folds were wrinkles in a flattened scroll and rejecting them capped the certifiable area at half a square centimetre",
+          "the fold-back mask is not advisory. Each marked cell has a normal inverted against its neighbours, and the platform's orientation fix sets one sign per mesh -- so a renderer that samples those cells samples the far side of the sheet, which is the failure that produced an ink map correlating 0.09 with the published one"
+        ],
+        "policy": {
+          "band_cells": 3,
+          "band_um": 480.0,
+          "fold_angle_deg": 150.0,
+          "gap_voxels": 3.0,
+          "maximum_candidate_pairs": 20000000,
+          "maximum_fold_back_fraction": 0.05,
+          "minimum_largest_component_fraction": 0.9,
+          "minimum_valid_fraction": 0.25,
+          "minimum_valid_triangles": 64,
+          "parallel_angle_deg": 20.0,
+          "resolution_limit_um": 150.0,
+          "resolution_limit_voxels": 16.022217474898525,
+          "step_discontinuity_factor": 8.0,
+          "step_window_cells": 3
+        },
+        "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+        "resolution_limit_measured_here": false,
+        "resolution_limited": true,
+        "scale": {
+          "derived": [
+            {
+              "from_um": 480.0,
+              "name": "band_cells",
+              "now": 3,
+              "was": 4
+            },
+            {
+              "from_um": 150.0,
+              "name": "step_window_cells",
+              "now": 3,
+              "was": null
+            },
+            {
+              "from_um": 150.0,
+              "measured": false,
+              "name": "resolution_limit_voxels",
+              "now": 16.022217474898525,
+              "was": 16.0
+            }
+          ],
+          "inter_lamina_um": null,
+          "reason": "this scroll's inter-lamina spacing was not supplied, so the resolution limit falls back to the frozen 150.0 um floor rather than a spacing measured here",
+          "voxel_um": 9.362
+        },
+        "schema": "campaignx.tifxyz_geometry_certification.v1",
+        "seam": {
+          "interpenetration_pairs": 0,
+          "lamina_step_discontinuity_edges": 0,
+          "near_coincident_overlap_pairs": 0,
+          "offending_triangles": 0
+        },
+        "status": "PASS",
+        "surface_dir": "/artifacts/attempts/db482a55-c140-5587-a124-982cd95dc8f6/b36036d3-2d10-5ce9-87d9-06bb133013dd/surface",
+        "surface_name": "surface"
+      },
+      "result_sha256": "9fe7cae88bcd73e1cbb6deb93970ed2fd35932269391df7508db3b6f2ef8999a",
+      "schema": "campaignx.tifxyz_geometry_certification.v1",
+      "source_attempt_id": "b36036d3-2d10-5ce9-87d9-06bb133013dd",
+      "surface_artifact_sha256": "d444cd60a5e234000e805ffa69ce99bcccb6133871827fe347fa54eee78b0c85"
+    },
+    "geometry_qc_state": "GEOMETRY_CERTIFIED",
+    "human_review": null,
+    "lamina_assessment": null,
+    "lamina_qc_state": "LAMINA_UNMEASURED",
+    "origin": "GROWN_HERE",
+    "owner": "campaign-x",
+    "physical_qc_state": "INK_SCREEN_INSUFFICIENT",
+    "sample_id": "PHerc358",
+    "seed_agreement": null,
+    "seed_agreement_normal_um": null,
+    "seed_agreement_state": "SEED_UNPAIRED",
+    "source_catalog": null,
+    "state": "QC_INK_SCREEN_INSUFFICIENT",
+    "surface_id": "a35deafe-add0-5e45-b603-cc5525414cbe"
+  },
+  {
+    "area_cm2": 1.5841535081804785,
+    "artifact_sha256": "fa263213a329c55635b70e64d7d323e713610a986d33d47ba1d893a4df5e3d08",
+    "artifact_uri": "/artifacts/surfaces/surfaces/PHerc358/0cb4fefd-0235-58c1-8310-15b7375caddc",
+    "attempt_id": "2f33e8ee-3ec0-5b80-a29e-998ee879f2fa",
+    "created_at": "2026-09-02T15:36:46.335973+00:00",
+    "geometry_certification": {
+      "geometry_qc_state": "GEOMETRY_CERTIFIED",
+      "hard_defects_observed": 0,
+      "profile_id": "tifxyz-geometry-certification@1.0.0",
+      "profile_sha256": "ec9988dbaf9851a3f2fcd4b5ede36c06f30f73f880cb355e357ab009fc0aec89",
+      "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+      "receipt_path": "/artifacts/attempts/d0830793-4eeb-53d7-a3c4-688f4159572e/2f33e8ee-3ec0-5b80-a29e-998ee879f2fa/GEOMETRY_CERTIFICATION.json",
+      "receipt_sha256": "e8684e3b63a98cb799214e00f595606f993cc9d8eb585e87fb1b32296d259da1",
+      "resolution_limited": true,
+      "result": {
+        "coverage_failures": [],
+        "error": null,
+        "exact_self_intersection": {
+          "intersecting_pair_count": 0,
+          "schema": "campaignx.mesh_self_intersection.v1",
+          "self_intersections_present": false,
+          "triangles": 8978,
+          "vertices": 4624
+        },
+        "fold_back": {
+          "angle_deg": 150.0,
+          "ceiling": 0.05,
+          "cells": 0,
+          "components": 0,
+          "components_over_five_cells": 0,
+          "fraction": 0.0,
+          "live_cells": 4489,
+          "pairs": 0,
+          "rows": 71,
+          "rows_touched": 0
+        },
+        "fold_back_fraction": 0.0,
+        "fold_back_within_ceiling": true,
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "grid": {
+          "adjacent_edge_count": 9112,
+          "connected_component_count": 1,
+          "degenerate_triangle_count": 0,
+          "grid_far_candidate_pair_count": 0,
+          "largest_component_fraction": 1.0,
+          "maximum_edge_voxels": 20.164585726015574,
+          "median_edge_voxels": 20.066911753769475,
+          "minimum_far_separation_voxels": null,
+          "non_local_stage": "COMPLETE",
+          "shape": [
+            72,
+            72
+          ],
+          "valid_coordinate_count": 4624,
+          "valid_fraction": 0.8919753086419753,
+          "valid_triangle_count": 8978
+        },
+        "hard_defects_observed": 0,
+        "inputs": {
+          "meta.json": {
+            "sha256": "2b87713384c145c625673d3f001171600912f9b6c45ea5dc2e54a660b3474420",
+            "size_bytes": 997
+          },
+          "x.tif": {
+            "sha256": "346327ca663f5fa20a5f2d9d741819367e809de34b8a8499f62175faf0603e5a",
+            "size_bytes": 20922
+          },
+          "y.tif": {
+            "sha256": "70cca75859af8b22154feb5a0dda9db4912feee229311a5a5f46d4fdc1677bda",
+            "size_bytes": 20922
+          },
+          "z.tif": {
+            "sha256": "b55593d0dd60b07b19b4ac85e8ed2a95b7181a86d556822484d542e846757420",
+            "size_bytes": 20922
+          }
+        },
+        "measurement_complete": true,
+        "non_claims": [
+          "GEOMETRY_CERTIFIED is not physical-sheet acceptance, ink, text, or First Letters",
+          "the gate cannot resolve a defect finer than the TIFXYZ grid step",
+          "an unmeasured surface is not a certified surface",
+          "a certified surface may still carry folded cells: fold-back is an area measure here and not a hard defect, because on the corpus where it was looked at the folds were wrinkles in a flattened scroll and rejecting them capped the certifiable area at half a square centimetre",
+          "the fold-back mask is not advisory. Each marked cell has a normal inverted against its neighbours, and the platform's orientation fix sets one sign per mesh -- so a renderer that samples those cells samples the far side of the sheet, which is the failure that produced an ink map correlating 0.09 with the published one"
+        ],
+        "policy": {
+          "band_cells": 3,
+          "band_um": 480.0,
+          "fold_angle_deg": 150.0,
+          "gap_voxels": 3.0,
+          "maximum_candidate_pairs": 20000000,
+          "maximum_fold_back_fraction": 0.05,
+          "minimum_largest_component_fraction": 0.9,
+          "minimum_valid_fraction": 0.25,
+          "minimum_valid_triangles": 64,
+          "parallel_angle_deg": 20.0,
+          "resolution_limit_um": 150.0,
+          "resolution_limit_voxels": 16.022217474898525,
+          "step_discontinuity_factor": 8.0,
+          "step_window_cells": 3
+        },
+        "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+        "resolution_limit_measured_here": false,
+        "resolution_limited": true,
+        "scale": {
+          "derived": [
+            {
+              "from_um": 480.0,
+              "name": "band_cells",
+              "now": 3,
+              "was": 4
+            },
+            {
+              "from_um": 150.0,
+              "name": "step_window_cells",
+              "now": 3,
+              "was": null
+            },
+            {
+              "from_um": 150.0,
+              "measured": false,
+              "name": "resolution_limit_voxels",
+              "now": 16.022217474898525,
+              "was": 16.0
+            }
+          ],
+          "inter_lamina_um": null,
+          "reason": "this scroll's inter-lamina spacing was not supplied, so the resolution limit falls back to the frozen 150.0 um floor rather than a spacing measured here",
+          "voxel_um": 9.362
+        },
+        "schema": "campaignx.tifxyz_geometry_certification.v1",
+        "seam": {
+          "interpenetration_pairs": 0,
+          "lamina_step_discontinuity_edges": 0,
+          "near_coincident_overlap_pairs": 0,
+          "offending_triangles": 0
+        },
+        "status": "PASS",
+        "surface_dir": "/artifacts/attempts/d0830793-4eeb-53d7-a3c4-688f4159572e/2f33e8ee-3ec0-5b80-a29e-998ee879f2fa/surface",
+        "surface_name": "surface"
+      },
+      "result_sha256": "e8684e3b63a98cb799214e00f595606f993cc9d8eb585e87fb1b32296d259da1",
+      "schema": "campaignx.tifxyz_geometry_certification.v1",
+      "source_attempt_id": "2f33e8ee-3ec0-5b80-a29e-998ee879f2fa",
+      "surface_artifact_sha256": "fa263213a329c55635b70e64d7d323e713610a986d33d47ba1d893a4df5e3d08"
+    },
+    "geometry_qc_state": "GEOMETRY_CERTIFIED",
+    "human_review": null,
+    "lamina_assessment": null,
+    "lamina_qc_state": "LAMINA_UNMEASURED",
+    "origin": "GROWN_HERE",
+    "owner": "campaign-x",
+    "physical_qc_state": "INK_SCREEN_INSUFFICIENT",
+    "sample_id": "PHerc358",
+    "seed_agreement": null,
+    "seed_agreement_normal_um": null,
+    "seed_agreement_state": "SEED_UNPAIRED",
+    "source_catalog": null,
+    "state": "QC_INK_SCREEN_INSUFFICIENT",
+    "surface_id": "0cb4fefd-0235-58c1-8310-15b7375caddc"
+  },
+  {
+    "area_cm2": 1.5840346369715228,
+    "artifact_sha256": "58a30d852cf47bdea94843d2a9b6671b73f26d45d0450a805e12710551c8327d",
+    "artifact_uri": "/artifacts/surfaces/surfaces/PHerc358/df1f6dca-15c6-5b76-9865-dab304505b35",
+    "attempt_id": "576232c9-5b7c-5717-900c-11cdc55f648c",
+    "created_at": "2026-09-02T15:35:59.488186+00:00",
+    "geometry_certification": {
+      "geometry_qc_state": "GEOMETRY_CERTIFIED",
+      "hard_defects_observed": 0,
+      "profile_id": "tifxyz-geometry-certification@1.0.0",
+      "profile_sha256": "ec9988dbaf9851a3f2fcd4b5ede36c06f30f73f880cb355e357ab009fc0aec89",
+      "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+      "receipt_path": "/artifacts/attempts/06ec9db0-7afe-5914-8ce1-7af79eb9c7a7/576232c9-5b7c-5717-900c-11cdc55f648c/GEOMETRY_CERTIFICATION.json",
+      "receipt_sha256": "61efc1454e271a47929621e6d672ecf496222c0be7f4872d329eba766c3125db",
+      "resolution_limited": true,
+      "result": {
+        "coverage_failures": [],
+        "error": null,
+        "exact_self_intersection": {
+          "intersecting_pair_count": 0,
+          "schema": "campaignx.mesh_self_intersection.v1",
+          "self_intersections_present": false,
+          "triangles": 8978,
+          "vertices": 4624
+        },
+        "fold_back": {
+          "angle_deg": 150.0,
+          "ceiling": 0.05,
+          "cells": 0,
+          "components": 0,
+          "components_over_five_cells": 0,
+          "fraction": 0.0,
+          "live_cells": 4489,
+          "pairs": 0,
+          "rows": 71,
+          "rows_touched": 0
+        },
+        "fold_back_fraction": 0.0,
+        "fold_back_within_ceiling": true,
+        "geometry_qc_state": "GEOMETRY_CERTIFIED",
+        "grid": {
+          "adjacent_edge_count": 9112,
+          "connected_component_count": 1,
+          "degenerate_triangle_count": 0,
+          "grid_far_candidate_pair_count": 0,
+          "largest_component_fraction": 1.0,
+          "maximum_edge_voxels": 20.36249158869617,
+          "median_edge_voxels": 20.06672492566932,
+          "minimum_far_separation_voxels": null,
+          "non_local_stage": "COMPLETE",
+          "shape": [
+            72,
+            72
+          ],
+          "valid_coordinate_count": 4624,
+          "valid_fraction": 0.8919753086419753,
+          "valid_triangle_count": 8978
+        },
+        "hard_defects_observed": 0,
+        "inputs": {
+          "meta.json": {
+            "sha256": "9d210bb3735a001cc63b44c3896d6fba5dcad80080828c652a5b7bd2cd81bf28",
+            "size_bytes": 995
+          },
+          "x.tif": {
+            "sha256": "53ae4c2ed04446040ec0b03f319cfad213ad36feba5687f7205c87323c1d7607",
+            "size_bytes": 20922
+          },
+          "y.tif": {
+            "sha256": "547f5c21488ecd7303e26dd543921c7870b4ed77912dabf1da9171ef071f39e0",
+            "size_bytes": 20922
+          },
+          "z.tif": {
+            "sha256": "3cd2161c9aa0a9c07004e901bbecdccf90655a47468d3dcba063516b8ad77b93",
+            "size_bytes": 20922
+          }
+        },
+        "measurement_complete": true,
+        "non_claims": [
+          "GEOMETRY_CERTIFIED is not physical-sheet acceptance, ink, text, or First Letters",
+          "the gate cannot resolve a defect finer than the TIFXYZ grid step",
+          "an unmeasured surface is not a certified surface",
+          "a certified surface may still carry folded cells: fold-back is an area measure here and not a hard defect, because on the corpus where it was looked at the folds were wrinkles in a flattened scroll and rejecting them capped the certifiable area at half a square centimetre",
+          "the fold-back mask is not advisory. Each marked cell has a normal inverted against its neighbours, and the platform's orientation fix sets one sign per mesh -- so a renderer that samples those cells samples the far side of the sheet, which is the failure that produced an ink map correlating 0.09 with the published one"
+        ],
+        "policy": {
+          "band_cells": 3,
+          "band_um": 480.0,
+          "fold_angle_deg": 150.0,
+          "gap_voxels": 3.0,
+          "maximum_candidate_pairs": 20000000,
+          "maximum_fold_back_fraction": 0.05,
+          "minimum_largest_component_fraction": 0.9,
+          "minimum_valid_fraction": 0.25,
+          "minimum_valid_triangles": 64,
+          "parallel_angle_deg": 20.0,
+          "resolution_limit_um": 150.0,
+          "resolution_limit_voxels": 16.022217474898525,
+          "step_discontinuity_factor": 8.0,
+          "step_window_cells": 3
+        },
+        "reason": "NO_HARD_DEFECT_AT_ARTIFACT_SAMPLING",
+        "resolution_limit_measured_here": false,
+        "resolution_limited": true,
+        "scale": {
+          "derived": [
+            {
+              "from_um": 480.0,
+              "name": "band_cells",
+              "now": 3,
+              "was": 4
+            },
+            {
+              "from_um": 150.0,
+              "name": "step_window_cells",
+              "now": 3,
+              "was": null
+            },
+            {
+              "from_um": 150.0,
+              "measured": false,
+              "name": "resolution_limit_voxels",
+              "now": 16.022217474898525,
+              "was": 16.0
+            }
+          ],
+          "inter_lamina_um": null,
+          "reason": "this scroll's inter-lamina spacing was not supplied, so the resolution limit falls back to the frozen 150.0 um floor rather than a spacing measured here",
+          "voxel_um": 9.362
+        },
+        "schema": "campaignx.tifxyz_geometry_certification.v1",
+        "seam": {
+          "interpenetration_pairs": 0,
+          "lamina_step_discontinuity_edges": 0,
+          "near_coincident_overlap_pairs": 0,
+          "offending_triangles": 0
+        },
+        "status": "PASS",
+        "surface_dir": "/artifacts/attempts/06ec9db0-7afe-5914-8ce1-7af79eb9c7a7/576232c9-5b7c-5717-900c-11cdc55f648c/surface",
+        "surface_name": "surface"
+      },
+      "result_sha256": "61efc1454e271a47929621e6d672ecf496222c0be7f4872d329eba766c3125db",
+      "schema": "campaignx.tifxyz_geometry_certification.v1",
+      "source_attempt_id": "576232c9-5b7c-5717-900c-11cdc55f648c",
+      "surface_artifact_sha256": "58a30d852cf47bdea94843d2a9b6671b73f26d45d0450a805e12710551c8327d"
+    },
+    "geometry_qc_state": "GEOMETRY_CERTIFIED",
+    "human_review": null,
+    "lamina_assessment": null,
+    "lamina_qc_state": "LAMINA_UNMEASURED",
+    "origin": "GROWN_HERE",
+    "owner": "campaign-x",
+    "physical_qc_state": "INK_SCREEN_INSUFFICIENT",
+    "sample_id": "PHerc358",
+    "seed_agreement": null,
+    "seed_agreement_normal_um": null,
+    "seed_agreement_state": "SEED_UNPAIRED",
+    "source_catalog": null,
+    "state": "QC_INK_SCREEN_INSUFFICIENT",
+    "surface_id": "df1f6dca-15c6-5b76-9865-dab304505b35"
+  }
+]

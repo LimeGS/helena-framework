@@ -1,0 +1,132 @@
+{
+  "budget": {
+    "grid_steps": [
+      896,
+      1024,
+      768,
+      1152,
+      640,
+      1280
+    ],
+    "max_tasks": 144,
+    "minutes": 90.0
+  },
+  "content_sha256": "974bef73ee0b6be7c5c239a92a5fc2f9b718994651b3bb35d63c4a493d19ffae",
+  "control_state": "CONTROL_INCOMPLETE",
+  "first_nonpassing_boundary": "GROW",
+  "generated_at_utc": "2026-09-02T15:29:40Z",
+  "mission_id": "segmentation-control-125",
+  "non_claims": [
+    "This receipt records what the segmentation chain produced within a bounded budget on public data. It does not claim any particular surface, area or geometry will recur: a grow is not deterministic, and two passing runs may hold different surfaces.",
+    "A CT_SUPPORTED verdict is the platform's own physical-support screen under a hash-pinned profile. It is not independent validation and not an ink or text claim.",
+    "This is not the nine-boundary First Letters campaign control and not the public ink control; the evaluator refuses either substitution by schema."
+  ],
+  "sample_id": "PHerc125",
+  "schema": "campaignx.public_segmentation_stage_survival.v1",
+  "stages": [
+    {
+      "boundary": "PUBLIC_SOURCE",
+      "counts": {
+        "probes": {
+          "ct": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          },
+          "m7": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          }
+        }
+      },
+      "elapsed_seconds": 2.8175914239982376,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PUBLIC_SOURCE_READ_ANONYMOUSLY",
+      "resource_identity": {
+        "credentials_used": false,
+        "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0125/volumes/20250821151825-9.362um-1.2m-113keV-masked.zarr",
+        "m7_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0125/representations/predictions/surfaces/20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+        "voxel_size_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "INTAKE",
+      "counts": {},
+      "elapsed_seconds": 0.034948380998685025,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "P0_FROZEN_AND_SELECTED",
+      "resource_identity": {
+        "artifact_id": "p0:PHerc125:2f3749abb8ea",
+        "content_sha256": "2f3749abb8eaff0cb1924a77e38c20961e9339af195edb3a57b0b0579bbea09f"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GROW",
+      "counts": {
+        "surfaces": 0,
+        "task_states": {
+          "NO_SEED": 144
+        }
+      },
+      "elapsed_seconds": 152.09949093799514,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "NO_SURFACE_WITHIN_BUDGET",
+      "resource_identity": {
+        "batches": [
+          {
+            "backend": "vc3d",
+            "generated": 144,
+            "grid_step": 896,
+            "inserted": 144,
+            "planner": "cost-aware-v2",
+            "settled_in_time": true,
+            "supported_so_far": 0,
+            "surfaces_so_far": 0,
+            "task_states": {
+              "NO_SEED": 144
+            }
+          }
+        ],
+        "inserted_total": 144,
+        "through": "helena-queue"
+      },
+      "terminal_state": "INCOMPLETE"
+    },
+    {
+      "boundary": "GEOMETRY",
+      "counts": {},
+      "elapsed_seconds": 0.0,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PREREQUISITE_NOT_REACHED",
+      "resource_identity": {},
+      "terminal_state": "NOT_RUN_PREREQUISITE"
+    },
+    {
+      "boundary": "PHYSICAL_QC",
+      "counts": {},
+      "elapsed_seconds": 0.0,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PREREQUISITE_NOT_REACHED",
+      "resource_identity": {},
+      "terminal_state": "NOT_RUN_PREREQUISITE"
+    },
+    {
+      "boundary": "FLATTEN",
+      "counts": {},
+      "elapsed_seconds": 0.0,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PREREQUISITE_NOT_REACHED",
+      "resource_identity": {},
+      "terminal_state": "NOT_RUN_PREREQUISITE"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "budget": {
+    "grid_step": 896,
+    "max_tasks": 48,
+    "minutes": 90.0
+  },
+  "content_sha256": "5456143b08db54e03804133e3178d69c6ddfc8973f72ff37ba0f5a445a453646",
+  "control_state": "CONTROL_INCOMPLETE",
+  "first_nonpassing_boundary": "PHYSICAL_QC",
+  "generated_at_utc": "2026-09-02T15:08:00Z",
+  "mission_id": "segmentation-control",
+  "non_claims": [
+    "This receipt records what the segmentation chain produced within a bounded budget on public data. It does not claim any particular surface, area or geometry will recur: a grow is not deterministic, and two passing runs may hold different surfaces.",
+    "A CT_SUPPORTED verdict is the platform's own physical-support screen under a hash-pinned profile. It is not independent validation and not an ink or text claim.",
+    "This is not the nine-boundary First Letters campaign control and not the public ink control; the evaluator refuses either substitution by schema."
+  ],
+  "sample_id": "PHerc1203",
+  "schema": "campaignx.public_segmentation_stage_survival.v1",
+  "stages": [
+    {
+      "boundary": "PUBLIC_SOURCE",
+      "counts": {
+        "probes": {
+          "ct": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          },
+          "m7": {
+            ".zattrs": 200,
+            ".zgroup": 200,
+            "0/.zarray": 200
+          }
+        }
+      },
+      "elapsed_seconds": 32.668113085994264,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PUBLIC_SOURCE_READ_ANONYMOUSLY",
+      "resource_identity": {
+        "credentials_used": false,
+        "ct_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1203/volumes/20250820131727-9.362um-1.2m-113keV-masked.zarr",
+        "m7_uri": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc1203/representations/predictions/surfaces/20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+        "voxel_size_um": 9.362
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "INTAKE",
+      "counts": {},
+      "elapsed_seconds": 0.039134688006015494,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "P0_FROZEN_AND_SELECTED",
+      "resource_identity": {
+        "artifact_id": "p0:PHerc1203:1c757dcf0d6b",
+        "content_sha256": "1c757dcf0d6be7d934efb95b3d8c1b9fb375ca52f51889355c6fbf0e427cb360"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GROW",
+      "counts": {
+        "surfaces": 1,
+        "task_states": {
+          "NO_SEED": 220,
+          "QC_PENDING": 7
+        }
+      },
+      "elapsed_seconds": 61.89453513600165,
+      "input_artifacts": [],
+      "output_hashes": {
+        "8141e6d1-1ca0-5d8a-a760-8412b0bd0cdd": "d3b53276557c13645e5b6ee3fe870118047d9ba267cc52a0f2d8713a9a6facb1"
+      },
+      "reason_code": "SURFACES_PRODUCED",
+      "resource_identity": {
+        "backend": "vc3d",
+        "generated": 48,
+        "inserted": 48,
+        "planner": "cost-aware-v2",
+        "through": "helena-queue"
+      },
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "GEOMETRY",
+      "counts": {
+        "certified": 1,
+        "geometry_states": [
+          "GEOMETRY_CERTIFIED"
+        ],
+        "of": 1
+      },
+      "elapsed_seconds": 1.4999968698248267e-06,
+      "input_artifacts": [],
+      "output_hashes": {
+        "8141e6d1-1ca0-5d8a-a760-8412b0bd0cdd": "d3b53276557c13645e5b6ee3fe870118047d9ba267cc52a0f2d8713a9a6facb1"
+      },
+      "reason_code": "GEOMETRY_CERTIFIED",
+      "resource_identity": {},
+      "terminal_state": "PASS"
+    },
+    {
+      "boundary": "PHYSICAL_QC",
+      "counts": {
+        "of": 1,
+        "physical_states": [
+          "INK_SCREEN_INSUFFICIENT"
+        ],
+        "qc_jobs": {
+          "COMPLETED": 1
+        },
+        "supported": 0
+      },
+      "elapsed_seconds": 330.5188459639903,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "NO_CT_SUPPORTED_SURFACE",
+      "resource_identity": {
+        "profiles": [
+          {
+            "profile_id": "surface-qc-gp-scroll1-ct-fiber-v3@1.0.0",
+            "profile_sha256": "e0e099eac347f4c590f4428dc361be8bdb5432ccb5b791c2801f131d0eaa4793"
+          }
+        ]
+      },
+      "terminal_state": "INCOMPLETE"
+    },
+    {
+      "boundary": "FLATTEN",
+      "counts": {},
+      "elapsed_seconds": 0.0,
+      "input_artifacts": [],
+      "output_hashes": {},
+      "reason_code": "PREREQUISITE_NOT_REACHED",
+      "resource_identity": {},
+      "terminal_state": "NOT_RUN_PREREQUISITE"
+    }
+  ]
+}

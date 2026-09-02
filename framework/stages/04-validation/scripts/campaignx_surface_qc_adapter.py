@@ -276,8 +276,16 @@ def run_logged(command: list[str], log: Path) -> None:
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text(completed.stdout, encoding="utf-8")
     if completed.returncode:
+        # The tail of what the command said, not only that it failed. The
+        # message crosses a boundary that scrubs paths, so "exit code 1:
+        # <path>" was all that reached the receipt -- for a full card, a dead
+        # bucket and a driver that would not initialise alike. The words
+        # survive the scrub; the paths do not need to.
+        tail = " | ".join(line.strip() for line in
+                          completed.stdout.strip().splitlines()[-12:] if line.strip())
         raise RuntimeError(
             f"command failed with exit code {completed.returncode}: {command[0]}"
+            + (f" -- {tail[:600]}" if tail else "")
         )
 
 

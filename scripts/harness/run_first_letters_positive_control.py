@@ -43,9 +43,22 @@ PUBLIC_SCHEMA = "campaignx.public_ink_stage_survival.v1"
 PUBLIC_BOUNDARIES = (
     "PUBLIC_SOURCE", "SCALE", "CHECKPOINT", "INK", "LIVENESS", "HUMAN_REVIEW",
 )
+# The segmentation half, P0 to P3: intake, grow, certify geometry, measure
+# physical support, flatten. Its own schema for the same reason the ink control
+# has one -- a receipt cannot declare its own shape -- and because the two are
+# different kinds of claim. The ink chain is deterministic modulo the GPU; a
+# grow is not: three runs of one control, same seed, same profile, gave three
+# surfaces. So this control's rows pass on what the chain *produced* -- at least
+# one surface certified and CT-supported within a bounded number of tasks --
+# and record which, rather than on bytes matching.
+SEGMENTATION_SCHEMA = "campaignx.public_segmentation_stage_survival.v1"
+SEGMENTATION_BOUNDARIES = (
+    "PUBLIC_SOURCE", "INTAKE", "GROW", "GEOMETRY", "PHYSICAL_QC", "FLATTEN",
+)
 CONTROL_SHAPES: dict[str, tuple[str, ...]] = {
     SCHEMA: BOUNDARIES,
     PUBLIC_SCHEMA: PUBLIC_BOUNDARIES,
+    SEGMENTATION_SCHEMA: SEGMENTATION_BOUNDARIES,
 }
 PASS = "PASS"
 FAILED = "FAILED"

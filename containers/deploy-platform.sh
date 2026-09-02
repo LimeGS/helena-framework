@@ -158,23 +158,27 @@ villa_lock() { villa_lock_entry volume_cartographer "$1"; }
 # deploy while the same script on a laptop filled them in.
 #
 # The host's python3 when there is one; otherwise the same interpreter in a
-# container, with the checkout mounted at its own path so the script's
-# relative reads still resolve. Reads stdin as the program, like `python3 -`.
+# container. Reads stdin as the program, like `python3 -`, and mounts nothing:
+# the first version bind-mounted the checkout at its own path, which on a CI
+# runner is a path inside the runner's container and not on the host whose
+# daemon runs the image -- so the mount arrived empty and the deploy died on
+# `No such file or directory: framework/registries/ink-weights-0.1.0.json`,
+# one step past the fault it had just fixed. Callers hand the file's contents
+# in as an argument instead; the registry and the lock are a few kilobytes.
 py() {
   if command -v python3 >/dev/null 2>&1; then
     python3 - "$@"
   else
-    $D run --rm -i -v "$root:$root" -w "$PWD" \
-      "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - "$@"
+    $D run --rm -i "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - "$@"
   fi
 }
 
 # By entry and field: three images fetch from this lock now, each pinning its
 # own commit.
 villa_lock_entry() {
-  py "$root/containers/images/scrollfiesta/locks/source-lock.json" "$1" "$2" <<'PY_LOCK' 2>/dev/null || echo unknown
+  py "$(cat "$root/containers/images/scrollfiesta/locks/source-lock.json" 2>/dev/null)" "$1" "$2" <<'PY_LOCK' 2>/dev/null || echo unknown
 import json, sys
-print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3], "unknown"))
+print(json.loads(sys.argv[1])[sys.argv[2]].get(sys.argv[3], "unknown"))
 PY_LOCK
 }
 
@@ -772,12 +776,12 @@ fi
 # The entry comes from the weights registry, so the repository, the path and the
 # digest are the ones this repository already pins, and a mismatch is deleted
 # rather than installed.
-qc_entry() { py "$1" <<'PY_ENTRY'
+qc_entry() { py "$(cat "$root/framework/registries/ink-weights-0.1.0.json")" "$1" <<'PY_ENTRY'
 import json, sys
-registry = json.load(open("framework/registries/ink-weights-0.1.0.json"))
+registry = json.loads(sys.argv[1])
 for entry in registry["entries"]:
     if entry.get("destination", "").endswith("timesformer_GP_scroll1/model.safetensors"):
-        print(entry[sys.argv[1]])
+        print(entry[sys.argv[2]])
         break
 PY_ENTRY
 }

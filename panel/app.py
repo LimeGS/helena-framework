@@ -857,6 +857,20 @@ def registry_entries() -> dict[str, dict]:
     return {e["method_id"]: e for e in entries if "method_id" in e}
 
 
+def control_policy_names_a_volume_for(sample: str) -> bool:
+    """Whether the frozen control policy pins a CT volume and an m7 prediction
+    for this scroll -- the way PHerc0139 has a volume without a catalog entry."""
+    try:
+        policy = first_letters_control_policy()
+    except (OSError, ValueError):
+        return False
+    cohort = policy.get("control_cohort") or {}
+    if stored_scroll(cohort.get("scroll_id")) != stored_scroll(sample):
+        return False
+    locks = policy.get("source_locks") or {}
+    return bool((locks.get("ct") or {}).get("uri") and (locks.get("m7") or {}).get("uri"))
+
+
 def scroll_has_a_source(sample: str | None) -> bool:
     """Whether a grow could read anything for this scroll.
 
@@ -873,6 +887,14 @@ def scroll_has_a_source(sample: str | None) -> bool:
     if not sample:
         return False
     if sample in growable_scrolls():
+        return True
+    # The control scroll. PHerc0139 is absent from the catalog on purpose and
+    # its CT and m7 addresses live in the control policy, which is the third
+    # place a scroll can have a volume. Without this the mission the public ink
+    # control creates -- REPRODUCE.md, step 5 -- was refused on a fresh
+    # deployment as "no volume this deployment can read", by the check meant
+    # for scrolls nothing can ever grow.
+    if control_policy_names_a_volume_for(sample):
         return True
     try:
         store = fleet_store_read_only()
@@ -2845,8 +2867,18 @@ def api_lanes():
 
 
 @app.get("/api/fleet")
-def api_fleet():
-    status = fleet_status()
+def api_fleet(mission: str | None = Query(None, max_length=64)):
+    """The control plane, fleet-wide or narrowed to one mission's scrolls.
+
+    fleet_status() has taken a sample set since the mission dashboard drew 162
+    tasks from a different mission; this route never passed one. So
+    `?mission=` was accepted and ignored -- the same counts came back for a
+    mission that does not exist -- and a control that polled it to know when
+    its own tasks had settled was reading the whole fleet's. `scoped_to` says
+    which it was; a caller that needs one mission's numbers can check it.
+    """
+    status = fleet_status(None if mission is None else mission_scrolls(mission))
+    status["scoped_to"] = None if mission is None else mission
     # Which workers are still asking. Beside the counts rather than instead of
     # them: the counts said an idle fleet and a hung one were the same fleet,
     # and three workers spent eighteen hours in the second state looking like
