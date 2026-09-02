@@ -255,3 +255,10 @@ running deployment and is skipped without one.
 Versions follow Semantic Versioning and the current one is in `VERSION`, which
 the compose defaults and the build script are checked against. Profiles, runs
 and receipts carry their own immutable identities, which never move with it.
+
+## TODO
+
+- **Publish the images.** Every deploy builds them where it runs, Volume
+  Cartographer included, which is the hour or two the Workers section warns
+  about. Next is pushing the images to Docker Hub by digest, so a deploy pulls
+  instead of compiling and builds only when told to.
