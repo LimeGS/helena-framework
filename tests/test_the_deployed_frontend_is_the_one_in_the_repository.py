@@ -533,7 +533,7 @@ def test_the_repository_names_no_private_host() -> None:
     needle = "grilli" + "security"
     tracked = subprocess.run(
         ["git", "grep", "-lI", needle, "--",
-         ".", ":!.claude", ":!docs/plans", ":!brand/BRAND-GUIDE.md"],
+         ".", ":!.claude", ":!brand/BRAND-GUIDE.md"],
         cwd=ROOT, capture_output=True, text=True).stdout.split()
     assert not tracked, f"a private host is named in: {tracked}"
 

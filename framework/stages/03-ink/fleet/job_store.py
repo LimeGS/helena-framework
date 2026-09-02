@@ -392,9 +392,9 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
                 "renderer's default is the opposite of theirs, and a reversed "
                 "slab is the far side of the sheet first: the ink map came out "
                 "at r = 0.09 against theirs, and r = 0.885 with this on. "
-                "Do NOT render twice to find out which: a lane that infers in "
-                "both directions already gives you both answers from one "
-                "render. Measured on the same window, flipped-render/forward "
+                "Do NOT render twice to find out which: P5 publishes forward "
+                "and reverse from one render, so both answers are already "
+                "in its receipt. Measured on the same window, flipped-render/forward "
                 "and unflipped-render/reverse agree at r = 1.0000, so flipping "
                 "here is exactly choosing which of P5's two outputs to read -- "
                 "and rendering it a second time buys nothing but the render. "
@@ -1296,7 +1296,14 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
         # the whole point of this lane is running their model and not ours.
         "upstream": {"variable": UPSTREAM_ROOT_VARIABLE, "pythonpath": True},
         "needs": ("tiff_dir", "checkpoint", "source_pixel_um"),
+        # The runner takes an expected digest and records whether it checked
+        # one. Only the GP chain passed it; from the queue this lane ran
+        # unverified and its receipt said `checkpoint_sha256_verified: false`
+        # -- honest, and not what a pinned lane should do. The value comes
+        # from the profile's own pin, filled in by command_for, not from the
+        # request.
         "flags": {"source_pixel_um": "--source-pixel-um",
+                  "expected_checkpoint_sha256": "--expected-checkpoint-sha256",
                   "frames": "--frames", "tile_size": "--tile-size",
                   "stride": "--stride", "batch_size": "--batch-size",
                   "depth_center": "--depth-center",
@@ -2112,6 +2119,16 @@ def command_for(job: dict[str, Any], *, runner: str, output_dir: str,
                   .get("model_family") if profile_path else None)
         if family:
             argv += ["--model-family", str(family)]
+    # The digest the runner is to verify the checkpoint against comes from the
+    # profile's pin, for the same reason the model family does: a request that
+    # could name the expected digest could name one that matches whatever it
+    # brought. Absent from the profile, the flag is not passed and the receipt
+    # says so.
+    if ("expected_checkpoint_sha256" in spec["flags"]
+            and "expected_checkpoint_sha256" not in parameters and profile_path):
+        pinned = json.loads(profile_path.read_text()).get("checkpoint_sha256")
+        if pinned:
+            argv += ["--expected-checkpoint-sha256", str(pinned)]
     return argv
 
 

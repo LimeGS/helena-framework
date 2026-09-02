@@ -154,7 +154,7 @@ A matching envelope and RNG receipt does not establish that VC3D
 treatment, charge every probe and resume operation to it, and validate the real
 VC3D runtime behavior before rollout.
 
-The repository skill at `.agents/skills/vc3d-select-seeds` validates this
+`validate_seed_probe_benchmark_receipt` in `fleet/seed_probe.py` validates this
 receipt. It refuses approval when paired RNG/envelope/resource identities or
 measurements are missing. Production
 `HELENA_ENABLE_SEED_PROBE_SELECT` remains unset until that receipt says

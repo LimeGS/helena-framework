@@ -108,7 +108,10 @@ no free worker looks like. The state is `BLOCKED_CONFIGURATION` — a profile ha
 that does not match what the deployment pins, or a checkpoint that is not the one
 the profile names — and it is served as its own count. **A number above zero is
 always something to act on**, because these stay blocked until a person changes
-a setting.
+a setting. Once the setting is fixed, `POST /api/segmentation/qc-jobs/requeue`
+with the mission, the scroll and a `fixed` saying what changed sends those jobs
+back to `PENDING`; the state is terminal on its own, and nothing retries it on
+a timer.
 
 ## Nothing will queue at all
 
@@ -116,8 +119,10 @@ a setting.
 
 **Cause** — a blank store setting. `CX_RENDER_STORE` for P4,
 `CX_INK_STORE` for P5, `CX_FLATTEN_STORE` for P3, `CX_RECONSTRUCTION_STORE` for
-P8. The panel refuses rather than queueing work whose output would have nowhere
-to go.
+P8. Each defaults to a path under `/artifacts`, the platform's own volume, so
+this is a setting somebody emptied — or, for P1, a panel started without
+`ARTIFACT_ROOT`, which the platform compose sets to `/artifacts`. The panel
+refuses rather than queueing work whose output would have nowhere to go.
 
 **What to do** — the Configuration tab. The symptom and the cause are two pages
 apart, which is why this entry exists.

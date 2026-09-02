@@ -9,7 +9,13 @@ A mission names the scrolls being attempted. Nothing may be queued outside one,
 and that rule lives in the **store**, not the panel — a script holding the DSN
 hits it too.
 
-The create form has two fields: a name and an id. There is **no mode control**.
+The create form has two fields: a name and an id; scrolls are chosen in P0.
+There is **no mode control**. A scroll that is in neither the eligible
+catalogue nor the sources registered on this control plane is refused — at
+creation through the API and at every amendment — with the names the
+deployment does know, because a mission holding it could never grow anything
+and would only say so at P1. Both spellings of a scroll are accepted:
+`PHerc0826` as the bucket lists it and `PHerc826` as the catalogue keys it.
 
 > **Trap** The certified/exploratory distinction is not a checkbox here, and it
 > is not one thing. Three separate mechanisms answer "is this controlled":

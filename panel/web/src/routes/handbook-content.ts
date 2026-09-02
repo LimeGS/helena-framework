@@ -2258,7 +2258,23 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ", visible on the Fleet page and polling. The spiral fit and the detectors need one; nothing in this tutorial runs on the panel host."
+       "text": ", counted on the Mission page's Fleet tile and "
+      },
+      {
+       "kind": "code",
+       "text": "POLLING"
+      },
+      {
+       "kind": "text",
+       "text": " in "
+      },
+      {
+       "kind": "code",
+       "text": "GET /api/fleet"
+      },
+      {
+       "kind": "text",
+       "text": ". The spiral fit and the detectors need one; nothing in this tutorial runs on the panel host."
       }
      ],
      [
@@ -2400,11 +2416,19 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "strong",
+       "text": "P0"
+      },
+      {
+       "kind": "text",
+       "text": " under Mission; its view is called "
+      },
+      {
+       "kind": "strong",
        "text": "Scrolls"
       },
       {
        "kind": "text",
-       "text": ". The catalogue is the frozen list of what this deployment can reach; a scroll not in it is not a scroll you can start from."
+       "text": ". The catalogue is what this deployment can reach — seeded from the committed file and refreshed from the open-data bucket on startup and daily; a scroll not in it is not a scroll you can start from."
       }
      ],
      [
@@ -2424,15 +2448,15 @@ export const HANDBOOK: Page[] = [
      [
       {
        "kind": "text",
-       "text": "On "
+       "text": "Tick the scroll, say why, and "
       },
       {
        "kind": "strong",
-       "text": "Mission"
+       "text": "Record what P0 decided"
       },
       {
        "kind": "text",
-       "text": ", add the scroll to your mission."
+       "text": ". That adds it to the mission's selection. A name with no volume this deployment can read is refused here rather than at P1."
       }
      ]
     ]
@@ -3012,15 +3036,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them from the "
+      "text": "A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them with "
      },
      {
       "kind": "strong",
-      "text": "Geometry"
+      "text": "certify"
      },
      {
       "kind": "text",
-      "text": " page — "
+      "text": " under Maintenance on the P1 panel, or with "
      },
      {
       "kind": "code",
@@ -3028,7 +3052,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": "."
+      "text": "; the P2 panel shows the verdicts and has no button of its own."
      }
     ]
    },
@@ -3038,7 +3062,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "P2 is not one of the phases Command queues. The queueable set is P1, P4, P5, P7, P8 and P9; anything else gets a 400 saying the phase has no runner registered. P3 is the same, and goes through the Flattening page. This is not a formality — it is the step that tells you"
+      "text": "P2 is not one of the phases "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": " queues. The queueable set is P1, P4, P5, P7, P8 and P9; anything else gets a 400 saying the phase has no runner registered. P3 is the same, and goes through the Flattening page."
      }
     ]
    },
@@ -3047,7 +3079,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "whether the fit stayed on one sheet."
+      "text": "This is not a formality — it is the step that tells you whether the fit stayed on one sheet."
      }
     ]
    },
@@ -3303,7 +3335,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is unset: a sheet published nowhere is one P4 cannot read."
+      "text": " has been emptied: a sheet published nowhere is one P4 cannot read. The default is "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts/flattened-v1"
+     },
+     {
+      "kind": "text",
+      "text": ", on the platform's own volume."
      }
     ]
    },
@@ -3340,7 +3380,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "sample"
+      "text": "sample_id"
      },
      {
       "kind": "text",
@@ -3348,11 +3388,19 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "surface_id"
+      "text": "mission_id"
      },
      {
       "kind": "text",
       "text": "; "
+     },
+     {
+      "kind": "code",
+      "text": "surface_id"
+     },
+     {
+      "kind": "text",
+      "text": " is accepted by the route but not offered by the form, and "
      },
      {
       "kind": "code",
@@ -3368,7 +3416,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " are contract-only, and "
+      "text": " are contract-only, with "
      },
      {
       "kind": "code",
@@ -3376,7 +3424,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " accepts exactly one value. The fields:"
+      "text": " accepting exactly one value. The fields:"
      }
     ]
    },
@@ -4734,7 +4782,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ", on the Scrolls page. The catalogue is the frozen list of what this deployment can reach; a scroll not in it is not a scroll this platform can start from."
+       "text": ", on the P0 panel — its view is called Scrolls. The catalogue is what this deployment can reach; a scroll not in it is not a scroll this platform can start from."
       }
      ],
      [
@@ -4786,13 +4834,21 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "Refresh catalogue"
+        "text": "refresh inventory"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "Re-reads the public bucket rather than the cached inventory. The cache is there because the listing is slow, not because it is authoritative."
+        "text": "Re-reads the public bucket rather than the cached inventory. The cache is there because the listing is slow, not because it is authoritative; the panel also refreshes it on startup and once a day ("
+       },
+       {
+        "kind": "code",
+        "text": "CX_CATALOG_REFRESH"
+       },
+       {
+        "kind": "text",
+        "text": ")."
        }
       ]
      ],
@@ -4800,13 +4856,13 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "Add to mission"
+        "text": "Record what P0 decided"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "Scopes the scroll. This is what makes later pages able to count anything."
+        "text": "Freezes the selection, with the reason you typed. This is what makes later pages able to count anything. A scroll with no volume this deployment can read is refused here."
        }
       ]
      ]
@@ -6863,7 +6919,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Not from Command. "
+      "text": "Not through "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": ". "
      },
      {
       "kind": "code",
@@ -6899,7 +6963,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "sample"
+      "text": "sample_id"
      },
      {
       "kind": "text",
@@ -6907,11 +6971,19 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
+      "text": "mission_id"
+     },
+     {
+      "kind": "text",
+      "text": "; "
+     },
+     {
+      "kind": "code",
       "text": "surface_id"
      },
      {
       "kind": "text",
-      "text": "."
+      "text": " is accepted by the route, not offered by the form."
      }
     ]
    },
@@ -6929,7 +7001,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is unset. A sheet published nowhere is one P4 cannot read."
+      "text": " has been emptied. A sheet published nowhere is one P4 cannot read; the default is "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts/flattened-v1"
+     },
+     {
+      "kind": "text",
+      "text": " on the platform's own volume."
      }
     ]
    },
@@ -8310,7 +8390,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Five adapters across ten profiles, and you choose by naming a "
+      "text": "Five adapters across twenty-three profiles, and you choose by naming a "
      },
      {
       "kind": "strong",
@@ -8374,6 +8454,32 @@ export const HANDBOOK: Page[] = [
        {
         "kind": "text",
         "text": "a surface volume"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "ink-9um-hybrid-3d2d-seed{42,43}-step*-screening@1.0.0"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "run_ink_9um.py"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "9.6 µm"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a surface volume — one profile per checkpoint of the training run, thirteen besides the one above"
        }
       ]
      ],
@@ -11474,7 +11580,15 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "text",
-        "text": ", from the Geometry panel"
+        "text": "; in the panel, "
+       },
+       {
+        "kind": "strong",
+        "text": "certify"
+       },
+       {
+        "kind": "text",
+        "text": " under Maintenance on P1 — the P2 panel only reads"
        }
       ]
      ],
@@ -11627,7 +11741,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " for P8. The symptom is \"nothing will queue\" and the cause is a blank field on the Configuration tab."
+      "text": " for P8. Each defaults to a path under "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts"
+     },
+     {
+      "kind": "text",
+      "text": ", the platform's own volume, so this only happens to a deployment that blanked one. The symptom is \"nothing will queue\" and the cause is a blank field on the Configuration tab. P1 publishes to "
+     },
+     {
+      "kind": "code",
+      "text": "ARTIFACT_ROOT"
+     },
+     {
+      "kind": "text",
+      "text": ", which the platform compose sets to "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts"
+     },
+     {
+      "kind": "text",
+      "text": "."
      }
     ]
    },
@@ -12073,7 +12211,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is queueable for "
+      "text": " is a parameter of "
      },
      {
       "kind": "strong",
@@ -12081,7 +12219,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", and on the phases that run it the toggle defaults "
+      "text": ". The Flattening panel draws it as a toggle that defaults "
      },
      {
       "kind": "strong",
@@ -12089,7 +12227,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". On a scroll you have not run before it is the cheapest thing you can do."
+      "text": "; for P1 and P2 it is a request field ("
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/geometry/certify"
+     },
+     {
+      "kind": "text",
+      "text": ") with no toggle in the panel. On a scroll you have not run before it is the cheapest thing you can do."
      }
     ]
    },
@@ -12168,7 +12322,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The create form has two fields: a name and an id. There is "
+      "text": "The create form has two fields: a name and an id; scrolls are chosen in P0. There is "
      },
      {
       "kind": "strong",
@@ -12176,7 +12330,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": "."
+      "text": ". A scroll that is in neither the eligible catalogue nor the sources registered on this control plane is refused — at creation through the API and at every amendment — with the names the deployment does know, because a mission holding it could never grow anything and would only say so at P1. Both spellings of a scroll are accepted: "
+     },
+     {
+      "kind": "code",
+      "text": "PHerc0826"
+     },
+     {
+      "kind": "text",
+      "text": " as the bucket lists it and "
+     },
+     {
+      "kind": "code",
+      "text": "PHerc826"
+     },
+     {
+      "kind": "text",
+      "text": " as the catalogue keys it."
      }
     ]
    },
@@ -12710,7 +12880,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " when the fleet finalises a surface. The button here is for catching up on surfaces nobody measured — it is not how certification normally happens."
+      "text": " when the fleet finalises a surface. Catching up on surfaces nobody measured is a maintenance action, not a control on this page — it is not how certification normally happens."
      }
     ]
    },
@@ -12736,7 +12906,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "It runs against whatever scroll is selected in "
+      "text": "This page has no controls: it reads. To certify what is unmeasured, use "
+     },
+     {
+      "kind": "strong",
+      "text": "certify"
+     },
+     {
+      "kind": "text",
+      "text": " under Maintenance on the P1 panel, which asks you to confirm and runs against the scroll selected in "
      },
      {
       "kind": "strong",
@@ -12744,15 +12922,39 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", and the button is disabled until one is — there is no scroll picker here. Dry run defaults "
+      "text": " — inside a mission it refuses until one is. A script uses "
      },
      {
-      "kind": "strong",
-      "text": "on"
+      "kind": "code",
+      "text": "POST /api/geometry/certify"
      },
      {
       "kind": "text",
-      "text": ", and the only other control is a limit. See "
+      "text": ", which takes "
+     },
+     {
+      "kind": "code",
+      "text": "limit"
+     },
+     {
+      "kind": "text",
+      "text": " (25 by default), "
+     },
+     {
+      "kind": "code",
+      "text": "dry_run"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "surface_id"
+     },
+     {
+      "kind": "text",
+      "text": ". See "
      },
      {
       "kind": "link",
@@ -12996,7 +13198,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "machine:gpu-1-segment"
+      "text": "machine:<host>-segment"
      },
      {
       "kind": "text",
@@ -13706,7 +13908,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "install_ink_weights.py --models-root /mnt/bulk/helena/models\ninstall_ink_weights.py --models-root ... --only ink_9um   # one repository\ninstall_ink_weights.py --models-root ... --verify-only    # audit, download nothing"
+    "text": "install_ink_weights.py --models-root /path/to/models\ninstall_ink_weights.py --models-root ... --only ink_9um   # one repository\ninstall_ink_weights.py --models-root ... --verify-only    # audit, download nothing"
    },
    {
     "kind": "callout",
@@ -13882,7 +14084,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "strong",
-      "text": "Safetensors only."
+      "text": "Safetensors freely; a pickle only against a hash."
      },
      {
       "kind": "text",
@@ -13890,11 +14092,51 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
+      "text": ".bin"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": ".pt"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": ".pth"
+     },
+     {
+      "kind": "text",
+      "text": " checkpoint runs code when it is loaded, on a GPU worker, so "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/models/download"
+     },
+     {
+      "kind": "text",
+      "text": " fetches one only when the request states the "
+     },
+     {
+      "kind": "code",
+      "text": "expect_sha256"
+     },
+     {
+      "kind": "text",
+      "text": " it must have, and deletes rather than installs a file whose bytes disagree. The page's own Download button sends the profile's digest; the free-form field does not, so a "
+     },
+     {
+      "kind": "code",
       "text": "pickle_only"
      },
      {
       "kind": "text",
-      "text": " model is a published model you cannot install here, and that is deliberate: safetensors cannot carry code."
+      "text": " model is one you fetch by request with the hash, not by clicking."
      }
     ]
    },
@@ -14131,6 +14373,63 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
+      "text": "Registering with "
+     },
+     {
+      "kind": "code",
+      "text": "provision"
+     },
+     {
+      "kind": "text",
+      "text": " set — the default — also runs "
+     },
+     {
+      "kind": "code",
+      "text": "containers/provision-host.sh"
+     },
+     {
+      "kind": "text",
+      "text": " against that target in the background: Docker if it is missing, the worker and tunnel images streamed over SSH, the compose files and an env file under "
+     },
+     {
+      "kind": "code",
+      "text": "/etc/helena"
+     },
+     {
+      "kind": "text",
+      "text": " on the target, then the tunnel and the worker as compose projects. "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/hosts/{id}/provision"
+     },
+     {
+      "kind": "text",
+      "text": " reads the log back. The panel image does not carry "
+     },
+     {
+      "kind": "code",
+      "text": "containers/"
+     },
+     {
+      "kind": "text",
+      "text": ", so a deployment running only the image answers "
+     },
+     {
+      "kind": "strong",
+      "text": "503"
+     },
+     {
+      "kind": "text",
+      "text": ": the host is registered, and provisioning is the part that did not happen — bring it up with the compose files and it reports itself."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
       "text": "Host state is measured, not assumed — by the "
      },
      {
@@ -14179,7 +14478,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "link",
-      "text": "the Fleet page",
+      "text": "the queue page",
       "href": "#/docs/panel/fleet"
      },
      {
@@ -14599,7 +14898,7 @@ export const HANDBOOK: Page[] = [
   "section": "40-reference",
   "sectionTitle": "Reference",
   "title": "The HTTP API",
-  "summary": "128 endpoints, the ones worth knowing by hand, and the two credentials that reach them.",
+  "summary": "131 endpoints, the ones worth knowing by hand, and the two credentials that reach them.",
   "outline": [
    {
     "id": "credentials",
@@ -14766,7 +15065,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", and the ones worth handling say what to do rather than what went wrong."
+      "text": ", and the ones worth handling say what to do rather than what went wrong. The spec is at "
+     },
+     {
+      "kind": "code",
+      "text": "/api/openapi.json"
+     },
+     {
+      "kind": "text",
+      "text": ", and an "
+     },
+     {
+      "kind": "code",
+      "text": "/api/"
+     },
+     {
+      "kind": "text",
+      "text": " path that matches no route answers "
+     },
+     {
+      "kind": "strong",
+      "text": "404"
+     },
+     {
+      "kind": "text",
+      "text": " as JSON rather than the app shell, so a typo or a version skew fails as itself instead of as a 200 full of HTML."
      }
     ]
    },
@@ -14965,7 +15288,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "link",
-      "text": "the Fleet page",
+      "text": "the queue page",
       "href": "#/docs/panel/fleet"
      },
      {
@@ -15071,7 +15394,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "GET/PUT/DELETE /api/secrets/{name}     the fleet secret store -- not settings\nDELETE         /api/config/env/{name}  drop an override\nPUT            /api/config/constant    rewrites a constant in the platform's source\nGET/POST/DELETE /api/users             accounts\nPOST           /api/users/{name}/password"
+    "text": "GET/PUT/DELETE /api/secrets/{name}     the fleet secret store -- not settings\nDELETE         /api/config/env/{name}  drop an override\nPUT            /api/config/constant    rewrites a constant in the platform's source\nGET/POST/DELETE /api/users             accounts\nPOST           /api/users/{name}/password\nPOST           /api/segmentation/qc-jobs/requeue   configuration-blocked QC back to PENDING, with `fixed`\nGET/POST       /api/hosts              workers' hosts; POST provisions one, or answers 503 without the script\nGET            /api/hosts/{id}/provision   how that went"
    },
    {
     "kind": "callout",
@@ -15770,6 +16093,10 @@ export const HANDBOOK: Page[] = [
     "text": "The path"
    },
    {
+    "id": "where-configuration-lives",
+    "text": "Where configuration lives"
+   },
+   {
     "id": "what-runs-and-what-only-builds",
     "text": "What runs, and what only builds"
    },
@@ -15798,8 +16125,8 @@ export const HANDBOOK: Page[] = [
     "text": "Rollback"
    },
    {
-    "id": "the-platform-is-six-compose-projects",
-    "text": "\"The platform\" is six compose projects"
+    "id": "the-platform-is-seven-compose-projects",
+    "text": "\"The platform\" is seven compose projects"
    }
   ],
   "blocks": [
@@ -15870,23 +16197,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — on the host that branch owns: "
-     },
-     {
-      "kind": "code",
-      "text": "development"
-     },
-     {
-      "kind": "text",
-      "text": " deploys work-3, "
-     },
-     {
-      "kind": "code",
-      "text": "staging"
-     },
-     {
-      "kind": "text",
-      "text": " deploys gpu-1."
+      "text": " — on the host that branch owns: each branch deploys the host its runner is tagged for."
      }
     ]
    },
@@ -15943,6 +16254,113 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "Where configuration lives",
+    "id": "where-configuration-lives"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "install.sh"
+     },
+     {
+      "kind": "text",
+      "text": " asks what a machine should be — "
+     },
+     {
+      "kind": "code",
+      "text": "--panel"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "--cpu"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "--gpu"
+     },
+     {
+      "kind": "text",
+      "text": ", or "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_INSTALL"
+     },
+     {
+      "kind": "text",
+      "text": " — brings the platform stack up from the checkout and then calls "
+     },
+     {
+      "kind": "code",
+      "text": "containers/deploy-platform.sh nogpu|gpu"
+     },
+     {
+      "kind": "text",
+      "text": " for the workers. That script seeds "
+     },
+     {
+      "kind": "code",
+      "text": "config/*.env"
+     },
+     {
+      "kind": "text",
+      "text": " in the checkout from "
+     },
+     {
+      "kind": "code",
+      "text": "containers/compose/*.env.example"
+     },
+     {
+      "kind": "text",
+      "text": " on first run — platform, panel, segment, ink, surface-qc, and a "
+     },
+     {
+      "kind": "code",
+      "text": "postgres.env"
+     },
+     {
+      "kind": "text",
+      "text": " it writes from the platform's own credentials — never overwriting a file that exists, and fills in the two things no template can know: this host's name and the workers' database URL. The directory is git-ignored and holds nothing privileged. A host configured before this keeps "
+     },
+     {
+      "kind": "code",
+      "text": "/etc/helena"
+     },
+     {
+      "kind": "text",
+      "text": ", and the deploy says so; "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_ENV_DIR"
+     },
+     {
+      "kind": "text",
+      "text": " points it anywhere else. Nothing on a host runs outside a container: "
+     },
+     {
+      "kind": "code",
+      "text": "provision-host.sh"
+     },
+     {
+      "kind": "text",
+      "text": ", for a second machine joining a fleet, copies the compose files and an env file to the target and starts the tunnel and the worker as compose projects, and installs no units."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "What runs, and what only builds",
     "id": "what-runs-and-what-only-builds"
    },
@@ -15951,7 +16369,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Eleven containers on a host with cards, from five images. Three more images exist and never run: they are parents, and a name in "
+      "text": "Up to eleven containers on a host with cards, from five images. Three more images exist and never run: they are parents, and a name in "
      },
      {
       "kind": "code",
@@ -16198,7 +16616,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
-        "text": "helena-surface-qc-1"
+        "text": "helena-gpu-runtime-<n>"
        }
       ],
       [
@@ -16221,7 +16639,71 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A host without cards runs the first seven."
+      "text": "Not all of them on every host. "
+     },
+     {
+      "kind": "code",
+      "text": "helena-backup"
+     },
+     {
+      "kind": "text",
+      "text": " starts only where "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_BACKUP_S3"
+     },
+     {
+      "kind": "text",
+      "text": " is set; "
+     },
+     {
+      "kind": "code",
+      "text": "helena-spiral"
+     },
+     {
+      "kind": "text",
+      "text": " only where the "
+     },
+     {
+      "kind": "code",
+      "text": "helena-villa-python"
+     },
+     {
+      "kind": "text",
+      "text": " lane image is present, which the deploy does not build; "
+     },
+     {
+      "kind": "code",
+      "text": "helena-ink-9um"
+     },
+     {
+      "kind": "text",
+      "text": " where the 9 µm lane image is, which it does. A clean "
+     },
+     {
+      "kind": "code",
+      "text": "install.sh --gpu"
+     },
+     {
+      "kind": "text",
+      "text": " on one card leaves nine running, and two more — "
+     },
+     {
+      "kind": "code",
+      "text": "helena-prepare-volumes"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "helena-init"
+     },
+     {
+      "kind": "text",
+      "text": " — that ran once and exited. A host without cards runs the first seven, backup on the same condition."
      }
     ]
    },
@@ -16234,7 +16716,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "postgres:16-alpine                         pulled, not built\n\nnode + python  -> helena-panel  -> helena-backup\n\nubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8\n                                |\n                                +-(bundle stage)------+\npytorch/pytorch -> helena-ink --------------------------+-> helena-gpu-runtime\n                                                             |\n                                                             +-> helena-worker-gpu   P4 P5 P7"
+    "text": "postgres:16-alpine                         pulled, not built\n\nnode + python  -> helena-panel\npostgres:16-alpine -> helena-backup                   the dump script on the client image\n\nubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8\n                                |\n                                +-(bundle stage)------+\npytorch/pytorch -> helena-ink --------------------------+-> helena-gpu-runtime\n                                                             |\n                                                             +-> helena-worker-gpu   P4 P5 P7"
    },
    {
     "kind": "p",
@@ -16428,7 +16910,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " by a second build target. Each worker Containerfile has two: "
+      "text": " by a second build target. Each worker Containerfile has two: one for a host without the lane — "
      },
      {
       "kind": "code",
@@ -16436,7 +16918,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " for a host without the lane, "
+      "text": " in the GPU worker, "
+     },
+     {
+      "kind": "code",
+      "text": "worker"
+     },
+     {
+      "kind": "text",
+      "text": " in the CPU one — and "
      },
      {
       "kind": "code",
@@ -16684,15 +17174,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". That is the recovery path."
+      "text": ", keeping the last ten. That is the recovery path."
      }
     ]
    },
    {
     "kind": "h",
     "level": 2,
-    "text": "\"The platform\" is six compose projects",
-    "id": "the-platform-is-six-compose-projects"
+    "text": "\"The platform\" is seven compose projects",
+    "id": "the-platform-is-seven-compose-projects"
    },
    {
     "kind": "p",
@@ -16703,7 +17193,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " (postgres, init, panel, backup), "
+      "text": " (postgres, prepare-volumes, init, panel, backup), "
      },
      {
       "kind": "code",
@@ -16711,15 +17201,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", "
-     },
-     {
-      "kind": "code",
-      "text": "helena-spiral"
-     },
-     {
-      "kind": "text",
-      "text": ", "
+      "text": " (segment, fleet-runner, preflight), "
      },
      {
       "kind": "code",
@@ -16735,6 +17217,22 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "helena-ink-9um"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "helena-spiral"
+     },
+     {
+      "kind": "text",
       "text": ", and one "
      },
      {
@@ -16743,7 +17241,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " per card. The deploy script exists precisely because an \"all\" that is not all is worse than no \"all\", since it reports success."
+      "text": " per card. A worker host that reaches the control plane over SSH runs an eighth, "
+     },
+     {
+      "kind": "code",
+      "text": "helena-tunnel"
+     },
+     {
+      "kind": "text",
+      "text": ": "
+     },
+     {
+      "kind": "code",
+      "text": "control-tunnel.compose.yaml"
+     },
+     {
+      "kind": "text",
+      "text": ", the forward to the database's port as a container with a restart policy, where a systemd unit used to be. The deploy script exists precisely because an \"all\" that is not all is worse than no \"all\", since it reports success."
      }
     ]
    }
@@ -17411,7 +17925,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", because these stay blocked until a person changes a setting."
+      "text": ", because these stay blocked until a person changes a setting. Once the setting is fixed, "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/segmentation/qc-jobs/requeue"
+     },
+     {
+      "kind": "text",
+      "text": " with the mission, the scroll and a "
+     },
+     {
+      "kind": "code",
+      "text": "fixed"
+     },
+     {
+      "kind": "text",
+      "text": " saying what changed sends those jobs back to "
+     },
+     {
+      "kind": "code",
+      "text": "PENDING"
+     },
+     {
+      "kind": "text",
+      "text": "; the state is terminal on its own, and nothing retries it on a timer."
      }
     ]
    },
@@ -17475,7 +18013,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " for P8. The panel refuses rather than queueing work whose output would have nowhere to go."
+      "text": " for P8. Each defaults to a path under "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts"
+     },
+     {
+      "kind": "text",
+      "text": ", the platform's own volume, so this is a setting somebody emptied — or, for P1, a panel started without "
+     },
+     {
+      "kind": "code",
+      "text": "ARTIFACT_ROOT"
+     },
+     {
+      "kind": "text",
+      "text": ", which the platform compose sets to "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts"
+     },
+     {
+      "kind": "text",
+      "text": ". The panel refuses rather than queueing work whose output would have nowhere to go."
      }
     ]
    },

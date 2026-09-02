@@ -74,8 +74,11 @@ One command. It clones, builds the panel, compiles volume-cartographer -- expect
 an hour or two -- and starts the workers. On the machine this page was written
 from it brought up nine containers and left four workers polling.
 
-The tenth is the surface-QC runtime, which wants a checkpoint nothing downloads.
-That is P2's and this control does not touch it; it will sit restarting.
+The tenth was the surface-QC runtime, which wanted a checkpoint nothing
+downloaded, and sat restarting. The deploy fetches that checkpoint from Hugging
+Face now, against the digest the weights registry pins, before it starts the
+QC stack; only a fetch that fails leaves it looping. It is P2's either way, and
+this control does not touch it.
 
 ## 3. Claim the first account
 

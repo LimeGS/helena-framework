@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import socket
+import os
 import sys
 import time
 from pathlib import Path
@@ -46,6 +47,14 @@ def report_once(dsn: str, host_id: str, disk: str | None) -> str:
     """
     import psycopg2
 
+    # `postgres-env://NAME` names the variable that holds the DSN, so the DSN
+    # itself never appears on this process's command line. The fleet CLI takes
+    # the same form; this reader was the one process still handed the value.
+    if dsn.startswith("postgres-env://"):
+        variable = dsn.removeprefix("postgres-env://")
+        dsn = os.environ.get(variable) or ""
+        if not dsn.startswith(("postgresql://", "postgres://")):
+            raise RuntimeError(f"{variable} is not set to a PostgreSQL URL")
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "stages/03-ink/fleet"))
     from job_store import merge_gpu_observations  # noqa: PLC0415
 

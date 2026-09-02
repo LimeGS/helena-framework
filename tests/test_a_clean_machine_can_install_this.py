@@ -528,3 +528,33 @@ def test_the_panel_can_name_the_store_it_mounts(compose):
     assert store in destinations, (
         f"ARTIFACT_ROOT is {store}, which the panel does not mount: "
         f"{destinations}")
+
+
+def test_the_deploy_needs_nothing_the_ci_image_lacks():
+    """The deploy job runs in docker:27-cli, which has Docker and a shell and
+    nothing else -- no python3, no jq.
+
+    qc_entry called python3 on the host to read the weights registry, and the
+    staging deploy died with `python3: not found` after every container had
+    already been recreated: a platform that was up, reported as a failed deploy.
+    villa_lock_entry had the same call and hid it behind `|| echo unknown`,
+    which is why the villa labels read "unknown" on every CI deploy.
+
+    Both go through py(), which uses the host's interpreter when there is one
+    and the same interpreter in a container when there is not. Nothing else in
+    the script may call python3 directly.
+    """
+    script = (ROOT / "containers/deploy-platform.sh").read_text(encoding="utf-8")
+    lines = script.splitlines()
+    helper = next(i for i, line in enumerate(lines) if line.startswith("py() {"))
+    helper_end = next(i for i in range(helper, len(lines)) if lines[i] == "}")
+
+    for number, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#") or "python3" not in stripped:
+            continue
+        assert helper <= number <= helper_end, (
+            f"line {number + 1} calls python3 outside py(): {stripped}")
+
+    assert "jq " not in script and "jq\t" not in script, (
+        "the deploy calls jq, which docker:27-cli does not have")

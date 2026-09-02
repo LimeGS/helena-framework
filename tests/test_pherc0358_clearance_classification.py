@@ -2,8 +2,7 @@
 
 The 2026-08-02 First Letters hybrid campaign rejected exactly one attempt at
 `INSUFFICIENT_VOLUME_INTERIOR_CLEARANCE`, with raw/post-CT/usable = 8/8/0.
-These tests hold every step of the classification recorded in
-`docs/first-letters/pherc0358-clearance-classification.md`:
+These tests hold every step of that classification:
 
 * the frozen evidence the classification reads, by content hash;
 * what the volume gate actually computes, and the fact that the *cell* gate is
@@ -47,8 +46,7 @@ assert SPEC and SPEC.loader
 analysis = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(analysis)
 
-EVIDENCE_DIR = ROOT / "docs/first-letters/first-letters-hybrid-20260802"
-CLASSIFICATION = ROOT / "docs/first-letters/pherc0358-clearance-classification.md"
+EVIDENCE_DIR = ROOT / "tests/fixtures/first-letters-hybrid-20260802"
 CATALOG = ROOT / "workspace/catalog/eligible_volumes.json"
 
 # The bounded campaign's own record, frozen on 2026-08-02.  The classification
@@ -580,72 +578,11 @@ def test_the_analyzer_cannot_reach_the_uncalibrated_verdict_at_the_default() -> 
 # --------------------------------------------------------------------------
 
 
-def test_the_classification_document_states_a_class_and_its_non_claims() -> None:
-    """A review without an explicit non-claim section is not a review."""
-
-    text = CLASSIFICATION.read_text()
-    assert "Explicit non-claims" in text
-    assert FROZEN_README_SHA256 in text
-    assert FROZEN_EVIDENCE_SHA256 in text
-    for phrase in ("No ink claim", "not ink absence", "TRUE_VOLUME_BOUNDARY",
-                   "does not authorize changing it"):
-        assert phrase in text
-    named = [name for name in (
-        "IMPLEMENTATION_OR_METADATA_DEFECT", "TRUE_VOLUME_BOUNDARY",
-        "CELL_BOUNDARY_ONLY", "POLICY_MARGIN_UNCALIBRATED") if name in text]
-    assert len(named) == 4, "the review must weigh every class it was offered"
-
-
-def test_the_classification_document_changes_no_threshold() -> None:
-    """The review is diagnostic; the shipped defaults must still be the defaults."""
+def test_the_shipped_defaults_are_still_the_defaults() -> None:
+    """The classification was diagnostic; the shipped defaults must still be the defaults."""
 
     cli = (STAGE / "fleet/cli.py").read_text()
     assert '"--volume-edge-margin", type=int, default=64' in cli
     assert '"--query-radius", type=int, default=64' in cli
     assert '"--candidate-interior-clearance", type=int, default=0' in cli
     assert math.isclose(DEFAULT_ENVELOPE["maximum_candidate_count"], 8)
-
-
-def test_the_classification_document_names_only_files_that_exist() -> None:
-    """A review that cites a moved file sends its reader nowhere.
-
-    Directory citations are exempt: the review names one output location that
-    deliberately does not exist yet, because the evidence to fill it is not in
-    the repository.
-    """
-
-    text = CLASSIFICATION.read_text()
-    cited = {
-        path for path in re.findall(
-            r"`((?:framework|panel|scripts|tests|docs|workspace)/[\w./-]+?)"
-            r"(?::[\d–\-]+)?`", text)
-        if not path.endswith("/")
-    }
-    assert cited, "the review must cite the code it read"
-    for path in cited:
-        assert (ROOT / path).exists(), f"the review names {path}, which is not here"
-    assert not (ROOT / "docs/first-letters/pherc0358-clearance-review").exists(), (
-        "the analyzer output directory exists; re-derive the review from the "
-        "real attempt bundle instead of leaving section 6 open")
-
-
-def test_the_documented_sensitivity_table_is_the_computed_one() -> None:
-    """Every number in the diagnostic table is recomputed, not transcribed.
-
-    The table describes how much of the rim cell's query cube each margin level
-    closes.  It is cube geometry, and it cannot authorize a production
-    threshold; this test only stops it from drifting away from the code.
-    """
-
-    text = CLASSIFICATION.read_text()
-    for percentage in analysis.SENSITIVITY_PERCENTAGES:
-        margin = VOLUME_EDGE_MARGIN * percentage // 100
-        geometry = analysis.query_cube_volume_gate_geometry(
-            bounds_xyz=[[0, 0, 0], [128, 128, 128]],
-            shape_xyz=list(PHERC0358_SHAPE_XYZ),
-            minimum_volume_interior_clearance_voxels=margin,
-        )
-        row = (f"| {percentage} % | {margin} | "
-               f"{margin * PHERC0358_VOXEL_UM:.3f} | "
-               f"{geometry['admissible_voxel_fraction']:.4f} |")
-        assert row in text, f"the review's sensitivity row differs: {row}"

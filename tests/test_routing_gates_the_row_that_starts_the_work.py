@@ -38,7 +38,7 @@ from fleet.store import FleetStore  # noqa: E402
 
 DSN = os.environ.get("HELENA_TEST_DSN")
 
-# Frozen in docs/first-letters/first-letters-hybrid-20260802/evidence.json.
+# Frozen in tests/fixtures/first-letters-hybrid-20260802/evidence.json.
 PHERC0268_AREA_CM2 = 0.01983222455087575
 PHERC0268_ARTIFACT_SHA256 = (
     "d6791503f3d5e1418ba92b9b3dd2b73051558c89e0fefdc280ffbb3b2a5752c6"

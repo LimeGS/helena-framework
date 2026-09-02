@@ -21,7 +21,7 @@ The password is read from a file at run time and used only to obtain a session
 cookie. It is never printed, never written, and never passed on a command line
 where `ps` would show it.
 
-  queue_retained_surfaces.py --panel https://gpu-1:8800 --user limegs
+  queue_retained_surfaces.py --panel https://localhost:8800 --user <user>
   queue_retained_surfaces.py ... --lane both      # 9um and timesformer
   queue_retained_surfaces.py ... --dry-run        # print the requests, send none
 """
@@ -194,10 +194,9 @@ def read_password(path: Path) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--panel", default=os.environ.get("HELENA_PANEL", "https://gpu-1:8800"))
+    parser.add_argument("--panel", default=os.environ.get("HELENA_PANEL", "https://localhost:8800"))
     parser.add_argument("--user", required=True)
-    parser.add_argument("--password-file", type=Path,
-                        default=Path.home() / ".ssh/helena-limegs.pass",
+    parser.add_argument("--password-file", type=Path, required=True,
                         help="read at run time; never echoed or stored")
     parser.add_argument("--mission", required=True,
                         help="nothing may be queued outside a mission")

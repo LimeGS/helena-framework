@@ -65,7 +65,7 @@ done
 
 qc_active_count() {
   "$postgres_wrapper" \
-    "$python_bin" "$fleet_cli" status --db "$FLEET_DB" >"$status_file"
+    "$python_bin" "$fleet_cli" status --db "$(case "$FLEET_DB" in postgres*) echo postgres-env://FLEET_DB;; *) echo "$FLEET_DB";; esac)" >"$status_file"
   "$python_bin" -c '
 import json
 import sys

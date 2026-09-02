@@ -13,7 +13,8 @@ seen most often would look harmless and would make the control fail
 intermittently -- for a reason that would read as a science problem and would
 not be one.
 
-docs/first-letters/control-run-to-run-variation.md has the measurements.
+The measurements are the OBSERVED_* constants below, taken
+from three runs of the same control on the same deployment, days apart.
 """
 
 from __future__ import annotations

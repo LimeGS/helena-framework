@@ -5,7 +5,8 @@ Two failure modes, and they compound.
 The first is drift: this surface is quoted by area, triangle count and digest in
 prose across the repository, and a number retyped from a paragraph is a number
 that can be wrong. The single frozen truth is
-`docs/first-letters/first-letters-hybrid-20260802/evidence.json`, so every
+`tests/fixtures/first-letters-hybrid-20260802/evidence.json` -- a fixture, kept
+with the tests that pin it rather than among the docs -- so every
 identifier below is read out of that file rather than restated here, and the
 restatements that already exist in other tests are checked against it.
 
@@ -42,7 +43,7 @@ from test_first_letters_campaign_api import (  # noqa: E402,F401
     ready,
 )
 
-EVIDENCE = (ROOT / "docs/first-letters/first-letters-hybrid-20260802"
+EVIDENCE = (ROOT / "tests/fixtures/first-letters-hybrid-20260802"
             / "evidence.json")
 
 # The bucket / mission / evidence spelling, and the control-plane spelling.
@@ -112,8 +113,6 @@ def test_every_restatement_of_these_identifiers_matches_the_frozen_file(
             frozen["area_cm2"], frozen["artifact_sha256"]),
         "tests/test_small_surface_routing_postgres_parity.py": (
             frozen["area_cm2"], frozen["artifact_sha256"]),
-        "docs/superpowers/plans/2026-08-02-first-letters-discovery-recovery.md": (
-            frozen["area_cm2"], frozen["valid_triangle_count"]),
     }
     for relative, values in restatements.items():
         text = (ROOT / relative).read_text(encoding="utf-8")

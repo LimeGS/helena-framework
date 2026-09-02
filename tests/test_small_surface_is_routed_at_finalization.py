@@ -30,7 +30,7 @@ sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
 from fleet import surface_routing as routing  # noqa: E402
 from fleet.store import FleetStore  # noqa: E402
 
-# Frozen in docs/first-letters/first-letters-hybrid-20260802/evidence.json.
+# Frozen in tests/fixtures/first-letters-hybrid-20260802/evidence.json.
 PHERC0268 = {
     "area_cm2": 0.01983222455087575,
     "artifact_sha256": "d6791503f3d5e1418ba92b9b3dd2b73051558c89e0fefdc280ffbb3b2a5752c6",

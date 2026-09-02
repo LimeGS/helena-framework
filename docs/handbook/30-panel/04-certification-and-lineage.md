@@ -9,18 +9,20 @@ The P2 panel, under Mission. It has **surfaces and verdicts on them**, not tasks
 and workers.
 
 > **Note** Certification runs **automatically** when the fleet finalises a
-> surface. The button here is for catching up on surfaces nobody measured — it
-> is not how certification normally happens.
+> surface. Catching up on surfaces nobody measured is a maintenance action, not
+> a control on this page — it is not how certification normally happens.
 
 The first block counts the silence: how many surfaces carry no verdict at all.
 That number is the one to watch, because certification is **fail-soft** — an
 unmeasured surface is not a rejected one, and it will sit waiting rather than
 announcing itself.
 
-It runs against whatever scroll is selected in **P0**, and the button is
-disabled until one is — there is no scroll picker here. Dry run defaults **on**,
-and the only other control is a limit. See [P2](#/docs/phases/p2) for what the
-verdicts mean.
+This page has no controls: it reads. To certify what is unmeasured, use
+**certify** under Maintenance on the P1 panel, which asks you to confirm and
+runs against the scroll selected in **P0** — inside a mission it refuses until
+one is. A script uses `POST /api/geometry/certify`, which takes `limit`
+(25 by default), `dry_run` and `surface_id`. See [P2](#/docs/phases/p2) for
+what the verdicts mean.
 
 The gate is **fail-soft in control flow and fail-closed in verdict**: a gate
 that cannot load records `unmeasured`, which is not certification, rather than
@@ -68,6 +70,6 @@ Only `POST`, `PUT`, `PATCH` and `DELETE` under `/api/` are recorded — a mutati
 exposed as a GET would not be in the trail. It filters by user and by substring,
 and the files are monthly `.jsonl` under the audit root.
 
-> **Note** Machine tokens appear under their own name — `machine:gpu-1-segment`
+> **Note** Machine tokens appear under their own name — `machine:<host>-segment`
 > — rather than under whichever person's password would otherwise have been
 > copied onto a worker host. That is most of the point of having them.

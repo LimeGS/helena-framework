@@ -12,7 +12,7 @@ summary: Where each phase is queued from, what the form will not let you do, and
 | Phase | How |
 | --- | --- |
 | P1, P4, P5, P7, P8, P9 | `POST /api/jobs`, from that phase's panel |
-| **P2** | `POST /api/geometry/certify`, from the Geometry panel |
+| **P2** | `POST /api/geometry/certify`; in the panel, **certify** under Maintenance on P1 — the P2 panel only reads |
 | **P3** | `POST /api/flattening/run`, from the Flattening panel |
 
 Anything outside the first row gets a 400 saying the phase has no runner
@@ -35,8 +35,11 @@ registered. That is the single most likely 400 a new reader meets.
 > **Trap** The other half of that: with the store setting **empty**, the panel
 > refuses to queue at all. `CX_RENDER_STORE` for P4 (unless you pass
 > `allow_local_layers`), `CX_INK_STORE` for P5, `CX_FLATTEN_STORE` for P3,
-> `CX_RECONSTRUCTION_STORE` for P8. The symptom is "nothing will queue" and the
-> cause is a blank field on the Configuration tab.
+> `CX_RECONSTRUCTION_STORE` for P8. Each defaults to a path under `/artifacts`,
+> the platform's own volume, so this only happens to a deployment that blanked
+> one. The symptom is "nothing will queue" and the cause is a blank field on
+> the Configuration tab. P1 publishes to `ARTIFACT_ROOT`, which the platform
+> compose sets to `/artifacts`.
 
 ## Exactly-one-of, in four places
 
@@ -80,9 +83,10 @@ The only thing that genuinely filters before a claim is the runtime image.
 
 ## Dry run
 
-`dry_run` is queueable for **P1, P2 and P3 only**, and on the phases that run it
-the toggle defaults **on**. On a scroll you have not run before it is the
-cheapest thing you can do.
+`dry_run` is a parameter of **P1, P2 and P3 only**. The Flattening panel draws
+it as a toggle that defaults **on**; for P1 and P2 it is a request field
+(`POST /api/jobs`, `POST /api/geometry/certify`) with no toggle in the panel.
+On a scroll you have not run before it is the cheapest thing you can do.
 
 ## Ceilings
 

@@ -54,7 +54,7 @@ name: helena-ink
 
 services:
   ink:
-    image: ${HELENA_INK_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.24.0}}
+    image: ${HELENA_INK_IMAGE:-helena-worker-gpu:${HELENA_VERSION:-0.24.1}}
     # Not root. Every image in this fleet ran as uid 0, so a bug in a runner
     # -- a tar, a zarr reader, a model loader eating an attacker-shaped file --
     # had the whole container and every volume mounted into it. The volumes are

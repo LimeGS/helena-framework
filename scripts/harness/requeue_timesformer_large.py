@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import ssl
 import sys
 import urllib.error
@@ -79,10 +80,11 @@ class Panel:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--panel", default="https://gpu-1:8800")
+    parser.add_argument("--panel",
+                        default=os.environ.get("HELENA_PANEL", "https://localhost:8800"))
     parser.add_argument("--user", required=True)
-    parser.add_argument("--password-file", type=Path,
-                        default=Path.home() / ".ssh/helena-limegs.pass")
+    parser.add_argument("--password-file", type=Path, required=True,
+                        help="read at run time; never echoed or stored")
     parser.add_argument("--insecure", action="store_true",
                         help="the panel serves its own certificate")
     parser.add_argument("--dry-run", action="store_true")

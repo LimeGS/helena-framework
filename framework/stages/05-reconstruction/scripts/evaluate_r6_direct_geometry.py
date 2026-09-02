@@ -50,7 +50,7 @@ CLASS_COUNTS = {"SAME": 600, "ADJACENT": 100, "UNRELATED": 900}
 # 0.0 against a loosened <= 0.10, while feeding the estimator a constant. The
 # estimand changed silently between rounds of one series; the two numbers are
 # not comparable and must never be tabulated in the same column.
-# See docs/SERIES_MULTIPLICITY_STAGE05_R0_R6.json.
+# The series identity travels in the receipt below (series_multiplicity).
 #
 # The accuracy is still reported, under a name that says what it is
 # (`accuracy_on_all_pairs`), and it is still gated -- by the pre-existing
@@ -418,7 +418,6 @@ def evaluate(
         ),
         "historical_r5_terminal_preserved": True,
         "series_multiplicity": {
-            "declaration": "docs/SERIES_MULTIPLICITY_STAGE05_R0_R6.json",
             "series_id": "stage05-relation-v2-R0-R6",
             "round_id": "R6",
             "unbiased_estimator": False,
