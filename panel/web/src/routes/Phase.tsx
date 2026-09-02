@@ -327,6 +327,13 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
  * the coverage grid, and Coverage is a tab that already exists.
  */
 const PLACED_BY_HAND: Record<string, Record<string, Sub | "view">> = {
+  // P2 draws all four itself, and styles one of them: unmeasured turns the tile
+  // amber, which the generic strip cannot do. Without this entry the page showed
+  // the same four counts twice, in two different orders -- which is the failure
+  // this table was added for, on the phase that was never added to it.
+  P2: {
+    surfaces: "view", certified: "view", unmeasured: "view", rejected: "view",
+  },
   P1: {
     surfaces: "view", area_cm2: "view", tasks: "view", attempts: "view",
     cells_attempted: "coverage", cells_with_surface: "coverage",

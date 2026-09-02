@@ -8337,6 +8337,60 @@ class PostgresFleetStore:
                 self.event(cursor, "QC_COMPLETED", {"qc_job_id": qc_job_id, "surface_id": job["surface_id"], "outcome": outcome, "evidence_manifest_sha256": result["evidence_manifest_sha256"]})
                 return {"status": "COMPLETED", "qc_job_id": qc_job_id, "surface_id": job["surface_id"], "outcome": outcome, "surface_state": surface_state, "physical_qc_state": physical_state}
 
+    def requeue_blocked_qc_jobs(self, sample_id: str, *, fixed: str,
+                                by: str) -> dict[str, Any]:
+        """Put a sample's configuration-blocked QC back in the queue, once.
+
+        The other half of `block_qc_configuration`. Blocking is terminal because
+        a job that fails the same way every time must not be reclaimed; but the
+        thing it waits for -- a profile pin, a checkpoint -- does get fixed, and
+        until this existed the only way back was an UPDATE typed into psql.
+
+        Nothing calls this but a person: `claim_qc` still takes only PENDING and
+        no timer or sweep moves a blocked row, so the fleet cannot resume
+        spinning on its own. What changed is that somebody can say so, once,
+        having stated what they fixed -- a terminal state that gets undone
+        without a reason on the record is not terminal, it is unreliable.
+
+        The stale receipt goes with the state, for the same reason as in the
+        SQLite store: a corrected deployment still quoting the hash it no longer
+        pins reads as unfixed. QC_BLOCKED_CONFIGURATION keeps it.
+
+        This existed only on the SQLite store, and the panel calls it through
+        whichever store is configured -- so on every Postgres deployment, which
+        is every real one, the requeue route raised AttributeError and answered
+        500. Both stores are asserted to offer it.
+        """
+        if not str(fixed or "").strip():
+            raise ValueError("requeueing blocked QC needs what was fixed")
+        with self.connect() as connection:
+            with connection.cursor() as cursor:
+                # Selected and locked in the same transaction that clears them,
+                # so the record names the jobs this call moved rather than
+                # whatever was blocked a moment earlier.
+                cursor.execute(
+                    """SELECT qc_job_id FROM segment_qc_jobs
+                        WHERE state='BLOCKED_CONFIGURATION' AND surface_id IN (
+                          SELECT surface_id FROM segment_surfaces
+                           WHERE sample_id=%s)
+                        ORDER BY qc_job_id FOR UPDATE""",
+                    (sample_id,),
+                )
+                requeued = [row["qc_job_id"] for row in cursor.fetchall()]
+                if requeued:
+                    cursor.execute(
+                        """UPDATE segment_qc_jobs SET state='PENDING',result=NULL,
+                           worker_id=NULL,lease_token_hash=NULL,
+                           lease_expires_at=NULL,retry_after=NULL,updated_at=now()
+                            WHERE qc_job_id = ANY(%s)""",
+                        (requeued,),
+                    )
+                record = {"sample_id": sample_id, "requeued": len(requeued),
+                          "qc_job_ids": requeued, "fixed": str(fixed).strip(),
+                          "by": by}
+                self.event(cursor, "qc.requeued_after_fix", record)
+                return record
+
     def block_qc_configuration(
         self,
         qc_job_id: str,

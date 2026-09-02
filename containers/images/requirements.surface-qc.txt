@@ -1,6 +1,13 @@
-# Additive controller/analysis dependencies. PyTorch 2.5.1+cu124, NumPy,
+# Additive controller/analysis dependencies. PyTorch 2.7.1+cu128, NumPy,
 # Pillow, TimeSformer, einops and safetensors come byte-for-byte from the
 # frozen helena-ink parent image.
+#
+# 2.7.1+cu128 and not 2.5.1+cu124: 2.5.1's kernels stop at sm_90, so on a
+# Blackwell card torch reports cuda_available True -- the driver is there and
+# the device enumerates -- and has nothing that will run on it. The surface-QC
+# worker then reports no CUDA in its capabilities and never claims a job, which
+# is a silent stall four phases upstream of anything that says so. Measured on
+# an RTX 5090. 2.7.1 is the earliest release carrying sm_120.
 #
 # Why this file is NOT installed with `pip install --require-hashes` (FIX-16.3)
 # ---------------------------------------------------------------------------

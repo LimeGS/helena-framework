@@ -1275,12 +1275,28 @@ def test_a_surface_review_carries_an_opinion_and_never_a_lineage_claim(
         assert refused.status_code == 422, refused.text
 
 
-def test_control_remains_disjoint_from_the_thirteen_target_catalog_entries():
+def test_the_control_scroll_is_never_a_catalogued_target():
+    """The second assertion here required the catalogue's scrolls to *equal* the
+    policy's evaluation cohort, which conflated two different things: the cohort
+    is thirteen scrolls frozen for an experiment, and the catalogue is every
+    volume this platform can intake. They coincided when both were thirteen.
+
+    Adding a scroll anybody can download from the open-data bucket then failed a
+    test about control disjointness, which is not what it guards. The invariant
+    is one-directional and it is the whole point of the control: the scroll used
+    to prove the pipeline finds ink must not also be one the pipeline is scored
+    on. Growing the catalogue cannot break that; putting PHerc0139 in it can,
+    and that is what fails here.
+    """
     control = json.loads(MANIFEST.read_text())
     eligible = json.loads((ROOT / "workspace/catalog/eligible_volumes.json").read_text())
     targets = {row["sample_id"].replace("PHerc0", "PHerc") for row in eligible["entries"]}
+    cohort = set(control["control_cohort"]["evaluation_scroll_ids"])
+
     assert control["control_cohort"]["scroll_id"] not in targets
-    assert set(control["control_cohort"]["evaluation_scroll_ids"]) == targets
+    assert cohort <= targets, (
+        "the evaluation cohort names scrolls the catalogue cannot intake: "
+        f"{sorted(cohort - targets)}")
 
 
 @pytest.fixture

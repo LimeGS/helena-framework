@@ -621,15 +621,28 @@ def test_runbook_forbids_multiscale_arm_content_inputs_unvalidated_and_direct_ca
     assert "never directly canonicalized" in runbook
 
 
-def test_pherc0139_control_is_disjoint_from_all_thirteen_targets(
+def test_the_control_scroll_is_not_a_catalogued_target(
     control: dict[str, Any],
 ) -> None:
+    """It fixed the catalogue at thirteen and required the evaluation cohort to
+    equal it. Those are different sets that happened to coincide: the cohort is
+    frozen for an experiment, the catalogue is what this platform can intake,
+    and the open-data bucket has twenty-six volumes with everything P0 and P1
+    need. Growing the catalogue broke a test about the control.
+
+    What the control needs is that its own scroll is not among the targets --
+    PHerc0139 proves the pipeline finds ink, and a scroll cannot be both the
+    proof and the thing being scored. The cohort still has to be intakeable,
+    which is a containment and not an equality.
+    """
     catalog = load_json(CATALOG_PATH)
-    expected = {entry["sample_id"] for entry in catalog["entries"]}
-    assert len(expected) == 13
-    assert set(control["control_cohort"]["evaluation_scroll_ids"]) == expected
+    catalogued = {entry["sample_id"] for entry in catalog["entries"]}
+    cohort = set(control["control_cohort"]["evaluation_scroll_ids"])
+
     assert control["control_cohort"]["scroll_id"] == "PHerc0139"
-    assert "PHerc0139" not in expected
+    assert "PHerc0139" not in catalogued
+    assert cohort <= catalogued, (
+        f"the cohort names scrolls the catalogue lacks: {sorted(cohort - catalogued)}")
 
 
 def test_profile_locks_match_the_checked_in_bytes(

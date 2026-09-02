@@ -1,73 +1,186 @@
 # Reproducing the public ink control
 
-Everything below runs from inputs anybody can download. No account, no
-credential, no access to this deployment. That is the point: the reviewers of
-the community-projects PR asked for "a run from a clean installation with
-public input surfaces, a checkpoint others can obtain, downloadable outputs,
-and an end-to-end test log without skipped pipeline stages", and a control that
-reads a private bucket cannot answer any of it however well it works.
+Everything below runs from inputs anybody can download, on a machine that starts
+with nothing. No account of ours, no credential, no access to our deployment.
+
+It drives the ink chain **through Helena's API** -- the job is queued, a worker
+claims it, and the control fetches back what that worker published. Nothing
+reads a path on the worker's disk. An earlier version of this page described a
+local subprocess instead, which proves the tooling works and says nothing about
+the queue, the worker, the routing or the publication; that is the half a
+reviewer is being asked to trust, so it is the half this now exercises.
+
+Written from a run on a rented RTX 5090 that had nothing installed on it. The
+seven steps are the seven things that run needed, in order.
 
 ## What it proves, and what it does not
 
 It proves this platform can drive the recommended ink-detection tooling end to
-end on public data, and that each boundary either passed or said why not.
+end on public data, through its own queue, and that each boundary either passed
+or said why not.
 
 It is not a reading, not an ink claim, and not the nine-boundary First Letters
-campaign control -- that is a different receipt with a different schema, and
-the evaluator refuses the substitution. The receipt carries these as
-`non_claims` rather than leaving them to a reader.
+campaign control -- that is a different receipt with a different schema, and the
+evaluator refuses the substitution. The receipt carries these as `non_claims`
+rather than leaving them to a reader.
 
 ## Inputs, and where they come from
 
 | Input | Source | Credential |
 |---|---|---|
 | Surface volume, 9.362 um isotropic | `https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com/PHerc0139/segments/20260112000000-w043_2026011217/surface-volumes/9.362um-1.2m-113keV-volume-20250728140407.zarr` | none |
-
-The https form, not the `s3://` one. This table gave the `s3://` URI and the
-command below says "the URL above", so following this document literally
-failed at the first boundary with `unknown url type: s3`: the control reads
-the volume's own `.zattrs` over plain HTTP, deliberately anonymous, because a
-control that proves "public" while holding credentials has proved nothing
-about what a stranger can obtain. The lane reads the same form and not the
-other one either. Same object, one address, both halves agree.
 | Checkpoint `hybrid_3d2d-seed42/step-075000.pth` | `https://huggingface.co/scrollprize/ink_9um` | none, not gated |
 
-The checkpoint's SHA-256 is `e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab`
-and its size is 138360039 bytes. The control verifies both before running, and
-records the digest it saw in the receipt.
+The https form of the volume, not the `s3://` one: the control reads the
+volume's own `.zattrs` over plain HTTP, deliberately anonymous, because a
+control that proves "public" while holding credentials has proved nothing about
+what a stranger can obtain. The lane reads the same form. Same object, one
+address, both halves agree.
 
-## Building the runtime
+The checkpoint's SHA-256 is
+`e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab` and its size
+is 138360039 bytes. The control verifies both before running and records the
+digest it saw.
 
-    make -C containers/images build-ink-9um \
-      VILLA_PYTHON_BASE_IMAGE=<minimal base, sha256-pinned> \
-      VILLA_INK_SRC=<checkout of ScrollPrize/villa at 3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e> \
-      UV_CONTEXT=<directory containing a uv binary>
+---
 
-The image installs upstream's own locked dependency set with `uv sync --frozen`
-and verifies, at build time, that the files the adapters were written against
-are byte-identical to the ones the source lock records. See
-`containers/images/BUILD_STATE.md`.
+## 1. Two prerequisites that are not Helena's
 
-## Running it
+**The NVIDIA driver has to match the card.** Blackwell -- a 5090, for instance --
+requires the *open* kernel modules, and a host carrying the proprietary ones
+reports no device at all while `lspci` plainly shows the GPU:
 
-    docker run --rm --gpus all \
-      -v <repo>:/repo:ro -v <checkpoint dir>:/models:ro -v <output dir>:/out \
+    NVRM: The NVIDIA GPU 0000:00:07.0 (PCI ID: 10de:2b85)
+    NVRM: installed in this system requires use of the NVIDIA open kernel modules.
+
+    apt-get purge -y '^nvidia-.*' '^libnvidia-.*'
+    apt-get install -y nvidia-driver-575-open
+    reboot
+
+**Docker has to be able to reach the card.** That is the NVIDIA Container
+Toolkit, and without it the workers build, start, claim work and find no device.
+The installer warns when the daemon has no `nvidia` runtime; it does not install
+it for you, because that is a system package and your machine's business.
+
+    # https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+    nvidia-ctk runtime configure --runtime=docker && systemctl restart docker
+    docker run --rm --gpus all ubuntu:22.04 nvidia-smi -L    # must list the card
+
+## 2. Install
+
+    curl -fsSL https://raw.githubusercontent.com/LimeGS/helena-framework/main/install.sh | sh -s -- --gpu
+
+One command. It clones, builds the panel, compiles volume-cartographer -- expect
+an hour or two -- and starts the workers. On the machine this page was written
+from it brought up nine containers and left four workers polling.
+
+The tenth is the surface-QC runtime, which wants a checkpoint nothing downloads.
+That is P2's and this control does not touch it; it will sit restarting.
+
+## 3. Claim the first account
+
+    curl -sk https://127.0.0.1:8800/api/session/bootstrap \
+      -H 'Content-Type: application/json' \
+      -d '{"username":"you","password":"at-least-ten-characters"}'
+
+Loopback only, and it closes once an account exists.
+
+## 4. Ask the panel for the checkpoint
+
+    curl -sk -b cookies -X POST https://127.0.0.1:8800/api/models/download \
+      -H 'Content-Type: application/json' \
+      -d '{"repo":"scrollprize/ink_9um",
+           "file":"hybrid_3d2d-seed42/step-075000.pth",
+           "name":"ink_9um",
+           "expect_sha256":"e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab"}'
+
+`expect_sha256` is required here and not optional paperwork: upstream publishes
+this checkpoint as `.pth`, which is a pickle, and the panel fetches one only
+against the hash it must have -- deleting it rather than installing it if the
+bytes disagree. `GET /api/models` then reports it as installed and says which
+profiles declare it.
+
+Earlier versions of this page wrote the file into the volume with a `docker run`
+instead, because the API refused both the format and the subdirectory. A control
+that reaches into the machine it is testing is not testing the interface anybody
+else would use, so both refusals were changed rather than documented.
+
+## 5. Make a mission
+
+Nothing may be queued outside one, and that rule lives in the store rather than
+the panel.
+
+    curl -sk -b cookies -X POST https://127.0.0.1:8800/api/missions \
+      -H 'Content-Type: application/json' \
+      -d '{"mission_id":"public-control","name":"Public ink control",
+           "scrolls":["PHerc0139"]}'
+
+(Sign in first with `POST /api/session` and keep the cookie jar; every call
+below uses it.)
+
+## 6. Freeze and select the P0 artifact
+
+The control sample needs its volume chosen explicitly -- a control run has to
+name which scan it used, and the panel refuses to guess:
+
+    409: control scope requires an explicit selected P0 artifact
+
+Two calls. The first registers what P0 produced and returns an `artifact_id`;
+the second chooses it. The selection is the whole map, never a patch.
+
+    curl -sk -b cookies -X POST \
+      https://127.0.0.1:8800/api/missions/public-control/artifacts/freeze-p0
+
+    curl -sk -b cookies -X POST https://127.0.0.1:8800/api/missions/public-control/selection \
+      -H 'Content-Type: application/json' \
+      -d '{"choices":{"P0/PHerc0139":"<artifact_id from the call above>"},
+           "reason":"public ink control"}'
+
+## 7. Run it
+
+    docker run --rm --network host \
+      -v <checkout>:/repo:ro -v <output dir>:/out \
+      -e HELENA_PANEL_PASSWORD='<the password from step 3>' \
+      -e HELENA_PANEL_TLS_INSECURE=1 \
       helena-ink-9um:local \
       python /repo/scripts/harness/run_public_ink_control.py \
-        --surface-volume <the URL above> \
-        --checkpoint /models/step-075000.pth \
+        --panel https://127.0.0.1:8800 --user you --mission public-control \
+        --sample-id PHerc0139 \
+        --checkpoint-path /models/ink_9um/hybrid_3d2d-seed42/step-075000.pth \
         --expected-checkpoint-sha256 e635558ae6a1a807a7e5ec1e83adfd45bc3c0ac53883ea43f1d4e085d62a9cab \
+        --source-pixel-um 9.362 \
+        --surface-volume <the volume URL above> \
         --output /out
 
-Exit status is 0 on `CONTROL_PASS` and 3 otherwise. The run takes about
-twenty-five minutes on two GTX 1660s and needs roughly 2.3 GB of VRAM.
+`HELENA_PANEL_TLS_INSECURE=1` because the panel's certificate is self-signed on
+first boot. Point `--panel` at a name that certificate covers and you can drop
+it; on the machine that just installed itself, you cannot.
+
+Exit status is 0 on `CONTROL_PASS` and 3 otherwise. Inference took about
+twenty-six minutes on one 5090.
+
+## What is not an API call, and why
+
+Steps 4 to 7 are requests. Nothing reads or writes the deployment's disk: the
+checkpoint is placed by the models endpoint, the mission and its P0 selection
+are requests, the job is queued, and the map comes back by the `artifact_uri`
+the worker published. The control mounts no volume of the deployment's -- only
+somewhere to write its own output.
+
+Steps 1 to 3 are not, and cannot be. They are what happens before a platform
+exists: a kernel driver, a container runtime, and the installer that creates the
+thing an API could be served from. There is no interface to call on a machine
+that has none.
+
+Step 7 runs a client. That client is a program you run, like `curl` above, and
+it can run anywhere that can reach `--panel`; it does not have to be on the
+deployment's host.
 
 ## What it writes
 
     PUBLIC_INK_CONTROL.json   the stage-survival receipt, content-addressed
-    INK_9UM_RECEIPT.json      the lane receipt: checkpoint, argv, liveness
-    probability.npy           the map, raw
-    ink.tif, ink_reverse.tif  upstream's own uint8 output, both directions
+    ARTIFACT_SET.json         the digests of what the worker published
+    probability.npy           the map, and its reverse
 
 ## Reading the receipt
 
@@ -76,28 +189,32 @@ non-passing boundary owns the outcome and every row after it is normalised to
 `NOT_RUN_PREREQUISITE`, so a receipt cannot show a later boundary passing over
 an earlier failure.
 
-Two fields are worth reading directly:
+Four fields are worth reading directly:
 
-* `stages[PUBLIC_SOURCE].resource_identity.credentials_used` is `false`. The
-  reader is anonymous by construction; a control that proved "public" while
-  sending credentials would have proved nothing about what a stranger can
-  obtain.
+* `stages[INK].resource_identity.through` is `helena-queue`. A run through the
+  queue and a run beside it are different claims and must not be readable as the
+  same one -- the other value is `local-subprocess`.
+* `stages[INK].resource_identity.job_id` and `artifact_uri` name the job the
+  worker claimed and where it published, so the receipt can be checked against
+  the deployment rather than believed.
+* `stages[CHECKPOINT].resource_identity.established_by` is `helena-api`. The
+  other value is `local-file`, which means the control hashed a file it could
+  see rather than asking the deployment -- a claim about the machine the control
+  ran on, not about the one that ran the job.
+* `stages[PUBLIC_SOURCE].resource_identity.credentials_used` is `false`.
 * `stages[LIVENESS].counts.p50` should sit near 0.25. That is this recipe's
   documented no-ink floor -- it trains with BCE label smoothing 0.5 -- so a map
-  whose p50 is 0.000 is empty, not no-ink. The distinction is not cosmetic: a
-  misconfigured batch size produced exactly that, exit 0 and all, and the
-  liveness gate is what caught it.
+  whose p50 is 0.000 is empty, not no-ink. A misconfigured batch size produced
+  exactly that, exit 0 and all, and the liveness gate is what caught it.
 
-## A run from 2026-08-23
+## Runs
 
-    control_state: CONTROL_PASS      first_nonpassing_boundary: null
-    content_sha256: 271487453312be12e4a95e6e5d33bd395ca8a4b163b28a4151f02ae312702eef
+    2026-09-01  CONTROL_PASS  helena-queue  rented 5090          run-2026-09-01-vast
+    2026-09-01  CONTROL_PASS  helena-queue  the same, reinstalled from scratch
+                                            with the command in step 2
+                                                                 run-2026-09-01-clean
 
-    PUBLIC_SOURCE  PASS  PUBLIC_SOURCE_READ_ANONYMOUSLY        1.4s
-    SCALE          PASS  NATIVE_MODEL_SCALE                    0.0s
-    CHECKPOINT     PASS  CHECKPOINT_IS_THE_DECLARED_ONE        0.3s
-    INK            PASS  PROBABILITY_MAP_WRITTEN            1549.3s
-    LIVENESS       PASS  MAP_CARRIES_A_DECISION                1.4s
-    HUMAN_REVIEW   PASS  ROUTED_TO_REVIEW_WITHOUT_A_CLAIM      0.0s
-
-    liveness: p50=0.278  p99=0.776  std=0.1674
+Comparing digests only works against a run on the same GPU. Ours and the rented
+card produce different bytes and the same statistics to four decimals -- p50
+0.2784, p99 0.7765, std 0.1674 -- which is floating-point accumulation, not a
+different result. Compare those.

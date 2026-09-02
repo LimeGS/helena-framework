@@ -1,0 +1,1237 @@
+{
+ "how": "One anonymous ListObjectsV2 walk of the open-data bucket plus a GET of every volume's and prediction's 0/.zarray, so the generator's whole derivation can be exercised with no network. Shapes and Last-Modified are the bucket's own answers, not values chosen for the test.",
+ "listings": {
+  "": [
+   "PHerc0009B",
+   "PHerc0125",
+   "PHerc0139",
+   "PHerc0172",
+   "PHerc0175A",
+   "PHerc0175B",
+   "PHerc0191",
+   "PHerc0211",
+   "PHerc0257",
+   "PHerc0268",
+   "PHerc0306B",
+   "PHerc0332",
+   "PHerc0343",
+   "PHerc0343P",
+   "PHerc0358",
+   "PHerc0483A",
+   "PHerc0483B",
+   "PHerc0490A",
+   "PHerc0490B",
+   "PHerc0500P2",
+   "PHerc0800",
+   "PHerc0813",
+   "PHerc0814",
+   "PHerc0826",
+   "PHerc0841",
+   "PHerc0846A",
+   "PHerc0846B",
+   "PHerc1203",
+   "PHerc1218",
+   "PHerc1299",
+   "PHerc1447",
+   "PHerc1451",
+   "PHerc1545",
+   "PHerc1667",
+   "PHerc1667Cr1Fr3",
+   "PHerc51Cr4Fr8",
+   "PHercMAN5",
+   "PHercMANB",
+   "PHercMANBp",
+   "PHercParis1Fr34",
+   "PHercParis1Fr39",
+   "PHercParis2Fr143",
+   "PHercParis2Fr47",
+   "PHercParis3",
+   "PHercParis4",
+   "_thumbnails"
+  ],
+  "PHerc0009B/representations/predictions/surfaces/": [
+   "20260319104112-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260319104112-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0009B/volumes/": [
+   "20250521125136-8.640um-1.2m-116keV-masked.zarr",
+   "20250820154339-2.401um-0.3m-77keV-masked.zarr",
+   "20260319104112-2.401um-0.3m-77keV-masked.zarr"
+  ],
+  "PHerc0125/representations/predictions/surfaces/": [
+   "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0125/volumes/": [
+   "20250821151825-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0139/representations/predictions/surfaces/": [
+   "20250728140407-surface-20250701154204-surface-recto-090.zarr",
+   "20250728140407-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250728140407-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0139/volumes/": [
+   "20250728140407-9.362um-1.2m-113keV-masked.zarr",
+   "20250820105138-2.403um-0.2m-77keV-masked.zarr",
+   "20250822062710-2.403um-0.2m-77keV-masked.zarr",
+   "20260102150214-2.399um-0.2m-78keV-masked.zarr",
+   "20260319133050-2.403um-0.2m-77keV-masked.zarr",
+   "20260319133554-2.403um-0.2m-77keV-masked.zarr",
+   "20260413113053-1.129um-0.2m-59keV-masked.zarr"
+  ],
+  "PHerc0172/representations/predictions/surfaces/": [],
+  "PHerc0172/volumes/": [
+   "20241024131838-7.910um-53keV-masked.zarr",
+   "20241024131839-7.910um-53keV-masked.zarr"
+  ],
+  "PHerc0175A/representations/predictions/surfaces/": [
+   "20250521115057-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521115057-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0175A/volumes/": [
+   "20250521115057-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0175B/representations/predictions/surfaces/": [
+   "20250521125822-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521125822-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0175B/volumes/": [
+   "20250521125822-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0191/representations/predictions/surfaces/": [
+   "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0191/volumes/": [
+   "20250821151635-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0211/representations/predictions/surfaces/": [
+   "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0211/volumes/": [
+   "20250821151803-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0257/representations/predictions/surfaces/": [
+   "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0257/volumes/": [
+   "20250821151750-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0268/representations/predictions/surfaces/": [
+   "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0268/volumes/": [
+   "20251110183117-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0306B/representations/predictions/surfaces/": [
+   "20250521133212-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521133212-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0306B/volumes/": [
+   "20250521133212-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0332/representations/predictions/surfaces/": [
+   "20251211183505-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20251211183505-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0332/volumes/": [
+   "20251211183505-2.399um-0.2m-78keV-masked.zarr"
+  ],
+  "PHerc0343/representations/predictions/surfaces/": [
+   "20250521140437-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521140437-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0343/volumes/": [
+   "20250521140437-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0343P/representations/predictions/surfaces/": [
+   "20260304131111-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260304131111-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0343P/volumes/": [
+   "20250521134555-8.640um-1.2m-116keV-masked.zarr",
+   "20260304131111-2.215um-0.4m-111keV-masked.zarr"
+  ],
+  "PHerc0358/representations/predictions/surfaces/": [
+   "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0358/volumes/": [
+   "20250821151737-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0483A/representations/predictions/surfaces/": [
+   "20250521140913-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521140913-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0483A/volumes/": [
+   "20250521140913-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0483B/representations/predictions/surfaces/": [
+   "20251124083638-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20251124083638-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0483B/volumes/": [
+   "20251124083638-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0490A/representations/predictions/surfaces/": [
+   "20250521151210-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521151210-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0490A/volumes/": [
+   "20250521151210-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0490B/representations/predictions/surfaces/": [
+   "20250521151215-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521151215-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0490B/volumes/": [
+   "20250521151215-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0500P2/representations/predictions/surfaces/": [
+   "20250526151718-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20250526151718-surface-20260413222639-surface-m7-L2-th0.2.zarr",
+   "20250820143440-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250820143440-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0500P2/volumes/": [
+   "20250526151718-2.215um-0.4m-111keV-masked.zarr",
+   "20250528085330-4.317um-1.2m-111keV-masked.zarr",
+   "20250820143440-9.362um-1.2m-113keV-masked.zarr",
+   "20250821110041-0.500um-masked.zarr",
+   "20250821110041-0.550um-0.1m-65keV-masked.zarr"
+  ],
+  "PHerc0800/representations/predictions/surfaces/": [
+   "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0800/volumes/": [
+   "20250521135224-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc0813/representations/predictions/surfaces/": [
+   "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0813/volumes/": [
+   "20250821151723-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0814/representations/predictions/surfaces/": [
+   "20250804134230-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250804134230-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+   "20260309142202-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260309142202-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0814/volumes/": [
+   "20250804134230-9.362um-1.2m-113keV-masked.zarr",
+   "20260309142202-2.399um-0.2m-78keV-masked.zarr",
+   "20260521123630-1.129um-0.2m-59keV-masked.zarr"
+  ],
+  "PHerc0826/representations/predictions/surfaces/": [
+   "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0826/volumes/": [
+   "20250821151701-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc0841/representations/predictions/surfaces/": [
+   "20250821151531-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151531-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+   "20260319124803-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260319124803-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0841/volumes/": [
+   "20250821151531-9.366um-1.2m-113keV-masked.zarr",
+   "20260319124803-2.403um-0.2m-77keV-masked.zarr"
+  ],
+  "PHerc0846A/representations/predictions/surfaces/": [
+   "20250728152254-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250728152254-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+   "20260319102732-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260319102732-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc0846A/volumes/": [
+   "20250728152254-9.362um-1.2m-113keV-masked.zarr",
+   "20260319102732-2.403um-0.2m-77keV-masked.zarr"
+  ],
+  "PHerc0846B/representations/predictions/surfaces/": [
+   "20250804142305-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250804142305-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc0846B/volumes/": [
+   "20250804142305-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc1203/representations/predictions/surfaces/": [
+   "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr",
+   "20260319130212-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260319130212-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc1203/volumes/": [
+   "20250820131727-9.362um-1.2m-113keV-masked.zarr",
+   "20260319130212-2.403um-0.2m-77keV-masked.zarr"
+  ],
+  "PHerc1218/representations/predictions/surfaces/": [
+   "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc1218/volumes/": [
+   "20250521120456-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc1299/representations/predictions/surfaces/": [
+   "20260309130042-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260309130042-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc1299/volumes/": [
+   "20260309130042-2.399um-0.2m-78keV-masked.zarr"
+  ],
+  "PHerc1447/representations/predictions/surfaces/": [
+   "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc1447/volumes/": [
+   "20250521151220-8.640um-1.2m-116keV-masked.zarr"
+  ],
+  "PHerc1451/representations/predictions/surfaces/": [
+   "20260319101107-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260319101107-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHerc1451/volumes/": [
+   "20250521151225-8.640um-1.2m-116keV-masked.zarr",
+   "20260319101107-2.399um-0.2m-78keV-masked.zarr"
+  ],
+  "PHerc1545/representations/predictions/surfaces/": [
+   "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.normal-grids",
+   "20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr"
+  ],
+  "PHerc1545/volumes/": [
+   "20250821151648-9.362um-1.2m-113keV-masked.zarr"
+  ],
+  "PHerc1667/representations/predictions/surfaces/": [],
+  "PHerc1667/volumes/": [
+   "20251217075048-2.399um-0.2m-78keV-masked.zarr",
+   "20260323082859-1.129um-0.2m-59keV-masked.zarr"
+  ],
+  "PHerc1667Cr1Fr3/representations/predictions/surfaces/": [],
+  "PHerc1667Cr1Fr3/volumes/": [],
+  "PHerc51Cr4Fr8/representations/predictions/surfaces/": [],
+  "PHerc51Cr4Fr8/volumes/": [],
+  "PHercMAN5/representations/predictions/surfaces/": [
+   "20260311104824-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260311104824-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHercMAN5/volumes/": [
+   "20260311104824-2.399um-0.2m-78keV-masked.zarr"
+  ],
+  "PHercMANB/representations/predictions/surfaces/": [
+   "20260323091048-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20260323091048-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHercMANB/volumes/": [
+   "20260323091048-2.399um-0.2m-78keV-masked.zarr"
+  ],
+  "PHercMANBp/representations/predictions/surfaces/": [
+   "20251216152116-surface-20260413222639-surface-m7-L2-th0.2.normal-grids",
+   "20251216152116-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHercMANBp/volumes/": [
+   "20251216152116-2.399um-0.2m-78keV-masked.zarr",
+   "20260427100434-1.129um-0.2m-59keV-masked.zarr"
+  ],
+  "PHercParis1Fr34/representations/predictions/surfaces/": [],
+  "PHercParis1Fr34/volumes/": [],
+  "PHercParis1Fr39/representations/predictions/surfaces/": [],
+  "PHercParis1Fr39/volumes/": [],
+  "PHercParis2Fr143/representations/predictions/surfaces/": [],
+  "PHercParis2Fr143/volumes/": [],
+  "PHercParis2Fr47/representations/predictions/surfaces/": [],
+  "PHercParis2Fr47/volumes/": [],
+  "PHercParis3/representations/predictions/surfaces/": [],
+  "PHercParis3/volumes/": [
+   "20260427095331-2.400um-0.2m-78keV-masked.zarr"
+  ],
+  "PHercParis4/representations/predictions/surfaces/": [
+   "20260411134726-surface-20260413141734-surface-recto-2um-ps256-L0-th0.45.normal-grids",
+   "20260411134726-surface-20260413141734-surface-recto-2um-ps256-L0-th0.45.zarr",
+   "20260411134726-surface-20260413222639-surface-m7-L2-th0.2.zarr"
+  ],
+  "PHercParis4/volumes/": [
+   "20260310170716-45.532um-11.0m-74keV-masked.zarr",
+   "20260310173927-45.532um-11.0m-110keV-masked.zarr",
+   "20260323153942-2.400um-0.2m-137keV-masked.zarr",
+   "20260411134726-2.400um-0.2m-78keV-masked.zarr",
+   "20260608103018-1.129um-0.2m-78keV-masked.zarr"
+  ],
+  "_thumbnails/representations/predictions/surfaces/": [],
+  "_thumbnails/volumes/": []
+ },
+ "objects": {
+  "PHerc0009B/representations/predictions/surfaces/20260319104112-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:20:44 GMT",
+   "shape": [
+    7278,
+    7065,
+    7065
+   ]
+  },
+  "PHerc0009B/volumes/20250521125136-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 22 Jan 2026 15:49:51 GMT",
+   "shape": [
+    9598,
+    7837,
+    7837
+   ]
+  },
+  "PHerc0009B/volumes/20250820154339-2.401um-0.3m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 22 Jan 2026 15:52:56 GMT",
+   "shape": [
+    29112,
+    28259,
+    28259
+   ]
+  },
+  "PHerc0009B/volumes/20260319104112-2.401um-0.3m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:34 GMT",
+   "shape": [
+    29112,
+    28259,
+    28259
+   ]
+  },
+  "PHerc0125/representations/predictions/surfaces/20250821151825-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:57:18 GMT",
+   "shape": [
+    20840,
+    8387,
+    8387
+   ]
+  },
+  "PHerc0125/volumes/20250821151825-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:18 GMT",
+   "shape": [
+    20840,
+    8387,
+    8387
+   ]
+  },
+  "PHerc0139/representations/predictions/surfaces/20250728140407-surface-20250701154204-surface-recto-090.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 10:06:00 GMT",
+   "shape": [
+    20974,
+    6621,
+    6621
+   ]
+  },
+  "PHerc0139/representations/predictions/surfaces/20250728140407-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:09:10 GMT",
+   "shape": [
+    20974,
+    6621,
+    6621
+   ]
+  },
+  "PHerc0139/volumes/20250728140407-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 14 Apr 2026 12:59:49 GMT",
+   "shape": [
+    20974,
+    6621,
+    6621
+   ]
+  },
+  "PHerc0139/volumes/20250820105138-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 09 Jul 2026 09:06:00 GMT",
+   "shape": [
+    19393,
+    26105,
+    26105
+   ]
+  },
+  "PHerc0139/volumes/20250822062710-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 09 Jul 2026 09:06:00 GMT",
+   "shape": [
+    15137,
+    26061,
+    26061
+   ]
+  },
+  "PHerc0139/volumes/20260102150214-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 17 Mar 2026 11:44:51 GMT",
+   "shape": [
+    76953,
+    26511,
+    26511
+   ]
+  },
+  "PHerc0139/volumes/20260319133050-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:31 GMT",
+   "shape": [
+    15137,
+    26061,
+    26061
+   ]
+  },
+  "PHerc0139/volumes/20260319133554-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:31 GMT",
+   "shape": [
+    19368,
+    26105,
+    26105
+   ]
+  },
+  "PHerc0139/volumes/20260413113053-1.129um-0.2m-59keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 14 Apr 2026 12:53:22 GMT",
+   "shape": [
+    19297,
+    35971,
+    32318
+   ]
+  },
+  "PHerc0172/volumes/20241024131838-7.910um-53keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 24 Jun 2026 22:34:38 GMT",
+   "shape": [
+    21000,
+    6700,
+    9100
+   ]
+  },
+  "PHerc0172/volumes/20241024131839-7.910um-53keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 24 Jun 2026 22:34:36 GMT",
+   "shape": [
+    20820,
+    6700,
+    9100
+   ]
+  },
+  "PHerc0175A/representations/predictions/surfaces/20250521115057-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:37 GMT",
+   "shape": [
+    12748,
+    9363,
+    9363
+   ]
+  },
+  "PHerc0175A/volumes/20250521115057-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:23 GMT",
+   "shape": [
+    12748,
+    9363,
+    9363
+   ]
+  },
+  "PHerc0175B/representations/predictions/surfaces/20250521125822-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:59:50 GMT",
+   "shape": [
+    15897,
+    9613,
+    9613
+   ]
+  },
+  "PHerc0175B/volumes/20250521125822-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:51:56 GMT",
+   "shape": [
+    15897,
+    9613,
+    9613
+   ]
+  },
+  "PHerc0191/representations/predictions/surfaces/20250821151635-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:06:15 GMT",
+   "shape": [
+    18977,
+    8387,
+    8387
+   ]
+  },
+  "PHerc0191/volumes/20250821151635-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:50 GMT",
+   "shape": [
+    18977,
+    8387,
+    8387
+   ]
+  },
+  "PHerc0211/representations/predictions/surfaces/20250821151803-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:49:45 GMT",
+   "shape": [
+    19416,
+    7948,
+    7948
+   ]
+  },
+  "PHerc0211/volumes/20250821151803-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:25 GMT",
+   "shape": [
+    19416,
+    7948,
+    7948
+   ]
+  },
+  "PHerc0257/representations/predictions/surfaces/20250821151750-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:11:29 GMT",
+   "shape": [
+    18872,
+    8388,
+    8388
+   ]
+  },
+  "PHerc0257/volumes/20250821151750-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:27 GMT",
+   "shape": [
+    18872,
+    8388,
+    8388
+   ]
+  },
+  "PHerc0268/representations/predictions/surfaces/20251110183117-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:12:38 GMT",
+   "shape": [
+    14833,
+    12145,
+    12145
+   ]
+  },
+  "PHerc0268/volumes/20251110183117-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 03 Mar 2026 15:29:24 GMT",
+   "shape": [
+    14833,
+    12145,
+    12145
+   ]
+  },
+  "PHerc0306B/representations/predictions/surfaces/20250521133212-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:51:02 GMT",
+   "shape": [
+    15898,
+    8849,
+    8849
+   ]
+  },
+  "PHerc0306B/volumes/20250521133212-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:10 GMT",
+   "shape": [
+    15898,
+    8849,
+    8849
+   ]
+  },
+  "PHerc0332/representations/predictions/surfaces/20251211183505-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:27 GMT",
+   "shape": [
+    8398,
+    3941,
+    3941
+   ]
+  },
+  "PHerc0332/volumes/20251211183505-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 03 Mar 2026 11:22:58 GMT",
+   "shape": [
+    33592,
+    15761,
+    15761
+   ]
+  },
+  "PHerc0343/representations/predictions/surfaces/20250521140437-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:47 GMT",
+   "shape": [
+    17998,
+    8595,
+    8595
+   ]
+  },
+  "PHerc0343/volumes/20250521140437-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:25 GMT",
+   "shape": [
+    17998,
+    8595,
+    8595
+   ]
+  },
+  "PHerc0343P/representations/predictions/surfaces/20260304131111-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:01:18 GMT",
+   "shape": [
+    5179,
+    3289,
+    3289
+   ]
+  },
+  "PHerc0343P/volumes/20250521134555-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 04 Mar 2026 12:36:07 GMT",
+   "shape": [
+    5398,
+    5057,
+    5057
+   ]
+  },
+  "PHerc0343P/volumes/20260304131111-2.215um-0.4m-111keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 04 Mar 2026 13:13:40 GMT",
+   "shape": [
+    20714,
+    13155,
+    13155
+   ]
+  },
+  "PHerc0358/representations/predictions/surfaces/20250821151737-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:02:22 GMT",
+   "shape": [
+    14744,
+    7783,
+    7783
+   ]
+  },
+  "PHerc0358/volumes/20250821151737-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:30 GMT",
+   "shape": [
+    14744,
+    7783,
+    7783
+   ]
+  },
+  "PHerc0483A/representations/predictions/surfaces/20250521140913-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:11:20 GMT",
+   "shape": [
+    15898,
+    8849,
+    8849
+   ]
+  },
+  "PHerc0483A/volumes/20250521140913-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:02 GMT",
+   "shape": [
+    15898,
+    8849,
+    8849
+   ]
+  },
+  "PHerc0483B/representations/predictions/surfaces/20251124083638-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:49:43 GMT",
+   "shape": [
+    11880,
+    8343,
+    8343
+   ]
+  },
+  "PHerc0483B/volumes/20251124083638-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 03 Mar 2026 15:29:29 GMT",
+   "shape": [
+    11880,
+    8343,
+    8343
+   ]
+  },
+  "PHerc0490A/representations/predictions/surfaces/20250521151210-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:49:56 GMT",
+   "shape": [
+    11698,
+    9101,
+    9101
+   ]
+  },
+  "PHerc0490A/volumes/20250521151210-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:15 GMT",
+   "shape": [
+    11698,
+    9101,
+    9101
+   ]
+  },
+  "PHerc0490B/representations/predictions/surfaces/20250521151215-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:09:16 GMT",
+   "shape": [
+    10648,
+    8343,
+    8343
+   ]
+  },
+  "PHerc0490B/volumes/20250521151215-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:09 GMT",
+   "shape": [
+    10648,
+    8343,
+    8343
+   ]
+  },
+  "PHerc0500P2/representations/predictions/surfaces/20250526151718-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:40 GMT",
+   "shape": [
+    7024,
+    4553,
+    4553
+   ]
+  },
+  "PHerc0500P2/representations/predictions/surfaces/20250820143440-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:44 GMT",
+   "shape": [
+    7057,
+    4196,
+    4196
+   ]
+  },
+  "PHerc0500P2/volumes/20250526151718-2.215um-0.4m-111keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 04 Mar 2026 12:56:12 GMT",
+   "shape": [
+    28096,
+    18209,
+    18209
+   ]
+  },
+  "PHerc0500P2/volumes/20250528085330-4.317um-1.2m-111keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 04 Mar 2026 12:56:14 GMT",
+   "shape": [
+    15838,
+    9423,
+    9423
+   ]
+  },
+  "PHerc0500P2/volumes/20250820143440-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 04 Mar 2026 12:56:15 GMT",
+   "shape": [
+    7057,
+    4196,
+    4196
+   ]
+  },
+  "PHerc0500P2/volumes/20250821110041-0.500um-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 08 Jul 2026 13:31:25 GMT",
+   "shape": [
+    12320,
+    10813,
+    3891
+   ]
+  },
+  "PHerc0500P2/volumes/20250821110041-0.550um-0.1m-65keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 09 Jul 2026 08:44:10 GMT",
+   "shape": [
+    12320,
+    10813,
+    3891
+   ]
+  },
+  "PHerc0800/representations/predictions/surfaces/20250521135224-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:07:52 GMT",
+   "shape": [
+    24298,
+    9867,
+    9867
+   ]
+  },
+  "PHerc0800/volumes/20250521135224-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:51:55 GMT",
+   "shape": [
+    24298,
+    9867,
+    9867
+   ]
+  },
+  "PHerc0813/representations/predictions/surfaces/20250821151723-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:56:35 GMT",
+   "shape": [
+    16993,
+    7947,
+    7947
+   ]
+  },
+  "PHerc0813/volumes/20250821151723-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:34 GMT",
+   "shape": [
+    16993,
+    7947,
+    7947
+   ]
+  },
+  "PHerc0814/representations/predictions/surfaces/20250804134230-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:57 GMT",
+   "shape": [
+    19390,
+    5784,
+    5784
+   ]
+  },
+  "PHerc0814/representations/predictions/surfaces/20260309142202-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:54 GMT",
+   "shape": [
+    18642,
+    5973,
+    5973
+   ]
+  },
+  "PHerc0814/volumes/20250804134230-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 14:35:05 GMT",
+   "shape": [
+    19390,
+    5784,
+    5784
+   ]
+  },
+  "PHerc0814/volumes/20260309142202-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 10 Mar 2026 08:45:32 GMT",
+   "shape": [
+    74568,
+    23891,
+    23891
+   ]
+  },
+  "PHerc0814/volumes/20260521123630-1.129um-0.2m-59keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 28 May 2026 11:58:14 GMT",
+   "shape": [
+    46721,
+    22078,
+    20284
+   ]
+  },
+  "PHerc0826/representations/predictions/surfaces/20250821151701-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:49:42 GMT",
+   "shape": [
+    16920,
+    8169,
+    8169
+   ]
+  },
+  "PHerc0826/volumes/20250821151701-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:41 GMT",
+   "shape": [
+    16920,
+    8169,
+    8169
+   ]
+  },
+  "PHerc0841/representations/predictions/surfaces/20250821151531-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:05:19 GMT",
+   "shape": [
+    19400,
+    7703,
+    7703
+   ]
+  },
+  "PHerc0841/representations/predictions/surfaces/20260319124803-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:04:28 GMT",
+   "shape": [
+    3781,
+    7618,
+    7618
+   ]
+  },
+  "PHerc0841/volumes/20250821151531-9.366um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 14:35:08 GMT",
+   "shape": [
+    19400,
+    7703,
+    7703
+   ]
+  },
+  "PHerc0841/volumes/20260319124803-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:29 GMT",
+   "shape": [
+    15121,
+    30469,
+    30469
+   ]
+  },
+  "PHerc0846A/representations/predictions/surfaces/20250728152254-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:33 GMT",
+   "shape": [
+    14019,
+    7726,
+    7726
+   ]
+  },
+  "PHerc0846A/representations/predictions/surfaces/20260319102732-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:30 GMT",
+   "shape": [
+    3785,
+    7397,
+    7397
+   ]
+  },
+  "PHerc0846A/volumes/20250728152254-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 14:35:04 GMT",
+   "shape": [
+    14019,
+    7726,
+    7726
+   ]
+  },
+  "PHerc0846A/volumes/20260319102732-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:23 GMT",
+   "shape": [
+    15137,
+    29587,
+    29587
+   ]
+  },
+  "PHerc0846B/representations/predictions/surfaces/20250804142305-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:01:32 GMT",
+   "shape": [
+    13926,
+    7859,
+    7859
+   ]
+  },
+  "PHerc0846B/volumes/20250804142305-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 14:35:06 GMT",
+   "shape": [
+    13926,
+    7859,
+    7859
+   ]
+  },
+  "PHerc1203/representations/predictions/surfaces/20250820131727-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:20:06 GMT",
+   "shape": [
+    18977,
+    6844,
+    6844
+   ]
+  },
+  "PHerc1203/representations/predictions/surfaces/20260319130212-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:18:49 GMT",
+   "shape": [
+    3785,
+    6624,
+    6624
+   ]
+  },
+  "PHerc1203/volumes/20250820131727-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:53:18 GMT",
+   "shape": [
+    18977,
+    6844,
+    6844
+   ]
+  },
+  "PHerc1203/volumes/20260319130212-2.403um-0.2m-77keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:34 GMT",
+   "shape": [
+    15137,
+    26493,
+    26493
+   ]
+  },
+  "PHerc1218/representations/predictions/surfaces/20250521120456-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:57:14 GMT",
+   "shape": [
+    23247,
+    7593,
+    7593
+   ]
+  },
+  "PHerc1218/volumes/20250521120456-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:10 GMT",
+   "shape": [
+    23247,
+    7593,
+    7593
+   ]
+  },
+  "PHerc1299/representations/predictions/surfaces/20260309130042-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:06:17 GMT",
+   "shape": [
+    12309,
+    5145,
+    5145
+   ]
+  },
+  "PHerc1299/volumes/20260309130042-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 09 Mar 2026 14:26:29 GMT",
+   "shape": [
+    49233,
+    20579,
+    20579
+   ]
+  },
+  "PHerc1447/representations/predictions/surfaces/20250521151220-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:18:36 GMT",
+   "shape": [
+    24297,
+    8343,
+    8343
+   ]
+  },
+  "PHerc1447/volumes/20250521151220-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 26 Jan 2026 10:52:08 GMT",
+   "shape": [
+    24297,
+    8343,
+    8343
+   ]
+  },
+  "PHerc1451/representations/predictions/surfaces/20260319101107-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:01:36 GMT",
+   "shape": [
+    14986,
+    5203,
+    5203
+   ]
+  },
+  "PHerc1451/volumes/20250521151225-8.640um-1.2m-116keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:20 GMT",
+   "shape": [
+    17998,
+    5815,
+    5815
+   ]
+  },
+  "PHerc1451/volumes/20260319101107-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:25 GMT",
+   "shape": [
+    59944,
+    20811,
+    20811
+   ]
+  },
+  "PHerc1545/representations/predictions/surfaces/20250821151648-surface-20260413222639-surface-m7-L0-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:16:29 GMT",
+   "shape": [
+    20961,
+    7506,
+    7506
+   ]
+  },
+  "PHerc1545/volumes/20250821151648-9.362um-1.2m-113keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 27 Jan 2026 09:52:45 GMT",
+   "shape": [
+    20961,
+    7506,
+    7506
+   ]
+  },
+  "PHerc1667/volumes/20251217075048-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Wed, 24 Jun 2026 22:35:12 GMT",
+   "shape": [
+    37076,
+    15229,
+    15229
+   ]
+  },
+  "PHerc1667/volumes/20260323082859-1.129um-0.2m-59keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 09 Jul 2026 09:06:00 GMT",
+   "shape": [
+    42209,
+    22122,
+    20276
+   ]
+  },
+  "PHercMAN5/representations/predictions/surfaces/20260311104824-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:59:55 GMT",
+   "shape": [
+    7910,
+    4374,
+    4374
+   ]
+  },
+  "PHercMAN5/volumes/20260311104824-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 17 Mar 2026 11:44:43 GMT",
+   "shape": [
+    31640,
+    17495,
+    17495
+   ]
+  },
+  "PHercMANB/representations/predictions/surfaces/20260323091048-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 15:03:21 GMT",
+   "shape": [
+    18171,
+    6681,
+    6681
+   ]
+  },
+  "PHercMANB/volumes/20260323091048-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Mon, 23 Mar 2026 09:17:28 GMT",
+   "shape": [
+    72681,
+    26723,
+    26723
+   ]
+  },
+  "PHercMANBp/representations/predictions/surfaces/20251216152116-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Wed, 13 May 2026 14:48:50 GMT",
+   "shape": [
+    4287,
+    3145,
+    3145
+   ]
+  },
+  "PHercMANBp/volumes/20251216152116-2.399um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 17 Mar 2026 11:45:02 GMT",
+   "shape": [
+    17148,
+    12577,
+    12577
+   ]
+  },
+  "PHercMANBp/volumes/20260427100434-1.129um-0.2m-59keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 28 May 2026 11:58:25 GMT",
+   "shape": [
+    35024,
+    22137,
+    20286
+   ]
+  },
+  "PHercParis3/volumes/20260427095331-2.400um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 28 May 2026 11:58:51 GMT",
+   "shape": [
+    68417,
+    42403,
+    42403
+   ]
+  },
+  "PHercParis4/representations/predictions/surfaces/20260411134726-surface-20260413141734-surface-recto-2um-ps256-L0-th0.45.zarr/0/.zarray": {
+   "last_modified": "Thu, 02 Jul 2026 11:42:34 GMT",
+   "shape": [
+    75784,
+    32693,
+    32693
+   ]
+  },
+  "PHercParis4/representations/predictions/surfaces/20260411134726-surface-20260413222639-surface-m7-L2-th0.2.zarr/0/.zarray": {
+   "last_modified": "Thu, 02 Jul 2026 11:40:57 GMT",
+   "shape": [
+    18946,
+    8174,
+    8174
+   ]
+  },
+  "PHercParis4/volumes/20260310170716-45.532um-11.0m-74keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 15:50:14 GMT",
+   "shape": [
+    4071,
+    2264,
+    2264
+   ]
+  },
+  "PHercParis4/volumes/20260310173927-45.532um-11.0m-110keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 24 Mar 2026 15:47:45 GMT",
+   "shape": [
+    4066,
+    2264,
+    2264
+   ]
+  },
+  "PHercParis4/volumes/20260323153942-2.400um-0.2m-137keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 14 Apr 2026 07:10:19 GMT",
+   "shape": [
+    6625,
+    8431,
+    8431
+   ]
+  },
+  "PHercParis4/volumes/20260411134726-2.400um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Tue, 14 Apr 2026 07:10:19 GMT",
+   "shape": [
+    75784,
+    32693,
+    32693
+   ]
+  },
+  "PHercParis4/volumes/20260608103018-1.129um-0.2m-78keV-masked.zarr/0/.zarray": {
+   "last_modified": "Thu, 09 Jul 2026 09:06:00 GMT",
+   "shape": [
+    59969,
+    36006,
+    32354
+   ]
+  }
+ },
+ "recorded_from": "https://vesuvius-challenge-open-data.s3.us-east-1.amazonaws.com",
+ "recorded_on": "2026-09-01"
+}

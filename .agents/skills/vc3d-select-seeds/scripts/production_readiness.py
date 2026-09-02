@@ -309,7 +309,20 @@ def check_catalogue(
 ) -> None:
     path = resolve_project_path(root, eligible)
     try:
-        entries = [row for row in catalogue_entries(path) if row.get("target_allowed", True)]
+        # Three states, not two. `row.get("target_allowed", True)` reads a
+        # present `null` as False, so a catalogue that records "nobody
+        # established the rights for this scroll" -- which is what the bucket
+        # supports, since it publishes one licence at its root and none per
+        # scroll -- dropped every row and this check reported "no eligible
+        # source matches the requested scope". That is a different sentence from
+        # the truth, which is that the sources are there and their rights are
+        # unstated.
+        #
+        # Only an explicit False excludes. Unstated is carried and counted, so
+        # the check says what it actually knows.
+        all_rows = list(catalogue_entries(path))
+        entries = [row for row in all_rows if row.get("target_allowed", True) is not False]
+        unstated = [row for row in entries if row.get("target_allowed") is None]
         scoped = [
             row
             for row in entries
@@ -328,6 +341,7 @@ def check_catalogue(
                 "path": str(path),
                 "eligible_entries": len(entries),
                 "scoped_entries": len(scoped),
+                "rights_unstated": len(unstated),
                 "sample": sample,
             },
         )

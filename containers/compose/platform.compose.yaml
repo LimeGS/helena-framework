@@ -32,7 +32,7 @@ name: helena
 # Both places the panel image is named. An anchor, so a deployment that pins
 # HELENA_PANEL_IMAGE to a registry gets it in both and the schema is never
 # created by a different build from the one that reads it.
-x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.23.0}}
+x-panel-image: &panel-image ${HELENA_PANEL_IMAGE:-helena-panel:${HELENA_VERSION:-0.24.0}}
 
 x-panel-build: &panel-build
   context: ../..
@@ -273,6 +273,17 @@ services:
     environment:
       CX_DB: *dsn
       CX_RUNS: ${HELENA_PANEL_RUNS:-/runs}
+      # Where the panel tells a P1 job to publish its windings. It mounted the
+      # store above and then had no name for it: queueing P1 through /api/jobs
+      # answered 409 "neither ARTIFACT_ROOT nor HELENA_SEGMENT_ARTIFACTS is
+      # set" on a deployment that was configured correctly.
+      #
+      # The literal path and not ${HELENA_SEGMENT_ARTIFACTS}, which is the
+      # volume's *source* -- "helena-artifacts" is a Docker volume name, not a
+      # directory, and a job carrying it as a store would publish nowhere. The
+      # destination is /artifacts in the panel and in every worker whatever the
+      # source is, which is exactly what makes it the value both sides agree on.
+      ARTIFACT_ROOT: /artifacts
       HELENA_PANEL_PORT: "${HELENA_PANEL_PORT:-8800}"
       HELENA_PANEL_TLS_NAMES: "${HELENA_PANEL_TLS_NAMES:-localhost}"
 
@@ -293,7 +304,7 @@ services:
   #   docker compose --profile backup up -d
   backup:
     profiles: [backup]
-    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.23.0}}
+    image: ${HELENA_BACKUP_IMAGE:-helena-backup:${HELENA_VERSION:-0.24.0}}
     build:
       context: ../..
       dockerfile: containers/images/Containerfile.backup

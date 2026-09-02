@@ -10802,6 +10802,62 @@ COMMIT;"""
                 raise
         return record
 
+    def requeue_blocked_qc_jobs(self, sample_id: str, *, fixed: str,
+                                by: str) -> dict[str, Any]:
+        """Put a sample's configuration-blocked QC back in the queue, once.
+
+        The other half of `block_qc_configuration`. Blocking is terminal because
+        a job that fails the same way every time must not be reclaimed; but the
+        thing it waits for -- a profile pin, a checkpoint -- does get fixed, and
+        until this existed the only way back was an UPDATE typed into psql.
+
+        Nothing calls this but a person: `claim_qc` still takes only PENDING and
+        no timer or sweep moves a blocked row, so the fleet cannot resume
+        spinning on its own. What changed is that somebody can say so, once,
+        having stated what they fixed -- a terminal state that gets undone
+        without a reason on the record is not terminal, it is unreliable.
+
+        The stale receipt goes with the state. A job's reported `error` and
+        `last_status` are composed from `result`, so keeping the blocked
+        attempt's receipt would show a corrected deployment still quoting the
+        hash it no longer pins, which is how a fixed control plane reads as
+        unfixed. The receipt is not lost: QC_BLOCKED_CONFIGURATION holds it, and
+        this requeue is recorded beside it.
+        """
+        if not str(fixed or "").strip():
+            raise ValueError("requeueing blocked QC needs what was fixed")
+        now = utc_now()
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                # Read the ids inside the same transaction that clears them, so
+                # the record names the jobs this call moved rather than whatever
+                # was blocked a moment earlier.
+                requeued = sorted(row["qc_job_id"] for row in connection.execute(
+                    """SELECT qc_job_id FROM qc_jobs
+                        WHERE state='BLOCKED_CONFIGURATION' AND surface_id IN (
+                          SELECT surface_id FROM surfaces WHERE sample_id=?)""",
+                    (sample_id,)).fetchall())
+                connection.execute(
+                    """UPDATE qc_jobs SET state='PENDING',result_json=NULL,
+                       worker_id=NULL,lease_token=NULL,lease_expires_at=NULL,
+                       retry_after=NULL,updated_at=?
+                        WHERE state='BLOCKED_CONFIGURATION' AND surface_id IN (
+                          SELECT surface_id FROM surfaces WHERE sample_id=?)""",
+                    (now, sample_id))
+                record = {"sample_id": sample_id, "requeued": len(requeued),
+                          "qc_job_ids": requeued, "fixed": str(fixed).strip(),
+                          "by": by}
+                connection.execute(
+                    """INSERT INTO events(event_type,payload_json,created_at)
+                       VALUES('qc.requeued_after_fix',?,?)""",
+                    (_dump(record), now))
+                connection.commit()
+            except BaseException:
+                connection.rollback()
+                raise
+        return record
+
     def claim_qc(self, worker_id: str, lease_seconds: int, profile_id: str | None = None) -> dict[str, Any] | None:
         """Atomically claim one pending surface QC job."""
         if lease_seconds < 1:
