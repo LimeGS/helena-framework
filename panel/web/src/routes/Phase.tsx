@@ -214,9 +214,18 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
   // and re-armed the path -- and the button stayed dead however the form was
   // filled in. A flattened sheet could not be rendered from a browser at all.
   const governed = new Set(rules.flatMap((rule) => rule.names));
-  const ready = sample && unmet.length === 0
-    && fields.filter((f) => f.required && !governed.has(f.name))
-             .every((f) => String(values[f.name] ?? "").trim());
+  // What the button's own disabled state cannot say on its own -- the P5
+  // launcher already spelled this out per field; the generic form disabled
+  // silently and left every other phase's queue button dead with no reason
+  // anyone filling it in could read.
+  const missing = [
+    ...(sample ? [] : ["a scroll"]),
+    ...fields.filter((f) => f.required && !governed.has(f.name)
+                     && !String(values[f.name] ?? "").trim())
+             .map((f) => f.label),
+    ...unmet.map((rule) => `one of ${rule.names.join(" or ")}`),
+  ];
+  const ready = missing.length === 0;
 
   if (schema.isLoading) return <Empty>loading the parameters…</Empty>;
   if (schema.isError || schema.data?.available === false)
@@ -302,6 +311,11 @@ function QueueForm({ phase, subject }: { phase: string; subject: string | null }
         <button onClick={() => enqueue.mutate()} disabled={!ready || enqueue.isPending}>
           {enqueue.isPending ? "queueing…" : `Queue ${phase} job`}
         </button>
+        {/* A dead button with nothing beside it reads as broken, not as one
+            field left blank. */}
+        {missing.length > 0 && !enqueue.isPending && (
+          <span className="dash">needs {missing.join(", ")}</span>
+        )}
         {enqueue.isError && <Pill kind="crit">{String(enqueue.error)}</Pill>}
         {enqueue.isSuccess && <Pill kind="ok">queued {enqueue.data.job_id}</Pill>}
       </div>
@@ -467,11 +481,12 @@ export default function Phase() {
   if (id === "P1") {
     tabs.push(...P1_TABS);
   } else {
-    if (HAS_VIEW.has(id)) tabs.push(["artefacts", VIEW_LABEL[id] ?? "Artefacts"]);
-    // What P5 actually produced. The tab above it indexes the legacy receipt
-    // tree on disk, which cannot see a screening queued through the fleet --
-    // so the phase's own output was reachable only over ssh.
+    // What P5 actually produced, first. Runs indexes the legacy receipt tree
+    // on disk, which cannot see a screening queued through the fleet, so on a
+    // fresh install the phase opened on an empty tab while its one map sat
+    // under Maps.
     if (id === "P5") tabs.push(["maps", "Maps"]);
+    if (HAS_VIEW.has(id)) tabs.push(["artefacts", VIEW_LABEL[id] ?? "Artefacts"]);
     // Which ink models exist and which of them this queue can actually run.
     if (id === "P5") tabs.push(["lanes", "Models"]);
     if (stateRowCount && !HAS_VIEW.has(id)) tabs.push(["state", "State"]);

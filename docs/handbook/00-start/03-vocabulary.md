@@ -6,11 +6,22 @@ summary: The nouns this platform uses, and the distinctions each one is protecti
 Most of these words are ordinary English doing a specific job. Where a term
 looks like a synonym for another, it is not, and the difference is the point.
 
+## Panel
+
+**Phase rail** — the sidebar on every panel screen: one row per phase, P0
+through P9, coloured by whether it is running, queued, blocked or done for the
+mission and subject currently selected. Its ten rows draw on first paint; the
+live status lands once the summary answers.
+
+**Tile** — a titled summary card on the Mission page, such as fleet hardware
+or run counts, holding one value and a tone (steady, busy, warn or alert) that
+says how much attention it needs.
+
 ## Work
 
 **Mission** — the project a piece of work belongs to. It names the scrolls being
-attempted and whether the run is
-[certified or exploratory](#/docs/start/what-helena-is). Nothing may be queued
+attempted and whether the run is a
+[certification or exploration run](#/docs/start/what-helena-is). Nothing may be queued
 outside one: coverage, backlogs and counts are all mission-scoped, so a job
 without one is work that cannot be found, reviewed or attributed. `unfiled` is a
 read-only view of runs that predate missions — it is history, not a scope you
@@ -20,7 +31,7 @@ can queue into.
 [the pipeline](#/docs/start/pipeline).
 
 **Lane** — one way of doing a phase. P4 renders through `vc-render-tifxyz` or
-`scroll3-chunk-gather`; P8 merges, builds a column atlas, or computes mesh
+`chunk-gather`; P8 merges, builds a column atlas, or computes mesh
 relations. Naming a lane is choosing a method, and an unknown name is refused
 rather than silently defaulted — a job that asked for one detector and got
 another is a result nobody can interpret.
@@ -45,6 +56,11 @@ times; the lease expiring without a result is itself recorded.
 **Surface** — a piece of papyrus recovered as geometry: a mesh in TIFXYZ form.
 It has a `surface_id`, a sample, an area, and four independent QC states.
 
+**Origin** — whether a surface was grown by this pipeline or brought in from
+outside it: `GROWN_HERE` for a surface P1 produced here, `IMPORTED` for
+everything else, including a segment published by someone else's run. The
+panel shows the same split as "grown here" and "imported".
+
 **TIFXYZ** — the surface format: `x.tif`, `y.tif`, `z.tif` plus metadata, where
 each pixel of the grid carries a coordinate in the volume. A surface is a
 mapping from a flat sheet to where that sheet sits in the scroll.
@@ -58,6 +74,12 @@ Some detectors want one, some the other.
 **Probability map** — what P5 produces: one float per pixel, brighter meaning
 more likely ink. It is a screening output, not a reading.
 
+**Liveness verdict** — whether a probability map carries a decision at all:
+`ALIVE`, `DEGENERATE`, or `EMPTY`. `DEGENERATE` is not a statement about ink;
+it means the output head is untrained, collapsed, or fed input far outside its
+training distribution, so nothing downstream may screen the map. A P5 job
+whose receipt carries no liveness verdict is failed.
+
 **Artifact** — anything published to the store with a manifest. Artifacts are
 addressed by key and verified by digest.
 
@@ -68,7 +90,7 @@ mistake they exist to prevent.
 
 | Axis | Asks | States |
 | --- | --- | --- |
-| Geometry | is the mesh coherent? | `GEOMETRY_UNMEASURED` (the default, and the fail-closed verdict), `GEOMETRY_CERTIFIED`, or one of four rejections: `BRIDGE`, `LAMINA_SWITCH`, `DISTORTION`, `COVERAGE` |
+| Geometry | is the mesh coherent? | `GEOMETRY_UNMEASURED` (the default, and the fail-closed verdict), `GEOMETRY_CERTIFIED`, or one of four rejections: `GEOMETRY_REJECTED_BRIDGE`, `GEOMETRY_REJECTED_LAMINA_SWITCH`, `GEOMETRY_REJECTED_DISTORTION`, `GEOMETRY_REJECTED_COVERAGE` |
 | Physical | does the CT support it? | `UNVALIDATED` (no verdict, not a failure), `CT_SUPPORTED` and `CT_SUPPORTED_REVIEW` — the two P3 and P4 accept — plus `CT_INSUFFICIENT`, `INK_SCREEN_INSUFFICIENT`, `NOT_APPLICABLE_FIXTURE` |
 | Lamina | does the scan resolve one sheet? | `LAMINA_UNMEASURED` (the default), `LAMINA_SINGLE_SHEET`, `LAMINA_FUSED`, `LAMINA_TOO_THIN`, `LAMINA_UNRESOLVED`, `LAMINA_INSUFFICIENT_COLUMNS` |
 | Seed agreement | do two seeds agree? | `SEED_UNPAIRED` (the default), `SEED_AGREEMENT_MEASURED`, `SEED_AGREEMENT_UNMEASURED`, `SEED_OVERRIDE_DID_NOT_TAKE` |

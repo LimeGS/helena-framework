@@ -1,7 +1,7 @@
 # The forward a worker host uses to reach the control plane.
 #
 #   docker compose -p helena-tunnel -f control-tunnel.compose.yaml \
-#     --env-file /etc/helena/tunnel.env up -d
+#     --env-file config/tunnel.env up -d
 #
 # This was two systemd units installed by provision-host.sh. Nothing on a
 # Helena host runs outside a container -- a per-host unit is a second way to

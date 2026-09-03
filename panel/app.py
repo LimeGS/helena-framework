@@ -136,7 +136,12 @@ ARTIFACTS = Path(_setting(
     "Where surfaces published over the network are kept. Object storage is "
     "optional: with no s3:// prefix configured, workers publish here and this "
     "volume is the deployment's copy of record.",
-    example="/artifacts"))
+    example="/artifacts",
+    # Read into the ARTIFACTS global once at import and closed over by every
+    # request handler that names it; _apply_settings does not rebind it, so
+    # an edit here changed what the settings page reported without changing
+    # where a request actually looked.
+    restart=True))
 DSN = _setting(
     "CX_DB", "",
     "PostgreSQL connection string for the fleet and the job queue. Empty "
@@ -229,22 +234,37 @@ AUTH_ROOT = Path(_setting(
     "CX_AUTH", str(HERE / "auth"),
     "Where panel accounts and sessions live. Holds password hashes, so it is "
     "written 0600 and belongs on local disk, not a share.",
-    example="panel/auth"))
+    example="panel/auth",
+    # Nothing rebinds AUTH_ROOT after import, and everything that opens the
+    # accounts file uses this global directly.
+    restart=True))
 REQUIRE_LOGIN = _setting(
     "CX_REQUIRE_LOGIN", "true",
     "Whether the panel requires an account. Turning this off on a host that is "
     "reachable from anywhere hands the queue to whoever finds it.",
-    kind="bool", allowed=("true", "false")).lower() != "false"
+    kind="bool", allowed=("true", "false"),
+    # Every request handler that gates on this closes over the module global,
+    # which _apply_settings does not rebind. Reported live, an edit here
+    # would say the gate had changed while every request kept the old one --
+    # dangerous in exactly the direction the setting's own warning names.
+    restart=True).lower() != "false"
 # Read here only so the session cookie knows whether it may be Secure. uvicorn
 # is what actually serves the certificate, from the same two paths.
 TLS_CERT = _setting(
     "CX_TLS_CERT", "",
     "The certificate uvicorn serves. Set by the panel's start script, which "
     "generates a self-signed pair on first boot if none is supplied; point it "
-    "at a real certificate to replace it. Empty means plain http.")
+    "at a real certificate to replace it. Empty means plain http.",
+    # uvicorn reads its own copy of this path once, at process start, to build
+    # the SSL context it serves with -- an edit here cannot reach that even in
+    # principle. The module global is read for one other thing, whether the
+    # session cookie may be Secure, and _apply_settings does not rebind it
+    # either.
+    restart=True)
 TLS_KEY = _setting(
     "CX_TLS_KEY", "",
-    "The private key for CX_TLS_CERT.")
+    "The private key for CX_TLS_CERT.",
+    restart=True)
 # Beside the panel's own state and not inside the checkout: the panel does not
 # own the repository it runs from, so uploading a strip failed with
 # PermissionError on workspace/strips and answered 500. AUTH_ROOT is the one
@@ -255,11 +275,11 @@ STRIPS = Path(_setting(
     "CX_STRIPS", str(AUTH_ROOT.parent / "strips"),
     "Where qualified reference strips live. A strip is one strip-v0 .npz plus "
     "its qualification report; scoring reads from here.",
-    example="workspace/strips"))
+    example="workspace/strips", restart=True))
 REFERENCE_STRIPS = Path(_setting(
     "CX_REFERENCE_STRIPS", str(HERE.parent / "framework" / "vendored" / "reference-strips"),
     "The vendored reference-strips checkout that qualifies and scores.",
-    example="framework/vendored/reference-strips"))
+    example="framework/vendored/reference-strips", restart=True))
 REGISTRY = Path(_setting(
     "CX_REGISTRY", str(HERE.parent / "framework" / "registries" / "method-capabilities-0.1.0.json"),
     "Method capability registry. It is what disqualifies a method: a profile "
@@ -371,10 +391,13 @@ MACHINE_PATHS = ("/api/artifacts/",)
 
 
 AUDIT_ROOT = Path(_setting(
-    "CX_AUDIT", str(Path(_setting("CX_AUTH", "panel/auth",
-                                  "Where accounts live.")).parent / "audit"),
+    "CX_AUDIT", str(AUTH_ROOT.parent / "audit"),
     "Where the audit trail is appended. One file per month of JSON lines, under "
-    "the panel's state directory so the backup already carries it."))
+    "the panel's state directory so the backup already carries it.",
+    # AUTH_ROOT above is the same value a second call to _setting("CX_AUTH",
+    # ...) used to reconstruct here -- which also appended a second, slightly
+    # different CX_AUTH row to SETTINGS every time this ran.
+    restart=True))
 
 # Reading changes nothing and a log of reads is a log nobody searches. What is
 # recorded is every request that could change something -- including the ones
@@ -501,10 +524,10 @@ def clear_login_failures(account: str) -> None:
 # A module is that answer. It is not a fourth mechanism: it is the existing
 # ones, reported in one shape and switchable in one place.
 MODULES_PATH = Path(_setting(
-    "CX_MODULES", str(Path(_setting("CX_AUTH", "panel/auth",
-                                    "Where accounts live.")).parent / "modules.json"),
+    "CX_MODULES", str(AUTH_ROOT.parent / "modules.json"),
     "Which modules are switched off, and any module added through the panel. "
-    "Under the state directory, so the backup carries it."))
+    "Under the state directory, so the backup carries it.",
+    restart=True))
 
 
 def _module_state() -> dict:
@@ -2554,14 +2577,14 @@ def integrity(mission_id: str | None = None) -> list[dict]:
                 findings.append({
                     "run_id": run.run_id, "sample_id": run.sample_id, "lane": run.lane_id,
                     "kind": "clip",
-                    "detail": f"max_clip_value {run.clip_value}, upstream declara {UPSTREAM_CLIP}",
+                    "detail": f"max_clip_value {run.clip_value}, upstream declares {UPSTREAM_CLIP}",
                     "severity": "warning"})
         liveness = run.receipt.get("liveness") or {}
         if liveness.get("verdict") not in (None, "ALIVE"):
             findings.append({
                 "run_id": run.run_id, "sample_id": run.sample_id, "lane": run.lane_id,
                 "kind": "liveness",
-                "detail": f"mapa {liveness['verdict']}: {liveness.get('reason', '')}",
+                "detail": f"map {liveness['verdict']}: {liveness.get('reason', '')}",
                 "severity": "critical"})
     return findings
 
@@ -3262,10 +3285,27 @@ def api_amend_mission(mission_id: str, request: AmendRequest, http: Request):
     # frozen selection onto a name with no volume is the same dead mission,
     # reached later.
     refuse_scrolls_with_no_volume(list(request.add or []), "an amendment")
+    # `has_work` alone reads receipts on disk, so a job queued against this
+    # mission but not yet finished left the selection amendable with no
+    # reason -- silently, while GET /api/missions already reported it frozen.
+    # Not optional: guessing "not frozen" when the queue cannot be read would
+    # widen a selection that already has work queued against it.
+    frozen_by_queue = False
+    if DSN:
+        try:
+            frozen_by_queue = bool(
+                job_store().jobs(mission_id=mission_id, limit=1))
+        except Exception as unreachable:  # noqa: BLE001
+            raise HTTPException(503, {
+                "detail": "the queue cannot be read, so whether this "
+                          "mission's selection is frozen cannot be established",
+                "error": f"{type(unreachable).__name__}: {unreachable}",
+            }) from unreachable
     try:
         directory, _ = mission_contract.resolve(RUNS, mission_id)
         manifest = mission_contract.amend_scrolls(
-            directory, add=request.add, reason=request.reason)
+            directory, add=request.add, reason=request.reason,
+            frozen_by_queue=frozen_by_queue)
     except mission_contract.MissionError as exc:
         raise HTTPException(400, str(exc)) from exc
     # After the manifest, never instead of it: the selection is the decision and
@@ -3288,10 +3328,10 @@ def api_remove_scrolls(mission_id: str, request: AmendRequest):
         raise HTTPException(404, str(exc)) from exc
     # What has produced something here cannot be disowned.
     protected = {r.sample_id for r in index_runs(mission_id=mission_id)}
+    queued_jobs: list[dict] = []
     if DSN:
         try:
-            protected |= {j["sample_id"] for j in job_store().jobs(limit=500,
-                                                                  mission_id=mission_id)}
+            queued_jobs = job_store().jobs(limit=500, mission_id=mission_id)
         except Exception as unreachable:  # noqa: BLE001
             # Not optional here. This is the query that decides which scrolls
             # may not be removed, and a queue that cannot be read yields a
@@ -3303,9 +3343,17 @@ def api_remove_scrolls(mission_id: str, request: AmendRequest):
                           "removal cannot be established",
                 "error": f"{type(unreachable).__name__}: {unreachable}",
             }) from unreachable
+        protected |= {j["sample_id"] for j in queued_jobs}
+    # A job queued against this mission but not yet receipted left the
+    # selection narrowable with no reason, even though GET /api/missions
+    # already reports the mission frozen. `protected` above stops a scroll
+    # that has work from being removed; this is the separate question of
+    # whether removing a *different* scroll needs a reason at all.
+    frozen_by_queue = bool(queued_jobs)
     try:
         manifest = mission_contract.remove_scrolls(
-            directory, remove=request.add, reason=request.reason, protected=protected)
+            directory, remove=request.add, reason=request.reason,
+            protected=protected, frozen_by_queue=frozen_by_queue)
     except mission_contract.MissionError as exc:
         raise HTTPException(409, str(exc)) from exc
     index_runs(force=True)
@@ -4084,7 +4132,10 @@ def api_enqueue(
     # say that, not "state the scale". Placed earlier this check preempted them,
     # and for a control job it was pointless anyway: the control branch replaces
     # `parameters` wholesale, so anything filled in before it is discarded.
-    if request.phase == "P4":
+    if request.phase == "P4" and parameters.get("lane", "vc-render-tifxyz") != "chunk-gather":
+        # chunk-gather reads scale from the volume's own .zarray -- it never
+        # reads source_voxel_um at all -- so refusing an uncatalogued sample
+        # here blocked a lane that has no use for the number this checks.
         resolve_source_voxel(parameters, request.sample_id)
     elif request.phase == "P5":
         resolve_source_scales(parameters, request.sample_id)
@@ -10033,7 +10084,7 @@ MODELS_ROOT = Path(_setting(
     "read-only by the workers: the panel is the only thing that writes one, and a "
     "worker that could overwrite a checkpoint could change what a frozen profile "
     "means.",
-    example="/models"))
+    example="/models", restart=True))
 
 # What the platform's own profiles say they need, which is the only preselected
 # list worth offering. A hardcoded catalogue of repository names would be a guess
@@ -10248,35 +10299,35 @@ RENDER_STORE = _setting(
     "object storage instead, which is what a fleet spanning hosts needs. "
     "Everything else in the pipeline publishes, and the stack the detector eats "
     "was once the one artifact left on the worker's own disk.",
-    example="s3://bucket/layer-stacks-v1")
+    example="s3://bucket/layer-stacks-v1", restart=True)
 FIRST_LETTERS_CONTROL_CT_CACHE = _setting(
     "CX_FIRST_LETTERS_CONTROL_CT_CACHE", "/artifacts/control-cache/PHerc0139-9362",
     "Worker-local CT cache path used only for the frozen PHerc0139 control; "
     "the remote source remains manifest-locked and cannot be client-overridden.",
-    example="/srv/helena/cache/pherc0139-9362")
+    example="/srv/helena/cache/pherc0139-9362", restart=True)
 INK_STORE = _setting(
     "CX_INK_STORE", "/artifacts/ink-maps-v1",
     "Where P5 publishes probability maps so P7 can consume them from another "
     "worker. A durable local path is used by default; use an s3:// destination "
     "for a fleet spanning hosts.",
-    example="s3://bucket/ink-maps-v1")
+    example="s3://bucket/ink-maps-v1", restart=True)
 SOURCE_URL = _setting(
     "CX_SOURCE_URL", "",
     "Where this platform's source lives, linked in the panel's footer. Empty "
     "hides the link: there is no repository URL anywhere in this checkout, and a "
     "guessed one in the footer of a control panel is worse than no link at all.",
-    example="https://github.com/your-org/helena")
+    example="https://github.com/your-org/helena", restart=True)
 FLATTEN_STORE = _setting(
     "CX_FLATTEN_STORE", "/artifacts/flattened-v1",
     "Where flattened sheets are published: a local path, by default inside the "
     "platform's own durable volume, or s3://bucket/prefix for object storage. "
     "Empty keeps them nowhere, which is only useful for a trial run.",
-    example="s3://bucket/flattened-v1")
+    example="s3://bucket/flattened-v1", restart=True)
 RECONSTRUCTION_STORE = _setting(
     "CX_RECONSTRUCTION_STORE", "/artifacts/reconstruction-v1",
     "Where P8 publishes merged TIFXYZ surfaces and their immutable lineage: "
     "a durable local path or s3://bucket/prefix for a multi-host fleet.",
-    example="s3://bucket/reconstruction-v1")
+    example="s3://bucket/reconstruction-v1", restart=True)
 
 
 def enqueue_fleet_phase(phase: str, parameters: dict, sample_id: str | None,
@@ -10327,7 +10378,7 @@ def enqueue_fleet_phase(phase: str, parameters: dict, sample_id: str | None,
     except Exception as exc:  # JobRejected and friends
         raise HTTPException(400, str(exc)) from exc
     return {"job_id": job_id, "phase": phase, "parameters": parameters,
-            "note": ("queued; a worker claims it. Watch it on the Fleet page or "
+            "note": ("queued; a worker claims it. Watch it on the phase's Run tab or "
                      "at /api/jobs.")}
 
 
@@ -12819,7 +12870,7 @@ def api_add_huggingface_module(body: HuggingFaceModule):
             "detail": f"unknown adapter {body.adapter!r}",
             "why": "An adapter is the command-line contract the model is run "
                    "through. A model that fits none of these needs one written "
-                   "for it; the four here are what exist.",
+                   f"for it; these {len(adapters)} are what exist.",
             "adapters": sorted(adapters),
         })
     if "/" not in body.repo_id:
@@ -13244,6 +13295,13 @@ def api_host_images(host_id: str):
     if row is None:
         raise HTTPException(404, f"no host {host_id}")
     expected = image_contract.images_for(row.get("roles") or [])
+    if not row.get("ssh_target"):
+        # Registered by its own report: nothing to ssh to until somebody adds
+        # a target, and asking ssh about an empty name is not "unreachable".
+        return JSONResponse({"host_id": host_id, "reachable": False,
+                             "expected": expected, "present": {}, "drift": [],
+                             "note": "this host registered itself by reporting; "
+                                     "add an ssh target to compare its images"})
     present = host_images(row["ssh_target"])
     if present is None:
         return JSONResponse({"host_id": host_id, "reachable": False,

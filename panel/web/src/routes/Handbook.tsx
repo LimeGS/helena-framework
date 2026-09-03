@@ -62,7 +62,11 @@ function Figure({ block }: { block: Extract<Block, { kind: "figure" }> }) {
   );
 }
 
-function Blocks({ blocks }: { blocks: Block[] }) {
+// `page` is the id of the page these blocks belong to. A heading's permalink
+// used to be `#<heading>` alone, which pageFromHash cannot read: following it
+// (or reopening a copied link) fell back to the first page. It carries the page
+// now, and the anchor after it is scrolled to by Handbook itself.
+function Blocks({ blocks, page }: { blocks: Block[]; page: string }) {
   return (
     <>
       {blocks.map((block, index) => {
@@ -72,7 +76,7 @@ function Blocks({ blocks }: { blocks: Block[] }) {
             return (
               <Tag key={index} id={block.id} className="hb-h">
                 {block.text}
-                <a className="hb-anchor" href={`#${block.id}`}
+                <a className="hb-anchor" href={`#/docs/${page}#${block.id}`}
                    aria-label={`link to ${block.text}`}>#</a>
               </Tag>
             );
@@ -145,6 +149,16 @@ function haystack(page: Page): string {
 
 const FALLBACK = HANDBOOK[0]?.id ?? "";
 
+// `#/docs/start/what-helena-is#the-queue` names a heading after the page. The
+// browser cannot scroll to it on its own (the fragment is the whole string), so
+// the page does, once it has rendered. Guarded like scrollTo: jsdom has no
+// scrollIntoView.
+function scrollToAnchor(): void {
+  const match = /#\/docs\/[a-z0-9-]+\/[a-z0-9-]+#([A-Za-z0-9_-]+)/.exec(window.location.hash);
+  const target = match ? document.getElementById(match[1]) : null;
+  if (target && typeof target.scrollIntoView === "function") target.scrollIntoView();
+}
+
 function pageFromHash(): string {
   // `#/docs/start/what-helena-is` -> `start/what-helena-is`. A heading anchor
   // may follow it, and is left to the browser.
@@ -161,7 +175,7 @@ export default function Handbook() {
   // lands where it says. Listening rather than only writing is what makes the
   // browser's own buttons behave.
   useEffect(() => {
-    const onHash = () => setCurrent(pageFromHash());
+    const onHash = () => { setCurrent(pageFromHash()); scrollToAnchor(); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
@@ -187,6 +201,7 @@ export default function Handbook() {
   useEffect(() => {
     const node = body.current;
     if (typeof node?.scrollTo === "function") node.scrollTo({ top: 0 });
+    scrollToAnchor();
   }, [current]);
 
   const go = (id: string) => {
@@ -254,7 +269,7 @@ export default function Handbook() {
           <h1>{page.title}</h1>
           <p className="hb-summary">{page.summary}</p>
         </header>
-        <Blocks blocks={page.blocks} />
+        <Blocks blocks={page.blocks} page={page.id} />
       </article>
     </div>
   );

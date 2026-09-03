@@ -43,7 +43,10 @@ export default function Runs() {
   const { data, isLoading, error } = useRuns();
   if (isLoading) return <Empty>loading runs…</Empty>;
   if (error) return <Empty>{String(error)}</Empty>;
-  if (!data?.length) return <Empty>No receipts. Is CX_RUNS right?</Empty>;
+  // This tab indexes receipts on disk under CX_RUNS, which a fresh install has
+  // none of. A screening queued through the fleet is under Maps, and saying so
+  // beats a question about an environment variable the reader never set.
+  if (!data?.length) return <Empty>No receipts on disk under CX_RUNS. Screenings queued through the fleet are under Maps.</Empty>;
 
   return (
     <Card title="Runs" note="indexed from the receipts on disk">

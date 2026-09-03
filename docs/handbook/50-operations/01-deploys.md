@@ -5,13 +5,21 @@ summary: How code reaches the fleet, and the two ways a deploy can lie about wha
 
 ## The path
 
-A push to `staging` or `development` runs the pipeline. Five stages —
-`prepare`, `test`, `build`, `deploy`, `verify` — on the host that branch owns:
-each branch deploys the host its runner is tagged for.
+Five stages run the pipeline: `prepare`, `test`, `build`, `deploy`, `verify`.
+Every push runs the first two; `staging`, `development` and merge requests
+also run `build`. Only a push to `staging` or `development` reaches `deploy`
+and `verify`, each deploying the host its runner is tagged for.
 
-The last one is the half people forget. `verify` is the smoke and end-to-end run
-**against the deployment that just landed**, and e2e is deliberately excluded
-from `test` because at that point there is no deployment to test against.
+The last one is the half people forget. `verify` runs the smoke suite as
+end-to-end tests **against the deployment that just landed**, and e2e is
+deliberately excluded from `test` because at that point there is no
+deployment to test against. A second `verify` job, `heavy`, is manual or
+scheduled rather than automatic: the only stage that renders a real volume
+and reads it with the real detector, on the one machine with a GPU. It costs
+about half an hour of cards that are usually busy with QC, so it does not run
+on every push, and the two tests it runs refuse to pass by skipping — a run
+that found nothing to render or nothing to screen fails instead of reporting
+green.
 
 The **deploy and smoke** jobs prove they are on the machine they are for before
 doing anything — a tag is a request; the check is the proof. The build jobs only
@@ -21,17 +29,39 @@ prove a daemon is there.
 
 `install.sh` asks what a machine should be — `--panel`, `--cpu` or `--gpu`, or
 `HELENA_INSTALL` — brings the platform stack up from the checkout and then
-calls `containers/deploy-platform.sh nogpu|gpu` for the workers. That script
-seeds `config/*.env` in the checkout from `containers/compose/*.env.example`
-on first run — platform, panel, segment, ink, surface-qc, and a `postgres.env`
-it writes from the platform's own credentials — never overwriting a file that
-exists, and fills in the two things no template can know: this host's name and
-the workers' database URL. The directory is git-ignored and holds nothing
-privileged. A host configured before this keeps `/etc/helena`, and the deploy
-says so; `HELENA_ENV_DIR` points it anywhere else. Nothing on a host runs
-outside a container: `provision-host.sh`, for a second machine joining a
-fleet, copies the compose files and an env file to the target and starts the
-tunnel and the worker as compose projects, and installs no units.
+calls `containers/deploy-platform.sh nogpu|gpu` for the workers. It refuses to
+start over Helena volumes an earlier install left on the machine —
+`helena-panel-state`, `helena-postgres-data` and the rest — since they can
+hold TLS material written by a different user; `HELENA_ADOPT_VOLUMES=1`
+installs over them anyway.
+
+`deploy-platform.sh` seeds `config/*.env` in the checkout from
+`containers/compose/*.env.example` on first run — platform, panel, segment,
+ink, surface-qc, and a `postgres.env` it writes from the platform's own
+credentials — never overwriting a file that exists, and fills in the two
+things no template can know: this host's name and the workers' database URL.
+A key a template grew after a host's env file was already written is
+inherited too, appended with the template's own value, so an env file from an
+older install does not fall behind the compose files reading it. The
+directory is git-ignored and holds nothing privileged. A host configured
+before this keeps `/etc/helena`, and the deploy says so; `HELENA_ENV_DIR`
+points it anywhere else.
+
+The panel image itself is pulled by commit from `$HELENA_REGISTRY`. Without a
+registry, or one this host cannot reach, the deploy tries `$HELENA_PUBLIC_REGISTRY`
+next — tagged by `VERSION`, not by commit, since publishing is a release and
+not every push — and only then builds the panel from the checkout instead:
+slower, and bytes only that host has. The worker images try the same two
+sources before compiling. `HELENA_PUBLIC_REGISTRY` defaults on for a host with
+no prior deploy and off for one that already had a config, so staging keeps
+running the commit under test rather than whatever was last published; a
+maintainer sets it explicitly to override either way. Nothing is published
+there yet — see the README's TODO for the `when: manual` job that will.
+
+Nothing on a host runs outside a container: `provision-host.sh`, for a second
+machine joining a fleet, copies the compose files and an env file to the
+target and starts the tunnel and the worker as compose projects, and installs
+no units.
 
 ## What runs, and what only builds
 
@@ -49,17 +79,23 @@ that is never a container is the thing that makes this look bigger than it is.
 | `helena-preflight` | checks a job before it is queued | `helena-worker-cpp` |
 | `helena-host-report` | reports this host's hardware | `helena-worker-cpp` |
 | `helena-spiral` | the spiral fitter (P1) | `helena-worker-cpp` + lane |
-| `helena-ink-0` | P4, P5, P7 | `helena-worker-gpu` |
+| `helena-ink-0` | P4, P5, P7, P9 | `helena-worker-gpu` |
 | `helena-ink-9um` | P5 on the 9 µm lane | `helena-worker-gpu` + lane |
 | `helena-gpu-runtime-<n>` | automatic QC, one per card | `helena-worker-gpu` |
 
 Not all of them on every host. `helena-backup` starts only where
-`HELENA_BACKUP_S3` is set; `helena-spiral` only where the `helena-villa-python`
-lane image is present, which the deploy does not build; `helena-ink-9um` where
-the 9 µm lane image is, which it does. A clean `install.sh --gpu` on one card
-leaves nine running, and two more — `helena-prepare-volumes`, `helena-init` —
-that ran once and exited. A host without cards runs the first seven, backup on
-the same condition.
+`HELENA_BACKUP_S3` is set — see [backups and object
+storage](#/docs/operations/backups-and-object-storage) for what it copies and
+how to restore from it. `helena-spiral` and `helena-ink-9um` each need their
+own lane image present — `helena-villa-python` and `helena-ink-9um` — and the
+deploy builds either one it does not find, cloning from its own pinned commit
+the same way it builds the toolchain images below; a lane that fails to build
+is skipped, loudly, rather than failing the whole deploy. A clean
+`install.sh --gpu` on one card brings up eight containers outright, plus
+`helena-spiral` and `helena-ink-9um` if their lane builds succeed — nine or
+ten in total — and two more, `helena-prepare-volumes` and `helena-init`, that
+ran once and exited. A host without cards runs the first seven, backup on the
+same condition.
 
 ## The tree
 
@@ -74,7 +110,7 @@ ubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8
                                 +-(bundle stage)------+
 pytorch/pytorch -> helena-ink --------------------------+-> helena-gpu-runtime
                                                              |
-                                                             +-> helena-worker-gpu   P4 P5 P7
+                                                             +-> helena-worker-gpu   P4 P5 P7 P9
 ```
 
 `helena-villa`, `helena-ink` and `helena-gpu-runtime` are build-only.
@@ -140,7 +176,15 @@ from, differing by one directory. Neither of those two exists now.
 
 ## Verifying a deploy
 
-Two different questions, two different labels:
+The deploy checks itself before it calls itself done. Each container it
+expects has to exist, be `running`, and be running the image ID the tag it
+just wrote now resolves to — not merely carry that image's name, since a tag
+is a pointer and a second build of the same commit can move it out from
+under a container still running the first. Anything missing, stale, or
+running something else fails the deploy outright, which is the only way an
+automated deploy can honestly call a host caught up.
+
+By hand, two different questions, two different labels:
 
 ```bash
 docker inspect <image> --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'

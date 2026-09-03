@@ -24,13 +24,13 @@
 #   HELENA_HOST_ID=gpu-1 docker compose \
 #     -f containers/compose/host-report.compose.yaml \
 #     -f containers/compose/host-report.gpu.compose.yaml \
-#     --env-file /etc/helena/segment.env up -d
+#     --env-file config/segment.env up -d
 #
 # Without it, on a machine with no NVIDIA driver:
 #
 #   HELENA_HOST_ID=swisspost-1 docker compose \
 #     -f containers/compose/host-report.compose.yaml \
-#     --env-file /etc/helena/host-report.env up -d
+#     --env-file config/host-report.env up -d
 #
 # Two files rather than one, because a `gpus:` reservation is not optional: on a
 # host with no driver the container refuses to start, and swisspost-1 has no
@@ -65,7 +65,7 @@ services:
     # Optional: a deployment that passes FLEET_DB directly needs no file, and a
     # missing env_file is otherwise a hard error.
     env_file:
-      - path: ${HELENA_HOST_REPORT_ENV:-/etc/helena/segment.env}
+      - path: ${HELENA_HOST_REPORT_ENV:-../../config/segment.env}
         required: false
     # Straight to the probe. The image's own entrypoint would also start an MCP
     # server and a worker, and this machine already has both.

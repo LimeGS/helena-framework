@@ -1,0 +1,38 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "panel",
+      "runtimeExecutable": "panel/.venv/bin/python",
+      "runtimeArgs": [
+        "-m",
+        "uvicorn",
+        "panel.app:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8800"
+      ],
+      "port": 8800,
+      "env": {
+        "CX_RUNS": "/private/tmp/claude-501/-Users-user-Software-nosync-Factory-vesubius-challenge-Campaign-X/a8a5ed69-de6b-426c-99be-b1e43ab3b3ff/scratchpad/localruns",
+        "CX_REQUIRE_LOGIN": "false"
+      }
+    },
+    {
+      "name": "panel-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "panel/web",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175",
+        "--strictPort"
+      ],
+      "port": 5175
+    }
+  ]
+}

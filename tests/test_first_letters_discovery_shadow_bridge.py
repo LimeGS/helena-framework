@@ -1300,9 +1300,14 @@ def _retained_v16_execution_store(
             budget_admission_sha256=admission["admission_sha256"],
         )
     provider = _BridgeProvider()
+    # Ten minutes, not one: the claim revalidates its own lease right after
+    # writing it, and on a loaded CI runner one sqlite commit under saturated
+    # I/O took the fixture past sixty seconds -- "must hold a live CLAIMED
+    # lease" for a lease made moments earlier. No test reads this value; the
+    # ones about expiry set the date to 2000 or the clock to 2999.
     result = FirstLettersDiscoveryController(
         mode="shadow", store=store, provider=provider,
-    ).run_job(job_id=branch["jobs"][0]["job_id"], lease_seconds=60)
+    ).run_job(job_id=branch["jobs"][0]["job_id"], lease_seconds=600)
     assert result["state"] == "COMPLETED"
     reservation_id = branch["reservation"]["reservation_id"]
     with store.connect() as connection:

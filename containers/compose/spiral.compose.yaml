@@ -1,6 +1,6 @@
 # P1 for the backend that is a fit rather than a grow.
 #
-#   docker compose --env-file /etc/helena/segment.env \
+#   docker compose --env-file config/segment.env \
 #                  -f containers/compose/spiral.compose.yaml up -d
 #
 # Its own file rather than a service in segment.compose.yaml, and not a compose
@@ -57,7 +57,7 @@ services:
       options: {max-size: "20m", max-file: "5"}
     network_mode: host
     env_file:
-      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+      - ${HELENA_SEGMENT_ENV:-../../config/segment.env}
     environment:
       HELENA_WORKER_PHASES: P1
       # The lane the worker carries, not the image it runs as: the P1 lane

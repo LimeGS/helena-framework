@@ -1222,6 +1222,15 @@ DEFAULT_VC_FLATTEN = "/opt/campaignx/vc3d/bin/vc_flatten"
 DEFAULT_FLATTEN_PROFILE = ("/workspace/campaign-x/framework/profiles/02-flattening"
                            "/flatten-abf-v1-1.0.0.json")
 
+# vc_flatten is the only engine this lane's argv builder knows how to invoke:
+# --binary always names it, unconditionally. The lasagna profile below
+# declares "engine": "lasagna" -- a GPU Python script, lasagna/fit.py, with
+# configs passed as bare positionals rather than a --profile flag -- so
+# selecting it here would not run lasagna at all: it would run vc_flatten
+# against a profile file it was never written to read. Refused by filename
+# rather than routed, until this lane's builder can actually dispatch it.
+LASAGNA_FLATTEN_PROFILE_NAME = "flatten-lasagna-v1-1.0.0.json"
+
 # P5 has two adapters and they do not take the same arguments. The profile has
 # always named its own -- `adapter` in the lane profile -- and the queue ignored
 # it, building one argv for every ink job: --profile <id> --upstream-dir <dir>,
@@ -1775,10 +1784,24 @@ register_lane("P8", "mesh-relations", {
               "subsample": "--subsample"},
     "defaults": {"work_dir": lambda out: str(Path(out) / "relations")},
     "gpu_required": False,
+    # The runner above is a real file, so a misregistered lane does not fail
+    # to import -- it fails at argparse instead. evaluate_r6_direct_geometry.py
+    # evaluates a frozen offline calibration (--topology/--ray/--truth/--sample)
+    # and accepts none of the flags this lane declares. No script under
+    # framework/stages/05-reconstruction/ assembles from segment relations;
+    # the runner above was never more than a placeholder that happened to
+    # exist. `command_for` refuses this lane rather than build a command
+    # certain to die at the worker.
+    "not_wired": ("its runner, evaluate_r6_direct_geometry.py, does not "
+                  "implement this lane -- it is an offline calibration tool "
+                  "with an unrelated argparse, and no assembler for measured "
+                  "segment relations exists in this repository yet"),
     "note": ("Assembles from measured relations between segments rather than "
              "from the published column atlas. It answers the same question -- "
              "who neighbours whom -- from geometry this platform produced, "
-             "which is the arrangement somebody else can check."),
+             "which is the arrangement somebody else can check. Registered "
+             "for the shape of the interface; queueing it is refused until a "
+             "runner exists."),
 })
 
 register_lane("P8", "vc3d-tifxyz-merge", {
@@ -1844,6 +1867,13 @@ def command_for(job: dict[str, Any], *, runner: str, output_dir: str,
     lane_id, spec = lane_for(job)
     validate_lane_profile(job, spec)
     validate_lane_sample(job, lane_id, spec)
+    if spec.get("not_wired"):
+        # A lane can be registered before its runner is written, for the
+        # interface's shape -- but building its argv anyway would spend a
+        # lease on a job guaranteed to die at the worker's own argparse.
+        raise JobRejected(
+            f"{phase} lane {lane_id!r} is registered but not runnable: "
+            f"{spec['not_wired']}")
     if spec.get("build") != "legacy":
         return declarative_argv(spec.get("runner", runner), spec, parameters,
                                 output_dir)
@@ -1931,11 +1961,18 @@ def command_for(job: dict[str, Any], *, runner: str, output_dir: str,
         if parameters.get("dry_run"):
             argv += ["--dry-run"]
         if phase == "P3":
+            profile_arg = parameters.get("profile", DEFAULT_FLATTEN_PROFILE)
+            if Path(str(profile_arg)).name == LASAGNA_FLATTEN_PROFILE_NAME:
+                raise JobRejected(
+                    "the lasagna flattening profile is registered but not "
+                    "runnable through this queue: its engine is a GPU Python "
+                    "script with a different command line entirely, and this "
+                    "lane always invokes vc_flatten. Use flatten-abf-v1.")
             if parameters.get("allow_unvalidated"):
                 argv += ["--allow-unvalidated"]
             argv += [
                 "--binary", parameters.get("binary", DEFAULT_VC_FLATTEN),
-                "--profile", parameters.get("profile", DEFAULT_FLATTEN_PROFILE),
+                "--profile", profile_arg,
                 "--artifact-store", parameters["artifact_store"],
             ]
         return argv
@@ -3316,6 +3353,10 @@ class InkJobStore:
             } for (worker_id, host_id, runtime, phases, last_poll, last_claim,
                    since) in cursor.fetchall()]
 
+    SELF_REGISTERED_NOTE = ("registered by its own report; add an ssh target "
+                            "under Configuration -> Hosts to provision it from "
+                            "the panel")
+
     def record_host_state(self, host_id: str, state: dict[str, Any]) -> None:
         """What this machine can offer, merged across the workers that see it.
 
@@ -3339,6 +3380,17 @@ class InkJobStore:
             cursor.execute(
                 "UPDATE ink_hosts SET last_seen_at=now(), last_state=%s WHERE host_id=%s",
                 (json.dumps(merged), host_id))
+            if cursor.rowcount == 0:
+                # A host that heartbeats exists: register it from its own
+                # report, with no ssh target, as host_report.py does. Until
+                # this, a worker on an unregistered machine ran every job and
+                # counted for nothing on the mission page.
+                cursor.execute(
+                    "INSERT INTO ink_hosts (host_id, ssh_target, notes, "
+                    "last_seen_at, last_state) VALUES (%s, '', %s, now(), %s) "
+                    "ON CONFLICT (host_id) DO UPDATE "
+                    "SET last_seen_at=now(), last_state=EXCLUDED.last_state",
+                    (host_id, self.SELF_REGISTERED_NOTE, json.dumps(merged)))
 
     def hosts(self) -> list[dict]:
         with self._connect() as connection, connection.cursor() as cursor:

@@ -1,7 +1,7 @@
 # P2's scientific screen: one instance per GPU.
 #
 #   HELENA_QC_DEVICE=0 docker compose -p helena-qc-0 \
-#     --env-file /etc/helena/surface-qc.env \
+#     --env-file config/surface-qc.env \
 #     -f containers/compose/surface-qc.compose.yaml up -d
 #   HELENA_QC_DEVICE=1 docker compose -p helena-qc-1 ... up -d
 #
@@ -46,11 +46,11 @@ services:
       options: {max-size: "20m", max-file: "5"}
     network_mode: host
     env_file:
-      - ${HELENA_QC_ENV:-/etc/helena/surface-qc.env}
+      - ${HELENA_QC_ENV:-../../config/surface-qc.env}
       # Optional, and the same form the panel already uses: credentials live
       # in the control plane, and a missing file here stopped the whole stack
       # from starting on any host that keeps none.
-      - path: ${HELENA_QC_AWS_ENV:-/etc/helena/aws.env}
+      - path: ${HELENA_QC_AWS_ENV:-../../config/aws.env}
         required: false
     environment:
       # Evidence provenance belongs to this immutable deployment, not to the

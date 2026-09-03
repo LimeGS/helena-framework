@@ -3,6 +3,13 @@ title: How to read this handbook
 summary: Where things are, and the four kinds of aside that mean something specific.
 ---
 
+Documentation has three tabs. This is the Handbook: the walkthrough, the phases,
+and every panel page with what its controls do, written by hand. Developer
+reference and API reference sit beside it, generated from the code they
+describe — contracts, profiles and how to put your own tool into a phase on
+one, the HTTP routes themselves on the other. Reach for those when you need the
+exact shape of something rather than an explanation of it.
+
 Sections down the left, one page at a time, and the current page's own headings
 under it. The filter searches the full text of every page, not just the titles —
 if you half-remember a phrase, type the phrase.

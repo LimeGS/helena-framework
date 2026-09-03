@@ -16,11 +16,10 @@ the scroll is and roughly where the sheets go:
 - **Tracks** — curves extracted from surface predictions.
 - **Lasagna normal volumes** — the orientation field, as OME-Zarr.
 
-> **Trap** The umbilicus is **not in any bucket**. It is human-annotated work —
-> ours came from Aleksei Drobkov and bruniss — so it arrives as an artifact
-> somebody uploads, not something a job downloads. A first run that assumes it
-> will be fetched fails at the input survey, which is the cheapest place it
-> could fail.
+> **Trap** The umbilicus is **not in any bucket**. It is human-annotated work,
+> so it arrives as an artifact somebody uploads, not something a job downloads.
+> A first run that assumes it will be fetched fails at the input survey, which
+> is the cheapest place it could fail.
 
 Tracks and the lasagna volumes are fetchable, and `stage_spiral_dataset.py`
 fetches them: one lasagna level, into a cache shared per scroll rather than per
@@ -52,6 +51,8 @@ The fields that decide the run:
 | `voxel_size_um` | µm per voxel **of the staged dataset** | may be a pooled copy rather than P0's native scale |
 | `spiral_outward_sense` | which way the spiral winds | a property of the scroll |
 | `random_seed` | the optimizer's seed | set it if you intend to compare two fits |
+| `tracks_file` | which `.dbm` under `tracks/` to read | defaults to upstream's own file |
+| `lasagna_volume_name` | which set of normal volumes under `lasagna_inputs/` to read | defaults to upstream's own; a set from the open-data bucket is named for the scroll instead |
 | `normal_zarr_group` | which pyramid level of the normal volumes to read | one level; three is 57× the data |
 | `lasagna_scale` | the **divisor** the shape check uses | left empty it is `2 ** normal_zarr_group` |
 
@@ -72,8 +73,8 @@ a request can move.
 
 A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them
 with **certify** under Maintenance on the P1 panel, or with
-`POST /api/geometry/certify`; the P2 panel shows the verdicts and has no
-button of its own.
+`POST /api/geometry/certify`; the [P2](#/docs/phases/p2) panel shows the
+verdicts and has no button of its own.
 
 > **Trap** P2 is not one of the phases `POST /api/jobs` queues. The queueable
 > set is P1, P4, P5, P7, P8 and P9; anything else gets a 400 saying the phase

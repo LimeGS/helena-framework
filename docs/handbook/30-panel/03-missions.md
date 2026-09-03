@@ -1,6 +1,6 @@
 ---
 title: Missions, scrolls and coverage
-summary: Scoping work so it can be found, counted and attributed.
+summary: Scoping work so it can be found, counted and attributed, and what the mission dashboard shows once you have.
 ---
 
 ## Missions
@@ -44,6 +44,59 @@ frozen. After that:
 The form says so itself: every change to that selection is recorded with a
 reason.
 
+### Picking one
+
+Nothing else in the panel renders until a mission is chosen. What greets you
+first is a table of every mission: name and description, id, how many scrolls
+it holds, how many runs and how many recently queued jobs, when it was
+created, and its state — `active`, `paused` or `archived`, drawn as a pill, or
+**pre-existing** for the one implicit entry, `unfiled`, which you cannot edit.
+**New mission** opens the two-field form above it; past four missions a filter
+box searches name, id and scroll. Clicking a row opens that mission and
+replaces the table with everything scoped to it.
+
+While a mission is open, the sidebar carries a small card naming it, with its
+scroll and run counts underneath, and a **Change or create** button. That
+button does not open a dropdown: there can be hundreds of missions, so it
+clears the selection and returns to the table above instead.
+
+The same sidebar carries a scroll selector for the mission that is open,
+labelling each scroll with the furthest phase it has reached: `P0` with
+nothing yet, `P1` once P1 has grown a surface for it (`P2` once one is
+certified), `P5` once it has an ink run, `P7` once one of those runs has
+produced a probability map. It reads "no scroll in this mission has anything
+yet" until one does.
+
+## The mission dashboard
+
+Opening a mission shows four tiles, then two tables.
+
+| Tile | What it shows |
+|---|---|
+| **Fleet hardware** | gpus, cpu cores and ram summed across enabled hosts (a disabled host is not counted), and how many of them last reported in |
+| **Fleet** | this mission's surface count, the tasks that produced them, and stale leases — or the reason nothing is available |
+| **Runs** | this mission's run count; underneath it, the number of ink lanes with a declared profile, which is a deployment-wide figure, not scoped to the mission |
+| **Integrity** | how many receipts contradict their own declared contract, or that every receipt matches its contract |
+
+**Scrolls in this mission** lists every scroll the mission has selected, with
+scale and energy read from the frozen catalog:
+
+| Column | Meaning |
+|---|---|
+| Scroll | the sample id |
+| µm | pixel size; a ▲ marks a scroll with a finer scan available |
+| keV | beam energy, when known |
+| Runs | ink runs indexed for this scroll |
+| Last lane | despite the name, the lane of the run with the **highest p90** for this scroll, not the most recent one — it links to that run |
+| p90 | that run's p90 statistic |
+| State | **Screened** once this scroll has any indexed ink run at all — not the pass/fail verdict from the strict screen, only whether ink has run |
+
+Beside it, **Surfaces by scroll** repeats the fleet's per-scroll surface count
+and area for this mission's scrolls, and **Findings** — shown only when there
+are any — lists what Integrity found: normalization and clip contradictions in
+a run's declared contract, and probability maps a liveness check did not read
+as alive, each linking to its run.
+
 ## Scrolls
 
 The catalogue of what this deployment can reach, with each scan's declared
@@ -56,9 +109,12 @@ scale. Adding a scroll to a mission is what makes coverage countable.
 
 ## Coverage
 
-Coverage answers "how much of this scroll has been through which phase". It is
-computed against the mission's scrolls, which is why a scroll outside the
-mission shows nowhere.
+Coverage answers "how much of this scroll has been looked at, and with what
+result" — the candidate cells P1's bootstrap search has attempted, and the hit
+rate among them. It is computed against the mission's scrolls, which is why a
+scroll outside the mission shows nowhere. See
+[Screening, Coverage and Compare](#/docs/panel/screening-and-coverage) for the
+fields.
 
 ## Compare
 

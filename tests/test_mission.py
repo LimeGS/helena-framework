@@ -203,3 +203,27 @@ def test_removing_something_absent_is_refused(tmp_path: Path):
     mission.create(tmp_path, mission_id="absent", name="x", scrolls=["PHerc0001"])
     with pytest.raises(mission.MissionError, match="none of those"):
         mission.remove_scrolls(tmp_path / "absent", remove=["PHerc9999"], reason="typo")
+
+
+def test_a_queued_job_freezes_the_selection_before_its_receipt_exists(tmp_path: Path):
+    """The panel's mission listing treats a queued job as work; `has_work`
+    alone reads receipts on disk and cannot see a job that has not finished
+    yet. `frozen_by_queue` is the caller's way of saying what the queue
+    already knows, so the two do not disagree about whether an edit needs a
+    reason.
+    """
+    mission.create(tmp_path, mission_id="racing", name="x", scrolls=["PHerc0001"])
+    directory = tmp_path / "racing"
+    assert mission.has_work(directory) is False
+
+    with pytest.raises(mission.MissionError, match="frozen"):
+        mission.amend_scrolls(directory, add=["PHerc0002"], frozen_by_queue=True)
+    amended = mission.amend_scrolls(directory, add=["PHerc0002"], reason="a job is running",
+                                    frozen_by_queue=True)
+    assert amended["amendments"][-1]["reason"] == "a job is running"
+
+    with pytest.raises(mission.MissionError, match="frozen"):
+        mission.remove_scrolls(directory, remove=["PHerc0002"], frozen_by_queue=True)
+    narrowed = mission.remove_scrolls(directory, remove=["PHerc0002"], reason="wrong scroll",
+                                      frozen_by_queue=True)
+    assert narrowed["amendments"][-1]["reason"] == "wrong scroll"

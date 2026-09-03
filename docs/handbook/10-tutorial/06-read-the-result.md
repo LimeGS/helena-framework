@@ -1,6 +1,6 @@
 ---
 title: Step 5 — Read the result, and iterate
-summary: Whether the map decided anything, what a vetting card is for, and where the research loop starts.
+summary: Whether the map decided anything, what a vetting card is for, what a plate is not, and where the research loop starts.
 ---
 
 The walkthrough's last step is a loop: run inference, label the clear strokes,
@@ -34,6 +34,24 @@ coherent rows aligned with the papyrus fibres, and at least ten visible legible
 letters in about 4 cm². What the platform adds is that the card records which
 map, from which render, from which surface, from which scan — so a claim can be
 retraced rather than re-argued.
+
+## If you go further: P8 and P9
+
+This walkthrough stops at one map and one claimed region — a screening pass is
+P4→P5→P7, and nothing past that runs here. Reading across a whole scroll needs
+two more phases. **P8** either merges certified surfaces into one immutable
+sheet or derives a measured winding order from public segment meshes; **P9**
+takes that measured order and composes the published ink maps into plate
+images, for a person to read across rather than one window at a time. Both are
+queueable phases, not aspirations, but neither has a role in this tutorial's
+single-surface path; see [P8](#/docs/phases/p8) and [P9](#/docs/phases/p9) for
+the fields and how each fails.
+
+A plate is not a vetting card. It carries no bbox, no threshold and no
+per-region measurement — it is a rendering of screening output, and the most
+persuasive artefact this platform makes, because it looks like a photograph of
+the papyrus. It is a picture of where a model responded, which is the same
+caution the card carries, with less evidence attached to it.
 
 ## Reading it honestly
 
