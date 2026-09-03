@@ -213,8 +213,8 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "source_slice_um": float, "model_family": str,
            "source_pixel_um": float, "depth_center": int, "stride": int,
            "model_config": str,
-           "batch_size": int, "min_valid_ratio": float, "device": str,
-           "on_degenerate": str, "artifact_store": str},
+           "batch_size": int, "num_workers": int, "min_valid_ratio": float,
+           "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
            "bbox": str, "px_um": float, "roi_receipt_sha256": str,
@@ -481,6 +481,9 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
                "note": "how far the tile moves; smaller overlaps more and costs more"},
     "batch_size": {"label": "Batch size",
                    "note": "tiles per forward pass; lower it if the card runs out of memory"},
+    "num_workers": {"label": "DataLoader workers",
+                    "note": "processes reading tiles ahead of the model; left empty the "
+                            "runner's own default (4) applies"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -1345,7 +1348,20 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
         "needs": ("checkpoint",),
         "flags": {"source_pixel_um": "--source-pixel-um",
                   "surface_volume": "--surface-volume",
-                  "on_degenerate": "--on-degenerate"},
+                  "on_degenerate": "--on-degenerate",
+                  # The profile pins 1 against a 6 GB card; a caller with more
+                  # VRAM has no other way to ask this runner for more. Every
+                  # other execution knob (overlap, blend mode, direction)
+                  # stays the profile's -- nothing has measured what changing
+                  # those costs, and these two have a hardware reason to
+                  # differ by host rather than by scientific choice.
+                  "batch_size": "--batch-size",
+                  # Upstream's own DataLoader worker count (default 4). Not
+                  # useful until HELENA_INK_9UM_ZARR_CACHE turns their read
+                  # from an S3 stream into a local one -- exposed anyway
+                  # because the runner already accepts it and a caller on a
+                  # host with more cores has no other way to ask for more.
+                  "num_workers": "--num-workers"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"

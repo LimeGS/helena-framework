@@ -173,6 +173,123 @@ def prepared_surface_volume(tiff_dir: Path, work_dir: Path, *,
         + (f": {said}" if said else ""))
 
 
+def zarr_cache_root() -> Path | None:
+    """Where a --surface-volume URL is mirrored locally, or None if disabled.
+
+    Off unless a caller sets it. The fourteen ink_9um checkpoints run against
+    the same PHerc0139 volume, restreamed from S3 in full on every one of
+    them -- ~1.4 GB at ~7.5 MB/s, with `direction: both` reading it twice.
+    Fourteen checkpoints times two directions is twenty-eight downloads of one
+    volume. This does not change what is read, only where it is read from
+    the second time onward.
+    """
+    raw = os.environ.get("HELENA_INK_9UM_ZARR_CACHE")
+    return Path(raw) if raw else None
+
+
+def parse_s3_https_url(url: str) -> tuple[str, str] | None:
+    """(bucket, key prefix) from a virtual-hosted-style S3 HTTPS URL.
+
+    None for anything else -- a local path, a different host, a scheme this
+    was not written for. The cache is skipped rather than guessed at.
+    """
+    from urllib.parse import urlparse
+    parsed = urlparse(str(url))
+    if parsed.scheme not in ("https", "s3"):
+        return None
+    if parsed.scheme == "s3":
+        return parsed.netloc, parsed.path.lstrip("/")
+    host = parsed.netloc
+    if ".s3." not in host and not host.startswith("s3."):
+        return None
+    bucket = host.split(".s3.")[0] if ".s3." in host else parsed.path.lstrip("/").split("/", 1)[0]
+    if ".s3." in host:
+        prefix = parsed.path.lstrip("/")
+    else:
+        parts = parsed.path.lstrip("/").split("/", 1)
+        prefix = parts[1] if len(parts) > 1 else ""
+    if not bucket or not prefix:
+        return None
+    return bucket, prefix.rstrip("/")
+
+
+def _anonymous_s3_client():
+    import boto3  # noqa: PLC0415
+    from botocore import UNSIGNED  # noqa: PLC0415
+    from botocore.config import Config  # noqa: PLC0415
+    return boto3.client("s3", config=Config(signature_version=UNSIGNED))
+
+
+def resolve_zarr_revision(client, bucket: str, prefix: str) -> str | None:
+    """A cheap signature for what this store currently holds: the ETag of its
+    root metadata object. One HEAD request, not a walk of every chunk -- if
+    the metadata is unchanged the array underneath is, by this project's own
+    convention that a published volume is not mutated in place.
+    """
+    for name in ("zarr.json", ".zattrs", ".zgroup", ".zarray"):
+        try:
+            head = client.head_object(Bucket=bucket, Key=f"{prefix}/{name}")
+        except Exception:  # noqa: BLE001 -- tried in order, next name or None
+            continue
+        return head.get("ETag", "").strip('"') or None
+    return None
+
+
+def mirror_zarr_to_local(url: str, cache_root: Path) -> str | None:
+    """Best-effort local mirror of an S3-hosted OME-Zarr. None on anything
+    that does not work out, so the caller falls back to the URL unchanged --
+    a cache that can fail open is the only kind worth having here.
+
+    Downloaded to a per-attempt temporary directory and moved into place with
+    one `rename`, so a job reading the cache never sees a partial copy left by
+    another job racing it, and two jobs racing just duplicate the download
+    rather than corrupt anything.
+    """
+    parsed = parse_s3_https_url(url)
+    if parsed is None:
+        return None
+    bucket, prefix = parsed
+    try:
+        client = _anonymous_s3_client()
+        revision = resolve_zarr_revision(client, bucket, prefix)
+        key = hashlib.sha256(f"{bucket}/{prefix}@{revision or 'unknown'}".encode()).hexdigest()[:24]
+        final_dir = cache_root / key
+        marker = final_dir / "_HELENA_CACHE_COMPLETE"
+        if marker.is_file():
+            return str(final_dir)
+
+        cache_root.mkdir(parents=True, exist_ok=True)
+        temp_dir = cache_root / f".tmp-{os.getpid()}-{key}"
+        if temp_dir.exists():
+            import shutil  # noqa: PLC0415
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        temp_dir.mkdir(parents=True)
+
+        paginator = client.get_paginator("list_objects_v2")
+        objects = [obj["Key"] for page in paginator.paginate(Bucket=bucket, Prefix=f"{prefix}/")
+                   for obj in page.get("Contents", ())]
+        if not objects:
+            return None
+
+        from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415
+
+        def fetch(remote_key: str) -> None:
+            relative = remote_key[len(prefix) + 1:]
+            destination = temp_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            client.download_file(bucket, remote_key, str(destination))
+
+        with ThreadPoolExecutor(max_workers=16) as pool:
+            list(pool.map(fetch, objects))
+
+        (temp_dir / "_HELENA_CACHE_COMPLETE").write_text(
+            json.dumps({"source": url, "revision": revision, "objects": len(objects)}))
+        os.replace(temp_dir, final_dir)  # atomic on the same filesystem
+        return str(final_dir)
+    except Exception:  # noqa: BLE001 -- a cache that cannot fetch reads the URL instead
+        return None
+
+
 def resolve_surface_volume(*, tiff_dir: Path | None,
                            surface_volume: str | None,
                            work_dir: Path,
@@ -188,6 +305,11 @@ def resolve_surface_volume(*, tiff_dir: Path | None,
             "name exactly one of --tiff-dir (a P4 layer stack, pooled here) "
             "or --surface-volume (a ready ~9 um isotropic OME-Zarr)")
     if surface_volume:
+        cache_root = zarr_cache_root()
+        if cache_root is not None:
+            cached = mirror_zarr_to_local(str(surface_volume), cache_root)
+            if cached is not None:
+                return cached
         return str(surface_volume)
     if source_voxel_um is None:
         raise ValueError(
@@ -198,12 +320,72 @@ def resolve_surface_volume(*, tiff_dir: Path | None,
         Path(tiff_dir), Path(work_dir), source_voxel_um=source_voxel_um))
 
 
+# Measured 6 GB (gpu-1, empties the map at batch 4) and 32 GB (RTX 5090, 1/4/8
+# all ALIVE and correlated r>0.99999). Nothing in between has been measured,
+# so this is a guess at the midpoint, not a finding -- move it if a card near
+# this line turns out to belong on the other side.
+DEFAULT_BATCH_SIZE_VRAM_THRESHOLD_MB = 16_384
+
+
+def detect_gpu_vram_mb() -> int | None:
+    """This process's own GPU memory budget, in MiB, or None if unreadable.
+
+    Deliberately not host-wide: a container sees only the card(s) its
+    CUDA_VISIBLE_DEVICES grants it, and a batch size has to fit what this
+    process can use, not what the host owns in total. Unlike
+    framework.contracts.host_probe.host_state, which strips that variable so
+    the panel can show a host's full inventory, this keeps it.
+    """
+    try:
+        out = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=10)
+        if out.returncode != 0:
+            return None
+        totals = [int(line.strip()) for line in out.stdout.strip().splitlines()
+                  if line.strip()]
+        return min(totals) if totals else None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def default_batch_size_for_host(profile: dict[str, Any]) -> int:
+    """4 on a card with enough VRAM to have been measured safe there, else the
+    profile's own pinned batch_size -- the one value known to work
+    everywhere, including a host this cannot read anything about.
+    """
+    vram_mb = detect_gpu_vram_mb()
+    if vram_mb is not None and vram_mb >= DEFAULT_BATCH_SIZE_VRAM_THRESHOLD_MB:
+        return 4
+    return int(profile["default_execution"]["batch_size"])
+
+
 def inference_command(profile: dict[str, Any], *, surface_volume: str,
-                      checkpoint: Path, output_tiff: Path) -> list[str]:
+                      checkpoint: Path, output_tiff: Path,
+                      batch_size: int | None = None,
+                      num_workers: int | None = None) -> list[str]:
     """The exact argv, so the receipt can carry it and a run can be repeated.
 
     ``input_zarr``, ``checkpoint`` and ``output_tiff`` are positional in
     upstream's parser; sending any of them as a flag value would not run.
+
+    ``batch_size`` overrides this host's own detected default when given.
+    Left None, ``default_batch_size_for_host`` picks 4 on a card with at
+    least 16 GiB and falls back to the profile's own pinned 1 -- measured
+    against a 6 GB card where 4 emptied the map -- on anything smaller or
+    unreadable. That measurement is about the card, not the model, so a
+    caller who knows their own hardware better than the guess can still
+    override either way.
+
+    ``num_workers`` overrides upstream's own --num-workers default (4) when
+    given. Measured live against a caching run: the DataLoader workers sat at
+    ~11% each while the main process pinned one core -- they are not the
+    bottleneck today, so raising this alone does little. It becomes worth
+    setting once HELENA_INK_9UM_ZARR_CACHE turns the workers' own read from an
+    S3 stream into a local one they can outrun the model with.
+
+    Neither is a change to overlap, blend mode or direction: nothing has
+    measured what changing those costs, and this stays the two knobs that do.
     """
     execution = profile["default_execution"]
     direction = execution["direction"]
@@ -214,6 +396,12 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     if blend_mode not in BLEND_MODES:
         raise ValueError(
             f"unknown blend mode {blend_mode!r}; upstream offers {list(BLEND_MODES)}")
+    resolved_batch_size = (default_batch_size_for_host(profile) if batch_size is None
+                           else int(batch_size))
+    if resolved_batch_size < 1:
+        raise ValueError(f"batch_size must be at least 1, got {resolved_batch_size}")
+    if num_workers is not None and int(num_workers) < 0:
+        raise ValueError(f"num_workers must be at least 0, got {num_workers}")
 
     interpreter = lane_interpreter()
     argv = [
@@ -222,8 +410,10 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
         "--overlap", str(execution["overlap"]),
         "--blend-mode", str(blend_mode),
         "--direction", str(direction),
-        "--batch-size", str(int(execution["batch_size"])),
+        "--batch-size", str(resolved_batch_size),
     ]
+    if num_workers is not None:
+        argv += ["--num-workers", str(int(num_workers))]
     # Absence of the flag is upstream's own default, so this is sent only to
     # turn compilation off -- see the profile's note for why this image wants
     # it off.
@@ -250,6 +440,14 @@ def main() -> int:
                     help="the scale --tiff-dir was rendered at")
     ap.add_argument("--sample-id", help="recorded in the receipt")
     ap.add_argument("--checkpoint", type=Path, required=True)
+    ap.add_argument("--batch-size", type=int, default=None,
+                    help="override the profile's default_execution.batch_size "
+                         "(default 1, chosen against a 6 GB card; a card with "
+                         "more VRAM may run more patches per step)")
+    ap.add_argument("--num-workers", type=int, default=None,
+                    help="override upstream's own DataLoader worker count "
+                         "(default 4); worth raising once the input is cached "
+                         "locally and the workers are no longer S3-bound")
     ap.add_argument("--output", type=Path, required=True,
                     help="the job's directory: the map, the pooled volume and "
                          "the receipt are all written inside it")
@@ -284,7 +482,9 @@ def main() -> int:
         return 3
     argv = inference_command(profile, surface_volume=surface_volume,
                              checkpoint=args.checkpoint,
-                             output_tiff=output_tiff)
+                             output_tiff=output_tiff,
+                             batch_size=args.batch_size,
+                             num_workers=args.num_workers)
     if args.print_command:
         print(json.dumps(argv))
         return 0

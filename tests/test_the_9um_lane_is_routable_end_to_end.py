@@ -68,6 +68,28 @@ def test_the_queue_builds_a_command_for_it(tmp_path):
     assert "--profile" in argv
 
 
+def test_a_queued_job_can_ask_for_a_different_batch_size(tmp_path):
+    """The profile pins 1 against a 6 GB card; nothing routed through the
+    queue could ask this runner for more until batch_size joined the lane's
+    flags."""
+    job = {"phase": "P5", "profile_id": PROFILE, "sample_id": "PHerc0139",
+           "parameters": {"surface_volume": "/vol.zarr",
+                          "checkpoint": "/models/step.pth", "batch_size": 8}}
+    argv = command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
+    assert "--batch-size" in argv and "8" in argv
+
+
+def test_a_queued_job_can_ask_for_a_different_worker_count(tmp_path):
+    """Not useful until the input is cached locally, but the queue is the
+    only path a job has to ask for anything -- exposed the same way
+    batch_size was."""
+    job = {"phase": "P5", "profile_id": PROFILE, "sample_id": "PHerc0139",
+           "parameters": {"surface_volume": "/vol.zarr",
+                          "checkpoint": "/models/step.pth", "num_workers": 8}}
+    argv = command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
+    assert "--num-workers" in argv and "8" in argv
+
+
 def test_the_queue_still_refuses_it_without_the_source_scale(tmp_path):
     """Pooling needs to know what it is pooling from. Guessing 2.4 would pool
     a native 9 um render into a 38 um one."""

@@ -28,9 +28,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/scripts"))
 
+import run_ink_9um  # noqa: E402
 from prepare_9um_isotropic_input import IncompatibleSourceScale  # noqa: E402
 from run_ink_9um import (  # noqa: E402
-    inference_command, load_lane_profile, preparation_command,
+    default_batch_size_for_host, detect_gpu_vram_mb, inference_command,
+    load_lane_profile, preparation_command,
 )
 
 PROFILE = ROOT / "framework/profiles/03-ink/ink-9um-hybrid-3d2d-screening-1.0.0.json"
@@ -191,6 +193,136 @@ def test_the_lane_does_not_batch_that_runner_more_than_one_patch():
     assert argv[argv.index("--batch-size") + 1] == "1"
 
 
+def test_a_caller_may_ask_for_more_batch_than_the_profile_pins():
+    """1 was measured against 4 emptying the map on a 6 GB card. Whether that
+    is the model or the card is an open question the profile itself does not
+    resolve -- a caller with more VRAM had no way to test it. Overlap, blend
+    mode and direction stay the profile's regardless: nothing has measured
+    what changing those costs, which batch_size now has, twice.
+    """
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             batch_size=8)
+    assert argv[argv.index("--batch-size") + 1] == "8"
+    assert argv[argv.index("--overlap") + 1] == str(profile["default_execution"]["overlap"])
+
+
+def test_none_still_means_the_profiles_own_default():
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             batch_size=None)
+    assert argv[argv.index("--batch-size") + 1] == str(profile["default_execution"]["batch_size"])
+
+
+def test_a_batch_size_under_one_is_refused():
+    profile = load_lane_profile(PROFILE)
+    with pytest.raises(ValueError, match="batch_size"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          batch_size=0)
+
+
+def test_num_workers_is_absent_by_default():
+    """No profile pins a worker count -- upstream's own default (4) has to
+    apply, which only happens when this recipe sends nothing at all."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+    assert "--num-workers" not in argv
+
+
+def test_a_caller_may_ask_for_a_different_worker_count():
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             num_workers=8)
+    assert argv[argv.index("--num-workers") + 1] == "8"
+
+
+def test_a_negative_worker_count_is_refused():
+    profile = load_lane_profile(PROFILE)
+    with pytest.raises(ValueError, match="num_workers"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          num_workers=-1)
+
+
+# -- batch_size default by host ---------------------------------------------
+
+class _FakeCompletedProcess:
+    def __init__(self, returncode=0, stdout=""):
+        self.returncode = returncode
+        self.stdout = stdout
+
+
+def test_detect_gpu_vram_mb_is_none_when_nvidia_smi_is_absent(monkeypatch):
+    def missing(*args, **kwargs):
+        raise FileNotFoundError("no such file: nvidia-smi")
+    monkeypatch.setattr(run_ink_9um.subprocess, "run", missing)
+    assert detect_gpu_vram_mb() is None
+
+
+def test_detect_gpu_vram_mb_is_none_on_a_nonzero_exit(monkeypatch):
+    monkeypatch.setattr(run_ink_9um.subprocess, "run",
+                        lambda *a, **k: _FakeCompletedProcess(returncode=1, stdout=""))
+    assert detect_gpu_vram_mb() is None
+
+
+def test_detect_gpu_vram_mb_takes_the_smallest_visible_card(monkeypatch):
+    """A batch size has to fit every card this process can see, not just the
+    biggest one -- two visible GPUs of different size means the smaller one
+    decides."""
+    monkeypatch.setattr(
+        run_ink_9um.subprocess, "run",
+        lambda *a, **k: _FakeCompletedProcess(returncode=0, stdout="32768\n6144\n"))
+    assert detect_gpu_vram_mb() == 6144
+
+
+def test_default_batch_size_is_4_at_the_vram_threshold(monkeypatch):
+    monkeypatch.setattr(run_ink_9um, "detect_gpu_vram_mb", lambda: 16_384)
+    profile = load_lane_profile(PROFILE)
+    assert default_batch_size_for_host(profile) == 4
+
+
+def test_default_batch_size_falls_back_below_the_vram_threshold(monkeypatch):
+    """One MiB under the line is still the profile's own pinned value --
+    measured against the 6 GB card, not a guess about the ones in between."""
+    monkeypatch.setattr(run_ink_9um, "detect_gpu_vram_mb", lambda: 16_383)
+    profile = load_lane_profile(PROFILE)
+    assert default_batch_size_for_host(profile) == profile["default_execution"]["batch_size"]
+
+
+def test_default_batch_size_falls_back_when_vram_is_unreadable(monkeypatch):
+    monkeypatch.setattr(run_ink_9um, "detect_gpu_vram_mb", lambda: None)
+    profile = load_lane_profile(PROFILE)
+    assert default_batch_size_for_host(profile) == profile["default_execution"]["batch_size"]
+
+
+def test_inference_command_applies_the_hosts_default_when_none_is_given(monkeypatch):
+    monkeypatch.setattr(run_ink_9um, "detect_gpu_vram_mb", lambda: 32_768)
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+    assert argv[argv.index("--batch-size") + 1] == "4"
+
+
+def test_an_explicit_batch_size_wins_without_even_probing_the_host(monkeypatch):
+    """A caller who already named a batch has said what they want; probing
+    the host anyway would be work with no effect and one more way this could
+    fail on a host with no nvidia-smi at all."""
+    probed = []
+    monkeypatch.setattr(run_ink_9um, "detect_gpu_vram_mb",
+                        lambda: probed.append(True) or 6_144)
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             batch_size=8)
+    assert argv[argv.index("--batch-size") + 1] == "8"
+    assert probed == []
+
+
 def test_the_upstream_runner_can_live_in_another_interpreter(monkeypatch):
     """A worker that claims from the queue needs psycopg; this lane's frozen
     lock has none, and adding one on top of `uv sync --frozen` would spend the
@@ -336,7 +468,8 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
         seen["work_dir"] = Path(work_dir)
         return "/somewhere/surface-volume.zarr"
 
-    def fake_inference_command(profile, *, surface_volume, checkpoint, output_tiff):
+    def fake_inference_command(profile, *, surface_volume, checkpoint, output_tiff,
+                               batch_size=None, num_workers=None):
         seen["output_tiff"] = Path(output_tiff)
         return ["true"]
 
