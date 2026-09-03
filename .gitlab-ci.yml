@@ -549,6 +549,72 @@ deploy to gpu-1:
     - if: $CI_COMMIT_BRANCH == "staging"
 
 # ---------------------------------------------------------------------------
+# publish
+# ---------------------------------------------------------------------------
+
+# A stranger's install pulls these once they exist -- see
+# containers/deploy-platform.sh's HELENA_PUBLIC_REGISTRY. Nothing publishes
+# them yet: this is the job that will, and it stays `when: manual` on purpose.
+# A push to a public registry is not something a green pipeline should decide
+# to do on its own, and DOCKERHUB_USER / DOCKERHUB_TOKEN are unset until a
+# maintainer adds them as masked, protected CI/CD variables -- absent either,
+# the job says so and exits rather than failing the pipeline it hangs off.
+publish images to docker hub:
+  stage: verify
+  tags: [gpu-1]
+  image: docker:27-cli
+  needs: ["deploy to gpu-1"]
+  variables:
+    HELENA_DEPLOY_HOST: "gpu-1"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+      when: manual
+      allow_failure: true
+  script:
+    - *on_its_host
+    - |
+      if [ -z "$DOCKERHUB_USER" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+        echo "DOCKERHUB_USER and DOCKERHUB_TOKEN are not both set as CI/CD"
+        echo "variables on this project; add them (masked, protected) to publish."
+        exit 0
+      fi
+      echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+    - version="$(cat VERSION)"
+    - |
+      # By resolved image ID rather than by guessing the local tag a deploy
+      # happened to name -- the same reason deploys verify themselves that way.
+      # A container not running on this host (control-tunnel joins a *second*
+      # machine; nothing here runs it) is built fresh instead: it has no
+      # dependencies and costs seconds.
+      publish_running() {
+        container="$1" repo="$2"
+        id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null)" || {
+          echo "$container is not running here; skipping helena-$repo" >&2
+          return 0
+        }
+        docker tag "$id" "docker.io/limegs/helena-$repo:$version"
+        docker tag "$id" "docker.io/limegs/helena-$repo:latest"
+        docker push "docker.io/limegs/helena-$repo:$version"
+        docker push "docker.io/limegs/helena-$repo:latest"
+      }
+      publish_running helena-panel panel
+      publish_running helena-segment worker-cpp
+      publish_running helena-gpu-runtime-0 worker-gpu
+    - |
+      # Neither runs persistently on this host by default -- backup only
+      # starts where HELENA_BACKUP_S3 is set, and control-tunnel joins a
+      # *second* machine -- so both are built fresh here instead of read off
+      # a container that may not exist. Cheap: neither depends on villa.
+      publish_built() {
+        containerfile="$1" repo="$2"; shift 2
+        docker build -q -f "$containerfile" --build-arg BUILD_COMMIT="$CI_COMMIT_SHA" "$@" -t "docker.io/limegs/helena-$repo:$version" -t "docker.io/limegs/helena-$repo:latest" .
+        docker push "docker.io/limegs/helena-$repo:$version"
+        docker push "docker.io/limegs/helena-$repo:latest"
+      }
+      publish_built containers/images/Containerfile.backup backup --build-arg BASE_IMAGE=postgres:16-alpine
+      publish_built containers/images/Containerfile.control-tunnel control-tunnel
+
+# ---------------------------------------------------------------------------
 # verify
 # ---------------------------------------------------------------------------
 

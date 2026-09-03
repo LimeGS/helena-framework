@@ -178,7 +178,10 @@ worker starts from a database URL alone.
 
 Nothing external is needed. The deploy builds what it runs, including Volume
 Cartographer **compiled from source** at the commit its lock pins and checked
-against that commit's tree hash. Expect an hour or two, more for `gpu`.
+against that commit's tree hash. Expect an hour or two, more for `gpu` —
+unless the images have been published, in which case `HELENA_PUBLIC_REGISTRY`
+pulls them instead on a fresh install, and a failed pull still falls back to
+building.
 
 A worker on another host needs a machine token: mint one under **Users →
 Machine tokens** and set `HELENA_PANEL_TOKEN`. It reaches the artifact
@@ -258,7 +261,8 @@ and receipts carry their own immutable identities, which never move with it.
 
 ## TODO
 
-- **Publish the images.** Every deploy builds them where it runs, Volume
-  Cartographer included, which is the hour or two the Workers section warns
-  about. Next is pushing the images to Docker Hub by digest, so a deploy pulls
-  instead of compiling and builds only when told to.
+- **Publish the images, for real.** The pull-before-build mechanism exists
+  (`HELENA_PUBLIC_REGISTRY`, above) and so does the CI job that would push to
+  it — `publish images to docker hub`, `when: manual` on purpose, gated on a
+  Docker Hub token nobody has added yet. Until somebody clicks it, every
+  install still builds Volume Cartographer from source.
