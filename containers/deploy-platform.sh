@@ -192,6 +192,14 @@ PY_LOCK
 #
 # Existing files are never touched. This fills gaps, it does not reset.
 mkdir -p "$env_dir"
+# Whether this run is the one that created platform.env, not whether it exists
+# now -- the loop below is about to create it if it was missing. A host with a
+# platform.env already has a config gpu-1 and work-3 both wrote by hand before
+# any of this existed, and staging has to deploy the commit under test, not
+# whichever version a registry happens to publish. That distinction is what
+# HELENA_PUBLIC_REGISTRY's own default reads below.
+platform_env_is_new=false
+[ -f "$env_dir/platform.env" ] || platform_env_is_new=true
 for template in "$compose"/*.env.example; do
   [ -f "$template" ] || continue
   wanted="$env_dir/$(basename "$template" .example)"
@@ -200,6 +208,21 @@ for template in "$compose"/*.env.example; do
   chmod 600 "$wanted"
   say "wrote $wanted from its template; edit it if the defaults do not fit"
 done
+
+# Published images this deploy may pull instead of building. Off by default on
+# a host that already had a platform.env -- gpu-1 and work-3 both do, and
+# staging exists to run the commit under test, which a published tag (cut on
+# its own, slower cadence) is not guaranteed to be. A genuinely fresh host has
+# no such commitment, so it defaults on there: the point of publishing is that
+# a stranger's first install pulls the panel and the worker images instead of
+# compiling volume-cartographer for an hour. Either way this is a caller's
+# explicit HELENA_PUBLIC_REGISTRY first, since a value set on purpose -- by
+# this same deploy re-run, or by someone who wants gpu-1 to try it too -- is
+# not this default's business to override.
+HELENA_PUBLIC_REGISTRY="${HELENA_PUBLIC_REGISTRY:-}"
+if [ -z "$HELENA_PUBLIC_REGISTRY" ] && [ "$platform_env_is_new" = true ]; then
+  HELENA_PUBLIC_REGISTRY="docker.io/limegs"
+fi
 
 # The compose files name their env files as ${HELENA_*_ENV:-/etc/helena/...},
 # and the templates that set those variables set them to this fleet's absolute
@@ -434,6 +457,13 @@ done
 # Still an hour or two on a cold host: pytorch's runtime image is 3.3 GB before
 # anything of ours is installed.
 if [ "$profile" = gpu ]; then
+  # A known cost, not fixed here: on a host's first HELENA_PUBLIC_REGISTRY
+  # deploy, this still builds qc_base (and villa under it) even when
+  # helena-worker-gpu itself later pulls ready-made and never needed it. Cheap
+  # to skip in principle -- check whether the worker-gpu tag exists in the
+  # public registry before starting this section -- expensive to get wrong in
+  # a script this size under one pass, so it stays a one-time cost per fresh
+  # host: qc_base is cached locally afterward like everything else here.
   if ! $D image inspect "$qc_base" >/dev/null 2>&1 && ! $D pull -q "$qc_base" >/dev/null 2>&1; then
     say "$qc_base is not on this host and could not be pulled; building it"
     # The name build-worker.sh tags it as. `prefix` is that script's variable,
@@ -597,14 +627,29 @@ say "deploying $profile at $commit on $(hostname)"
 # one name.
 panel_image="$registry/helena-panel:$commit_full"
 say "pulling $panel_image"
-if ! $D pull -q "$panel_image" >/dev/null 2>&1; then
-  # No registry, or not one this host can reach. That is the normal case for
-  # anybody outside the deployment this was written in: HELENA_REGISTRY points
-  # at a private VIP by default, and the README tells people to run this script.
-  #
-  # Building from the checkout is slower and produces bytes only this host has,
-  # which is exactly what the registry exists to avoid -- so it is the fallback
-  # and not the default, and it says so.
+panel_pulled=false
+if $D pull -q "$panel_image" >/dev/null 2>&1; then
+  panel_pulled=true
+elif [ -n "$HELENA_PUBLIC_REGISTRY" ]; then
+  # No registry, or not one this host can reach -- the normal case for anybody
+  # outside the deployment this was written in: HELENA_REGISTRY points at a
+  # private VIP by default. HELENA_PUBLIC_REGISTRY is the second try, tagged
+  # by VERSION rather than by commit: publishing is a release, not every push,
+  # so the published tag is whatever the last release was, not necessarily
+  # this commit. Fine for a stranger's first install; wrong for staging, which
+  # is why this variable's own default never turns on for a host that already
+  # had a config.
+  public_panel_image="$HELENA_PUBLIC_REGISTRY/helena-panel:$(cat "$root/VERSION")"
+  say "could not pull $panel_image; trying $public_panel_image"
+  if $D pull -q "$public_panel_image" >/dev/null 2>&1; then
+    panel_image="$public_panel_image"
+    panel_pulled=true
+  fi
+fi
+if [ "$panel_pulled" = false ]; then
+  # Building from the checkout is slower and produces bytes only this host
+  # has, which is exactly what a registry exists to avoid -- so it is the
+  # fallback and not the default, and it says so.
   say "could not pull it; building the panel from this checkout instead"
   say "(a published image is preferable: every host then runs identical bytes)"
   panel_image="helena-panel:local-$commit"
@@ -647,20 +692,41 @@ up "the platform stack" -p helena -f "$compose/platform.compose.yaml" \
 # helena-segment and helena-host-report: the CPU workers
 # --------------------------------------------------------------------------
 #
-# Built on the host that runs them rather than pushed: these are gigabytes on a
-# CUDA base, and the hosts reach each other on nothing but 22.
-say "building $worker_tag"
-# Piping the build into grep hides its exit status behind grep's, so a build
-# that failed read as a build that succeeded and the deploy carried on to start
-# the previous image under a new commit's name. Keep the log, check the status,
-# and stop -- a deploy that half happened is worse than one that refused.
-if ! BUILD_COMMIT="$commit" sh "$root/containers/build-worker.sh" "$root" "$worker_tag" \
-     > /tmp/helena-worker-cpp-build.log 2>&1; then
-  echo "the worker image failed to build; the deploy stops here" >&2
-  tail -20 /tmp/helena-worker-cpp-build.log >&2
-  exit 5
+# Built on the host that runs them rather than pushed through the internal
+# registry: these are gigabytes on a CUDA base, and the hosts reach each other
+# on nothing but 22. HELENA_PUBLIC_REGISTRY is a different route -- the public
+# internet, not host-to-host -- and worth trying first for the same reason it
+# is for the panel: an hour of compiling volume-cartographer is the cost this
+# whole mechanism exists to avoid paying on a stranger's first install.
+worker_pulled=false
+if [ -n "$HELENA_PUBLIC_REGISTRY" ]; then
+  public_worker_image="$HELENA_PUBLIC_REGISTRY/helena-worker-cpp:$(cat "$root/VERSION")"
+  say "pulling $public_worker_image"
+  if $D pull -q "$public_worker_image" >/dev/null 2>&1; then
+    # Tagged under the name every reference below already expects, rather than
+    # renaming those references -- so a caller who hardcoded the local name
+    # for anything downstream is not the thing this has to get right.
+    $D tag "$public_worker_image" "$worker_tag"
+    worker_pulled=true
+  else
+    say "could not pull it; building $worker_tag from this checkout instead"
+  fi
 fi
-grep -E 'naming to' /tmp/helena-worker-cpp-build.log | sed 's/^/  /' || true
+if [ "$worker_pulled" = false ]; then
+  say "building $worker_tag"
+  # Piping the build into grep hides its exit status behind grep's, so a build
+  # that failed read as a build that succeeded and the deploy carried on to
+  # start the previous image under a new commit's name. Keep the log, check
+  # the status, and stop -- a deploy that half happened is worse than one that
+  # refused.
+  if ! BUILD_COMMIT="$commit" sh "$root/containers/build-worker.sh" "$root" "$worker_tag" \
+       > /tmp/helena-worker-cpp-build.log 2>&1; then
+    echo "the worker image failed to build; the deploy stops here" >&2
+    tail -20 /tmp/helena-worker-cpp-build.log >&2
+    exit 5
+  fi
+  grep -E 'naming to' /tmp/helena-worker-cpp-build.log | sed 's/^/  /' || true
+fi
 
 set_image segment.env HELENA_SEGMENT_IMAGE "$worker_tag"
 up "the segment stack" -p helena-segment -f "$compose/segment.compose.yaml" \
@@ -687,46 +753,60 @@ fi
 # repeated. The pipeline accepts that deliberately: a deploy that waits for a
 # queue to drain is a deploy that never happens on a busy machine.
 ink_tag="helena-worker-gpu:local-$commit"
-say "building $ink_tag on $qc_base"
-# One tag, two targets. The lane used to be a second image built on top of this
-# one -- a full copy, 16.5 GB against 7.83, differing by a directory. BuildKit
-# skips the lane stage entirely when `runtime` is the target, so a host without
-# the lane image never has to fetch it.
-nine_lane="${HELENA_INK_9UM_IMAGE:-helena-ink-9um:local}"
-# Build it if it is not here. This was skipped on any host that did not already
-# have the image -- it wanted an ink-detection checkout handed in as a build
-# context, which is the same thing that made helena-villa unbuildable until it
-# learned to clone the commit its lock pins. It clones now.
-#
-# Its own entry in the lock, and its own commit: ink-detection moves separately
-# from the rest of villa.
-$D image inspect "$nine_lane" >/dev/null 2>&1 || {
-  say "building $nine_lane, the 9 um lane runtime"
-  $D build -q \
-    --build-arg BASE_IMAGE="${HELENA_INK_9UM_BASE_IMAGE:-python:3.12-slim}" \
-    --build-arg VILLA_INK_COMMIT="$(villa_lock_entry villa_ink_detection commit)" \
-    --build-arg VILLA_INK_TREE="$(villa_lock_entry villa_ink_detection tree)" \
-    --build-context "uv_context=${UV_CONTEXT:-docker-image://ghcr.io/astral-sh/uv:0.11.32}" \
-    --build-context "repo=$root" \
-    -f "$root/containers/images/Containerfile.ink-9um" \
-    -t "$nine_lane" "$root" >/dev/null \
-    || say "$nine_lane failed to build; the 9 um slot is not deployed here"
-}
-# Through a function so the target and the lane argument can vary without
-# `set --` rewriting this script's own positional parameters. /bin/sh has no
-# arrays to hold them in.
-build_ink_worker() {
-  $D build -q "$@" \
-    --build-arg BASE_IMAGE="$qc_base" --build-arg BUILD_COMMIT="$commit" \
-    -f "$root/containers/images/Containerfile.worker-gpu" -t "$ink_tag" "$root" >/dev/null
-}
-if $D image inspect "$nine_lane" >/dev/null 2>&1; then
-  say "  with the 9 um lane from $nine_lane"
-  build_ink_worker --target with_lane --build-arg LANE_IMAGE="$nine_lane"
-else
-  say "  without the 9 um lane: $nine_lane is not on this host"
-  build_ink_worker --target runtime
-fi || { echo "the ink-worker image failed to build; the deploy stops here" >&2; exit 5; }
+ink_pulled=false
+if [ -n "$HELENA_PUBLIC_REGISTRY" ]; then
+  public_ink_image="$HELENA_PUBLIC_REGISTRY/helena-worker-gpu:$(cat "$root/VERSION")"
+  say "pulling $public_ink_image"
+  if $D pull -q "$public_ink_image" >/dev/null 2>&1; then
+    $D tag "$public_ink_image" "$ink_tag"
+    ink_pulled=true
+  else
+    say "could not pull it; building $ink_tag from this checkout instead"
+  fi
+fi
+if [ "$ink_pulled" = false ]; then
+  say "building $ink_tag on $qc_base"
+  # One tag, two targets. The lane used to be a second image built on top of
+  # this one -- a full copy, 16.5 GB against 7.83, differing by a directory.
+  # BuildKit skips the lane stage entirely when `runtime` is the target, so a
+  # host without the lane image never has to fetch it.
+  nine_lane="${HELENA_INK_9UM_IMAGE:-helena-ink-9um:local}"
+  # Build it if it is not here. This was skipped on any host that did not
+  # already have the image -- it wanted an ink-detection checkout handed in as
+  # a build context, which is the same thing that made helena-villa
+  # unbuildable until it learned to clone the commit its lock pins. It clones
+  # now.
+  #
+  # Its own entry in the lock, and its own commit: ink-detection moves
+  # separately from the rest of villa.
+  $D image inspect "$nine_lane" >/dev/null 2>&1 || {
+    say "building $nine_lane, the 9 um lane runtime"
+    $D build -q \
+      --build-arg BASE_IMAGE="${HELENA_INK_9UM_BASE_IMAGE:-python:3.12-slim}" \
+      --build-arg VILLA_INK_COMMIT="$(villa_lock_entry villa_ink_detection commit)" \
+      --build-arg VILLA_INK_TREE="$(villa_lock_entry villa_ink_detection tree)" \
+      --build-context "uv_context=${UV_CONTEXT:-docker-image://ghcr.io/astral-sh/uv:0.11.32}" \
+      --build-context "repo=$root" \
+      -f "$root/containers/images/Containerfile.ink-9um" \
+      -t "$nine_lane" "$root" >/dev/null \
+      || say "$nine_lane failed to build; the 9 um slot is not deployed here"
+  }
+  # Through a function so the target and the lane argument can vary without
+  # `set --` rewriting this script's own positional parameters. /bin/sh has no
+  # arrays to hold them in.
+  build_ink_worker() {
+    $D build -q "$@" \
+      --build-arg BASE_IMAGE="$qc_base" --build-arg BUILD_COMMIT="$commit" \
+      -f "$root/containers/images/Containerfile.worker-gpu" -t "$ink_tag" "$root" >/dev/null
+  }
+  if $D image inspect "$nine_lane" >/dev/null 2>&1; then
+    say "  with the 9 um lane from $nine_lane"
+    build_ink_worker --target with_lane --build-arg LANE_IMAGE="$nine_lane"
+  else
+    say "  without the 9 um lane: $nine_lane is not on this host"
+    build_ink_worker --target runtime
+  fi || { echo "the ink-worker image failed to build; the deploy stops here" >&2; exit 5; }
+fi
 
 inflight="$($D exec helena-postgres psql -U campaignx -d campaignx -tAc \
   "select count(*) from segment_qc_jobs where state='CLAIMED'" 2>/dev/null | tr -d '[:space:]')"
