@@ -121,3 +121,26 @@ def test_every_catalogued_scroll_has_a_scale():
         (ROOT / "workspace/catalog/eligible_volumes.json").read_text())
     for entry in catalogue["entries"]:
         assert entry.get("voxel_size_um"), entry.get("sample_id")
+
+
+def test_chunk_gather_is_not_asked_for_a_number_it_never_reads():
+    """chunk-gather derives its scale from the volume key it is given (and an
+    optional --voxel-um override render_scroll.py resolves on its own); the
+    queue's command builder for this lane never forwards source_voxel_um at
+    all. Refusing an uncatalogued scroll for it blocked a lane the catalogue
+    has no bearing on -- PHerc0139 among them.
+    """
+    app_source = (ROOT / "panel/app.py").read_text(encoding="utf-8")
+    guard = ('if request.phase == "P4" and '
+             'parameters.get("lane", "vc-render-tifxyz") != "chunk-gather":')
+    call = app_source.index("resolve_source_voxel(parameters, request.sample_id)")
+    assert guard in app_source, (
+        "resolve_source_voxel must be skipped for the chunk-gather lane, "
+        "which never reads source_voxel_um")
+    assert app_source.index(guard) < call < app_source.index(guard) + 400, (
+        "the chunk-gather guard must sit directly above this call")
+    sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))
+    import job_store  # noqa: PLC0415
+    assert "source_voxel_um" not in job_store.P4_LANES["chunk-gather"]["required"], (
+        "chunk-gather now takes source_voxel_um; the queue-time skip above "
+        "is stale and it should be resolved again")

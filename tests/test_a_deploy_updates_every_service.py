@@ -187,8 +187,13 @@ def test_a_deploy_works_without_the_private_registry() -> None:
     """
     fallback = DEPLOY[DEPLOY.index("panel_image="):]
     fallback = fallback[: fallback.index("set_image platform.env")]
-    assert "if ! $D pull" in fallback, (
-        "a failed pull still aborts the deploy, so the documented command cannot "
+    assert '$D pull -q "$panel_image"' in fallback, (
+        "the internal registry is tried first, and its absence must not skip "
+        "straight to a build without the pull ever having been attempted"
+    )
+    assert 'if [ "$panel_pulled" = false ]' in fallback, (
+        "a pull that never succeeded -- not just one that failed once -- must "
+        "still reach the build fallback, so the documented command cannot "
         "work outside the network HELENA_REGISTRY points into"
     )
     assert "Containerfile.panel" in fallback, "there is no fallback build"

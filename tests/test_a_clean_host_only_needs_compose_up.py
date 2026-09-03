@@ -172,8 +172,8 @@ def test_the_credentials_are_stated_once() -> None:
 
 
 def test_an_optional_env_file_is_marked_optional() -> None:
-    """A missing env_file is a hard error unless it says otherwise, and these
-    all point at /etc/helena, which a clean host does not have."""
+    """A missing env_file is a hard error unless it says otherwise, and a
+    clean host has none of these files until the deploy seeds them."""
     for name, service in COMPOSE["services"].items():
         for entry in service.get("env_file") or []:
             assert isinstance(entry, dict), (
@@ -193,3 +193,39 @@ def test_the_database_is_not_reachable_from_off_the_host() -> None:
         assert str(published).startswith("127.0.0.1:"), (
             f"postgres is published as {published}, and the password is public"
         )
+
+
+def test_the_env_files_default_to_the_checkout() -> None:
+    """The env files moved from /etc/helena into config/, and the compose files
+    kept naming /etc/helena as the default. On a clean install the deploy
+    seeded config/panel.env and the panel never read it: platform.env.example
+    said HELENA_PANEL_ENV=/etc/helena/panel.env, a file nobody had, marked
+    optional, so it was skipped in silence and the panel ran on defaults.
+
+    The default is the checkout, relative to the compose directory. The one
+    file allowed to name /etc/helena is the CI runner's, which mounts it for
+    hosts configured before.
+    """
+    import re
+    compose_dir = ROOT / "containers/compose"
+    for path in sorted(compose_dir.glob("*.compose.yaml")):
+        if path.name == "runner.compose.yaml":
+            continue
+        text = path.read_text()
+        for var, default in re.findall(r"\$\{(HELENA_[A-Z_]+_ENV):-([^}]+)\}", text):
+            assert default.startswith("../../config/"), (
+                f"{path.name} defaults {var} to {default}; a clean host has "
+                "no /etc/helena and the checkout's config/ is where the deploy "
+                "seeds the file")
+    example = (ROOT / "containers/compose/platform.env.example").read_text()
+    assert not re.search(r"^HELENA_[A-Z_]+_ENV=/etc/helena", example, re.M), (
+        "the template hands a clean install a path under /etc that it will "
+        "not have")
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
+    for pair in ("HELENA_PANEL_ENV panel.env", "HELENA_AWS_ENV aws.env"):
+        assert pair in deploy, (
+            f"the deploy does not point {pair.split()[0]} at the seeded file, so "
+            "a host configured under /etc/helena loses it")
+    assert "platform.env HELENA_PANEL_ENV panel.env" in deploy, (
+        "a seeded platform.env naming a panel.env that does not exist is never "
+        "corrected, and a compose run by hand reads nothing")

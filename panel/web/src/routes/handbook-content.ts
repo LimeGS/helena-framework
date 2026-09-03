@@ -61,6 +61,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
+      "text": "Documentation has three tabs. This is the Handbook: the walkthrough, the phases, and every panel page with what its controls do, written by hand. Developer reference and API reference sit beside it, generated from the code they describe — contracts, profiles and how to put your own tool into a phase on one, the HTTP routes themselves on the other. Reach for those when you need the exact shape of something rather than an explanation of it."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
       "text": "Sections down the left, one page at a time, and the current page's own headings under it. The filter searches the full text of every page, not just the titles — if you half-remember a phrase, type the phrase."
      }
     ]
@@ -272,6 +281,47 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Helena does not reimplement the algorithms it runs. VC3D, m7, ScrollFiesta, the Volume Cartographer flatteners and the ink models stay exactly what they are; a phase calls them through a stable adapter and records what each was given and what it returned. A phase implemented as a separate component rather than inline in "
+     },
+     {
+      "kind": "code",
+      "text": "framework/stages/"
+     },
+     {
+      "kind": "text",
+      "text": " is registered in "
+     },
+     {
+      "kind": "code",
+      "text": "framework/registries/"
+     },
+     {
+      "kind": "text",
+      "text": " and vendored under "
+     },
+     {
+      "kind": "code",
+      "text": "framework/vendored/"
+     },
+     {
+      "kind": "text",
+      "text": ", each component with a "
+     },
+     {
+      "kind": "code",
+      "text": "VENDOR.json"
+     },
+     {
+      "kind": "text",
+      "text": " recording the source commit and a hash per file. Only the technique is imported; findings stay at the source."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "The shape of a run",
@@ -363,7 +413,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A worker on a GPU host claims the job, runs it, and publishes what it made to the artifact store. The panel never runs the work itself — it writes a row and waits, which is why a panel outage does not stop a render that is already going."
+      "text": "A worker claims the job, runs it, and publishes what it made to the artifact store. Which worker may claim it depends on the capability the job declares — most phases run on a CPU-only fleet, and only ink detection and surface QC need a GPU. The panel never runs the work itself — it writes a row and waits, which is why a panel outage does not stop a render that is already going."
      }
     ]
    },
@@ -462,7 +512,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " has been registered for this mission and sample, and the surface boundaries ask whether the surface row itself is marked. A mission with "
+      "text": " has been registered for this mission, and the surface boundaries ask whether the surface row itself is marked. A mission with "
      },
      {
       "kind": "code",
@@ -470,7 +520,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " and no registered admission is gated as generic. From that moment every phase"
+      "text": " and no registered admission is gated as generic."
      }
     ]
    },
@@ -479,7 +529,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "boundary asks a harder question:"
+      "text": "From that moment every phase boundary asks a harder question:"
      }
     ]
    },
@@ -627,6 +677,15 @@ export const HANDBOOK: Page[] = [
        "text": " Several upstream tools report success after failing to open their input. Where Helena knows about it, the phase verifies its own output before calling the job a success — P4 counts the slices it wrote and checks the middle one is not a constant, and refuses if it is."
       }
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A third discipline sits beside those two: geometry certification, CT support, the detector's own response and human review are four separate judgements, and none of them stands in for another. A surface can be CT-supported and geometrically rejected at once — they answer different questions, and a phase page shows each as its own field rather than folding them into one verdict."
+     }
     ]
    },
    {
@@ -794,7 +853,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "one mesh per winding, as TIFXYZ"
+        "text": "a TIFXYZ surface — one per winding from a fit, one from a grow"
        }
       ]
      ],
@@ -878,13 +937,13 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "a sheet and the CT volume"
+        "text": "a flattened sheet or the certified surface itself, and the CT volume"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "a numbered TIFF stack, or Zarr"
+        "text": "a numbered TIFF stack, optionally also a Zarr copy"
        }
       ]
      ],
@@ -904,7 +963,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "a layer stack"
+        "text": "a layer stack and an ink lane profile"
        }
       ],
       [
@@ -935,8 +994,28 @@ export const HANDBOOK: Page[] = [
       ],
       [
        {
+        "kind": "code",
+        "text": "ALIVE"
+       },
+       {
         "kind": "text",
-        "text": "whether the map carries a decision at all"
+        "text": ", "
+       },
+       {
+        "kind": "code",
+        "text": "DEGENERATE"
+       },
+       {
+        "kind": "text",
+        "text": " or "
+       },
+       {
+        "kind": "code",
+        "text": "EMPTY"
+       },
+       {
+        "kind": "text",
+        "text": " — whether the map carries a decision at all"
        }
       ]
      ],
@@ -956,13 +1035,13 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "a map and its liveness"
+        "text": "a probability map and a claimed bounding box"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "a vetting card and a verdict"
+        "text": "candidate shapes, qualifying rows, and a pass or fail against the strict screen"
        }
       ]
      ],
@@ -988,7 +1067,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "a merged surface, a column atlas"
+        "text": "a relation graph, or a merged surface (merge lane)"
        }
       ]
      ],
@@ -1026,6 +1105,32 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": "Not every run touches all ten. A screening pass is P4→P5→P7. A geometry campaign is P1→P2→P8. The chain is what constrains the order, not a schedule anybody has to follow."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Three phases run more than one way, and each one names its own lanes: P1's seeded grow and spiral fit above, P8's column-atlas and merge lane above, and P4's two renderers — the default "
+     },
+     {
+      "kind": "code",
+      "text": "vc-render-tifxyz"
+     },
+     {
+      "kind": "text",
+      "text": ", and a chunk-gather lane built around a legacy PPM instead of a sheet. See the "
+     },
+     {
+      "kind": "link",
+      "text": "phase page",
+      "href": "#/docs/phases/p4"
+     },
+     {
+      "kind": "text",
+      "text": " for what each lane needs."
      }
     ]
    },
@@ -1187,6 +1292,31 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Only six phases are queued this way: P1, P4, P5, P7, P8 and P9. The other four are not jobs you queue from the panel. P0 has no command at all. P2 runs automatically when the fleet finalizes a surface, or through its own "
+     },
+     {
+      "kind": "code",
+      "text": "certify"
+     },
+     {
+      "kind": "text",
+      "text": " backfill command. P3 runs from its own "
+     },
+     {
+      "kind": "code",
+      "text": "flatten"
+     },
+     {
+      "kind": "text",
+      "text": " command. P6 is not run; it is a verdict the P5 adapter writes into its own receipt."
+     }
+    ]
+   },
+   {
     "kind": "list",
     "ordered": false,
     "items": [
@@ -1280,6 +1410,10 @@ export const HANDBOOK: Page[] = [
   "summary": "The nouns this platform uses, and the distinctions each one is protecting.",
   "outline": [
    {
+    "id": "panel",
+    "text": "Panel"
+   },
+   {
     "id": "work",
     "text": "Work"
    },
@@ -1309,6 +1443,38 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "Panel",
+    "id": "panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Phase rail"
+     },
+     {
+      "kind": "text",
+      "text": " — the sidebar on every panel screen: one row per phase, P0 through P9, coloured by whether it is running, queued, blocked or done for the mission and subject currently selected. Its ten rows draw on first paint; the live status lands once the summary answers."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Tile"
+     },
+     {
+      "kind": "text",
+      "text": " — a titled summary card on the Mission page, such as fleet hardware or run counts, holding one value and a tone (steady, busy, warn or alert) that says how much attention it needs."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "Work",
     "id": "work"
    },
@@ -1321,11 +1487,11 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — the project a piece of work belongs to. It names the scrolls being attempted and whether the run is "
+      "text": " — the project a piece of work belongs to. It names the scrolls being attempted and whether the run is a "
      },
      {
       "kind": "link",
-      "text": "certified or exploratory",
+      "text": "certification or exploration run",
       "href": "#/docs/start/what-helena-is"
      },
      {
@@ -1385,7 +1551,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "scroll3-chunk-gather"
+      "text": "chunk-gather"
      },
      {
       "kind": "text",
@@ -1472,6 +1638,35 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": ", a sample, an area, and four independent QC states."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Origin"
+     },
+     {
+      "kind": "text",
+      "text": " — whether a surface was grown by this pipeline or brought in from outside it: "
+     },
+     {
+      "kind": "code",
+      "text": "GROWN_HERE"
+     },
+     {
+      "kind": "text",
+      "text": " for a surface P1 produced here, "
+     },
+     {
+      "kind": "code",
+      "text": "IMPORTED"
+     },
+     {
+      "kind": "text",
+      "text": " for everything else, including a segment published by someone else's run. The panel shows the same split as \"grown here\" and \"imported\"."
      }
     ]
    },
@@ -1572,6 +1767,51 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "strong",
+      "text": "Liveness verdict"
+     },
+     {
+      "kind": "text",
+      "text": " — whether a probability map carries a decision at all: "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "DEGENERATE"
+     },
+     {
+      "kind": "text",
+      "text": ", or "
+     },
+     {
+      "kind": "code",
+      "text": "EMPTY"
+     },
+     {
+      "kind": "text",
+      "text": ". "
+     },
+     {
+      "kind": "code",
+      "text": "DEGENERATE"
+     },
+     {
+      "kind": "text",
+      "text": " is not a statement about ink; it means the output head is untrained, collapsed, or fed input far outside its training distribution, so nothing downstream may screen the map. A P5 job whose receipt carries no liveness verdict is failed."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
       "text": "Artifact"
      },
      {
@@ -1658,7 +1898,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "code",
-        "text": "BRIDGE"
+        "text": "GEOMETRY_REJECTED_BRIDGE"
        },
        {
         "kind": "text",
@@ -1666,7 +1906,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "code",
-        "text": "LAMINA_SWITCH"
+        "text": "GEOMETRY_REJECTED_LAMINA_SWITCH"
        },
        {
         "kind": "text",
@@ -1674,7 +1914,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "code",
-        "text": "DISTORTION"
+        "text": "GEOMETRY_REJECTED_DISTORTION"
        },
        {
         "kind": "text",
@@ -1682,7 +1922,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "code",
-        "text": "COVERAGE"
+        "text": "GEOMETRY_REJECTED_COVERAGE"
        }
       ]
      ],
@@ -2211,7 +2451,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "text",
-        "text": " — P6, P7, P9"
+        "text": " — P6, P7"
        }
       ],
       [
@@ -2258,7 +2498,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ", counted on the Mission page's Fleet tile and "
+       "text": ", counted on the Mission page's Fleet hardware tile, with a live one showing "
       },
       {
        "kind": "code",
@@ -2428,7 +2668,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ". The catalogue is what this deployment can reach — seeded from the committed file and refreshed from the open-data bucket on startup and daily; a scroll not in it is not a scroll you can start from."
+       "text": ". The table lists every scroll the open-data bucket exposes. A frozen catalogue — seeded from a committed file and refreshed from the bucket on startup and daily — supplies the declared scale for the scrolls it describes, and only a name it (or another source this deployment has registered) can resolve to a real volume can actually be added to a mission."
       }
      ],
      [
@@ -2442,13 +2682,21 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ". Check it against the scan you think you chose — a scroll often has several, at different energies and resolutions, and they are not interchangeable."
+       "text": ". Check it against the scan you think you chose — a scroll often has several, at different energies and resolutions, and they are not interchangeable. A blank cell means the catalogue does not describe this scan; the scale is unpinned, not merely unknown."
       }
      ],
      [
       {
        "kind": "text",
-       "text": "Tick the scroll, say why, and "
+       "text": "Tick the scroll and click "
+      },
+      {
+       "kind": "strong",
+       "text": "Apply"
+      },
+      {
+       "kind": "text",
+       "text": " — say why only if the mission has already produced work, since a first selection applies straight away. Applying both adds the scroll to the mission and freezes what P0 decided for it in the same step. A name with no volume this deployment can read is refused here rather than at P1. If a selection was made before that automatic freeze existed and nothing shows under \"What P0 produced\", a separate "
       },
       {
        "kind": "strong",
@@ -2456,7 +2704,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ". That adds it to the mission's selection. A name with no volume this deployment can read is refused here rather than at P1."
+       "text": " button there catches it up."
       }
      ]
     ]
@@ -2491,7 +2739,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The single most expensive mistake in this pipeline is a scale that is wrong by 8%. It never announces itself. It moves the recovered depth by tens of microns and degrades every map made from it."
+      "text": "The single most expensive mistake in this pipeline is a scale that is wrong by 8.4%. It never announces itself. It moves the recovered depth by tens of microns and degrades every map made from it."
      }
     ]
    },
@@ -2506,7 +2754,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The scroll appears on your mission with its scale and a source snapshot. From here every artifact binds to that snapshot, which is what lets a result made in six months still say what it came from."
+      "text": "The scroll appears on your mission with its declared scale, frozen from the catalogue. The content-locked source snapshot — a URI, a digest and a scale bound together — is not part of this; it is registered once source intake runs at P1. From then on every artifact binds to that snapshot, which is what lets a result made in six months still say what it came from."
      }
     ]
    },
@@ -2630,7 +2878,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". It is human-annotated work — ours came from Aleksei Drobkov and bruniss — so it arrives as an artifact somebody uploads, not something a job downloads. A first run that assumes it will be fetched fails at the input survey, which is the cheapest place it could fail."
+      "text": ". It is human-annotated work, so it arrives as an artifact somebody uploads, not something a job downloads. A first run that assumes it will be fetched fails at the input survey, which is the cheapest place it could fail."
      }
     ]
    },
@@ -2914,6 +3162,70 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
+        "text": "tracks_file"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "which "
+       },
+       {
+        "kind": "code",
+        "text": ".dbm"
+       },
+       {
+        "kind": "text",
+        "text": " under "
+       },
+       {
+        "kind": "code",
+        "text": "tracks/"
+       },
+       {
+        "kind": "text",
+        "text": " to read"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "defaults to upstream's own file"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "lasagna_volume_name"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "which set of normal volumes under "
+       },
+       {
+        "kind": "code",
+        "text": "lasagna_inputs/"
+       },
+       {
+        "kind": "text",
+        "text": " to read"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "defaults to upstream's own; a set from the open-data bucket is named for the scroll instead"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
         "text": "normal_zarr_group"
        }
       ],
@@ -3052,7 +3364,16 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": "; the P2 panel shows the verdicts and has no button of its own."
+      "text": "; the "
+     },
+     {
+      "kind": "link",
+      "text": "P2",
+      "href": "#/docs/phases/p2"
+     },
+     {
+      "kind": "text",
+      "text": " panel shows the verdicts and has no button of its own."
      }
     ]
    },
@@ -3469,7 +3790,31 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "the flattening profile — the frozen settings"
+        "text": "the flattening profile — the frozen settings. The default, "
+       },
+       {
+        "kind": "code",
+        "text": "flatten-abf-v1@1.0.0"
+       },
+       {
+        "kind": "text",
+        "text": ", runs "
+       },
+       {
+        "kind": "code",
+        "text": "vc_flatten"
+       },
+       {
+        "kind": "text",
+        "text": " (LSCM then ABF++). A second profile, "
+       },
+       {
+        "kind": "code",
+        "text": "flatten-lasagna-v1@1.0.0"
+       },
+       {
+        "kind": "text",
+        "text": ", selects upstream's gradient-descent flattener instead — GPU only, and marked experimental rather than default: no frozen reference control has been run against it on this corpus"
        }
       ]
      ],
@@ -3483,7 +3828,15 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "which flattener runs; allowlisted, and the default is the right one"
+        "text": "which flattener runs; allowlisted to the "
+       },
+       {
+        "kind": "code",
+        "text": "vc_flatten"
+       },
+       {
+        "kind": "text",
+        "text": " binary, so it is the only value that is accepted"
        }
       ]
      ],
@@ -3517,7 +3870,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " and rejects anything else rather than degrading. This is not a certification-run rule -- it holds in both modes, because a sheet that crosses two laminae flattens into a rectangle of two different pieces of papyrus either way. If it refuses, the answer is at "
+      "text": " and rejects anything else rather than degrading. That does not relax with "
+     },
+     {
+      "kind": "code",
+      "text": "allow_unvalidated"
+     },
+     {
+      "kind": "text",
+      "text": " -- the gate holds either way, because a sheet that crosses two laminae flattens into a rectangle of two different pieces of papyrus either way. If it refuses, the answer is at "
      },
      {
       "kind": "link",
@@ -3550,15 +3911,31 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "This is "
+      "text": "Queue P4 from its own phase panel — unlike P3, it is one of the phases "
      },
      {
       "kind": "code",
-      "text": "vc_render_tifxyz"
+      "text": "POST /api/jobs"
      },
      {
       "kind": "text",
-      "text": ": walk the surface, sample the CT at a series of depths, write a numbered TIFF per depth."
+      "text": " accepts directly. The panel's "
+     },
+     {
+      "kind": "strong",
+      "text": "Renderer"
+     },
+     {
+      "kind": "text",
+      "text": " picker chooses the lane, and "
+     },
+     {
+      "kind": "strong",
+      "text": "Queue P4 job"
+     },
+     {
+      "kind": "text",
+      "text": " runs it."
      }
     ]
    },
@@ -3567,7 +3944,64 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The walkthrough's numbers are 28 slices at 1-slice step, 16 GB of cache, scale 1 for 9 µm data. In Helena:"
+      "text": "There are two lanes. The default, "
+     },
+     {
+      "kind": "code",
+      "text": "vc-render-tifxyz"
+     },
+     {
+      "kind": "text",
+      "text": ", is volume-cartographer's own renderer: walk the surface, sample the CT at a series of depths, write a numbered TIFF per depth. It takes the fields below. A second lane, "
+     },
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": ", takes "
+     },
+     {
+      "kind": "code",
+      "text": "ppm"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "volume_key"
+     },
+     {
+      "kind": "text",
+      "text": " instead — a PPM plus the OME-Zarr key of the rescan to sample — and does not read a P3 sheet at all; it streams by stripe, checkpoints through "
+     },
+     {
+      "kind": "code",
+      "text": "done.json"
+     },
+     {
+      "kind": "text",
+      "text": " so a crash resumes, and correlates at r = 0.89 with an official ink map, measured on PHerc0332. The two lanes have never been compared against each other on the same surface, so that number describes "
+     },
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": " only."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The walkthrough's numbers are 28 slices at 1-slice step, 16 GB of cache, scale 1 for 9 µm data. In Helena, for the default lane:"
      }
     ]
    },
@@ -3618,7 +4052,7 @@ export const HANDBOOK: Page[] = [
        },
        {
         "kind": "text",
-        "text": "; naming it also requires "
+        "text": "; naming it makes Helena resolve and fill in "
        },
        {
         "kind": "code",
@@ -3639,6 +4073,10 @@ export const HANDBOOK: Page[] = [
        {
         "kind": "code",
         "text": "flattened_artifact_sha256"
+       },
+       {
+        "kind": "text",
+        "text": " for you"
        }
       ]
      ],
@@ -3846,11 +4284,61 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "em",
-      "text": "\"Voxel size: 1.0 (no metadata found)\""
+      "text": "\"Voxel size: 1.0 (no metadata found; override with --voxel-size)\""
      },
      {
       "kind": "text",
-      "text": " in its log. Helena passes it, so the render and the depth arithmetic use the same number. On a volume with no metadata, a hand-run render and a Helena one will not agree unless you pass it yourself."
+      "text": " in its log. Helena resolves it from the frozen P0 catalogue and passes it, or refuses the job with a 409 naming the scales the catalogue does hold if the scan is not in it — never silently defaulting to "
+     },
+     {
+      "kind": "code",
+      "text": "1.0"
+     },
+     {
+      "kind": "text",
+      "text": ". On a volume with no catalogue entry, a hand-run render and a Helena one will not agree unless you state the number yourself."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "It refuses with a 409 if "
+     },
+     {
+      "kind": "code",
+      "text": "CX_RENDER_STORE"
+     },
+     {
+      "kind": "text",
+      "text": " is unset, the same way P3 refuses without "
+     },
+     {
+      "kind": "code",
+      "text": "CX_FLATTEN_STORE"
+     },
+     {
+      "kind": "text",
+      "text": ": a layer stack that exists only on the worker that rendered it is lost when that worker goes away. The default is "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts/layer-stacks-v1"
+     },
+     {
+      "kind": "text",
+      "text": ", on the platform's own volume. Pass "
+     },
+     {
+      "kind": "code",
+      "text": "allow_local_layers"
+     },
+     {
+      "kind": "text",
+      "text": " for a deliberate single-machine run that publishes nowhere instead."
      }
     ]
    },
@@ -4108,7 +4596,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "7.9 µm"
+        "text": "7.9 µm, resampled"
        }
       ]
      ]
@@ -4144,7 +4632,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " routes to the generic runner and its own profile says its map correlates r = 0.079 with the community map for that recipe, where "
+      "text": " routes to the generic runner, and the record left by the profile that supersedes it says that runner's map correlated r = 0.079 with the community map for that recipe, on ground where "
      },
      {
       "kind": "code",
@@ -4152,7 +4640,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " matches at r = 0.98. They are not comparable."
+      "text": "'s own render matched at r = 0.98. They are not comparable."
      }
     ]
    },
@@ -4401,11 +4889,11 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A probability map: one float per pixel, brighter meaning more likely ink. The walkthrough's "
+      "text": "A probability map: one float per pixel, brighter meaning more likely ink. A direction-both run publishes "
      },
      {
       "kind": "code",
-      "text": "segment.tif"
+      "text": "probability.npy"
      },
      {
       "kind": "text",
@@ -4413,11 +4901,27 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "segment_reverse.tif"
+      "text": "probability_reverse.npy"
      },
      {
       "kind": "text",
-      "text": " correspond to running with direction both — a map and its reverse."
+      "text": " — a map and its reverse. Both, with the run's "
+     },
+     {
+      "kind": "code",
+      "text": "p50"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "p99"
+     },
+     {
+      "kind": "text",
+      "text": " and the spread between them, show up on P5's Maps tab once the job finishes."
      }
     ]
    },
@@ -4464,7 +4968,7 @@ export const HANDBOOK: Page[] = [
   "section": "10-tutorial",
   "sectionTitle": "Tutorial",
   "title": "Step 5 — Read the result, and iterate",
-  "summary": "Whether the map decided anything, what a vetting card is for, and where the research loop starts.",
+  "summary": "Whether the map decided anything, what a vetting card is for, what a plate is not, and where the research loop starts.",
   "outline": [
    {
     "id": "first-did-the-map-decide-anything",
@@ -4473,6 +4977,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "then-screening-and-the-vetting-card",
     "text": "Then: screening and the vetting card"
+   },
+   {
+    "id": "if-you-go-further-p8-and-p9",
+    "text": "If you go further: P8 and P9"
    },
    {
     "id": "reading-it-honestly",
@@ -4592,6 +5100,64 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": "The walkthrough's own criterion is a good one and Helena does not replace it: coherent rows aligned with the papyrus fibres, and at least ten visible legible letters in about 4 cm². What the platform adds is that the card records which map, from which render, from which surface, from which scan — so a claim can be retraced rather than re-argued."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "If you go further: P8 and P9",
+    "id": "if-you-go-further-p8-and-p9"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "This walkthrough stops at one map and one claimed region — a screening pass is P4→P5→P7, and nothing past that runs here. Reading across a whole scroll needs two more phases. "
+     },
+     {
+      "kind": "strong",
+      "text": "P8"
+     },
+     {
+      "kind": "text",
+      "text": " either merges certified surfaces into one immutable sheet or derives a measured winding order from public segment meshes; "
+     },
+     {
+      "kind": "strong",
+      "text": "P9"
+     },
+     {
+      "kind": "text",
+      "text": " takes that measured order and composes the published ink maps into plate images, for a person to read across rather than one window at a time. Both are queueable phases, not aspirations, but neither has a role in this tutorial's single-surface path; see "
+     },
+     {
+      "kind": "link",
+      "text": "P8",
+      "href": "#/docs/phases/p8"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "link",
+      "text": "P9",
+      "href": "#/docs/phases/p9"
+     },
+     {
+      "kind": "text",
+      "text": " for the fields and how each fails."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A plate is not a vetting card. It carries no bbox, no threshold and no per-region measurement — it is a rendering of screening output, and the most persuasive artefact this platform makes, because it looks like a photograph of the papyrus. It is a picture of where a model responded, which is the same caution the card carries, with less evidence attached to it."
      }
     ]
    },
@@ -4778,11 +5344,11 @@ export const HANDBOOK: Page[] = [
      [
       {
        "kind": "strong",
-       "text": "Pick the scroll from the catalogue"
+       "text": "Pick the scroll from the inventory"
       },
       {
        "kind": "text",
-       "text": ", on the P0 panel — its view is called Scrolls. The catalogue is what this deployment can reach; a scroll not in it is not a scroll this platform can start from."
+       "text": ", on the P0 panel — its view is called Scrolls. That table lists every scroll the configured bucket exposes, which is wider than what a mission can actually use: picking a row here only browses it."
       }
      ],
      [
@@ -4792,17 +5358,17 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": " — µm per voxel — against the scan you think you chose."
+       "text": " — µm per voxel — against the scan you think you chose. For the scrolls a separate, frozen catalogue covers, this figure is locked. For the rest it is read off the finest scan's own directory name, which is a name, not a measurement."
       }
      ],
      [
       {
        "kind": "strong",
-       "text": "Add the scroll to your mission."
+       "text": "Add the scroll to your mission"
       },
       {
        "kind": "text",
-       "text": " Coverage, backlogs and job counts are all computed against the mission's scrolls, so a scroll outside it is work that will not be counted anywhere."
+       "text": ", with the checkbox and Apply. Coverage, backlogs and job counts are all computed against the mission's scrolls, so a scroll outside it is work that will not be counted anywhere. This is also where a scroll gets refused: one with no address in the frozen catalogue and none on this control plane cannot be added, because P1 could never grow anything from it. At least one scroll (the public ink control) is kept off that catalogue on purpose and named in a separate control manifest instead — a check against the catalogue alone once answered \"no volume\" for a scroll the platform could in fact name."
       }
      ]
     ]
@@ -4840,7 +5406,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "Re-reads the public bucket rather than the cached inventory. The cache is there because the listing is slow, not because it is authoritative; the panel also refreshes it on startup and once a day ("
+        "text": "Re-reads the public bucket rather than the cached listing of what it holds. The cache is there because the listing is slow, not because it is authoritative. This is the browsing list only — the frozen, scale-pinned catalogue that gates what a mission can add is a different file, and the panel refreshes that one itself, on startup and once a day ("
        },
        {
         "kind": "code",
@@ -4856,13 +5422,27 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
+        "text": "Apply"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "Adds or drops the checked scrolls. Once the mission has produced anything, this needs a typed reason and is recorded as an amendment; a scroll that has already produced work cannot be removed at all. Before that, it applies straight away."
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
         "text": "Record what P0 decided"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "Freezes the selection, with the reason you typed. This is what makes later pages able to count anything. A scroll with no volume this deployment can read is refused here."
+        "text": "Freezes the current selection into one artifact per scroll, content-addressed — pressing it again with nothing changed returns the same artifacts rather than a new version. It records a fixed reason, not one you type; a reason only attaches when the selection itself changes, through Apply. This is what makes later pages able to count anything P0 decided."
        }
       ]
      ]
@@ -4913,7 +5493,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A scroll in the catalogue is not a scroll on this host. The catalogue says what is reachable, and the first phase that needs bytes is the one that discovers whether they arrive."
+      "text": "A scroll in the inventory is not a scroll on this host. The inventory says what is reachable, and the first phase that needs bytes is the one that discovers whether they arrive."
      }
     ]
    }
@@ -4925,11 +5505,15 @@ export const HANDBOOK: Page[] = [
   "section": "20-phases",
   "sectionTitle": "The phases",
   "title": "P1 — Segmentation",
-  "summary": "Recover papyrus as geometry: one mesh per winding, in TIFXYZ.",
+  "summary": "Recover papyrus as geometry, in TIFXYZ — a seeded grow, or a global spiral fit, one mesh per winding.",
   "outline": [
    {
-    "id": "the-two-approaches",
-    "text": "The two approaches"
+    "id": "the-backends",
+    "text": "The backends"
+   },
+   {
+    "id": "seeded-growth-vc3d",
+    "text": "Seeded growth (VC3D)"
    },
    {
     "id": "what-the-spiral-fitter-reads",
@@ -4952,6 +5536,14 @@ export const HANDBOOK: Page[] = [
     "text": "Reading the result"
    },
    {
+    "id": "the-panel",
+    "text": "The panel"
+   },
+   {
+    "id": "workers",
+    "text": "Workers"
+   },
+   {
     "id": "traps",
     "text": "Traps"
    }
@@ -4962,15 +5554,170 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "P1 turns a volume into surfaces. There are two ways to do it and they fail differently, which is the main thing to know before choosing."
+      "text": "P1 turns a volume into surfaces. Four backends are registered for it, and only two actually run here; the other two exist for comparison and have no executor wired in yet. The two that run fail differently, which is the main thing to know before choosing between them."
      }
     ]
    },
    {
     "kind": "h",
     "level": 2,
-    "text": "The two approaches",
-    "id": "the-two-approaches"
+    "text": "The backends",
+    "id": "the-backends"
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Backend"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Method"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Status"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Note"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "VC3D seeded grow"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "vc3d-m7-seed-grow@1.0.0"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "production"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "local surfaces from an m7 prior and a seed. Planned by the fleet's own bootstrap, never queued as a job"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Spiral fitter"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "spiral-fitter@0.1.0"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "selectable, not default"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a global fit through tracks, point collections and a lasagna normal field. Queued as a P1 job on the "
+       },
+       {
+        "kind": "code",
+        "text": "spiral-fit"
+       },
+       {
+        "kind": "text",
+        "text": " lane"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "ScrollFiesta mesh"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "scrollfiesta-m7-mesh@0.1.1"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "comparative only"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "FAILED_REFERENCE_CONTROL"
+       },
+       {
+        "kind": "text",
+        "text": ". Runnable outside the queue; its surfaces are not catalogued until the seam, reference-agreement and flattening gates pass"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "ThaumatoAnakalyptor"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "thaumato-anakalyptor@1.0.0"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "not integrated"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "upstream moved it to "
+       },
+       {
+        "kind": "code",
+        "text": "deprecated/"
+       },
+       {
+        "kind": "text",
+        "text": "; kept in the list because \"can the method upstream once used still run\" deserves an answer"
+       }
+      ]
+     ]
+    ]
    },
    {
     "kind": "p",
@@ -4981,7 +5728,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " starts from a point and grows outward, following the sheet until it loses it. It is local: you get the patch around the seed. It is planned by the fleet's own bootstrap rather than queued as a job."
+      "text": " starts from a point and grows outward, following the sheet until it loses it. It is local: you get the patch around the seed."
      }
     ]
    },
@@ -4994,15 +5741,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " fits a global spiral through the whole scroll at once, using tracks, point collections and a lasagna-derived normal field. Upstream calls it their most powerful method. It is the "
-     },
-     {
-      "kind": "code",
-      "text": "spiral-fit"
-     },
-     {
-      "kind": "text",
-      "text": " lane, and it is what you queue."
+      "text": " fits a global spiral through the whole scroll at once. Upstream calls it their most powerful method. They are alternatives, not a replacement — a spiral fit that defeats itself in a region is a good reason to grow a patch there instead."
      }
     ]
    },
@@ -5011,8 +5750,687 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "They are alternatives, not a replacement — a spiral fit that defeats itself in a region is a good reason to grow a patch there instead."
+      "text": "ScrollFiesta and Thaumato are listed so the question \"can we run the method upstream recommends\" gets an honest answer, not to offer them as choices: the panel's New run form queues VC3D only, and asking it for either of the other two answers "
+     },
+     {
+      "kind": "code",
+      "text": "501"
+     },
+     {
+      "kind": "text",
+      "text": " — there is no executor in the fleet that would grow with them, so a task naming one would run VC3D and be recorded under the wrong method. Their profiles under "
+     },
+     {
+      "kind": "code",
+      "text": "framework/profiles/01-segmentation"
+     },
+     {
+      "kind": "text",
+      "text": " — three "
+     },
+     {
+      "kind": "code",
+      "text": "hybrid-scrollfiesta-vc3d"
+     },
+     {
+      "kind": "text",
+      "text": " versions and two "
+     },
+     {
+      "kind": "code",
+      "text": "scrollfiesta-m7-mesh"
+     },
+     {
+      "kind": "text",
+      "text": " versions, all "
+     },
+     {
+      "kind": "code",
+      "text": "EXPERIMENTAL_LOCKED"
+     },
+     {
+      "kind": "text",
+      "text": " — are adoption gates: a comparison ScrollFiesta would have to pass, on agreement with VC3D and on flattening, before its surfaces could be catalogued at all."
      }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Seeded growth (VC3D)",
+    "id": "seeded-growth-vc3d"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A grow is not queued the way a fit is. "
+     },
+     {
+      "kind": "code",
+      "text": "helena_segment_search_fleet.py bootstrap"
+     },
+     {
+      "kind": "text",
+      "text": " decides which grid cells are uncovered, proposes a seed inside one, and creates a "
+     },
+     {
+      "kind": "code",
+      "text": "segment_tasks"
+     },
+     {
+      "kind": "text",
+      "text": " row — the panel's "
+     },
+     {
+      "kind": "strong",
+      "text": "New run"
+     },
+     {
+      "kind": "text",
+      "text": " shells out to that same command rather than inserting rows itself, so the policy that decides where to look lives in one place."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Finding a seed."
+     },
+     {
+      "kind": "text",
+      "text": " A worker's segmentation container starts a seed service — "
+     },
+     {
+      "kind": "code",
+      "text": "vc-mcp"
+     },
+     {
+      "kind": "text",
+      "text": ", the MCP seed server — on "
+     },
+     {
+      "kind": "code",
+      "text": "127.0.0.1:18080"
+     },
+     {
+      "kind": "text",
+      "text": "; its one tool, "
+     },
+     {
+      "kind": "code",
+      "text": "vc_find_seed_candidates"
+     },
+     {
+      "kind": "text",
+      "text": ", reads points in a region of an m7 surface prediction that look like sheet and are far enough apart to be different places. A worker asks it by default ("
+     },
+     {
+      "kind": "code",
+      "text": "--seed-provider mcp"
+     },
+     {
+      "kind": "text",
+      "text": "); "
+     },
+     {
+      "kind": "code",
+      "text": "recorded"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "manual"
+     },
+     {
+      "kind": "text",
+      "text": " are the alternatives, for a worker replaying a stored proposal or growing points a person picked instead of searching for them. The service and the grower are one unit of failure: a worker whose seed service died still claims tasks and fails them, burning an attempt each time, which is why only one runs per host."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Choosing among candidates."
+     },
+     {
+      "kind": "text",
+      "text": " Six planners exist and can be named in a task's receipt; five are offered from the panel and one is kept only to reproduce older runs:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Planner"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Kind"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Note"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Cost-aware router"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "router"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the fleet's default. Tries deterministic scoring first, then a validated cache, then one model, then a panel of models — and falls back to deterministic if no provider answers"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Deterministic"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "deterministic"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "scores candidates by cell volume and clearance, skips a recipe that already failed in this region"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Deterministic (history blind)"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "deterministic"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the same scoring with history ignored — the control arm that shows whether reading history changes anything"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "LLM agent (OpenCode)"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "agent"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "one model decides, in a disposable project directory"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Panel of LLM experts"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "panel"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "several models propose, one judges — the most expensive lane"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "LLM agent, retired v1 packets"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "agent"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "kept only to reproduce runs that used the older packet schema; not offered"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Task identity."
+     },
+     {
+      "kind": "text",
+      "text": " A task is identified by the CT volume it reads ("
+     },
+     {
+      "kind": "code",
+      "text": "source_snapshot_id"
+     },
+     {
+      "kind": "text",
+      "text": "), the grid version, the cell, and the policy version. The tuple is unique: asking for a cell that already has a task under the same grid and policy is deduplicated rather than duplicated, so re-running the same bootstrap command is safe. Growing a lower-ranked m7 candidate over ground the first one already covered is a different question and needs a new "
+     },
+     {
+      "kind": "code",
+      "text": "policy_version"
+     },
+     {
+      "kind": "text",
+      "text": " to be asked. The bootstrap's own defaults are a grid step of 2048 voxels, a query radius of 64, a clearance of 256, grid version "
+     },
+     {
+      "kind": "code",
+      "text": "ct-l0-grid-2048-v1"
+     },
+     {
+      "kind": "text",
+      "text": ", policy version "
+     },
+     {
+      "kind": "code",
+      "text": "ink-blind-v1"
+     },
+     {
+      "kind": "text",
+      "text": ", and up to 24 tasks per sample per call."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Claiming and leasing."
+     },
+     {
+      "kind": "text",
+      "text": " Every claim on the control plane uses "
+     },
+     {
+      "kind": "code",
+      "text": "FOR UPDATE SKIP LOCKED"
+     },
+     {
+      "kind": "text",
+      "text": " with a hashed lease token, so several hosts can poll the same queue without claiming the same row twice."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Two states worth telling apart."
+     },
+     {
+      "kind": "text",
+      "text": " A task ends in many states; these two are opposites and easy to confuse from the name alone."
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "code",
+       "text": "NO_SEED"
+      },
+      {
+       "kind": "text",
+       "text": " — none of the proposals survived. The Coverage tab splits this in two: candidates never proposed at all (the search returned nothing), and candidates proposed and then removed by a screen. The named screens are "
+      },
+      {
+       "kind": "code",
+       "text": "NO_M7_CANDIDATES"
+      },
+      {
+       "kind": "text",
+       "text": " (nothing above the m7 threshold in that box) and "
+      },
+      {
+       "kind": "code",
+       "text": "CT_MATERIAL_SUPPORT_REJECTED"
+      },
+      {
+       "kind": "text",
+       "text": " (the prediction proposed a point and the raw CT has no material there); anything else reads as candidates that were fine but too close to ground already covered — the fleet re-treading, which is good news wearing a failure's label. "
+      },
+      {
+       "kind": "code",
+       "text": "NO_SEED"
+      },
+      {
+       "kind": "text",
+       "text": " names the screen that removed the proposals; it does not establish that no physical surface is there."
+      }
+     ],
+     [
+      {
+       "kind": "code",
+       "text": "QC_PENDING"
+      },
+      {
+       "kind": "text",
+       "text": " — the opposite outcome: a surface was produced and is waiting on "
+      },
+      {
+       "kind": "link",
+       "text": "P2",
+       "href": "#/docs/phases/p2"
+      },
+      {
+       "kind": "text",
+       "text": "'s geometry gate."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Seed probes."
+     },
+     {
+      "kind": "text",
+      "text": " A closed-loop layer beneath the planner, not a replacement for it: bounded deterministic micro-growths compared before the canonical grow runs. Three modes — "
+     },
+     {
+      "kind": "code",
+      "text": "off"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "shadow"
+     },
+     {
+      "kind": "text",
+      "text": " (records the comparison, canonical seed unchanged) and "
+     },
+     {
+      "kind": "code",
+      "text": "select"
+     },
+     {
+      "kind": "text",
+      "text": " (lets an unambiguous winner steer Cost-aware or Deterministic v2; ties stop for human review rather than guessing). A worker must start with "
+     },
+     {
+      "kind": "code",
+      "text": "--seed-probe-support"
+     },
+     {
+      "kind": "text",
+      "text": " to claim probe-required tasks; an older or unvalidated host cannot pick one up silently."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Growth profiles"
+     },
+     {
+      "kind": "text",
+      "text": ", under "
+     },
+     {
+      "kind": "code",
+      "text": "framework/stages/01-segmentation/fleet/profiles"
+     },
+     {
+      "kind": "text",
+      "text": ":"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Profile"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Mode"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Note"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "vc3d-m7-growth-v1"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "canonical"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "four parameters ("
+       },
+       {
+        "kind": "code",
+        "text": "generations"
+       },
+       {
+        "kind": "text",
+        "text": " 20-45, "
+       },
+       {
+        "kind": "code",
+        "text": "step_size"
+       },
+       {
+        "kind": "text",
+        "text": " 12-24, "
+       },
+       {
+        "kind": "code",
+        "text": "min_area_cm"
+       },
+       {
+        "kind": "text",
+        "text": " pinned 0, "
+       },
+       {
+        "kind": "code",
+        "text": "use_cuda"
+       },
+       {
+        "kind": "text",
+        "text": " pinned false). Left byte-identical because a frozen plan binds its sha256"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "vc3d-m7-growth-v2"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "canonical"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the same bounds, plus "
+       },
+       {
+        "kind": "code",
+        "text": "inpaint"
+       },
+       {
+        "kind": "text",
+        "text": ", "
+       },
+       {
+        "kind": "code",
+        "text": "skip_overlap_check"
+       },
+       {
+        "kind": "text",
+        "text": " and the resume group ("
+       },
+       {
+        "kind": "code",
+        "text": "rewind_gen"
+       },
+       {
+        "kind": "text",
+        "text": ", "
+       },
+       {
+        "kind": "code",
+        "text": "resume_generations"
+       },
+       {
+        "kind": "text",
+        "text": ", "
+       },
+       {
+        "kind": "code",
+        "text": "resume_opt"
+       },
+       {
+        "kind": "text",
+        "text": ") that v1 could not reach"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "vc3d-m7-probe-v1"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "noncanonical"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "micro-growth (10-20 generations) used only to discriminate seed candidates before a canonical grow; not a canonical surface even when it certifies"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "vc3d-real-ct-smoke-v1"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "canonical"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a fixed smoke-test envelope"
+       }
+      ]
+     ]
     ]
    },
    {
@@ -5466,7 +6884,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "resolve the profile, bind the scroll, rewrite and read back the fitter, survey the dataset — and stop before the fit"
+        "text": "resolve the profile, bind the scroll, survey the dataset, rewrite and read back the fitter — and stop before the fit"
        }
       ]
      ]
@@ -5823,6 +7241,575 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "The panel",
+    "id": "the-panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "P1's Mission view carries six tabs: "
+     },
+     {
+      "kind": "strong",
+      "text": "Runs"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "Segments"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "Coverage"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "Profiles"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "New run"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "strong",
+      "text": "Import surface"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "strong",
+       "text": "Runs"
+      },
+      {
+       "kind": "text",
+       "text": " lists tasks and attempts: when it started, scroll and cell, state, what it produced, area, QC, how long it took, backend and worker."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Segments"
+      },
+      {
+       "kind": "text",
+       "text": " lists every surface the mission can see, grown or imported, with one row per surface:"
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Column"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "What it shows"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Made"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "when the surface was created"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Surface"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "its id"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Scroll"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "which sample it belongs to"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Origin"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "GROWN_HERE"
+       },
+       {
+        "kind": "text",
+        "text": ", or "
+       },
+       {
+        "kind": "code",
+        "text": "IMPORTED"
+       },
+       {
+        "kind": "text",
+        "text": " for everything else. An imported row's tooltip carries its "
+       },
+       {
+        "kind": "code",
+        "text": "source_catalog"
+       },
+       {
+        "kind": "text",
+        "text": " — a VC3D patch someone grew elsewhere and uploaded, or a surface pulled from a public catalogue"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Area cm²"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "measured area"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "CT support"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "physical_qc_state"
+       },
+       {
+        "kind": "text",
+        "text": " — "
+       },
+       {
+        "kind": "code",
+        "text": "UNVALIDATED"
+       },
+       {
+        "kind": "text",
+        "text": " until a CT-material check has run, then "
+       },
+       {
+        "kind": "code",
+        "text": "CT_SUPPORTED"
+       },
+       {
+        "kind": "text",
+        "text": " or a rejection"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Geometry"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "geometry_qc_state"
+       },
+       {
+        "kind": "text",
+        "text": " — P2's verdict, or "
+       },
+       {
+        "kind": "code",
+        "text": "UNMEASURED"
+       },
+       {
+        "kind": "text",
+        "text": " if nothing has run yet"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Lamina"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "whether the CT resolves one sheet under this surface or two welded together — a question geometry certification does not answer on its own"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Seeds"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "seed agreement: paired, unpaired (one seed, no error bar), or the override that never took (which reads as perfect reproducibility and is the one flagged red)"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Review"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a person's opinion — Approved, Defective, Reviewed or Inspect — kept apart from P2's verdict on purpose"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "VC3D"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a link to the volume, the surface, the frame and the "
+       },
+       {
+        "kind": "code",
+        "text": "vc_grow_seg_from_seed"
+       },
+       {
+        "kind": "text",
+        "text": " command, plus a button that opens three orthogonal CT slices through the surface"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "strong",
+       "text": "Coverage"
+      },
+      {
+       "kind": "text",
+       "text": " reports per grid, not per scroll: cells attempted, "
+      },
+      {
+       "kind": "code",
+       "text": "NO_SEED"
+      },
+      {
+       "kind": "text",
+       "text": ", and cells that produced a surface — the hit rate, because a surface count alone rises the same whether the fleet is finding new ground or re-treading old."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Profiles"
+      },
+      {
+       "kind": "text",
+       "text": " lists every profile declared for this stage: the growth envelopes above, the spiral fitter's three versions, and the comparison and campaign policies that are frozen but not runnable from here."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "New run"
+      },
+      {
+       "kind": "text",
+       "text": " queues a VC3D grow through the bootstrap described above. Asking it for the spiral fitter answers "
+      },
+      {
+       "kind": "code",
+       "text": "409"
+      },
+      {
+       "kind": "text",
+       "text": " and points at the P1 job queue instead; asking for ScrollFiesta or Thaumato answers "
+      },
+      {
+       "kind": "code",
+       "text": "501"
+      },
+      {
+       "kind": "text",
+       "text": "."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Import surface"
+      },
+      {
+       "kind": "text",
+       "text": " registers surfaces this fleet did not grow — a folder of VC3D patches, or a public segment — each with a bounding box and a hash, so the catalogue has a record rather than a claim. They are always "
+      },
+      {
+       "kind": "code",
+       "text": "IMPORTED"
+      },
+      {
+       "kind": "text",
+       "text": ", never "
+      },
+      {
+       "kind": "code",
+       "text": "GROWN_HERE"
+      },
+      {
+       "kind": "text",
+       "text": "."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Workers",
+    "id": "workers"
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Container"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Image"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Claims"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Note"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "helena-segment"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "helena-worker-cpp"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "P1 seeded grows"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "CPU only — the growth profile pins "
+       },
+       {
+        "kind": "code",
+        "text": "use_cuda"
+       },
+       {
+        "kind": "text",
+        "text": " false. Runs the MCP seed server on "
+       },
+       {
+        "kind": "code",
+        "text": "127.0.0.1:18080"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "helena-fleet-runner"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "helena-worker-cpp"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "P2, P3, P8"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the whole VC3D toolchain, one host"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "helena-preflight"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "helena-worker-cpp"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "candidate and coverage preflights"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "read-only and ink-blind; its own seed service on port 18081"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "helena-spiral"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "helena-worker-cpp"
+       },
+       {
+        "kind": "text",
+        "text": ", declaring itself "
+       },
+       {
+        "kind": "code",
+        "text": "helena-villa-python"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "P1 spiral-fit lane"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "needs a GPU; its own compose file so it never doubles the segmentation, fleet-runner or preflight services"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "Traps",
     "id": "traps"
    },
@@ -5875,6 +7862,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "reading-the-result",
     "text": "Reading the result"
+   },
+   {
+    "id": "lamina",
+    "text": "Lamina"
    },
    {
     "id": "seed-agreement",
@@ -5968,6 +7959,12 @@ export const HANDBOOK: Page[] = [
      [
       {
        "kind": "text",
+       "text": "Required"
+      }
+     ],
+     [
+      {
+       "kind": "text",
        "text": "What it is"
       }
      ]
@@ -5977,13 +7974,34 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
-        "text": "scroll"
+        "text": "sample"
+       }
+      ],
+      [
+       {
+        "kind": "strong",
+        "text": "yes"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "restricts the batch to one scroll; empty means every scroll in the mission"
+        "text": "must equal the job's immutable sample; refused at command build, on the worker, after the claim"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "surface_id"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "certify this one surface only — still only if it carries no verdict"
        }
       ]
      ],
@@ -5994,10 +8012,11 @@ export const HANDBOOK: Page[] = [
         "text": "limit"
        }
       ],
+      [],
       [
        {
         "kind": "text",
-        "text": "how many surfaces"
+        "text": "how many surfaces in one pass. Defaults to 25"
        }
       ]
      ],
@@ -6008,13 +8027,32 @@ export const HANDBOOK: Page[] = [
         "text": "dry_run"
        }
       ],
+      [],
       [
        {
         "kind": "text",
-        "text": "list and change nothing"
+        "text": "list what would be certified and stop"
        }
       ]
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The panel's own Certification view is read-only; queueing this happens from elsewhere and is covered in "
+     },
+     {
+      "kind": "link",
+      "text": "Certification, Lineage and Audit",
+      "href": "#/docs/panel/certification-and-lineage"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
     ]
    },
    {
@@ -6289,6 +8327,24 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The panel's own tooltip for "
+     },
+     {
+      "kind": "code",
+      "text": "GEOMETRY_CERTIFIED"
+     },
+     {
+      "kind": "text",
+      "text": " currently reads \"passed all eight requirements of the CT/fibre gate\". That sentence is not about this cascade — nothing above is ANDed, it is ordered, and the first row that fires wins. The eight requirements belong to the physical axis's own inner gate, covered further down this page."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 3,
     "text": "Fold-back is a fraction, not a flag",
@@ -6521,6 +8577,55 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Every receipt says which side of that line it fell on. "
+     },
+     {
+      "kind": "code",
+      "text": "resolution_limited"
+     },
+     {
+      "kind": "text",
+      "text": " is "
+     },
+     {
+      "kind": "code",
+      "text": "true"
+     },
+     {
+      "kind": "text",
+      "text": " when the grid's own median edge is at or above the resolution limit in force, and "
+     },
+     {
+      "kind": "code",
+      "text": "resolution_limit_measured_here"
+     },
+     {
+      "kind": "text",
+      "text": " says whether that limit came from this scroll's own measured inter-lamina spacing or from the frozen 150 µm floor standing in for one. A "
+     },
+     {
+      "kind": "code",
+      "text": "GEOMETRY_CERTIFIED"
+     },
+     {
+      "kind": "text",
+      "text": " surface can carry "
+     },
+     {
+      "kind": "code",
+      "text": "resolution_limited: true"
+     },
+     {
+      "kind": "text",
+      "text": " at the same time — the phase contract names that combination as one of its three outcomes — and it means row 1 of the cascade above could not have seen a lamina switch even if one were there."
+     }
+    ]
+   },
+   {
     "kind": "callout",
     "tone": "trap",
     "spans": [
@@ -6636,7 +8741,373 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " alone is not admissible. A surface can be geometrically immaculate and still be a bridge between two laminae."
+      "text": " alone is not admissible. A surface can be "
+     },
+     {
+      "kind": "code",
+      "text": "CT_SUPPORTED"
+     },
+     {
+      "kind": "text",
+      "text": " — the scan says papyrus is there — and still be "
+     },
+     {
+      "kind": "code",
+      "text": "GEOMETRY_REJECTED_BRIDGE"
+     },
+     {
+      "kind": "text",
+      "text": ": passing physical support says nothing about whether the mesh welded two laminae together, and the reverse combination is just as real."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Physical support is measured by a separate, automatic worker — not by anything this page queues — against a frozen per-scroll profile ("
+     },
+     {
+      "kind": "code",
+      "text": "surface-qc-gp-scroll1-ct-fiber-v3"
+     },
+     {
+      "kind": "text",
+      "text": " is this campaign's), and it has its own states:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "State"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "UNVALIDATED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the default; no QC job has completed yet — waiting, not failing"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "CT_SUPPORTED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the CT has material along the surface; nothing was retained for ink review"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "CT_SUPPORTED_REVIEW"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "CT-supported, and the ink screen retained something for a person to look at"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "CT_INSUFFICIENT"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "no common valid pixels — the CT does not back this surface"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "INK_SCREEN_INSUFFICIENT"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the ink screen's own result was degenerate or empty"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "NOT_APPLICABLE_FIXTURE"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a fixture surface; not evidence, and kept out of the admissible set on purpose"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Only "
+     },
+     {
+      "kind": "code",
+      "text": "CT_SUPPORTED"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "CT_SUPPORTED_REVIEW"
+     },
+     {
+      "kind": "text",
+      "text": " are admissible downstream — the same fail-closed default as geometry."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Retention for review runs candidates through a further, frozen gate of its own: eight requirements, all "
+     },
+     {
+      "kind": "strong",
+      "text": "ANDed"
+     },
+     {
+      "kind": "text",
+      "text": " — candidate CT coverage, central-slice support, and the shape of the depth profile (peak count, top-3 concentration, entropy, argmax spread). Any one failing downranks the candidate as depth-diffuse rather than surface-localised; passing all eight only retains it for human review, and neither outcome accepts ink, text, or a letter."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "note",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "That worker refuses before spending a GPU job when the card cannot be initialised at all — "
+     },
+     {
+      "kind": "code",
+      "text": "GPU_UNAVAILABLE"
+     },
+     {
+      "kind": "text",
+      "text": " — and puts the job back in the queue rather than failing it, so a card that needs a restart does not cost the surface its one shot."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Lamina",
+    "id": "lamina"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A third axis, measured off the same staged copy while "
+     },
+     {
+      "kind": "code",
+      "text": "certify"
+     },
+     {
+      "kind": "text",
+      "text": " already has it fetched, rather than queued separately. It asks what neither of the other two can: does the CT resolve a single lamina under this surface, at all? Geometry says the mesh is a plausible sheet, and says in its own non-claims that this is not a claim about which lamina was followed; physical support says papyrus is there somewhere along the normal. Neither reads the density profile itself."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Three numbers decide it, against a frozen profile: bimodality (below 1.0, there is a valley between an air mode and a papyrus mode), median thickness in microns against a 15–70 µm band, and the fraction of columns with no missing chunk, which has to clear 90%."
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "State"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_SINGLE_SHEET"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "thickness sits inside the band: one lamina"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_FUSED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "thickness is above the band, or most columns never leave the material: more than one lamina under the sampling"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_TOO_THIN"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "thickness is below the band — thinner than a sheet, so the pair is unlikely to be two real interfaces"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_UNRESOLVED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "no valley between an air mode and a papyrus mode anywhere on the surface: one population, or noise"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_INSUFFICIENT_COLUMNS"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "too few clean columns to say anything — a hole in the sampling, not a verdict"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "LAMINA_UNMEASURED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the default — no registered CT source, no voxel size, or the measurement failed outright"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "note",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "This axis does "
+     },
+     {
+      "kind": "strong",
+      "text": "not"
+     },
+     {
+      "kind": "text",
+      "text": " gate P3 or P4. It is recorded beside the two that do, on purpose: it is a geometric measurement, not a claim about content. On the campaign that calibrated it, a wrap passed at 32–36 µm across three bands and the patch turned out to hold no ink at all. It filters where one "
+     },
+     {
+      "kind": "em",
+      "text": "can"
+     },
+     {
+      "kind": "text",
+      "text": " look, never where there is something to see."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The bands come from another campaign's own calibration, reimplemented here from its published definitions rather than vendored — this platform's verdicts have not been compared against that original implementation on the same input."
      }
     ]
    },
@@ -6651,8 +9122,83 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A separate question from certification, and a separate state: run the same target with two seeds and ask whether the two surfaces agree."
+      "text": "A separate question from certification, and a separate axis: run the same target with two seeds and ask whether the two surfaces agree. Like lamina, it does not gate P3 or P4 — nothing here blocks a surface from being flattened or rendered. Four states record where a surface stands:"
      }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "State"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "SEED_UNPAIRED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the default. Only one seed was ever run, so there is no error bar — a different thing from a small one"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "SEED_AGREEMENT_MEASURED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a real pair, decomposed and reported"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "SEED_AGREEMENT_UNMEASURED"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the pair could not be compared, with the reason attached"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "SEED_OVERRIDE_DID_NOT_TAKE"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "reserved for the one failure that reads as the best possible result: two runs landing bit-identical"
+       }
+      ]
+     ]
     ]
    },
    {
@@ -6676,7 +9222,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " one — it answers at what depth the ink is being sampled. It is normalised by lamina thickness, not winding pitch."
+      "text": " one — it answers at what depth the ink is being sampled. It is normalised by lamina thickness — this surface's own measured thickness from the lamina axis above when there is one, or a 35.5 µm reference otherwise — not winding pitch."
      }
     ]
    },
@@ -6696,7 +9242,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A Chamfer of zero is an error, not a pass. It means the two runs were the same run — usually a seed override that never took. "
+      "text": "A Chamfer of zero is refused, not reported as a pass. Two runs landing on the same bytes mean the seed override never reached the optimizer — a different failure from "
      },
      {
       "kind": "code",
@@ -6704,7 +9250,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is a state, not missing data."
+      "text": ": this is two runs that happened and agreed too well to be real, not one run that never got a partner."
      }
     ]
    },
@@ -6780,6 +9326,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "reading-the-result",
     "text": "Reading the result"
+   },
+   {
+    "id": "in-the-panel",
+    "text": "In the panel"
    }
   ],
   "blocks": [
@@ -7010,6 +9560,39 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " on the platform's own volume."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A queued run is claimed by "
+     },
+     {
+      "kind": "code",
+      "text": "helena-fleet-runner"
+     },
+     {
+      "kind": "text",
+      "text": ", the same CPU-only worker image ("
+     },
+     {
+      "kind": "code",
+      "text": "helena-worker-cpp"
+     },
+     {
+      "kind": "text",
+      "text": ") that claims P2. "
+     },
+     {
+      "kind": "code",
+      "text": "vc_flatten"
+     },
+     {
+      "kind": "text",
+      "text": " runs on CPU, so the default engine never waits on a GPU."
      }
     ]
    },
@@ -7251,6 +9834,89 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Two profiles ship. "
+     },
+     {
+      "kind": "code",
+      "text": "flatten-abf-v1@1.0.0"
+     },
+     {
+      "kind": "text",
+      "text": " is the default: "
+     },
+     {
+      "kind": "code",
+      "text": "vc_flatten"
+     },
+     {
+      "kind": "text",
+      "text": ", ABF++ over an LSCM initialisation, on CPU. "
+     },
+     {
+      "kind": "code",
+      "text": "flatten-lasagna-v1@1.0.0"
+     },
+     {
+      "kind": "text",
+      "text": " is marked experimental and not the default: lasagna's own gradient-descent fit, GPU only by its own profile notes."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Selecting "
+     },
+     {
+      "kind": "code",
+      "text": "flatten-lasagna-v1@1.0.0"
+     },
+     {
+      "kind": "text",
+      "text": " is refused, not routed. The lane's own command builder always invokes "
+     },
+     {
+      "kind": "code",
+      "text": "vc_flatten"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "--binary"
+     },
+     {
+      "kind": "text",
+      "text": " is unconditional — so before this was checked, choosing the lasagna profile silently ran "
+     },
+     {
+      "kind": "code",
+      "text": "vc_flatten"
+     },
+     {
+      "kind": "text",
+      "text": " against a profile file written for a different engine entirely, rather than running lasagna at all. The queue now refuses the job by the profile's filename and says why. Nothing routes it to a GPU worker either: the queue's one P3 lane is claimed by the CPU-only "
+     },
+     {
+      "kind": "code",
+      "text": "helena-fleet-runner"
+     },
+     {
+      "kind": "text",
+      "text": " above and declares no GPU requirement, unlike the spiral fitter's P1 lane, which refuses by name on the wrong image."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "Mission scoping",
@@ -7276,7 +9942,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "P3 parses its own output as a TIFXYZ before believing the exit code — a habit worth knowing, because P4 did not for a long time and that is where the \"33 files, nothing in them\" failure came from."
+      "text": "P3 parses its own output as a TIFXYZ before believing the exit code — a habit worth knowing, because P4 did not for a long time and that is where the \"33 files, nothing in them\" failure came from. The output is a TIFXYZ, the same shape as the input: a flattened pixel is not a new coordinate, it is the same CT voxel the curved surface named at that point, so the coordinate map P4 needs survives flattening by construction rather than by a second map that could disagree with the first."
      }
     ]
    },
@@ -7352,6 +10018,63 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
+      "text": "A batch's result carries "
+     },
+     {
+      "kind": "code",
+      "text": "considered"
+     },
+     {
+      "kind": "text",
+      "text": ", a count of outcomes by state, and one entry per surface in "
+     },
+     {
+      "kind": "code",
+      "text": "surfaces[]"
+     },
+     {
+      "kind": "text",
+      "text": " — its "
+     },
+     {
+      "kind": "code",
+      "text": "state"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "area_ratio"
+     },
+     {
+      "kind": "text",
+      "text": ", and, once published, "
+     },
+     {
+      "kind": "code",
+      "text": "artifact_sha256"
+     },
+     {
+      "kind": "text",
+      "text": " for the sheet and "
+     },
+     {
+      "kind": "code",
+      "text": "source_artifact_sha256"
+     },
+     {
+      "kind": "text",
+      "text": " for the surface it was made from. A sheet is staged first and promoted into the artifact store only once that succeeds; it is never written to its final place directly."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
       "text": "The output is a flattened sheet published with its digest. "
      },
      {
@@ -7362,6 +10085,86 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " names it by id, which is what lets the render run on a different host."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "In the panel",
+    "id": "in-the-panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "P3's page has a "
+     },
+     {
+      "kind": "strong",
+      "text": "Sheets"
+     },
+     {
+      "kind": "text",
+      "text": " tab beside Run. It leads with four tiles: "
+     },
+     {
+      "kind": "strong",
+      "text": "flattened sheets"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "certified surfaces"
+     },
+     {
+      "kind": "text",
+      "text": " (P2's count, whatever their physical QC state), "
+     },
+     {
+      "kind": "strong",
+      "text": "the backlog"
+     },
+     {
+      "kind": "text",
+      "text": " — certified and not yet flattened, minus the ones still waiting on CT support — and "
+     },
+     {
+      "kind": "strong",
+      "text": "awaiting CT support"
+     },
+     {
+      "kind": "text",
+      "text": ", the surfaces "
+     },
+     {
+      "kind": "code",
+      "text": "allow_unvalidated"
+     },
+     {
+      "kind": "text",
+      "text": " exists for."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Below that is a table of every recorded flattening in view, across both profiles: surface, scroll, profile, state, the area kept, and whether it published. Anything other than "
+     },
+     {
+      "kind": "code",
+      "text": "FLATTENED"
+     },
+     {
+      "kind": "text",
+      "text": ", and an area kept under 0.80, are both marked the same way a number worth a second look is marked."
      }
     ]
    }
@@ -7399,6 +10202,31 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": "The step that turns geometry into something with grey values in it."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The panel gives P4 no view of its own: with no "
+     },
+     {
+      "kind": "code",
+      "text": "Artefacts"
+     },
+     {
+      "kind": "text",
+      "text": " tab to sit beside "
+     },
+     {
+      "kind": "code",
+      "text": "Run"
+     },
+     {
+      "kind": "text",
+      "text": ", the tab bar never renders, and the queue form is the whole page."
      }
     ]
    },
@@ -7447,7 +10275,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "the ordinary case"
+        "text": "the ordinary case — any scroll, reading a tifxyz directly"
        }
       ]
      ],
@@ -7455,7 +10283,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
-        "text": "scroll3-chunk-gather"
+        "text": "chunk-gather"
        }
       ],
       [
@@ -7466,15 +10294,48 @@ export const HANDBOOK: Page[] = [
       ],
       [
        {
-        "kind": "strong",
-        "text": "Scroll 3 only"
-       },
-       {
         "kind": "text",
-        "text": " — pinned to PHerc0332, and refuses every other sample"
+        "text": "a legacy PPM segment, bridged through a named rescan's own volume — any scroll, though only validated (r = 0.89 against an official ink map) on PHerc0332"
        }
       ]
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": " was renamed from "
+     },
+     {
+      "kind": "code",
+      "text": "scroll3-chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": " once its renderer stopped hardcoding one rescan's volume key, array shape and voxel size and started reading them from the volume the job names. A job queued under the old name still runs unchanged — it is the lane that changed, not where it writes. Which lane to pick is about the input you hold, not the scroll: a tifxyz (a path, or the id of a sheet P3 flattened) goes to "
+     },
+     {
+      "kind": "code",
+      "text": "vc-render-tifxyz"
+     },
+     {
+      "kind": "text",
+      "text": "; a legacy PPM goes to "
+     },
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": ". One measured point on the default lane: 33 slices at 1380x1380 rendered from a flattened sheet in 17.9s on one consumer GPU."
+     }
     ]
    },
    {
@@ -7536,7 +10397,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". The phase itself declares nothing required — enforcement is per lane."
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "volume_key"
+     },
+     {
+      "kind": "text",
+      "text": " — the rescan's own OME-Zarr key under the open-data bucket, not the "
+     },
+     {
+      "kind": "code",
+      "text": "volume"
+     },
+     {
+      "kind": "text",
+      "text": " field below, which is a path on disk. The phase itself declares nothing required — enforcement is per lane."
      }
     ]
    },
@@ -7881,6 +10758,204 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": "'s own fields, none of them shared with the default lane:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Field"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Required"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "What it is"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "volume_key"
+       }
+      ],
+      [
+       {
+        "kind": "strong",
+        "text": "yes"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the rescan's OME-Zarr key under the open-data bucket; the wrong rescan renders a plausible stack of the wrong scroll"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "layers"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "how many layers to write"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "spacing"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "distance between sampled slices, in voxels"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "out_dir"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "where the job writes; defaults to the run directory"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "concurrency"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "how many chunks to fetch at once"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "stripe"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "render one horizontal band only, for a cheap look first"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "max_gb"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "upper bound on what the job may write"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "note",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The two lanes have never been compared on the same surface: the r = 0.89 figure above is "
+     },
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": "'s own and does not transfer to the default lane. Within the default lane, rendering from "
+     },
+     {
+      "kind": "code",
+      "text": "flattened_surface"
+     },
+     {
+      "kind": "text",
+      "text": " is also one interpolation further from the scan than rendering the certified surface directly through "
+     },
+     {
+      "kind": "code",
+      "text": "segmentation"
+     },
+     {
+      "kind": "text",
+      "text": " — flattening resamples it — and those two have not been compared either. "
+     },
+     {
+      "kind": "code",
+      "text": "vc_render_tifxyz"
+     },
+     {
+      "kind": "text",
+      "text": " has its own "
+     },
+     {
+      "kind": "code",
+      "text": "--flatten"
+     },
+     {
+      "kind": "text",
+      "text": " flag; Helena does not use it, and flattening as its own P3 step instead is what gives the sheet a receipt and keeps it reusable across renders."
+     }
+    ]
+   },
+   {
     "kind": "callout",
     "tone": "trap",
     "spans": [
@@ -7890,7 +10965,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is "
+      "text": " is hidden from the form but is "
      },
      {
       "kind": "strong",
@@ -7898,15 +10973,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " server-owned despite being hidden from the form. Nothing fills it in. Unset, "
+      "text": " unconditionally filled in. The queue resolves it from the frozen catalogue for a scroll P0 holds an entry for, and refuses the job outright when it cannot — so an ordinary job cannot silently render at the renderer's 1.0-voxel default. A scroll outside the catalogue is the exception: PHerc0139, the public control used below, is one, and its jobs must state the value by hand or be refused. This resolution runs inside the panel's queue endpoint; a job built directly against the job store skips it, and there "
      },
      {
       "kind": "code",
-      "text": "--voxel-size"
+      "text": "source_voxel_um"
      },
      {
       "kind": "text",
-      "text": " is simply not passed and the renderer reports "
+      "text": " really is left unset — the renderer then reports "
      },
      {
       "kind": "em",
@@ -7914,7 +10989,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " and carries on — and P5 then cannot derive its depth pitch from the render, so the TimeSformer lane refuses rather than guessing. A P4 that \"worked\" blocks P5."
+      "text": " and carries on, and P5 cannot derive its depth pitch from the render, so the TimeSformer lane refuses rather than guessing. A P4 that \"worked\" that way blocks P5."
      }
     ]
    },
@@ -8051,7 +11126,56 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " 64."
+      "text": " 64 on the default lane; "
+     },
+     {
+      "kind": "code",
+      "text": "spacing"
+     },
+     {
+      "kind": "text",
+      "text": " 100000, "
+     },
+     {
+      "kind": "code",
+      "text": "concurrency"
+     },
+     {
+      "kind": "text",
+      "text": " 256, "
+     },
+     {
+      "kind": "code",
+      "text": "stripe"
+     },
+     {
+      "kind": "text",
+      "text": " 65536 and "
+     },
+     {
+      "kind": "code",
+      "text": "max_gb"
+     },
+     {
+      "kind": "text",
+      "text": " 4096 on "
+     },
+     {
+      "kind": "code",
+      "text": "chunk-gather"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A job also has a wall-clock limit set by the deployment — six hours by default — shared with P5, P7 and P9 on the same GPU worker. A job that runs past it is marked failed, with the timeout named in the reason, rather than left running."
      }
     ]
    },
@@ -8365,6 +11489,10 @@ export const HANDBOOK: Page[] = [
     "text": "Reading the result"
    },
    {
+    "id": "in-the-panel",
+    "text": "In the panel"
+   },
+   {
     "id": "traps",
     "text": "Traps"
    }
@@ -8376,6 +11504,23 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": "The phase everything else exists to feed."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "It does not require the phases before it. "
+     },
+     {
+      "kind": "code",
+      "text": "tiff_dir"
+     },
+     {
+      "kind": "text",
+      "text": " accepts any layer stack the worker can see, including one downloaded straight from the public buckets — PHerc0139 was screened this way, from a downloaded 109-layer stack, skipping P1 through P3 entirely. A panel that greyed P5 out until P4 had run would have blocked that route."
      }
     ]
    },
@@ -8964,6 +12109,21 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
+        "text": "model_config"
+       }
+      ],
+      [],
+      [
+       {
+        "kind": "text",
+        "text": "TimeSformer only, for a checkpoint whose architecture the runner's frozen default does not match"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
         "text": "on_degenerate"
        }
       ],
@@ -8975,6 +12135,36 @@ export const HANDBOOK: Page[] = [
        }
       ]
      ]
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "model_config"
+     },
+     {
+      "kind": "text",
+      "text": " has no default and is easy to skip, because most lanes never need it. "
+     },
+     {
+      "kind": "code",
+      "text": "timesformer-large-scroll1-screening@1.0.0"
+     },
+     {
+      "kind": "text",
+      "text": " declares "
+     },
+     {
+      "kind": "code",
+      "text": "model_config_required"
+     },
+     {
+      "kind": "text",
+      "text": " — its checkpoint carries an eight-head architecture against the runner's six-head default — and without the flag a digest-verified, installed checkpoint still could not be run at all."
+     }
     ]
    },
    {
@@ -9009,8 +12199,20 @@ export const HANDBOOK: Page[] = [
     "kind": "p",
     "spans": [
      {
+      "kind": "code",
+      "text": "run_ink.py"
+     },
+     {
       "kind": "text",
-      "text": "Two lanes import their architecture from a vendored upstream directory. That directory is a property of "
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "run_ink_canonical2um.py"
+     },
+     {
+      "kind": "text",
+      "text": " import their architecture from a vendored upstream directory. That directory is a property of "
      },
      {
       "kind": "strong",
@@ -9018,7 +12220,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", read from its environment — not a job parameter. It used to be a field on the queue form, which made the import path of the model something whoever queued the job chose."
+      "text": ", read from "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_INK_UPSTREAM_ROOT"
+     },
+     {
+      "kind": "text",
+      "text": " on it — not a job parameter. It used to be a field on the queue form, which made the import path of the model something whoever queued the job chose."
      }
     ]
    },
@@ -9027,7 +12237,24 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A worker that does not carry one refuses those two lanes by name, and says which variable to set."
+      "text": "A worker with the variable unset refuses those two lanes by name rather than guessing. The 9 µm lane needs no such variable: it runs in its own container, grafted from a separate frozen environment because its inference stack pins a torch version five major releases apart from the one the ordinary ink worker carries — see "
+     },
+     {
+      "kind": "link",
+      "text": "deploys",
+      "href": "#/docs/operations/deploys"
+     },
+     {
+      "kind": "text",
+      "text": " for how the images are built. The DINO lane takes its dependency the same way, but as a job argument, "
+     },
+     {
+      "kind": "code",
+      "text": "--villa-python-root"
+     },
+     {
+      "kind": "text",
+      "text": ", rather than a host variable — one more reason it runs from the CLI rather than through the queue."
      }
     ]
    },
@@ -9059,7 +12286,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". And before it counts as anything, "
+      "text": ". Before it counts as anything, the adapter assesses its own map and writes a verdict into the P5 receipt: "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": " (it varies, and can go to screening), "
+     },
+     {
+      "kind": "code",
+      "text": "DEGENERATE"
+     },
+     {
+      "kind": "text",
+      "text": " (it carries no decision) or "
+     },
+     {
+      "kind": "code",
+      "text": "EMPTY"
+     },
+     {
+      "kind": "text",
+      "text": " (no valid pixels). A job that finishes with no verdict recorded at all is failed too — a missing check must not read like a passed one. "
      },
      {
       "kind": "link",
@@ -9068,7 +12319,168 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " asks whether it decided anything at all."
+      "text": " covers the three thresholds and what each verdict does to the job."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "In the panel",
+    "id": "in-the-panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The tabs, in that order: "
+     },
+     {
+      "kind": "strong",
+      "text": "Maps"
+     },
+     {
+      "kind": "text",
+      "text": ", what P5 actually produced, read live from the job queue; "
+     },
+     {
+      "kind": "strong",
+      "text": "Runs"
+     },
+     {
+      "kind": "text",
+      "text": ", which indexes the legacy "
+     },
+     {
+      "kind": "code",
+      "text": "CX_RUNS"
+     },
+     {
+      "kind": "text",
+      "text": " receipt tree on disk and is empty on a fresh install, because a screening queued through the fleet writes its map wherever the worker named and never enters that index; "
+     },
+     {
+      "kind": "strong",
+      "text": "Models"
+     },
+     {
+      "kind": "text",
+      "text": ", the lane profiles, their adapters and the method registry's record of each, cross-referenced so a profile with no adapter or a method with no profile is visible as such; "
+     },
+     {
+      "kind": "strong",
+      "text": "Profiles"
+     },
+     {
+      "kind": "text",
+      "text": ", the frozen declarations, read-only; and "
+     },
+     {
+      "kind": "strong",
+      "text": "Run"
+     },
+     {
+      "kind": "text",
+      "text": ", which queues a lane."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Maps is sortable by when it ran, scroll, surface, lane, state, verdict, p50, p99 and spread, and filterable by job, scroll, surface, lane, job state or verdict. A map's picture is rendered on the server, on a percentile stretch printed under it — never the raw array, because a viewer that silently rescales is exactly how a map that carries no decision comes to look like one that does. Behind it: "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/ink/maps"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/ink/maps/{job_id}"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/ink/maps/{job_id}/render.png"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/ink/lanes"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A checkpoint reaches the models volume through "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/models/download"
+     },
+     {
+      "kind": "text",
+      "text": ", never by writing into it from outside: the panel is the only process allowed to place one, and a "
+     },
+     {
+      "kind": "code",
+      "text": ".pth"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": ".pt"
+     },
+     {
+      "kind": "text",
+      "text": " pickle is fetched only against the digest the caller states as "
+     },
+     {
+      "kind": "code",
+      "text": "expect_sha256"
+     },
+     {
+      "kind": "text",
+      "text": " — a mismatch is deleted, not installed. "
+     },
+     {
+      "kind": "code",
+      "text": "scripts/harness/install_declared_weights.py"
+     },
+     {
+      "kind": "text",
+      "text": " drives that endpoint once per checkpoint a deployment's profiles declare and does not yet have. A from-scratch reproduction of the 9 µm lane, driven only through this API against public data, is at "
+     },
+     {
+      "kind": "code",
+      "text": "docs/public-control/REPRODUCE.md"
+     },
+     {
+      "kind": "text",
+      "text": "."
      }
     ]
    },
@@ -9143,6 +12555,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "where-else-the-gate-sits",
     "text": "Where else the gate sits"
+   },
+   {
+    "id": "in-the-panel",
+    "text": "In the panel"
    }
   ],
   "blocks": [
@@ -9299,6 +12715,31 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "One statistic is measured and recorded but decides nothing: the connected components of the brightest 1% of valid pixels. Two maps can share a histogram and still differ in whether their brightest pixels sit together as strokes or scatter as isolated noise. Measured on PHerc826: a 9 µm lane's top 1% formed 332 components with a median size of one pixel — 10,957 on the positive control, also median one — while the TimeSformer lane on the same surface formed 18 components with a median of 579 pixels. Both passed all three criteria above with room to spare. The count goes in the receipt under "
+     },
+     {
+      "kind": "code",
+      "text": "top1_components"
+     },
+     {
+      "kind": "text",
+      "text": " and related fields so the question can be asked; it is not a threshold, because what counts as too fragmented depends on the render's scale, and a number picked from two lanes on one scroll would be exactly the post-hoc calibration this platform avoids elsewhere. It needs "
+     },
+     {
+      "kind": "code",
+      "text": "scipy"
+     },
+     {
+      "kind": "text",
+      "text": "; a lane whose image lacks it still gets a verdict, just without this measurement."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "The three verdicts",
@@ -9363,6 +12804,39 @@ export const HANDBOOK: Page[] = [
        }
       ]
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "None of the three is a claim about ink. "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": " says the output head produced a real decision, not that the decision is ink — that question belongs to P7, against a human-claimed box. "
+     },
+     {
+      "kind": "code",
+      "text": "DEGENERATE"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "EMPTY"
+     },
+     {
+      "kind": "text",
+      "text": " do not say there is no ink either; they say the map cannot answer either way."
+     }
     ]
    },
    {
@@ -9528,7 +13002,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Two places, not one:"
+      "text": "One place that runs, and one that exists only on paper:"
      }
     ]
    },
@@ -9552,7 +13026,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": " from the job row before it will fetch the map;"
+       "text": " from the job row before it will fetch the map."
       }
      ],
      [
@@ -9562,7 +13036,31 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": " — a lane's positive control must be alive before that lane may be routed to a target at all. It fails closed."
+       "text": ", on paper — "
+      },
+      {
+       "kind": "code",
+       "text": "require_alive"
+      },
+      {
+       "kind": "text",
+       "text": " in "
+      },
+      {
+       "kind": "code",
+       "text": "lane_liveness.py"
+      },
+      {
+       "kind": "text",
+       "text": " is written to fail closed on a lane's positive control before that lane is routed to a target, and its own docstring says so. Nothing calls it outside its own test. No routing code checks a positive control's liveness, and the comparison against a control run this was meant to make is not implemented either — "
+      },
+      {
+       "kind": "code",
+       "text": "assess_liveness"
+      },
+      {
+       "kind": "text",
+       "text": " sees one array, never two. Target routing today rests on a documented judgement, whether the method has transferred on a compatible control, not on this gate."
       }
      ]
     ]
@@ -9617,6 +13115,78 @@ export const HANDBOOK: Page[] = [
       "text": ", which reads the verdict off the job row."
      }
     ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "In the panel",
+    "id": "in-the-panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "P6 is not queueable, so its page has no Run tab, and it publishes nothing of its own to browse, so it has no Artefacts tab either: liveness is recorded in every run receipt rather than as a separate file."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "What it has is a "
+     },
+     {
+      "kind": "strong",
+      "text": "State"
+     },
+     {
+      "kind": "text",
+      "text": " tab with three tiles — "
+     },
+     {
+      "kind": "strong",
+      "text": "runs with liveness"
+     },
+     {
+      "kind": "text",
+      "text": " (every legacy run and terminal P5 job that carries a verdict), "
+     },
+     {
+      "kind": "strong",
+      "text": "verdicts"
+     },
+     {
+      "kind": "text",
+      "text": " (a count per verdict), and "
+     },
+     {
+      "kind": "strong",
+      "text": "runs without liveness"
+     },
+     {
+      "kind": "text",
+      "text": " (the difference) — and a "
+     },
+     {
+      "kind": "strong",
+      "text": "Profiles"
+     },
+     {
+      "kind": "text",
+      "text": " tab. That list is the same one P5 shows: P6 declares no lanes of its own and reads the shared "
+     },
+     {
+      "kind": "code",
+      "text": "03-ink"
+     },
+     {
+      "kind": "text",
+      "text": " profile directory instead."
+     }
+    ]
    }
   ]
  },
@@ -9626,7 +13196,7 @@ export const HANDBOOK: Page[] = [
   "section": "20-phases",
   "sectionTitle": "The phases",
   "title": "P7 — Screening and adjudication",
-  "summary": "Turn a probability map into something a person can judge, with its provenance attached.",
+  "summary": "Turn a probability map into a verdict about text-like structure — the strict screen, the vetting card, and what each one does not claim.",
   "outline": [
    {
     "id": "before-you-start",
@@ -9641,8 +13211,16 @@ export const HANDBOOK: Page[] = [
     "text": "Fields"
    },
    {
+    "id": "what-the-vetting-card-checks",
+    "text": "What the vetting card checks"
+   },
+   {
     "id": "reading-the-result",
     "text": "Reading the result"
+   },
+   {
+    "id": "in-the-panel",
+    "text": "In the panel"
    },
    {
     "id": "what-a-verdict-means",
@@ -9651,6 +13229,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "traps",
     "text": "Traps"
+   },
+   {
+    "id": "where-it-runs",
+    "text": "Where it runs"
    }
   ],
   "blocks": [
@@ -9674,7 +13256,57 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A P5 job that succeeded and whose map is live. P7 reads the map from wherever it was published — usually another worker — rather than expecting it locally."
+      "text": "A P5 job that succeeded and whose map is "
+     },
+     {
+      "kind": "link",
+      "text": "live",
+      "href": "#/docs/phases/p6"
+     },
+     {
+      "kind": "text",
+      "text": ". P7 reads the map from wherever it was published — usually another worker — rather than expecting it locally."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The contract declares P7 gated on P6, and that gate is enforced by the queue, not by the tool underneath it: naming "
+     },
+     {
+      "kind": "code",
+      "text": "map_path"
+     },
+     {
+      "kind": "text",
+      "text": " is refused unless the receipt beside it records "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": ", and naming "
+     },
+     {
+      "kind": "code",
+      "text": "screening_of"
+     },
+     {
+      "kind": "text",
+      "text": " is refused unless that P5 job's own liveness verdict is "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": ". Call the vetting-card runner directly, outside the queue, and nothing checks either. The bbox has no producer of its own in this pipeline either — it is a human claim, and P7 does not vouch for where it came from."
      }
     ]
    },
@@ -10001,6 +13633,254 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The form the panel draws for this phase is served, not hand-kept: "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/phases/P7/parameters"
+     },
+     {
+      "kind": "text",
+      "text": " returns this same field list from the queue's own schema, so a field added to the queue cannot go missing from the browser."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "What the vetting card checks",
+    "id": "what-the-vetting-card-checks"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The runner is "
+     },
+     {
+      "kind": "link",
+      "text": "vetting-card",
+      "href": "https://github.com/LimeGS/vetting-card"
+     },
+     {
+      "kind": "text",
+      "text": ", vendored at "
+     },
+     {
+      "kind": "code",
+      "text": "framework/vendored/vetting-card"
+     },
+     {
+      "kind": "text",
+      "text": " ("
+     },
+     {
+      "kind": "code",
+      "text": "vet_map.py"
+     },
+     {
+      "kind": "text",
+      "text": "). It is arithmetic over the one claimed bbox, not a model, fit on 324 labelled windows from official Scroll 1 / PHerc 0139 maps and externally validated on 96 Scroll-4 windows."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "One whole-map gate runs first and can stop the tool before it reaches a verdict at all:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Check"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Asks"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "On failure"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "render_family"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "does the map look like the raw ink-detection output the checks below were calibrated on?"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the tool errors out — \"cannot evaluate\", not a verdict"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "degenerate"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "is the bbox blank, saturated, or the whole map constant?"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "overall.pass"
+       },
+       {
+        "kind": "text",
+        "text": " is "
+       },
+       {
+        "kind": "code",
+        "text": "False"
+       },
+       {
+        "kind": "text",
+        "text": "; the three checks below are skipped"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "letter_energy"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "band-pass energy at the letter length scale, relative to the bbox's own variance"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "must pass"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "structure"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "fraction of the bbox covered by letter-scale connected components"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "must pass"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "contrast_bimodality"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "is the bbox bimodal in brightness, the way ink and background are?"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "must pass"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "overall.pass"
+     },
+     {
+      "kind": "text",
+      "text": " is "
+     },
+     {
+      "kind": "code",
+      "text": "letter_energy AND structure AND contrast_bimodality"
+     },
+     {
+      "kind": "text",
+      "text": ", and that boolean is what a queued job records — "
+     },
+     {
+      "kind": "code",
+      "text": "PASS"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "FAIL"
+     },
+     {
+      "kind": "text",
+      "text": ". A "
+     },
+     {
+      "kind": "code",
+      "text": "FAIL"
+     },
+     {
+      "kind": "text",
+      "text": " is not a failed job: refutation is as much the tool's intended output as a pass is, so the job still succeeds. No priority review runs without a hash-bearing card and its input, and a green card does not mean confirmed ancient text — it means the bytes survived a first automated round of refutation."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "Reading the result",
@@ -10060,6 +13940,187 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "In the panel",
+    "id": "in-the-panel"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "P7's page has three tabs: "
+     },
+     {
+      "kind": "strong",
+      "text": "Screening"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "Profiles"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "strong",
+      "text": "Run"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "strong",
+       "text": "Screening"
+      },
+      {
+       "kind": "text",
+       "text": " is a separate, interactive tool, not the queued job above: a strict text screen over the whole map, with every threshold on the controls. The default gate is at least 10 candidate shapes and at least 2 qualifying rows of at least 4 shapes each; its verdict is "
+      },
+      {
+       "kind": "code",
+       "text": "PASSES_STRICT_SCREEN"
+      },
+      {
+       "kind": "text",
+       "text": " or "
+      },
+      {
+       "kind": "code",
+       "text": "DOES_NOT_PASS"
+      },
+      {
+       "kind": "text",
+       "text": ", and it carries the same caution — passing it is not a reading. See "
+      },
+      {
+       "kind": "link",
+       "text": "Screening, Coverage and Compare",
+       "href": "#/docs/panel/screening-and-coverage"
+      },
+      {
+       "kind": "text",
+       "text": " for the tool itself. Until a run has a probability map, the tab reads \"no run has a probability map to screen\"."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Profiles"
+      },
+      {
+       "kind": "text",
+       "text": " lists whatever sits under "
+      },
+      {
+       "kind": "code",
+       "text": "framework/profiles/04-validation"
+      },
+      {
+       "kind": "text",
+       "text": ". Today that is two CT-fibre surface-QC profiles built for a different adapter; they configure surface geometry QC, not the vetting-card checks above. The two share a stage directory, not a purpose."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Run"
+      },
+      {
+       "kind": "text",
+       "text": " queues the vetting-card job this page describes."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The phase's tiles: "
+     },
+     {
+      "kind": "strong",
+      "text": "maps available"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "strong",
+      "text": "runs screenable"
+     },
+     {
+      "kind": "text",
+      "text": " count what there is to screen — every probability map found, whether from a legacy run or an "
+     },
+     {
+      "kind": "code",
+      "text": "ALIVE"
+     },
+     {
+      "kind": "text",
+      "text": " P5 job, and how many runs or jobs carry at least one. "
+     },
+     {
+      "kind": "strong",
+      "text": "Adjudications succeeded / failed / queued"
+     },
+     {
+      "kind": "text",
+      "text": " are queue outcomes, whether the job ran to completion. "
+     },
+     {
+      "kind": "strong",
+      "text": "Adjudications passed / refuted / without verdict"
+     },
+     {
+      "kind": "text",
+      "text": " are the claim outcome read out of each succeeded job's own "
+     },
+     {
+      "kind": "code",
+      "text": "verdict.json"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "PASS"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "FAIL"
+     },
+     {
+      "kind": "text",
+      "text": ", or (in practice, a job recorded before this field existed) neither."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "What a verdict means",
     "id": "what-a-verdict-means"
    },
@@ -10068,7 +14129,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The criterion is the Scroll Prize's own and Helena does not replace it: coherent rows aligned with the papyrus fibres, and enough legible letters in the region to be a reading rather than a hope."
+      "text": "The criterion is the Scroll Prize's own and Helena does not replace it: coherent rows aligned with the papyrus fibres, and at least ten visible legible letters in about 4 cm²."
      }
     ]
    },
@@ -10097,6 +14158,52 @@ export const HANDBOOK: Page[] = [
       "text": "Do not adjudicate a region a model was fine-tuned on. A detector trained on the area you intend to claim will find letters there. Surfaces in the discovery namespace are marked non-canonical for exactly this reason."
      }
     ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The strict screen and the vetting card are not the same claim, and neither stands in for the other. The screen counts candidate shapes and rows across the whole map; the card is the calibrated check against the one bbox you are claiming."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Where it runs",
+    "id": "where-it-runs"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "helena-ink-0"
+     },
+     {
+      "kind": "text",
+      "text": ", on the "
+     },
+     {
+      "kind": "code",
+      "text": "helena-worker-gpu"
+     },
+     {
+      "kind": "text",
+      "text": " image — the same worker that runs P4 and P5. See "
+     },
+     {
+      "kind": "link",
+      "text": "deploys",
+      "href": "#/docs/operations/deploys"
+     },
+     {
+      "kind": "text",
+      "text": " for the rest of the fleet."
+     }
+    ]
    }
   ]
  },
@@ -10106,7 +14213,7 @@ export const HANDBOOK: Page[] = [
   "section": "20-phases",
   "sectionTitle": "The phases",
   "title": "P8 — Reconstruction",
-  "summary": "Put certified surfaces back together: merged meshes, column atlases, mesh relations.",
+  "summary": "Put certified surfaces back together: merged TIFXYZ surfaces, measured wrap order, mesh relations.",
   "outline": [
    {
     "id": "lanes",
@@ -10194,13 +14301,13 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "where do the columns of text sit?"
+        "text": "which wrap sits at what radius, in what order?"
        }
       ],
       [
        {
         "kind": "text",
-        "text": "an atlas"
+        "text": "a measured wrap order"
        }
       ]
      ],
@@ -10224,6 +14331,19 @@ export const HANDBOOK: Page[] = [
        }
       ]
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "column-atlas"
+     },
+     {
+      "kind": "text",
+      "text": " measures the physical reading order from the public meshes; it does not render plates. Composing the atlas itself — the page images a reader looks at — is P9's job, and it consumes this lane's output."
+     }
     ]
    },
    {
@@ -10353,7 +14473,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "how many anchors the fit may use"
+        "text": "how many anchor points per surface the blend keeps; 0 keeps every one"
        }
       ]
      ],
@@ -10367,7 +14487,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "how many columns of each surface anchor it"
+        "text": "how wide a column-block the blend splits the merge grid into; 0 blends the whole grid in one shared pass"
        }
       ]
      ],
@@ -10497,7 +14617,29 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A merge is only as good as its inputs' certification. Merging two surfaces that each passed P2 does not certify the merge: the seam is new geometry that nothing has looked at."
+      "text": "A merge is only as good as its inputs' certification, and passing P2 on the inputs is not the same as certifying the merge. The merge job does re-run geometry certification on the merged output and re-checks every seam the layout declared — anchor count, RANSAC inliers, overlap on both sides — and refuses if either fails. What it does not do is check a pair of surfaces the layout never named as neighbours: those are only compared for a physical collision, and that check is advisory, not a refusal, unless the deployment turns it on. In one prior reconstruction two segments the layout never paired passed within tens of micrometres of each other — closer than papyrus is thick — while every surface involved was geometry-certified and every declared seam had passed."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "mesh-relations"
+     },
+     {
+      "kind": "text",
+      "text": " is registered for the shape of the interface, not because it runs. Its declared runner, "
+     },
+     {
+      "kind": "code",
+      "text": "framework/stages/05-reconstruction/scripts/evaluate_r6_direct_geometry.py"
+     },
+     {
+      "kind": "text",
+      "text": ", is an offline calibration tool that takes a different command line entirely — a topology graph, ray casts, a ground truth file and a sample file, not a scroll name — and no assembler for measured segment relations exists in the repository yet. Queueing this lane is refused before a worker ever claims it, with a message naming why."
      }
     ]
    }
@@ -10509,7 +14651,7 @@ export const HANDBOOK: Page[] = [
   "section": "20-phases",
   "sectionTitle": "The phases",
   "title": "P9 — Rendering and reading",
-  "summary": "Compose the plates a person reads, from maps that have been through everything else.",
+  "summary": "Compose the plates a person reads, from the scroll's official ink maps in a measured reading order.",
   "outline": [
    {
     "id": "fields",
@@ -10610,7 +14752,12 @@ export const HANDBOOK: Page[] = [
         "text": "ordering_of"
        }
       ],
-      [],
+      [
+       {
+        "kind": "text",
+        "text": "one of two"
+       }
+      ],
       [
        {
         "kind": "text",
@@ -10625,7 +14772,12 @@ export const HANDBOOK: Page[] = [
         "text": "order_path"
        }
       ],
-      [],
+      [
+       {
+        "kind": "text",
+        "text": "one of two"
+       }
+      ],
       [
        {
         "kind": "text",
@@ -10655,7 +14807,32 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "That is the whole surface. P9 composes from what the pipeline already published; it takes no list of maps, no spacing and no subsampling — those decisions were made upstream and are read from the order it is given."
+      "text": "Naming both "
+     },
+     {
+      "kind": "code",
+      "text": "ordering_of"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "order_path"
+     },
+     {
+      "kind": "text",
+      "text": ", or naming neither, is refused."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "That is the whole surface. P9 fetches the scroll's official ink maps itself; it takes no list of maps, no spacing and no subsampling — those decisions were made upstream and are read from the order it is given."
      }
     ]
    },
@@ -10725,6 +14902,23 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Once a run succeeds, the panel's own phase page shows what it made: a "
+     },
+     {
+      "kind": "strong",
+      "text": "Plates"
+     },
+     {
+      "kind": "text",
+      "text": " card lists every verified PNG, each served through the panel itself rather than a path on some worker's disk. A name from that list never becomes a filesystem path — it is matched against the plates the job's own manifest recorded, so nothing outside that set is reachable this way."
+     }
+    ]
+   },
+   {
     "kind": "callout",
     "tone": "note",
     "spans": [
@@ -10753,7 +14947,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A plate is a rendering of screening output. It is the most persuasive artefact this pipeline makes and the one most easily mistaken for a conclusion — it looks like a photograph of a papyrus, and it is a picture of where a model responded."
+      "text": "A plate is a rendering of the scroll's official ink-detection map, not anything this platform's own detector produced. It is the most persuasive artefact this pipeline makes and the one most easily mistaken for a conclusion — it looks like a photograph of a papyrus, and it is a picture of where a model responded."
      }
     ]
    },
@@ -10883,7 +15077,23 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "two tiles on Mission"
+        "text": "the "
+       },
+       {
+        "kind": "strong",
+        "text": "Fleet"
+       },
+       {
+        "kind": "text",
+        "text": " and "
+       },
+       {
+        "kind": "strong",
+        "text": "Fleet hardware"
+       },
+       {
+        "kind": "text",
+        "text": " tiles on Mission"
        }
       ]
      ],
@@ -10904,7 +15114,168 @@ export const HANDBOOK: Page[] = [
         "text": " — and only there"
        }
       ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "a host's own hardware, roles and ssh target"
+       }
+      ],
+      [
+       {
+        "kind": "link",
+        "text": "Configuration → Hosts",
+        "href": "#/docs/panel/models-hosts-modules"
+       }
+      ]
      ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fleet hardware"
+     },
+     {
+      "kind": "text",
+      "text": " only adds up enabled hosts, so disabling one drops its cores and cards from the total — but nothing in the claim reads that flag, and a \"disabled\" host's own worker keeps claiming. See Hosts for what enabling and disabling a host actually does."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "GET /api/fleet"
+     },
+     {
+      "kind": "text",
+      "text": " layers "
+     },
+     {
+      "kind": "code",
+      "text": "workers"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "workers_silent"
+     },
+     {
+      "kind": "text",
+      "text": " onto the same counts "
+     },
+     {
+      "kind": "code",
+      "text": "/api/state"
+     },
+     {
+      "kind": "text",
+      "text": "'s "
+     },
+     {
+      "kind": "code",
+      "text": "fleet"
+     },
+     {
+      "kind": "text",
+      "text": " field already carries — that field is where the Mission tiles read from, so "
+     },
+     {
+      "kind": "code",
+      "text": "tasks"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "surfaces"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "stale_leases"
+     },
+     {
+      "kind": "text",
+      "text": " are on the page already: "
+     },
+     {
+      "kind": "code",
+      "text": "attempts"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "imported"
+     },
+     {
+      "kind": "text",
+      "text": " (surfaces that arrived from a catalogue rather than being grown by an attempt), "
+     },
+     {
+      "kind": "code",
+      "text": "events"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "leased"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "task_states"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "surfaces_by_sample"
+     },
+     {
+      "kind": "text",
+      "text": ", and "
+     },
+     {
+      "kind": "code",
+      "text": "qc_blocked_on_configuration"
+     },
+     {
+      "kind": "text",
+      "text": " — QC jobs refused over a configuration mismatch rather than a busy fleet — are not. Both endpoints take "
+     },
+     {
+      "kind": "code",
+      "text": "?mission="
+     },
+     {
+      "kind": "text",
+      "text": ", narrowing the counts to one mission's scrolls."
+     }
     ]
    },
    {
@@ -11305,7 +15676,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " at all. For those, compare the container's image digest instead."
+      "text": " at all. For those, compare the container's image digest instead: "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/hosts/{host_id}/images"
+     },
+     {
+      "kind": "text",
+      "text": " reads what a host's containers actually run over ssh and checks it against what its roles expect, by digest rather than tag. It answers \"not reachable\" for a host with no ssh target — the common case for one that only ever registered itself by reporting."
      }
     ]
    },
@@ -11320,7 +15699,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A lane can declare the image it needs. A worker running something else refuses the job "
+      "text": "A lane can declare the image it needs. The claim skips a candidate whose lane needs an image this worker does not run, so most of the time nothing is spent on a job it cannot do. A worker that has never declared its own image claims blind instead, and is only refused "
      },
      {
       "kind": "strong",
@@ -11328,7 +15707,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", before spending a lease — which is better than taking it and failing at the first import, but does mean a job can sit pending while the only worker that could run it is busy."
+      "text": " at execution — better than failing at the first import with no explanation, but the lease and an attempt are already gone by then. Either way, a job can sit pending while the only worker that could run it is busy."
      }
     ]
    },
@@ -11475,11 +15854,15 @@ export const HANDBOOK: Page[] = [
   "section": "30-panel",
   "sectionTitle": "The panel",
   "title": "Queueing work",
-  "summary": "Where each phase is queued from, what the form will not let you do, and why a lane is missing from the list.",
+  "summary": "Where each phase is queued from, what the form will not let you do, why a lane is missing from the list, and what a queued job looks like afterwards.",
   "outline": [
    {
     "id": "which-phases-queue-where",
     "text": "Which phases queue where"
+   },
+   {
+    "id": "mission-and-scroll-scoping",
+    "text": "Mission and scroll scoping"
    },
    {
     "id": "what-the-form-is-doing-for-you",
@@ -11492,6 +15875,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "controls-that-are-easy-to-miss",
     "text": "Controls that are easy to miss"
+   },
+   {
+    "id": "after-you-queue",
+    "text": "After you queue"
    },
    {
     "id": "paths-and-when-they-are-checked",
@@ -11575,12 +15962,8 @@ export const HANDBOOK: Page[] = [
       ],
       [
        {
-        "kind": "code",
-        "text": "POST /api/geometry/certify"
-       },
-       {
         "kind": "text",
-        "text": "; in the panel, "
+        "text": "in the panel, "
        },
        {
         "kind": "strong",
@@ -11622,6 +16005,193 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "POST /api/geometry/certify"
+     },
+     {
+      "kind": "text",
+      "text": " does queue a real P2 job, the same way "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": " does for the other phases — but no button in the panel calls it. The Maintenance "
+     },
+     {
+      "kind": "strong",
+      "text": "certify"
+     },
+     {
+      "kind": "text",
+      "text": " action instead posts to "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/segmentation/maintenance"
+     },
+     {
+      "kind": "text",
+      "text": ", which runs the fleet's own certify command synchronously inside the request and hands back its receipt directly: no job id, no row in the Queue table, none of "
+     },
+     {
+      "kind": "code",
+      "text": "pending"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "leased"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "running"
+     },
+     {
+      "kind": "text",
+      "text": ". "
+     },
+     {
+      "kind": "code",
+      "text": "/api/geometry/certify"
+     },
+     {
+      "kind": "text",
+      "text": " is reachable only by calling the API directly."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Mission and scroll scoping",
+    "id": "mission-and-scroll-scoping"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Every route on this page needs a mission: "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/geometry/certify"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/flattening/run"
+     },
+     {
+      "kind": "text",
+      "text": " all refuse a request with no "
+     },
+     {
+      "kind": "code",
+      "text": "mission_id"
+     },
+     {
+      "kind": "text",
+      "text": ", one addressed to "
+     },
+     {
+      "kind": "code",
+      "text": "unfiled"
+     },
+     {
+      "kind": "text",
+      "text": " (a read-only view of pre-mission receipts), or one whose mission has no scrolls yet."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "With a mission selected, the form's Scroll field is filled from the phase rail's current subject ("
+     },
+     {
+      "kind": "code",
+      "text": "?mission="
+     },
+     {
+      "kind": "text",
+      "text": " and the subject in the URL) and disabled — you cannot queue against a different scroll from this page. Typing a scroll by hand only works with no mission selected, which is also the one case a submit is guaranteed to be refused for missing a mission."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "GET /api/phases/{phase}/parameters"
+     },
+     {
+      "kind": "text",
+      "text": " takes the same "
+     },
+     {
+      "kind": "code",
+      "text": "mission"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "sample"
+     },
+     {
+      "kind": "text",
+      "text": " query as the phase page itself, and uses them for one thing: a field that names another job — "
+     },
+     {
+      "kind": "code",
+      "text": "screening_of"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "ordering_of"
+     },
+     {
+      "kind": "text",
+      "text": " — is offered only that mission and scroll's succeeded jobs, not every job on the deployment."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "What the form is doing for you",
@@ -11646,7 +16216,15 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": ". The launcher's own field list was written to match it by hand, so a field the queue gained is not automatically on the form."
+       "text": ". The launcher's own field list was written to match it by hand, so a field the queue gained is not automatically on the form: "
+      },
+      {
+       "kind": "code",
+       "text": "model_config"
+      },
+      {
+       "kind": "text",
+       "text": ", needed for a checkpoint whose architecture is not the timesformer lane's frozen default, has no field in the P5 launcher at all."
       }
      ],
      [
@@ -11741,15 +16319,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " for P8. Each defaults to a path under "
-     },
-     {
-      "kind": "code",
-      "text": "/artifacts"
-     },
-     {
-      "kind": "text",
-      "text": ", the platform's own volume, so this only happens to a deployment that blanked one. The symptom is \"nothing will queue\" and the cause is a blank field on the Configuration tab. P1 publishes to "
+      "text": " for P8, and "
      },
      {
       "kind": "code",
@@ -11757,7 +16327,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", which the platform compose sets to "
+      "text": " (or "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_SEGMENT_ARTIFACTS"
+     },
+     {
+      "kind": "text",
+      "text": ") for P1. The four "
+     },
+     {
+      "kind": "code",
+      "text": "CX_*"
+     },
+     {
+      "kind": "text",
+      "text": " stores default to a path under "
      },
      {
       "kind": "code",
@@ -11765,7 +16351,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": "."
+      "text": ", the platform's own volume, and the platform compose sets "
+     },
+     {
+      "kind": "code",
+      "text": "ARTIFACT_ROOT"
+     },
+     {
+      "kind": "text",
+      "text": " to "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts"
+     },
+     {
+      "kind": "text",
+      "text": " directly — so this only happens to a deployment that blanked one. The symptom is \"nothing will queue\" and the cause is a blank field on the Configuration tab."
      }
     ]
    },
@@ -12054,7 +16656,118 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A dead Queue button has a reason beside it saying what is still needed."
+      "text": "On the P5 launcher, a dead Queue button says what is still needed ("
+     },
+     {
+      "kind": "code",
+      "text": "needs a scroll, a checkpoint, …"
+     },
+     {
+      "kind": "text",
+      "text": "). The generic form behind P4, P7, P8 and P9 is not as generous: it names an unmet exactly-one-of pair, but a plain required field left blank, or no scroll chosen at all, just leaves the button disabled with nothing beside it."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "After you queue",
+    "id": "after-you-queue"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A successful submit returns a "
+     },
+     {
+      "kind": "code",
+      "text": "job_id"
+     },
+     {
+      "kind": "text",
+      "text": "; the panel shows it and the new row appears in the Queue table on the next poll. A job's state moves "
+     },
+     {
+      "kind": "code",
+      "text": "pending"
+     },
+     {
+      "kind": "text",
+      "text": " → "
+     },
+     {
+      "kind": "code",
+      "text": "leased"
+     },
+     {
+      "kind": "text",
+      "text": " (a worker holds the lease) → "
+     },
+     {
+      "kind": "code",
+      "text": "running"
+     },
+     {
+      "kind": "text",
+      "text": ", then "
+     },
+     {
+      "kind": "code",
+      "text": "succeeded"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "failed"
+     },
+     {
+      "kind": "text",
+      "text": ". "
+     },
+     {
+      "kind": "code",
+      "text": "cancelled"
+     },
+     {
+      "kind": "text",
+      "text": " is a fourth resting state — the panel's cancel button only appears while a job is still "
+     },
+     {
+      "kind": "code",
+      "text": "pending"
+     },
+     {
+      "kind": "text",
+      "text": "; once a worker has leased it, cancelling from here is no longer offered. The Run tab's badge counts a phase's jobs in "
+     },
+     {
+      "kind": "code",
+      "text": "pending"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "leased"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "running"
+     },
+     {
+      "kind": "text",
+      "text": ", so it reads nothing once every job at that phase has finished."
      }
     ]
    },
@@ -12151,11 +16864,19 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " and "
+      "text": ", "
      },
      {
       "kind": "code",
       "text": "segmentation"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "model_config"
      },
      {
       "kind": "text",
@@ -12227,7 +16948,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": "; for P1 and P2 it is a request field ("
+      "text": ". P1 takes it as a plain request field on "
      },
      {
       "kind": "code",
@@ -12235,7 +16956,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", "
+      "text": ", with no toggle in the panel. P2 takes it the same way on "
      },
      {
       "kind": "code",
@@ -12243,7 +16964,31 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ") with no toggle in the panel. On a scroll you have not run before it is the cheapest thing you can do."
+      "text": " — but see the certify trap under "
+     },
+     {
+      "kind": "strong",
+      "text": "Which phases queue where"
+     },
+     {
+      "kind": "text",
+      "text": ": nothing in the panel calls that route, so a P2 dry run is only reachable by calling the API directly; the panel's own "
+     },
+     {
+      "kind": "strong",
+      "text": "certify"
+     },
+     {
+      "kind": "text",
+      "text": " action has no "
+     },
+     {
+      "kind": "code",
+      "text": "dry_run"
+     },
+     {
+      "kind": "text",
+      "text": " of its own. On a scroll you have not run before, a dry run through the panel — P1 or P3 — is the cheapest thing you can do."
      }
     ]
    },
@@ -12270,11 +17015,15 @@ export const HANDBOOK: Page[] = [
   "section": "30-panel",
   "sectionTitle": "The panel",
   "title": "Missions, scrolls and coverage",
-  "summary": "Scoping work so it can be found, counted and attributed.",
+  "summary": "Scoping work so it can be found, counted and attributed, and what the mission dashboard shows once you have.",
   "outline": [
    {
     "id": "missions",
     "text": "Missions"
+   },
+   {
+    "id": "the-mission-dashboard",
+    "text": "The mission dashboard"
    },
    {
     "id": "scrolls",
@@ -12511,6 +17260,392 @@ export const HANDBOOK: Page[] = [
    },
    {
     "kind": "h",
+    "level": 3,
+    "text": "Picking one",
+    "id": "picking-one"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Nothing else in the panel renders until a mission is chosen. What greets you first is a table of every mission: name and description, id, how many scrolls it holds, how many runs and how many recently queued jobs, when it was created, and its state — "
+     },
+     {
+      "kind": "code",
+      "text": "active"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "paused"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "archived"
+     },
+     {
+      "kind": "text",
+      "text": ", drawn as a pill, or "
+     },
+     {
+      "kind": "strong",
+      "text": "pre-existing"
+     },
+     {
+      "kind": "text",
+      "text": " for the one implicit entry, "
+     },
+     {
+      "kind": "code",
+      "text": "unfiled"
+     },
+     {
+      "kind": "text",
+      "text": ", which you cannot edit. "
+     },
+     {
+      "kind": "strong",
+      "text": "New mission"
+     },
+     {
+      "kind": "text",
+      "text": " opens the two-field form above it; past four missions a filter box searches name, id and scroll. Clicking a row opens that mission and replaces the table with everything scoped to it."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "While a mission is open, the sidebar carries a small card naming it, with its scroll and run counts underneath, and a "
+     },
+     {
+      "kind": "strong",
+      "text": "Change or create"
+     },
+     {
+      "kind": "text",
+      "text": " button. That button does not open a dropdown: there can be hundreds of missions, so it clears the selection and returns to the table above instead."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The same sidebar carries a scroll selector for the mission that is open, labelling each scroll with the furthest phase it has reached: "
+     },
+     {
+      "kind": "code",
+      "text": "P0"
+     },
+     {
+      "kind": "text",
+      "text": " with nothing yet, "
+     },
+     {
+      "kind": "code",
+      "text": "P1"
+     },
+     {
+      "kind": "text",
+      "text": " once P1 has grown a surface for it ("
+     },
+     {
+      "kind": "code",
+      "text": "P2"
+     },
+     {
+      "kind": "text",
+      "text": " once one is certified), "
+     },
+     {
+      "kind": "code",
+      "text": "P5"
+     },
+     {
+      "kind": "text",
+      "text": " once it has an ink run, "
+     },
+     {
+      "kind": "code",
+      "text": "P7"
+     },
+     {
+      "kind": "text",
+      "text": " once one of those runs has produced a probability map. It reads \"no scroll in this mission has anything yet\" until one does."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "The mission dashboard",
+    "id": "the-mission-dashboard"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Opening a mission shows four tiles, then two tables."
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Tile"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "What it shows"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "Fleet hardware"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "gpus, cpu cores and ram summed across enabled hosts (a disabled host is not counted), and how many of them last reported in"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "Fleet"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "this mission's surface count, the tasks that produced them, and stale leases — or the reason nothing is available"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "Runs"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "this mission's run count; underneath it, the number of ink lanes with a declared profile, which is a deployment-wide figure, not scoped to the mission"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "strong",
+        "text": "Integrity"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "how many receipts contradict their own declared contract, or that every receipt matches its contract"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Scrolls in this mission"
+     },
+     {
+      "kind": "text",
+      "text": " lists every scroll the mission has selected, with scale and energy read from the frozen catalog:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Column"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Meaning"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Scroll"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the sample id"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "µm"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "pixel size; a ▲ marks a scroll with a finer scan available"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "keV"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "beam energy, when known"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Runs"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "ink runs indexed for this scroll"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "Last lane"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "despite the name, the lane of the run with the "
+       },
+       {
+        "kind": "strong",
+        "text": "highest p90"
+       },
+       {
+        "kind": "text",
+        "text": " for this scroll, not the most recent one — it links to that run"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "p90"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "that run's p90 statistic"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "State"
+       }
+      ],
+      [
+       {
+        "kind": "strong",
+        "text": "Screened"
+       },
+       {
+        "kind": "text",
+        "text": " once this scroll has any indexed ink run at all — not the pass/fail verdict from the strict screen, only whether ink has run"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Beside it, "
+     },
+     {
+      "kind": "strong",
+      "text": "Surfaces by scroll"
+     },
+     {
+      "kind": "text",
+      "text": " repeats the fleet's per-scroll surface count and area for this mission's scrolls, and "
+     },
+     {
+      "kind": "strong",
+      "text": "Findings"
+     },
+     {
+      "kind": "text",
+      "text": " — shown only when there are any — lists what Integrity found: normalization and clip contradictions in a run's declared contract, and probability maps a liveness check did not read as alive, each linking to its run."
+     }
+    ]
+   },
+   {
+    "kind": "h",
     "level": 2,
     "text": "Scrolls",
     "id": "scrolls"
@@ -12545,7 +17680,16 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Coverage answers \"how much of this scroll has been through which phase\". It is computed against the mission's scrolls, which is why a scroll outside the mission shows nowhere."
+      "text": "Coverage answers \"how much of this scroll has been looked at, and with what result\" — the candidate cells P1's bootstrap search has attempted, and the hit rate among them. It is computed against the mission's scrolls, which is why a scroll outside the mission shows nowhere. See "
+     },
+     {
+      "kind": "link",
+      "text": "Screening, Coverage and Compare",
+      "href": "#/docs/panel/screening-and-coverage"
+     },
+     {
+      "kind": "text",
+      "text": " for the fields."
      }
     ]
    },
@@ -12906,7 +18050,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "This page has no controls: it reads. To certify what is unmeasured, use "
+      "text": "The two verdict tables have no controls: they read. To certify what is unmeasured, use "
      },
      {
       "kind": "strong",
@@ -13019,6 +18163,71 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Below both tables is a third card that does have controls: "
+     },
+     {
+      "kind": "strong",
+      "text": "score against a reference strip"
+     },
+     {
+      "kind": "text",
+      "text": ". A strip records consecutive papyrus wraps as separate labelled point sets, taken from a segment's own geometry where it spirals, so it needs no annotation — mint one with "
+     },
+     {
+      "kind": "code",
+      "text": "reference-strips/make_strip.py"
+     },
+     {
+      "kind": "text",
+      "text": ", or upload a "
+     },
+     {
+      "kind": "code",
+      "text": "strip-v0"
+     },
+     {
+      "kind": "text",
+      "text": " "
+     },
+     {
+      "kind": "code",
+      "text": ".npz"
+     },
+     {
+      "kind": "text",
+      "text": " here. It is "
+     },
+     {
+      "kind": "strong",
+      "text": "not ground truth"
+     },
+     {
+      "kind": "text",
+      "text": ": a strip is derived from a segmentation, so it cannot judge the segment it came from, and only its optional CT cross-check — off by default, the one check that reaches the network — appeals to anything outside that segmentation. Upload, then "
+     },
+     {
+      "kind": "strong",
+      "text": "qualify"
+     },
+     {
+      "kind": "text",
+      "text": " against four checks (a plumbing self-test, one that catches mislabelled or shuffled wraps, a null baseline, and the CT cross-check) before anything is scored against it. Scoring needs a surface's path handed in as "
+     },
+     {
+      "kind": "code",
+      "text": "predPath"
+     },
+     {
+      "kind": "text",
+      "text": "; nothing in the panel supplies one yet, so from this page you can upload and qualify, not score. It is the independent check regardless: the gate above is the fleet grading its own output, and a strip is a reference the grower did not write."
+     }
+    ]
+   },
+   {
     "kind": "h",
     "level": 2,
     "text": "Lineage",
@@ -13029,7 +18238,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The audit trail, plus one thing that is not one: a "
+      "text": "The record of what each phase produced, what it may consume, and which version a mission currently uses — plus one thing that is not part of that record: a "
      },
      {
       "kind": "strong",
@@ -13037,7 +18246,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " that registers artifacts the record is missing — dry run first, then a button that writes."
+      "text": " that registers artifacts made before the register existed. Dry run first, then a button that writes."
      }
     ]
    },
@@ -13046,7 +18255,31 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "It is phase-scoped, with a P0…P9 selector, and cannot be narrowed to a scroll. Its three cards are what a phase will read, the selection history, and what that phase produced. The two questions it exists for:"
+      "text": "It is phase-scoped, with a P0…P9 selector, and cannot be narrowed to a scroll. Its three cards are what a phase will read, the selection history, and what that phase produced. None of the three is read-only: "
+     },
+     {
+      "kind": "strong",
+      "text": "use this"
+     },
+     {
+      "kind": "text",
+      "text": ", on a row of either register, moves the mission's selection to that version; "
+     },
+     {
+      "kind": "strong",
+      "text": "affects"
+     },
+     {
+      "kind": "text",
+      "text": " traces what was already computed downstream of one, since replacing an input does not erase the answers computed from it. "
+     },
+     {
+      "kind": "strong",
+      "text": "go back to this"
+     },
+     {
+      "kind": "text",
+      "text": ", on the history, does not rewind — it writes a new version equal to the old one, so a mission that went forward, found a mistake and came back reads as three decisions, not one that never happened. The two questions it exists for:"
      }
     ]
    },
@@ -13091,7 +18324,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is a caller-supplied P2 parameter, threaded straight through — \"include surfaces the CT never confirmed\". A certification run refuses it; an exploration run honours it."
+      "text": " is a caller-supplied P3 parameter, threaded straight through — \"include surfaces the CT never confirmed\". A certification run refuses it; an exploration run honours it."
      }
     ]
    },
@@ -13176,7 +18409,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " are recorded — a mutation exposed as a GET would not be in the trail. It filters by user and by substring, and the files are monthly "
+      "text": " are recorded — a mutation exposed as a GET would not be in the trail. It filters by user and by substring, a "
+     },
+     {
+      "kind": "strong",
+      "text": "showing"
+     },
+     {
+      "kind": "text",
+      "text": " control caps how far back a query looks (200 entries by default, up to 2000), and the files are monthly "
      },
      {
       "kind": "code",
@@ -13185,6 +18426,15 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " under the audit root."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Request bodies are never captured, on purpose: one route sets S3 credentials and another sets a password, and a trail that recorded what was sent would be the most sensitive file on the machine. What each row keeps is the timestamp, an id, the user, the action, the outcome, how long it took, and the client address."
      }
     ]
    },
@@ -13223,6 +18473,10 @@ export const HANDBOOK: Page[] = [
    {
     "id": "coverage",
     "text": "Coverage"
+   },
+   {
+    "id": "compare",
+    "text": "Compare"
    },
    {
     "id": "seed-agreement-on-the-segmentation-panel",
@@ -13306,7 +18560,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Only runs that have a probability map are listed."
+      "text": "Only runs that have a probability map are listed. The map card previews the selected run at the chosen threshold, next to the table it is explaining."
      }
     ]
    },
@@ -13348,7 +18602,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The framework is named for exploration and originally could not answer this: coverage existed only as a ranking input inside the bootstrap — how far a candidate cell is from the surfaces already grown. As a question a person asks, it did not exist."
+      "text": "The framework is named for exploration and originally could not answer this: coverage existed only as a ranking input inside the bootstrap — how far a candidate cell is from the surfaces already grown. As a question a person asks, it did not exist, and progress used to be read off a surface count instead, which rises whether the fleet is finding new ground or re-treading old."
      }
     ]
    },
@@ -13365,7 +18619,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", so a scroll you did not add shows nowhere. That is the most common reason coverage looks empty when work has clearly happened — and the preflight block appears only when a mission "
+      "text": ", so a scroll you did not add shows nowhere. That is the most common reason coverage looks empty when work has clearly happened — and the candidate-availability preflight below appears only when a mission "
      },
      {
       "kind": "strong",
@@ -13374,23 +18628,6 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " a scroll are both selected, which is the second."
-     }
-    ]
-   },
-   {
-    "kind": "p",
-    "spans": [
-     {
-      "kind": "text",
-      "text": "The column worth reading is the "
-     },
-     {
-      "kind": "strong",
-      "text": "hit rate"
-     },
-     {
-      "kind": "text",
-      "text": ". On this control plane one grid found a lamina in 30 of 30 cells and another in 1 of 128, and nothing had ever put those two numbers beside each other."
      }
     ]
    },
@@ -13552,7 +18789,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A decision of "
+      "text": "The campaign decision card names how many scientific-terminal attempts recorded zero raw M7 against how many were evaluated, which attempts triggered the decision, and which were excluded as platform or control outcomes, with a receipt hash for the evaluation; earlier evaluations stay visible below it as history. A decision of "
      },
      {
       "kind": "code",
@@ -13560,7 +18797,348 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is the campaign telling you it has run out of places worth looking, and it comes with the actions it will still allow."
+      "text": " is the campaign telling you it has run out of places worth looking, and it still allows creating a materially changed strategy or closing the campaign — not queuing past it."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Campaign gates",
+    "id": "campaign-gates"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A mission bound to a First Letters campaign carries a "
+     },
+     {
+      "kind": "strong",
+      "text": "First Letters campaign gates"
+     },
+     {
+      "kind": "text",
+      "text": " card above everything else on this page; an ordinary mission draws nothing here, because it has no campaign to gate. It names the deployed revision, whether the mission was bound to a different one, and the positive control's status — a full-pipeline run against a known fixture, tracked live through the run's nine boundaries, "
+     },
+     {
+      "kind": "code",
+      "text": "P0"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P1"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P2"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "QC"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P3"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P4"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P5"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "P7"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "HUMAN_REVIEW"
+     },
+     {
+      "kind": "text",
+      "text": ", with a toggle for the full event log. It lists, per scroll, the candidate preflight and the computed task budget, names every blocker with the evidence that clears it, and every advisory worth knowing."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Below that, only the actions the server's evidence actually offers are drawn as buttons — a future action code the page has not been taught renders as plain text, never a button, so no new server string can become a way around a gate. There is deliberately no control that accepts a blocked campaign, forces a queue, or turns a stale control into a current one: the way past a blocker is to produce the evidence it names. Accepting a computed budget authorizes compute under a named cap; it does not choose the task count. Closing a campaign asks for confirmation, archives the mission, and deletes nothing — its receipts stay readable."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Candidate availability preflight",
+    "id": "candidate-availability-preflight"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A source-locked survey of what the current source exposes, ahead of any fleet attempt — this can show a populated funnel while the grid table below it is still empty, because \"is there anything worth attempting here\" is a question that comes before \"has anything been attempted\". "
+     },
+     {
+      "kind": "code",
+      "text": "INVALID"
+     },
+     {
+      "kind": "text",
+      "text": " evidence shows only the reason and no numbers: a preflight whose receipt does not verify is not read from."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Otherwise it states whether the measurement is an exact census or a sampled estimate, and whether either is incomplete, alongside the planned and achieved sampling percentage, and a funnel: raw M7 candidates, then post-CT, post-cell-clearance, post-volume-clearance, and packet-retained, next to cells surveyed successfully out of cells attempted, source failures, and the eligible cell population, exact or estimated. A table breaks the same funnel down by spatial bin. Its own non-claim: candidate scarcity is not evidence of surface, ink, text or letter absence."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "What has been looked at",
+    "id": "what-has-been-looked-at"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Three tiles: cells attempted across every grid, cells that produced a surface, and the mission's surface area in cm² — stated as an upper bound, because overlap below the deduplication threshold is counted twice."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The per-grid table underneath is the one worth reading:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Column"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "grid"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the grid version; cells under two different grid versions are not the same cells"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "step"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the grid's cell spacing"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "attempted"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "cells this grid has attempted"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "of the volume"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "cells inside the scroll's volume, and the percentage attempted"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "with a surface"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "cells that produced a surface"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "no seed"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "cells that produced nothing to grow from"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "hit rate"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "with a surface ÷ attempted"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The "
+     },
+     {
+      "kind": "strong",
+      "text": "hit rate"
+     },
+     {
+      "kind": "text",
+      "text": " is the column worth reading: on this control plane one grid found a lamina in 30 of 30 cells and another in 1 of 128, and nothing had ever put those two numbers beside each other. It is drawn green at 50% or better, red below 10%, and it is not a quality signal — it says the planner found a seed worth growing in that cell, and nothing about what grew there."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Re-asking cells that gave no seed",
+    "id": "re-asking-cells-that-gave-no-seed"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A cell that ended "
+     },
+     {
+      "kind": "code",
+      "text": "NO_SEED"
+     },
+     {
+      "kind": "text",
+      "text": " recorded how many candidates the provider offered and which screen removed them. This form re-queues a chosen set of those causes under a new grid and policy version, through a different planner if one is picked. Grid and policy version both default to a field pre-filled with today's date, because a task's identity is (snapshot, grid, cell, policy): a re-ask under the same policy as before inserts nothing and silently looks like it worked. A dry run lists what would be queued without queuing it."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Re-asking is not evidence a lamina is there, and it changes neither the prediction volume nor its threshold: a cell that failed for want of any raw M7 candidate fails the same way again unless what the source offers changes."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Compare",
+    "id": "compare"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Two ink runs, side by side. The fields worth checking come first: the contract keys — schema, sample, lane, checkpoint digest, normalisation, clip value, divisor — because a difference there is what makes any further comparison meaningless. Every other statistic each run carries follows, sorted, with a count of how many fields differ between the two. A shared threshold slider drives both probability-map previews on one pan and zoom, so panning either one compares the same place in both."
      }
     ]
    },
@@ -13575,7 +19153,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Not on Compare — that page compares two ink runs. Seed agreement is a column on the P1 panel: a state pill and "
+      "text": "Not on Compare above — that section compares two ink runs, not two seeds. Seed agreement is a column on the P1 panel: a state pill and "
      },
      {
       "kind": "strong",
@@ -13911,6 +19489,63 @@ export const HANDBOOK: Page[] = [
     "text": "install_ink_weights.py --models-root /path/to/models\ninstall_ink_weights.py --models-root ... --only ink_9um   # one repository\ninstall_ink_weights.py --models-root ... --verify-only    # audit, download nothing"
    },
    {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "That writes into the models volume directly, from whatever machine runs it. "
+     },
+     {
+      "kind": "code",
+      "text": "scripts/harness/install_declared_weights.py"
+     },
+     {
+      "kind": "text",
+      "text": " does the equivalent job through the panel instead: it reads "
+     },
+     {
+      "kind": "code",
+      "text": "GET /api/models?resolve=1"
+     },
+     {
+      "kind": "text",
+      "text": " for what a frozen profile still needs, then calls "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/models/download"
+     },
+     {
+      "kind": "text",
+      "text": " once per row against that profile's own digest — the same request the page's Download button makes, including for a "
+     },
+     {
+      "kind": "code",
+      "text": "pickle_only"
+     },
+     {
+      "kind": "text",
+      "text": " checkpoint, since the request carries the hash. It takes a panel URL and a user's credentials, "
+     },
+     {
+      "kind": "code",
+      "text": "--only <substring>"
+     },
+     {
+      "kind": "text",
+      "text": " to filter by upstream repository or destination path, and "
+     },
+     {
+      "kind": "code",
+      "text": "--dry-run"
+     },
+     {
+      "kind": "text",
+      "text": " to plan without fetching anything."
+     }
+    ]
+   },
+   {
     "kind": "callout",
     "tone": "cost",
     "spans": [
@@ -14030,7 +19665,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "it needs an acceptance you have not given"
+        "text": "it needs an acceptance you have not given, or the repository does not exist — the hub answers 401 for both, so as not to leak which"
        }
       ]
      ],
@@ -14160,55 +19795,96 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The platform has three extension mechanisms and each is right for what it does:"
+      "text": "A module has one of five kinds, and each is a different contract rather than a synonym for the others:"
      }
     ]
    },
    {
-    "kind": "list",
-    "ordered": false,
-    "items": [
+    "kind": "table",
+    "head": [
      [
       {
        "kind": "text",
-       "text": "a "
-      },
-      {
-       "kind": "strong",
-       "text": "lane"
-      },
-      {
-       "kind": "text",
-       "text": " is a program,"
+       "text": "Kind"
       }
      ],
      [
       {
        "kind": "text",
-       "text": "a "
-      },
-      {
-       "kind": "strong",
-       "text": "profile"
-      },
-      {
-       "kind": "text",
-       "text": " is a model with its scale,"
+       "text": "Is"
       }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "lane"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a program the queue starts"
+       }
+      ]
      ],
      [
-      {
-       "kind": "text",
-       "text": "a "
-      },
-      {
-       "kind": "strong",
-       "text": "seeder"
-      },
-      {
-       "kind": "text",
-       "text": " chooses a point."
-      }
+      [
+       {
+        "kind": "code",
+        "text": "profile"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "a model with its weights and physical scale, routed to an adapter"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "backend"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "what grows a surface, for segmentation"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "seeder"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "what chooses the point to grow from"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "source"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "where the frozen scroll catalog is read from"
+       }
+      ]
      ]
     ]
    },
@@ -14217,7 +19893,23 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "This page does not add a fourth. What is registered is read from the same declarations the queue routes with, so a lane that appears here exists and one that does not cannot be queued."
+      "text": "This page does not add a sixth. What is registered is read from the same declarations the queue routes with, so a lane that appears here exists and one that does not cannot be queued. P0 reports only "
+     },
+     {
+      "kind": "code",
+      "text": "source"
+     },
+     {
+      "kind": "text",
+      "text": ", naming the "
+     },
+     {
+      "kind": "code",
+      "text": "CX_SCROLL_SOURCE"
+     },
+     {
+      "kind": "text",
+      "text": " in effect; P1 reports backends and seeders instead of lanes; P5 reports profiles instead of lanes; every other phase reports lanes."
      }
     ]
    },
@@ -14235,7 +19927,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " from a Hugging Face repo id, adapter, training scale and frame count. That is a write."
+      "text": " from a Hugging Face repo id, an adapter, training scale, frame count, a revision ("
+     },
+     {
+      "kind": "code",
+      "text": "main"
+     },
+     {
+      "kind": "text",
+      "text": " if left blank) and the checkpoint file ("
+     },
+     {
+      "kind": "code",
+      "text": "model.safetensors"
+     },
+     {
+      "kind": "text",
+      "text": " unless changed). Left with nothing said about what it does not claim, the profile says so itself: nothing has been validated against a known positive on this deployment, which is true and is what a reader needs. That is a write."
      }
     ]
    },
@@ -14299,7 +20007,113 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", and the server refuses anything else. A role describing where infrastructure lives is a fact about the deployment rather than something to be inferred."
+      "text": ", and the server refuses anything else:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "Role"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Means"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "code",
+        "text": "segment"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "grows surfaces with VC3D — CPU only, so any host can take it"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "render"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "turns a surface into a layer stack — no GPU"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "ink"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the only stage that needs a GPU worth having"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "mesh"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "comparative backend, research only — its surfaces are not catalogued"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "code",
+        "text": "build"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "compiles the images, which is why they are built where they run"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A host can carry a role this page does not offer, such as "
+     },
+     {
+      "kind": "code",
+      "text": "postgres"
+     },
+     {
+      "kind": "text",
+      "text": " on the one running the control-plane database. That is shown, greyed, rather than dropped: a role describing where infrastructure lives is a fact about the deployment rather than something to be inferred, and a request from this page that cannot express it must not be able to remove it by saving an unrelated change."
      }
     ]
    },
@@ -14430,6 +20244,39 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
+      "text": "That last sentence is literal, not a figure of speech: a host that nobody registered still registers itself, the first time its worker or its "
+     },
+     {
+      "kind": "code",
+      "text": "host_report.py"
+     },
+     {
+      "kind": "text",
+      "text": " reports in. That first report inserts the row with no "
+     },
+     {
+      "kind": "code",
+      "text": "ssh"
+     },
+     {
+      "kind": "text",
+      "text": " target and a note pointing back here — \"registered by its own report; add an ssh target under Configuration -> Hosts to provision it from the panel\" — so the fleet counts its hardware from the start instead of the worker running every job on a machine this page had never heard of. Add the "
+     },
+     {
+      "kind": "code",
+      "text": "ssh"
+     },
+     {
+      "kind": "text",
+      "text": " target by hand afterwards to make it provisionable; nothing else about the row changes."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
       "text": "Host state is measured, not assumed — by the "
      },
      {
@@ -14447,6 +20294,76 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " and VRAM the worker reported, probed before its first claim, because a host with no card must not take a job that needs one: it would fail it, burn an attempt, and leave the queue looking broken rather than misrouted."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The table itself reports what was measured: GPUs by name and utilisation, one line each; cores, with the host's own total alongside when this worker is confined to fewer; RAM free — "
+     },
+     {
+      "kind": "code",
+      "text": "MemAvailable"
+     },
+     {
+      "kind": "text",
+      "text": ", what a new process could actually get, reclaimable cache included — over the total; and disk free on the volume runs land on, not on "
+     },
+     {
+      "kind": "code",
+      "text": "/"
+     },
+     {
+      "kind": "text",
+      "text": ". \"Last seen\" reads "
+     },
+     {
+      "kind": "strong",
+      "text": "live"
+     },
+     {
+      "kind": "text",
+      "text": " for two different reasons that share one word: the host the panel itself runs on, which it can simply measure rather than wait for a report, and any host whose only report is a segmentation worker's heartbeat, which carries admission capabilities — a GPU, if there is one — and nothing else, so cores, RAM and disk stay dashes there even while it says live. Every other host shows the timestamp of its last report, or "
+     },
+     {
+      "kind": "strong",
+      "text": "never"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "GET /api/hosts/{id}/images"
+     },
+     {
+      "kind": "text",
+      "text": " is a second check, reachable but not on this page yet: it asks the host over SSH which "
+     },
+     {
+      "kind": "code",
+      "text": "helena-*"
+     },
+     {
+      "kind": "text",
+      "text": " image digests it is actually running, compares them against what its roles require, and reports the drift — a tag identifies nothing, which is how two hosts came to run different bytes under the same name. It answers \"not reachable\" rather than guessing for a host with no "
+     },
+     {
+      "kind": "code",
+      "text": "ssh"
+     },
+     {
+      "kind": "text",
+      "text": " target or one that does not answer."
      }
     ]
    },
@@ -14658,11 +20575,218 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
+    "kind": "h",
+    "level": 3,
+    "text": "Scrolls",
+    "id": "scrolls"
+   },
+   {
     "kind": "p",
     "spans": [
      {
       "kind": "text",
-      "text": "The selection freezes as soon as work exists for the mission, and widening a frozen one needs a reason, which is recorded."
+      "text": "The table lists every top-level prefix the source bucket exposes, found by layout rather than by an index: a prefix counts as a scroll only when it holds "
+     },
+     {
+      "kind": "code",
+      "text": "volumes/<timestamp>-<µm>um-…-<keV>keV.zarr/"
+     },
+     {
+      "kind": "text",
+      "text": ". Prefixes with no "
+     },
+     {
+      "kind": "code",
+      "text": "volumes/"
+     },
+     {
+      "kind": "text",
+      "text": " are named below the table rather than dropped silently. Its columns are the scroll id, "
+     },
+     {
+      "kind": "strong",
+      "text": "µm"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "strong",
+      "text": "keV"
+     },
+     {
+      "kind": "text",
+      "text": ", scan count, the earliest scan's own date, runs recorded in this deployment, and whether the scroll sits in the current mission. A filter box narrows by id, and "
+     },
+     {
+      "kind": "strong",
+      "text": "only this mission"
+     },
+     {
+      "kind": "text",
+      "text": " narrows to the selection."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "µm and keV come first from the frozen catalogue and, where it says nothing, from the finest scan's own directory name; a blank cell means the scale is unpinned, not merely unknown. The catalogue is a committed file covering 13 scrolls; the bucket itself currently lists around 45, so most rows get their scale, if any, from the scan name instead. "
+     },
+     {
+      "kind": "code",
+      "text": "CX_CATALOG_REFRESH"
+     },
+     {
+      "kind": "text",
+      "text": " (on by default) regenerates the catalogue from the bucket at startup and once a day, so a newly published scroll can gain a declared scale without anyone editing the file. Only a scroll the catalogue or another registered source can resolve to a volume can actually be added to a mission — see "
+     },
+     {
+      "kind": "link",
+      "text": "Missions",
+      "href": "#/docs/panel/missions"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Refresh inventory"
+     },
+     {
+      "kind": "text",
+      "text": " re-lists the bucket directly, bypassing the on-disk cache that "
+     },
+     {
+      "kind": "code",
+      "text": "CX_SCROLL_TTL"
+     },
+     {
+      "kind": "text",
+      "text": " (a day by default) otherwise serves from. That is a different cache, and a different setting, from the catalogue refresh above. The "
+     },
+     {
+      "kind": "strong",
+      "text": "Inventory origin"
+     },
+     {
+      "kind": "text",
+      "text": " tile in the phase header above names which bucket answered and can "
+     },
+     {
+      "kind": "strong",
+      "text": "change"
+     },
+     {
+      "kind": "text",
+      "text": " to a different one for this browser only; that never touches "
+     },
+     {
+      "kind": "code",
+      "text": "CX_SCROLL_SOURCE"
+     },
+     {
+      "kind": "text",
+      "text": ", which is what Configuration persists."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The "
+     },
+     {
+      "kind": "code",
+      "text": "unfiled"
+     },
+     {
+      "kind": "text",
+      "text": " view has no selection to edit — its list describes runs that predate missions, not a choice — so its checkboxes stay disabled."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Changing the selection",
+    "id": "changing-the-selection"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Ticking an unselected scroll queues an addition; unticking a selected one queues a removal. Nothing happens until "
+     },
+     {
+      "kind": "strong",
+      "text": "Apply"
+     },
+     {
+      "kind": "text",
+      "text": ", which adds through "
+     },
+     {
+      "kind": "code",
+      "text": "/amend"
+     },
+     {
+      "kind": "text",
+      "text": " and then removes through "
+     },
+     {
+      "kind": "code",
+      "text": "/remove"
+     },
+     {
+      "kind": "text",
+      "text": ". A mission with no work yet applies straight away; once anything has run, every change needs a "
+     },
+     {
+      "kind": "strong",
+      "text": "reason"
+     },
+     {
+      "kind": "text",
+      "text": ", kept in the amendments table below, and a scroll that already produced work here cannot be removed at all."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Amending re-registers a frozen-source artifact for every scroll now in the selection (content-addressed, so an unchanged scroll keeps its version), which is what \"What P0 produced\" below actually answers from. Removing does not touch that registry. A selection assembled before that automatic freeze existed, or made through the API, can show scrolls selected and nothing produced there; "
+     },
+     {
+      "kind": "strong",
+      "text": "Record what P0 decided"
+     },
+     {
+      "kind": "text",
+      "text": " catches it up on demand, and a second press returns the same artifacts rather than minting new ones, because pressing it twice is not a new decision."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "If the voxel size is not pinned here, every micron figure downstream is unanchored, and P5 resamples against a number nobody checked."
      }
     ]
    },
@@ -14695,7 +20819,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "The Configuration surface is the shell for seven tabs: Config, Hosts, Users, Lineage, Audit, Modules and Models. The Config tab itself has every setting the deployment has, with its value, its default, and "
+      "text": "The Configuration surface is the shell for seven tabs: Settings, Modules, Models, Hosts, Users, Lineage and Audit log. The Settings tab itself has every setting the deployment has, with its value, its default, and "
      },
      {
       "kind": "strong",
@@ -14796,24 +20920,6 @@ export const HANDBOOK: Page[] = [
      [
       {
        "kind": "strong",
-       "text": "Fleet secrets"
-      },
-      {
-       "kind": "text",
-       "text": " are a "
-      },
-      {
-       "kind": "em",
-       "text": "separate"
-      },
-      {
-       "kind": "text",
-       "text": " store in the control plane with its own routes. Workers pick one up when they next start. They are not the same thing as a setting marked secret."
-      }
-     ],
-     [
-      {
-       "kind": "strong",
        "text": "Theme"
       },
       {
@@ -14821,6 +20927,136 @@ export const HANDBOOK: Page[] = [
        "text": " is the one setting on the page that is not versioned."
       }
      ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Credentials",
+    "id": "credentials"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The "
+     },
+     {
+      "kind": "strong",
+      "text": "Credentials"
+     },
+     {
+      "kind": "text",
+      "text": " card is fleet secrets: a "
+     },
+     {
+      "kind": "em",
+      "text": "separate"
+     },
+     {
+      "kind": "text",
+      "text": " store in the control plane with its own routes ("
+     },
+     {
+      "kind": "code",
+      "text": "GET"
+     },
+     {
+      "kind": "text",
+      "text": "/"
+     },
+     {
+      "kind": "code",
+      "text": "PUT"
+     },
+     {
+      "kind": "text",
+      "text": "/"
+     },
+     {
+      "kind": "code",
+      "text": "DELETE /api/secrets"
+     },
+     {
+      "kind": "text",
+      "text": "), not a setting marked secret and not covered by configuration versions either. It holds six names and nothing else — "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_ACCESS_KEY_ID"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_SECRET_ACCESS_KEY"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_SESSION_TOKEN"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_DEFAULT_REGION"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_REGION"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_ENDPOINT_URL"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Write-only: the card reports whether a value is set, its length and who set it, never the value itself, and setting one needs a signed-in author. This is not encryption at rest — anyone who can read the control-plane database can read these too, the same as the database password every worker already carries."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A worker adopts them when it next starts. An environment variable already set on that host wins over the control plane's copy, deliberately, and the worker logs which names it is shadowing so the mismatch does not pass unnoticed. See "
+     },
+     {
+      "kind": "link",
+      "text": "backups and object storage",
+      "href": "#/docs/operations/backups-and-object-storage"
+     },
+     {
+      "kind": "text",
+      "text": " for what these credentials are for."
+     }
     ]
    },
    {
@@ -14898,7 +21134,7 @@ export const HANDBOOK: Page[] = [
   "section": "40-reference",
   "sectionTitle": "Reference",
   "title": "The HTTP API",
-  "summary": "131 endpoints, the ones worth knowing by hand, and the two credentials that reach them.",
+  "summary": "133 endpoints, the ones worth knowing by hand, and the two credentials that reach them.",
   "outline": [
    {
     "id": "credentials",
@@ -14913,12 +21149,20 @@ export const HANDBOOK: Page[] = [
     "text": "Queueing work"
    },
    {
+    "id": "missions",
+    "text": "Missions"
+   },
+   {
     "id": "reading-state",
     "text": "Reading state"
    },
    {
     "id": "artifacts",
     "text": "Artifacts"
+   },
+   {
+    "id": "models",
+    "text": "Models"
    },
    {
     "id": "configuration-and-identity",
@@ -14963,7 +21207,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — a person, signed in, holding a cookie. Reaches everything."
+      "text": " — a person, signed in, holding a cookie. Reaches everything. There are no roles: signing in is the whole boundary, and any account can do anything another one can."
      }
     ]
    },
@@ -14993,6 +21237,48 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": ". A worker publishing a surface needs no ability to queue GPU work or read somebody's missions, so it does not have one."
+     }
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "GET    /api/session              who is signed in, and whether anybody can be\nPOST   /api/session              sign in\nDELETE /api/session              sign out\nPOST   /api/session/bootstrap    create the first account"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "GET /api/session"
+     },
+     {
+      "kind": "text",
+      "text": " answers "
+     },
+     {
+      "kind": "code",
+      "text": "bootstrap_available"
+     },
+     {
+      "kind": "text",
+      "text": ": true only while no account exists yet. "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/session/bootstrap"
+     },
+     {
+      "kind": "text",
+      "text": " is refused once one does — 409, sign in and add users from there — and refused from anywhere but loopback: the first account can only be claimed from a shell on the host itself, with "
+     },
+     {
+      "kind": "code",
+      "text": "curl -X POST localhost:8800/api/session/bootstrap"
+     },
+     {
+      "kind": "text",
+      "text": " and a JSON body naming a username and password."
      }
     ]
    },
@@ -15111,7 +21397,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "GET  /api/phases                       the phases, and which are queueable\nGET  /api/phases/{phase}/parameters    every field that phase accepts\nGET  /api/modules                      lanes, profiles, backends and seeders per phase\nGET  /api/lanes                        the ink lane profiles, with registry status\nGET  /api/ink/lanes                    the lane/adapter/registry cross-table\nPOST /api/jobs                         queue one -- P1, P4, P5, P7, P8, P9 only\nPOST /api/geometry/certify             queue P2\nPOST /api/flattening/run               queue P3\nGET  /api/jobs                         list, filterable by state and mission\nGET  /api/jobs/{id}/events             the job's own history\nPOST /api/jobs/{id}/cancel             stop one"
+    "text": "GET  /api/phases                       the phases, and which are queueable\nGET  /api/phases/{phase}/parameters    every field that phase accepts\nGET  /api/modules                      lanes, profiles, backends and seeders per phase\nGET  /api/lanes                        the ink lane profiles, with registry status\nGET  /api/ink/lanes                    the lane/adapter/registry cross-table\nPOST /api/jobs                         queue one -- P1, P4, P5, P7, P8, P9 only\nPOST /api/geometry/certify             queue P2\nPOST /api/flattening/run               queue P3\nPOST /api/segmentation/runs            queue a seeded P1 grow\nGET  /api/jobs                         list, filterable by state and mission\nGET  /api/jobs/{id}/events             the job's own history\nPOST /api/jobs/{id}/cancel             stop one"
    },
    {
     "kind": "callout",
@@ -15123,7 +21409,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " refuses P2 and P3 with a 400 saying the phase has no runner registered. They have their own routes, above."
+      "text": " refuses P2 and P3 with a 400 saying the phase has no runner registered. They have their own routes, above. P1 splits the same way: the spiral-fit lane goes through "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/jobs"
+     },
+     {
+      "kind": "text",
+      "text": ", but the vc3d seeded grow -- the default -- goes through "
+     },
+     {
+      "kind": "code",
+      "text": "POST /api/segmentation/runs"
+     },
+     {
+      "kind": "text",
+      "text": ", which shells out to the fleet's own bootstrap so the panel does not carry a second copy of the seeding policy."
      }
     ]
    },
@@ -15137,6 +21439,28 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " is the one to build against. It is the same contract the queue validates with and the form renders from, so a field it does not list does not exist."
+     }
+    ]
+   },
+   {
+    "kind": "callout",
+    "tone": "trap",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "POST /api/segmentation/runs"
+     },
+     {
+      "kind": "text",
+      "text": " answers 409 with "
+     },
+     {
+      "kind": "code",
+      "text": "inserted: 0"
+     },
+     {
+      "kind": "text",
+      "text": " when every cell the run would cover already has a task under the same grid and policy version. That is not a fault: name a new policy version to open a new experiment over the same ground, or a smaller grid step to reach ground the current tiling skipped."
      }
     ]
    },
@@ -15209,13 +21533,53 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "Missions",
+    "id": "missions"
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "GET  /api/missions                          every mission, with its job count\nPOST /api/missions                          create one, empty or with scrolls\nGET  /api/missions/{mission_id}             its manifest, runs and scroll lists\nPOST /api/missions/{mission_id}/amend       widen a frozen selection\nPOST /api/missions/{mission_id}/remove      drop scrolls that have no work yet\nPOST /api/missions/{mission_id}/state       change its state\nPOST /api/missions/{mission_id}/artifacts/freeze-p0   register what P0 produced"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "unfiled"
+     },
+     {
+      "kind": "text",
+      "text": " is not a mission: it is a read-only view assembled from runs that predate missions, and every write route above refuses it with a 409. "
+     },
+     {
+      "kind": "code",
+      "text": "freeze-p0"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "amend"
+     },
+     {
+      "kind": "text",
+      "text": " are idempotent by content -- pressing either twice without a changed decision returns the same artifacts rather than a new version."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "Reading state",
     "id": "reading-state"
    },
    {
     "kind": "code",
     "language": "",
-    "text": "GET /api/state?mission=…        counts; host-wide without the parameter\nGET /api/runs?mission=…         the run index, same rule\nGET /api/segmentation/segments  surfaces, with their QC axes\nGET /api/fleet                  workers, jobs, and who is silent\nGET /api/build                  which revision this panel is\nGET /api/audit                  every mutation, and every refusal"
+    "text": "GET /api/state?mission=…        counts; host-wide without the parameter\nGET /api/runs?mission=…         the run index, same rule\nGET /api/ink/maps?mission=…     P5 screenings, from the queue\nGET /api/segmentation/segments  surfaces, with their QC axes\nGET /api/fleet                  workers, jobs, and who is silent\nGET /api/build                  which revision this panel is\nGET /api/audit                  every mutation, and every refusal"
    },
    {
     "kind": "callout",
@@ -15232,6 +21596,51 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": " parameter is not cosmetic on the first two: without it a dashboard tile counted the whole host, so a mission holding one scroll reported another scroll's surfaces and tasks as its own."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "/api/runs"
+     },
+     {
+      "kind": "text",
+      "text": " walks the legacy run-receipt tree on disk: a directory per run, each holding a receipt file. "
+     },
+     {
+      "kind": "code",
+      "text": "/api/ink/maps"
+     },
+     {
+      "kind": "text",
+      "text": " reads the same P5 screenings from the job queue instead. A screening filed under no mission lands in "
+     },
+     {
+      "kind": "code",
+      "text": "unfiled"
+     },
+     {
+      "kind": "text",
+      "text": " and never reaches a receipt directory, so it shows up at "
+     },
+     {
+      "kind": "code",
+      "text": "/api/ink/maps"
+     },
+     {
+      "kind": "text",
+      "text": " and nowhere in "
+     },
+     {
+      "kind": "code",
+      "text": "/api/runs"
+     },
+     {
+      "kind": "text",
+      "text": " -- use the queue-backed one unless the deployment has no database configured, in which case it says so rather than an empty list."
      }
     ]
    },
@@ -15338,13 +21747,73 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "Models",
+    "id": "models"
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "GET  /api/models              what the frozen profiles need, and what is installed\nPOST /api/models/download     fetch one checkpoint from Hugging Face"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A checkpoint counts as installed when a file under the models root hashes to what a profile declares, not by its filename. "
+     },
+     {
+      "kind": "code",
+      "text": ".safetensors"
+     },
+     {
+      "kind": "text",
+      "text": " downloads freely; a "
+     },
+     {
+      "kind": "code",
+      "text": ".bin"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": ".pt"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": ".pth"
+     },
+     {
+      "kind": "text",
+      "text": " is a pickle that runs code the moment a worker loads it, so those are fetched only when the request states the "
+     },
+     {
+      "kind": "code",
+      "text": "expect_sha256"
+     },
+     {
+      "kind": "text",
+      "text": " it must have -- send the hash the profile or registry declares. A file that arrives with the wrong hash is deleted, not installed, and the response says so as a 409."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "Configuration and identity",
     "id": "configuration-and-identity"
    },
    {
     "kind": "code",
     "language": "",
-    "text": "GET    /api/config                             every setting, its source and its default\nPUT    /api/config/env/{name}                  set one\nGET    /api/config/versions                    the history\nPOST   /api/config/versions/{id}/restore       go back by writing a new version\nGET    /api/machines                           machine tokens\nPOST   /api/machines                           mint one; returned once, never recoverable\nDELETE /api/machines/{name}                    revoke"
+    "text": "GET    /api/config                             every setting, its source and its default\nPUT    /api/config/env/{name}                  set one\nGET    /api/config/versions                    the history\nPOST   /api/config/versions/{version_id}/restore   go back by writing a new version\nGET    /api/machines                           machine tokens\nPOST   /api/machines                           mint one; returned once, never recoverable\nDELETE /api/machines/{name}                    revoke"
    },
    {
     "kind": "callout",
@@ -15394,7 +21863,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "GET/PUT/DELETE /api/secrets/{name}     the fleet secret store -- not settings\nDELETE         /api/config/env/{name}  drop an override\nPUT            /api/config/constant    rewrites a constant in the platform's source\nGET/POST/DELETE /api/users             accounts\nPOST           /api/users/{name}/password\nPOST           /api/segmentation/qc-jobs/requeue   configuration-blocked QC back to PENDING, with `fixed`\nGET/POST       /api/hosts              workers' hosts; POST provisions one, or answers 503 without the script\nGET            /api/hosts/{id}/provision   how that went"
+    "text": "GET/PUT/DELETE /api/secrets/{name}     the fleet secret store -- not settings\nDELETE         /api/config/env/{name}  drop an override\nPUT            /api/config/constant    rewrites a constant in the platform's source\nGET/POST/DELETE /api/users             accounts\nPOST           /api/users/{username}/password\nPOST           /api/segmentation/qc-jobs/requeue   configuration-blocked QC back to PENDING, with `fixed`\nGET/POST       /api/hosts              workers' hosts; POST provisions one, or answers 503 without the script\nGET            /api/hosts/{host_id}/provision   how that went"
    },
    {
     "kind": "callout",
@@ -16063,7 +22532,95 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "text",
-       "text": " The phase should look at what it produced before calling the job a success. P3 parses its own TIFXYZ; P4 counts slices and checks the middle one is not constant. The general rule: an exit code is not evidence of work done."
+       "text": " The phase should look at what it produced before calling the job a success. P3 parses its own TIFXYZ; P4 counts slices and checks the middle one is not constant; every P5 adapter calls "
+      },
+      {
+       "kind": "code",
+       "text": "assess_liveness"
+      },
+      {
+       "kind": "text",
+       "text": " from "
+      },
+      {
+       "kind": "code",
+       "text": "framework/contracts/lane_liveness.py"
+      },
+      {
+       "kind": "text",
+       "text": " on its own map and gets back "
+      },
+      {
+       "kind": "code",
+       "text": "ALIVE"
+      },
+      {
+       "kind": "text",
+       "text": ", "
+      },
+      {
+       "kind": "code",
+       "text": "DEGENERATE"
+      },
+      {
+       "kind": "text",
+       "text": " or "
+      },
+      {
+       "kind": "code",
+       "text": "EMPTY"
+      },
+      {
+       "kind": "text",
+       "text": " — a checkpoint can load cleanly, hashes and all, and still have an untrained decoder that answers every input with the same narrow band of numbers, and only the shape of the output distribution catches that. "
+      },
+      {
+       "kind": "code",
+       "text": "refuse_if_not_alive"
+      },
+      {
+       "kind": "text",
+       "text": " turns anything but "
+      },
+      {
+       "kind": "code",
+       "text": "ALIVE"
+      },
+      {
+       "kind": "text",
+       "text": " into a "
+      },
+      {
+       "kind": "code",
+       "text": "LANE_NOT_USABLE"
+      },
+      {
+       "kind": "text",
+       "text": " marker and a non-zero exit, unless the job set "
+      },
+      {
+       "kind": "code",
+       "text": "on_degenerate"
+      },
+      {
+       "kind": "text",
+       "text": " to "
+      },
+      {
+       "kind": "code",
+       "text": "warn"
+      },
+      {
+       "kind": "text",
+       "text": "; a new ink adapter that skips the call fails the suite, which checks every "
+      },
+      {
+       "kind": "code",
+       "text": "run_ink*.py"
+      },
+      {
+       "kind": "text",
+       "text": " script on disk by name. The general rule: an exit code is not evidence of work done."
       }
      ],
      [
@@ -16141,23 +22698,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A push to "
-     },
-     {
-      "kind": "code",
-      "text": "staging"
-     },
-     {
-      "kind": "text",
-      "text": " or "
-     },
-     {
-      "kind": "code",
-      "text": "development"
-     },
-     {
-      "kind": "text",
-      "text": " runs the pipeline. Five stages — "
+      "text": "Five stages run the pipeline: "
      },
      {
       "kind": "code",
@@ -16197,7 +22738,63 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — on the host that branch owns: each branch deploys the host its runner is tagged for."
+      "text": ". Every push runs the first two; "
+     },
+     {
+      "kind": "code",
+      "text": "staging"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "development"
+     },
+     {
+      "kind": "text",
+      "text": " and merge requests also run "
+     },
+     {
+      "kind": "code",
+      "text": "build"
+     },
+     {
+      "kind": "text",
+      "text": ". Only a push to "
+     },
+     {
+      "kind": "code",
+      "text": "staging"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "development"
+     },
+     {
+      "kind": "text",
+      "text": " reaches "
+     },
+     {
+      "kind": "code",
+      "text": "deploy"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "verify"
+     },
+     {
+      "kind": "text",
+      "text": ", each deploying the host its runner is tagged for."
      }
     ]
    },
@@ -16214,7 +22811,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is the smoke and end-to-end run "
+      "text": " runs the smoke suite as end-to-end tests "
      },
      {
       "kind": "strong",
@@ -16230,7 +22827,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " because at that point there is no deployment to test against."
+      "text": " because at that point there is no deployment to test against. A second "
+     },
+     {
+      "kind": "code",
+      "text": "verify"
+     },
+     {
+      "kind": "text",
+      "text": " job, "
+     },
+     {
+      "kind": "code",
+      "text": "heavy"
+     },
+     {
+      "kind": "text",
+      "text": ", is manual or scheduled rather than automatic: the only stage that renders a real volume and reads it with the real detector, on the one machine with a GPU. It costs about half an hour of cards that are usually busy with QC, so it does not run on every push, and the two tests it runs refuse to pass by skipping — a run that found nothing to render or nothing to screen fails instead of reporting green."
      }
     ]
    },
@@ -16306,7 +22919,44 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " for the workers. That script seeds "
+      "text": " for the workers. It refuses to start over Helena volumes an earlier install left on the machine — "
+     },
+     {
+      "kind": "code",
+      "text": "helena-panel-state"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "helena-postgres-data"
+     },
+     {
+      "kind": "text",
+      "text": " and the rest — since they can hold TLS material written by a different user; "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_ADOPT_VOLUMES=1"
+     },
+     {
+      "kind": "text",
+      "text": " installs over them anyway."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "deploy-platform.sh"
+     },
+     {
+      "kind": "text",
+      "text": " seeds "
      },
      {
       "kind": "code",
@@ -16330,7 +22980,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " it writes from the platform's own credentials — never overwriting a file that exists, and fills in the two things no template can know: this host's name and the workers' database URL. The directory is git-ignored and holds nothing privileged. A host configured before this keeps "
+      "text": " it writes from the platform's own credentials — never overwriting a file that exists, and fills in the two things no template can know: this host's name and the workers' database URL. A key a template grew after a host's env file was already written is inherited too, appended with the template's own value, so an env file from an older install does not fall behind the compose files reading it. The directory is git-ignored and holds nothing privileged. A host configured before this keeps "
      },
      {
       "kind": "code",
@@ -16346,7 +22996,65 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " points it anywhere else. Nothing on a host runs outside a container: "
+      "text": " points it anywhere else."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The panel image itself is pulled by commit from "
+     },
+     {
+      "kind": "code",
+      "text": "$HELENA_REGISTRY"
+     },
+     {
+      "kind": "text",
+      "text": ". Without a registry, or one this host cannot reach, the deploy tries "
+     },
+     {
+      "kind": "code",
+      "text": "$HELENA_PUBLIC_REGISTRY"
+     },
+     {
+      "kind": "text",
+      "text": " next — tagged by "
+     },
+     {
+      "kind": "code",
+      "text": "VERSION"
+     },
+     {
+      "kind": "text",
+      "text": ", not by commit, since publishing is a release and not every push — and only then builds the panel from the checkout instead: slower, and bytes only that host has. The worker images try the same two sources before compiling. "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_PUBLIC_REGISTRY"
+     },
+     {
+      "kind": "text",
+      "text": " defaults on for a host with no prior deploy and off for one that already had a config, so staging keeps running the commit under test rather than whatever was last published; a maintainer sets it explicitly to override either way. Nothing is published there yet — see the README's TODO for the "
+     },
+     {
+      "kind": "code",
+      "text": "when: manual"
+     },
+     {
+      "kind": "text",
+      "text": " job that will."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Nothing on a host runs outside a container: "
      },
      {
       "kind": "code",
@@ -16578,7 +23286,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "P4, P5, P7"
+        "text": "P4, P5, P7, P9"
        }
       ],
       [
@@ -16655,7 +23363,16 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is set; "
+      "text": " is set — see "
+     },
+     {
+      "kind": "link",
+      "text": "backups and object storage",
+      "href": "#/docs/operations/backups-and-object-storage"
+     },
+     {
+      "kind": "text",
+      "text": " for what it copies and how to restore from it. "
      },
      {
       "kind": "code",
@@ -16663,15 +23380,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " only where the "
-     },
-     {
-      "kind": "code",
-      "text": "helena-villa-python"
-     },
-     {
-      "kind": "text",
-      "text": " lane image is present, which the deploy does not build; "
+      "text": " and "
      },
      {
       "kind": "code",
@@ -16679,7 +23388,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " where the 9 µm lane image is, which it does. A clean "
+      "text": " each need their own lane image present — "
+     },
+     {
+      "kind": "code",
+      "text": "helena-villa-python"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "helena-ink-9um"
+     },
+     {
+      "kind": "text",
+      "text": " — and the deploy builds either one it does not find, cloning from its own pinned commit the same way it builds the toolchain images below; a lane that fails to build is skipped, loudly, rather than failing the whole deploy. A clean "
      },
      {
       "kind": "code",
@@ -16687,7 +23412,23 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " on one card leaves nine running, and two more — "
+      "text": " on one card brings up eight containers outright, plus "
+     },
+     {
+      "kind": "code",
+      "text": "helena-spiral"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "helena-ink-9um"
+     },
+     {
+      "kind": "text",
+      "text": " if their lane builds succeed — nine or ten in total — and two more, "
      },
      {
       "kind": "code",
@@ -16695,7 +23436,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", "
+      "text": " and "
      },
      {
       "kind": "code",
@@ -16703,7 +23444,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — that ran once and exited. A host without cards runs the first seven, backup on the same condition."
+      "text": ", that ran once and exited. A host without cards runs the first seven, backup on the same condition."
      }
     ]
    },
@@ -16716,7 +23457,7 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "code",
     "language": "",
-    "text": "postgres:16-alpine                         pulled, not built\n\nnode + python  -> helena-panel\npostgres:16-alpine -> helena-backup                   the dump script on the client image\n\nubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8\n                                |\n                                +-(bundle stage)------+\npytorch/pytorch -> helena-ink --------------------------+-> helena-gpu-runtime\n                                                             |\n                                                             +-> helena-worker-gpu   P4 P5 P7"
+    "text": "postgres:16-alpine                         pulled, not built\n\nnode + python  -> helena-panel\npostgres:16-alpine -> helena-backup                   the dump script on the client image\n\nubuntu:25.10   -> helena-villa -+-> helena-worker-cpp        P1 P2 P3 P8\n                                |\n                                +-(bundle stage)------+\npytorch/pytorch -> helena-ink --------------------------+-> helena-gpu-runtime\n                                                             |\n                                                             +-> helena-worker-gpu   P4 P5 P7 P9"
    },
    {
     "kind": "p",
@@ -17080,7 +23821,24 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Two different questions, two different labels:"
+      "text": "The deploy checks itself before it calls itself done. Each container it expects has to exist, be "
+     },
+     {
+      "kind": "code",
+      "text": "running"
+     },
+     {
+      "kind": "text",
+      "text": ", and be running the image ID the tag it just wrote now resolves to — not merely carry that image's name, since a tag is a pointer and a second build of the same commit can move it out from under a container still running the first. Anything missing, stale, or running something else fails the deploy outright, which is the only way an automated deploy can honestly call a host caught up."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "By hand, two different questions, two different labels:"
      }
     ]
    },
@@ -17264,12 +24022,623 @@ export const HANDBOOK: Page[] = [
   ]
  },
  {
+  "id": "operations/backups-and-object-storage",
+  "slug": "backups-and-object-storage",
+  "section": "50-operations",
+  "sectionTitle": "Operations",
+  "title": "Backups and object storage",
+  "summary": "Two different buckets: where phases publish, and where the control plane's copy goes. Both optional, both yours.",
+  "outline": [
+   {
+    "id": "where-phases-publish",
+    "text": "Where phases publish"
+   },
+   {
+    "id": "where-the-control-plane-s-copy-goes",
+    "text": "Where the control plane's copy goes"
+   },
+   {
+    "id": "where-the-files-are",
+    "text": "Where the files are"
+   }
+  ],
+  "blocks": [
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Helena needs no bucket to be complete. A deployment stores artifacts on a volume of the panel host and keeps its database in the postgres container. Two things change that, and they are separate decisions with separate credentials."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Where phases publish",
+    "id": "where-phases-publish"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Each phase writes to a store the panel names. All four default to a path inside the artifact volume the platform mounts -- "
+     },
+     {
+      "kind": "code",
+      "text": "CX_RENDER_STORE"
+     },
+     {
+      "kind": "text",
+      "text": ", for instance, is "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts/layer-stacks-v1"
+     },
+     {
+      "kind": "text",
+      "text": " unless it is overridden. Point them at your own bucket only when you have one, in "
+     },
+     {
+      "kind": "code",
+      "text": "config/panel.env"
+     },
+     {
+      "kind": "text",
+      "text": ":"
+     }
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "CX_FLATTEN_STORE=s3://your-bucket/flattened-v1\nCX_RENDER_STORE=s3://your-bucket/layer-stacks-v1\nCX_INK_STORE=s3://your-bucket/ink-maps-v1\nCX_RECONSTRUCTION_STORE=s3://your-bucket/reconstruction-v1"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Cleared to empty rather than left at that default, a store blocks its phase at the queue: P3, P5 and P8's merge lane refuse to enqueue with a 409 until it is set again, and P4 refuses too unless the request opts into "
+     },
+     {
+      "kind": "code",
+      "text": "allow_local_layers"
+     },
+     {
+      "kind": "text",
+      "text": " for a deliberate single-machine run."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The credentials for those stores live in the control plane, not on the workers: "
+     },
+     {
+      "kind": "strong",
+      "text": "Configuration → Settings → Credentials"
+     },
+     {
+      "kind": "text",
+      "text": ". The names it accepts are "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_ACCESS_KEY_ID"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_SECRET_ACCESS_KEY"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_SESSION_TOKEN"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_DEFAULT_REGION"
+     },
+     {
+      "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_REGION"
+     },
+     {
+      "kind": "text",
+      "text": " and "
+     },
+     {
+      "kind": "code",
+      "text": "AWS_ENDPOINT_URL"
+     },
+     {
+      "kind": "text",
+      "text": ". They are write-only: the page reports which are set and never returns a value. A worker adopts them when it starts, so a machine joining the fleet needs a database URL and nothing else."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "An environment variable on a worker wins over the control plane, deliberately. A key left in a worker's env file makes the panel's copy inert for that host, and the worker logs that it is shadowing the panel. Keep credentials in one place."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Give the key the least it needs: put and get on the prefixes above, list on the bucket. It never deletes."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Where the control plane's copy goes",
+    "id": "where-the-control-plane-s-copy-goes"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Everything a phase produces is published by digest and outlives the machine. The record of "
+     },
+     {
+      "kind": "em",
+      "text": "which"
+     },
+     {
+      "kind": "text",
+      "text": " of them is certified, which cell was attempted and what every verdict was is one PostgreSQL on one host. "
+     },
+     {
+      "kind": "code",
+      "text": "helena-backup"
+     },
+     {
+      "kind": "text",
+      "text": " is the copy of that."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Every interval, and once at start, it uploads:"
+     }
+    ]
+   },
+   {
+    "kind": "table",
+    "head": [
+     [
+      {
+       "kind": "text",
+       "text": "what"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "how"
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "to"
+      }
+     ]
+    ],
+    "rows": [
+     [
+      [
+       {
+        "kind": "text",
+        "text": "the database"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "pg_dump --format=custom --no-owner --no-acl"
+       },
+       {
+        "kind": "text",
+        "text": ", then "
+       },
+       {
+        "kind": "code",
+        "text": "pg_restore --list"
+       },
+       {
+        "kind": "text",
+        "text": " to prove it parses"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "<prefix>/postgres/<utc>.dump"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "the panel's state directory"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "tar.gz"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "<prefix>/panel-state/<utc>.tgz"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "the runs directory"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "tar.gz"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "<prefix>/runs/<utc>.tgz"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "a receipt naming each file with its SHA-256 and size"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "JSON"
+       }
+      ],
+      [
+       {
+        "kind": "code",
+        "text": "<prefix>/receipts/<utc>.json"
+       }
+      ]
+     ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Turning it on",
+    "id": "turning-it-on"
+   },
+   {
+    "kind": "list",
+    "ordered": true,
+    "items": [
+     [
+      {
+       "kind": "text",
+       "text": "A bucket, and a key that can put and list on one prefix of it. Retention is a lifecycle rule on the bucket: the script uploads and forgets, because a deleter with credentials is a different risk from a writer with credentials."
+      }
+     ],
+     [
+      {
+       "kind": "code",
+       "text": "config/aws.env"
+      },
+      {
+       "kind": "text",
+       "text": ", mode 0600, on the panel host:"
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "   AWS_ACCESS_KEY_ID=...\n   AWS_SECRET_ACCESS_KEY=...\n   AWS_DEFAULT_REGION=eu-central-1\n   # anything that is not AWS, such as MinIO:\n   # AWS_ENDPOINT_URL=http://127.0.0.1:9000"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "This file is read by the backup container, and also by the panel itself for the read-only S3 surface previews a TIFXYZ needs -- one credential to rotate rather than a third copy of it. It is not the panel's credential store above, and it is not a worker's env file."
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": true,
+    "items": [
+     [
+      {
+       "kind": "text",
+       "text": "In "
+      },
+      {
+       "kind": "code",
+       "text": "config/platform.env"
+      },
+      {
+       "kind": "text",
+       "text": ":"
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "   HELENA_BACKUP_S3=s3://your-bucket/helena\n   HELENA_BACKUP_INTERVAL_HOURS=24"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "HELENA_AWS_ENV"
+     },
+     {
+      "kind": "text",
+      "text": " names the credentials file if it is somewhere other than "
+     },
+     {
+      "kind": "code",
+      "text": "config/aws.env"
+     },
+     {
+      "kind": "text",
+      "text": ". An interval of "
+     },
+     {
+      "kind": "code",
+      "text": "0"
+     },
+     {
+      "kind": "text",
+      "text": " runs one round and exits, which is how to test it."
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": true,
+    "items": [
+     [
+      {
+       "kind": "text",
+       "text": "Run the deploy again ("
+      },
+      {
+       "kind": "code",
+       "text": "containers/deploy-platform.sh nogpu"
+      },
+      {
+       "kind": "text",
+       "text": " or "
+      },
+      {
+       "kind": "code",
+       "text": "gpu"
+      },
+      {
+       "kind": "text",
+       "text": "). It adds the "
+      },
+      {
+       "kind": "code",
+       "text": "backup"
+      },
+      {
+       "kind": "text",
+       "text": " profile when "
+      },
+      {
+       "kind": "code",
+       "text": "HELENA_BACKUP_S3"
+      },
+      {
+       "kind": "text",
+       "text": " is set and says so; without it, it says the service is not started."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Then look:"
+     }
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "docker logs helena-backup\naws s3 ls --recursive s3://your-bucket/helena/"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The first round on a large "
+     },
+     {
+      "kind": "code",
+      "text": "runs"
+     },
+     {
+      "kind": "text",
+      "text": " directory is a long "
+     },
+     {
+      "kind": "code",
+      "text": "tar.gz"
+     },
+     {
+      "kind": "text",
+      "text": "; that cost repeats every interval, so on a fleet with terabytes of runs point "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_PANEL_RUNS"
+     },
+     {
+      "kind": "text",
+      "text": " at what you want copied or lengthen the interval."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "Restoring",
+    "id": "restoring"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A dump that parses is not a proven recovery. Once, on a clean PostgreSQL:"
+     }
+    ]
+   },
+   {
+    "kind": "code",
+    "language": "",
+    "text": "aws s3 cp s3://your-bucket/helena/postgres/<utc>.dump control-plane.dump\nsha256sum control-plane.dump         # against the receipt\npg_restore --no-owner --clean --if-exists -d \"$CX_DB\" control-plane.dump"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "The panel state archive unpacks into the panel state volume; runs into the runs directory. Bring the panel up afterwards, not before."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "What this is not",
+    "id": "what-this-is-not"
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "text",
+       "text": "Not a backup of published artifacts: those are already in the store above, by digest, and a bucket is not backed up by copying it into itself."
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Not versioned: every round is a full copy, and the bucket's lifecycle rule decides what stays."
+      }
+     ],
+     [
+      {
+       "kind": "text",
+       "text": "Not a test of the current database: the per-round check is that the dump lists its objects, which is the strongest thing available without a second database standing by."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Where the files are",
+    "id": "where-the-files-are"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Everything above lives in "
+     },
+     {
+      "kind": "code",
+      "text": "config/"
+     },
+     {
+      "kind": "text",
+      "text": " in the checkout, git-ignored, next to the code that reads it. A host configured before that directory existed keeps its files under "
+     },
+     {
+      "kind": "code",
+      "text": "/etc/helena"
+     },
+     {
+      "kind": "text",
+      "text": ", and the deploy says so each time it runs. Nothing here is entered through the panel except the credentials in the first section."
+     }
+    ]
+   }
+  ]
+ },
+ {
   "id": "operations/troubleshooting",
   "slug": "troubleshooting",
   "section": "50-operations",
   "sectionTitle": "Operations",
   "title": "When something is wrong",
-  "summary": "The failures this platform has actually had, and what each one looked like from the panel.",
+  "summary": "The failures this platform has actually had, plus what a fresh install turns up, and what each looked like from the panel.",
   "outline": [
    {
     "id": "a-phase-reports-success-and-produced-nothing",
@@ -17284,6 +24653,14 @@ export const HANDBOOK: Page[] = [
     "text": "Workers stop claiming and `docker ps` says Up"
    },
    {
+    "id": "a-worker-dies-on-its-first-qc-job-with-permissionerror",
+    "text": "A worker dies on its first QC job with `PermissionError`"
+   },
+   {
+    "id": "a-worker-will-not-start-over-its-database-url",
+    "text": "A worker will not start over its database URL"
+   },
+   {
     "id": "a-lane-refuses-every-job-by-name",
     "text": "A lane refuses every job by name"
    },
@@ -17296,8 +24673,40 @@ export const HANDBOOK: Page[] = [
     "text": "Jobs sit `PENDING` and nothing is wrong with the workers"
    },
    {
+    "id": "qc-jobs-keep-retrying-and-never-finish",
+    "text": "QC jobs keep retrying and never finish"
+   },
+   {
     "id": "nothing-will-queue-at-all",
     "text": "Nothing will queue at all"
+   },
+   {
+    "id": "a-credential-set-on-the-panel-has-no-effect-on-a-worker",
+    "text": "A credential set on the panel has no effect on a worker"
+   },
+   {
+    "id": "no-backup-container-on-a-fresh-deployment",
+    "text": "No backup container on a fresh deployment"
+   },
+   {
+    "id": "the-runs-tab-is-empty-on-a-fresh-install",
+    "text": "The Runs tab is empty on a fresh install"
+   },
+   {
+    "id": "a-host-row-appears-with-no-ssh-target",
+    "text": "A host row appears with no ssh target"
+   },
+   {
+    "id": "registering-a-host-503s-this-deployment-cannot-provision-hosts",
+    "text": "Registering a host 503s: \"this deployment cannot provision hosts\""
+   },
+   {
+    "id": "every-api-call-401s-with-not-signed-in",
+    "text": "Every API call 401s with \"not signed in\""
+   },
+   {
+    "id": "the-installer-refuses-to-run",
+    "text": "The installer refuses to run"
    }
   ],
   "blocks": [
@@ -17306,7 +24715,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Each of these happened. The symptom is what you would have seen; the cause is what it was."
+      "text": "Each of these happened, here or on a fresh install. The symptom is what you would have seen; the cause is what it was."
      }
     ]
    },
@@ -17534,6 +24943,14 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
+      "text": ", "
+     },
+     {
+      "kind": "code",
+      "text": "model_config"
+     },
+     {
+      "kind": "text",
       "text": ", and "
      },
      {
@@ -17726,6 +25143,184 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "A worker dies on its first QC job with `PermissionError`",
+    "id": "a-worker-dies-on-its-first-qc-job-with-permissionerror"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — a fresh surface-QC worker claims its first job and dies on "
+     },
+     {
+      "kind": "code",
+      "text": "PermissionError: '/artifacts/qc-runtime/<job-id>'"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — the surface-QC compose file bind-mounts "
+     },
+     {
+      "kind": "code",
+      "text": "$HELENA_QC_RUN_ROOT/gpu<device>"
+     },
+     {
+      "kind": "text",
+      "text": " onto "
+     },
+     {
+      "kind": "code",
+      "text": "/artifacts/qc-runtime"
+     },
+     {
+      "kind": "text",
+      "text": ", and Docker creates a bind mount's source as "
+     },
+     {
+      "kind": "code",
+      "text": "root:root"
+     },
+     {
+      "kind": "text",
+      "text": " when it does not exist yet. The runtime runs as uid 1000 and cannot write into a directory Docker just made for it."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "What the platform does now"
+     },
+     {
+      "kind": "text",
+      "text": " — the deploy creates and chowns each device's run root before the surface-QC stacks come up, so Docker never gets to make it first. An install still running an older deploy script will meet this on its first job on any device it has not run before."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "A worker will not start over its database URL",
+    "id": "a-worker-will-not-start-over-its-database-url"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "database environment variable is not a PostgreSQL URL: <NAME>"
+     },
+     {
+      "kind": "text",
+      "text": " from a segmentation worker, or "
+     },
+     {
+      "kind": "code",
+      "text": "<NAME> is not set to a PostgreSQL URL"
+     },
+     {
+      "kind": "text",
+      "text": " from "
+     },
+     {
+      "kind": "code",
+      "text": "host_report.py"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "postgres-env://NAME"
+     },
+     {
+      "kind": "text",
+      "text": " is the preferred form for a fleet DSN: it names the environment variable holding the URL, so the URL itself never lands in argv or a process listing that any user on the host can read. The variable either is not set on this worker, or holds something that is not a "
+     },
+     {
+      "kind": "code",
+      "text": "postgresql://"
+     },
+     {
+      "kind": "text",
+      "text": " or "
+     },
+     {
+      "kind": "code",
+      "text": "postgres://"
+     },
+     {
+      "kind": "text",
+      "text": " URL."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — set "
+     },
+     {
+      "kind": "code",
+      "text": "NAME"
+     },
+     {
+      "kind": "text",
+      "text": " to the real connection string in the worker's own environment, not the panel's."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "A lane refuses every job by name",
     "id": "a-lane-refuses-every-job-by-name"
    },
@@ -17807,7 +25402,15 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", not the job. One of them puts it on "
+      "text": ", not the job: one takes it as a "
+     },
+     {
+      "kind": "code",
+      "text": "--upstream-dir"
+     },
+     {
+      "kind": "text",
+      "text": " flag, the other puts it on "
      },
      {
       "kind": "code",
@@ -17815,7 +25418,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ", and that is the one whose absence refuses. A worker that does not declare one refuses rather than importing from wherever it was pointed."
+      "text": ". Both read the same variable and both refuse without it, rather than importing from wherever a worker happens to be pointed."
      }
     ]
    },
@@ -17956,6 +25559,91 @@ export const HANDBOOK: Page[] = [
    {
     "kind": "h",
     "level": 2,
+    "text": "QC jobs keep retrying and never finish",
+    "id": "qc-jobs-keep-retrying-and-never-finish"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "RETRYABLE_QC_UNAVAILABLE"
+     },
+     {
+      "kind": "text",
+      "text": " receipts pile up for one worker. The job never reaches "
+     },
+     {
+      "kind": "code",
+      "text": "BLOCKED_CONFIGURATION"
+     },
+     {
+      "kind": "text",
+      "text": " or a verdict; it just requeues."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — "
+     },
+     {
+      "kind": "code",
+      "text": "nvidia-smi -L"
+     },
+     {
+      "kind": "text",
+      "text": " fails in the driver's own words: "
+     },
+     {
+      "kind": "code",
+      "text": "Failed to initialize NVML: Unknown Error"
+     },
+     {
+      "kind": "text",
+      "text": ", no CUDA-capable device, and the like. Seen on a host whose cgroup state changed under a running container. This is a card that cannot be initialised at all, distinct from a card with no room on it, which is the same retryable state under "
+     },
+     {
+      "kind": "code",
+      "text": "GPU_MEMORY_EXHAUSTED"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — restart the worker's container. The worker checks before the executor runs, on purpose, so this reads as \"GPU cannot be initialised\" instead of an executor failing with exit code 1 and no other explanation."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
     "text": "Nothing will queue at all",
     "id": "nothing-will-queue-at-all"
    },
@@ -18052,6 +25740,551 @@ export const HANDBOOK: Page[] = [
       "kind": "text",
       "text": " — the Configuration tab. The symptom and the cause are two pages apart, which is why this entry exists."
      }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Three more 409s at enqueue have nothing to do with the store:"
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "strong",
+       "text": "P4 needs a scale."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "source_voxel_um is required: the frozen catalogue has no entry for <sample>"
+      },
+      {
+       "kind": "text",
+       "text": ". Left out, the renderer finds no metadata in the volume, reports "
+      },
+      {
+       "kind": "code",
+       "text": "Voxel size: 1.0"
+      },
+      {
+       "kind": "text",
+       "text": ", and renders anyway at the wrong scale — the slice count, shape and exit code all read the same as a correctly scaled render. Read the voxel size off the volume and pass "
+      },
+      {
+       "kind": "code",
+       "text": "source_voxel_um"
+      },
+      {
+       "kind": "text",
+       "text": " on the job."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "A P2 tiling is already covered."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "nothing was queued: all N cells this run covers already have a task under grid <grid_version> and policy <policy_version>"
+      },
+      {
+       "kind": "text",
+       "text": ". A task's identity is (volume, grid version, cell, policy version); re-running the same scroll with a different seeder writes into the identity that already exists and inserts nothing. Name a new policy version, or use a smaller grid step to reach ground the current tiling skipped."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "The phase has no direct queue."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "phase <phase> has no runner registered"
+      },
+      {
+       "kind": "text",
+       "text": " from "
+      },
+      {
+       "kind": "code",
+       "text": "POST /api/jobs"
+      },
+      {
+       "kind": "text",
+       "text": ". Only P1, P4, P5, P7, P8 and P9 queue through that endpoint; P2 and P3 are observed there, not driven — they have their own path (P2's fleet CLI, P3's "
+      },
+      {
+       "kind": "code",
+       "text": "/api/flattening/run"
+      },
+      {
+       "kind": "text",
+       "text": ")."
+      }
+     ]
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "A credential set on the panel has no effect on a worker",
+    "id": "a-credential-set-on-the-panel-has-no-effect-on-a-worker"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — the worker's log says "
+     },
+     {
+      "kind": "code",
+      "text": "set on the panel but overridden by this worker's environment: <NAME>"
+     },
+     {
+      "kind": "text",
+      "text": ". Configuration shows the credential as set, and the worker keeps using something else."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — a segmentation worker adopts credentials from the control plane's stored secrets at startup, but an environment variable already set on that worker wins over what the panel holds. Deliberate: an operator who exported a key for one run means it, and a value from the panel silently overriding it would be a debugging session about which credential is actually in use."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — unset the variable on the worker to let the panel manage it, or accept that this worker keeps its own value."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "No backup container on a fresh deployment",
+    "id": "no-backup-container-on-a-fresh-deployment"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — the backup service only starts with somewhere to put a backup. Started without "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_BACKUP_S3"
+     },
+     {
+      "kind": "text",
+      "text": " it does not fail; it restarts forever printing \"no destination\", a permanently red container on a host that was never meant to ship its data anywhere. A development deployment is the ordinary case."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "What the platform does now"
+     },
+     {
+      "kind": "text",
+      "text": " — the deploy checks "
+     },
+     {
+      "kind": "code",
+      "text": "HELENA_BACKUP_S3"
+     },
+     {
+      "kind": "text",
+      "text": " before bringing the stack up and, if it is blank, skips the backup profile and says so on the console: "
+     },
+     {
+      "kind": "code",
+      "text": "no HELENA_BACKUP_S3 on this host; the backup service is not started"
+     },
+     {
+      "kind": "text",
+      "text": "."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "The Runs tab is empty on a fresh install",
+    "id": "the-runs-tab-is-empty-on-a-fresh-install"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — P5's Runs tab reads \"No receipts on disk under CX_RUNS. Screenings queued through the fleet are under Maps.\""
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — Runs indexes the legacy receipt tree on disk under "
+     },
+     {
+      "kind": "code",
+      "text": "CX_RUNS"
+     },
+     {
+      "kind": "text",
+      "text": ", which a fresh install has none of. A screening queued through the fleet is recorded in the database instead, and shows up under Maps, not here."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — nothing to fix. Look at Maps for anything queued through the fleet."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "A host row appears with no ssh target",
+    "id": "a-host-row-appears-with-no-ssh-target"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Symptom"
+     },
+     {
+      "kind": "text",
+      "text": " — a Hosts row for a machine nobody registered, its note reading \"registered by its own report; add an ssh target under Configuration -> Hosts to provision it from the panel\". "
+     },
+     {
+      "kind": "code",
+      "text": "host_report.py"
+     },
+     {
+      "kind": "text",
+      "text": " itself prints "
+     },
+     {
+      "kind": "code",
+      "text": "registered '<host>' by its own report"
+     },
+     {
+      "kind": "text",
+      "text": " the first time."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — a worker can run on a machine before anyone adds it in the panel. Rather than refuse to record hardware for a host nobody has typed in yet, "
+     },
+     {
+      "kind": "code",
+      "text": "host_report.py"
+     },
+     {
+      "kind": "text",
+      "text": " inserts the row on that host's first report, with no ssh target."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — nothing is broken. Add an ssh target under Configuration -> Hosts if the panel should be able to provision or manage that machine from here."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Registering a host 503s: \"this deployment cannot provision hosts\"",
+    "id": "registering-a-host-503s-this-deployment-cannot-provision-hosts"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — the panel image does not carry "
+     },
+     {
+      "kind": "code",
+      "text": "containers/provision-host.sh"
+     },
+     {
+      "kind": "text",
+      "text": "; every deployment running from the panel image alone answers this the same way, so it is not a fault in the request."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — the host is registered regardless. Bring the worker up yourself with the compose files and it will report itself; provisioning from the panel needs the full checkout, not the panel image."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "Every API call 401s with \"not signed in\"",
+    "id": "every-api-call-401s-with-not-signed-in"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Cause"
+     },
+     {
+      "kind": "text",
+      "text": " — no session cookie matched a signed-in user. Ordinary before anyone has an account on a fresh install, or after a cookie has expired."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "strong",
+      "text": "Fix"
+     },
+     {
+      "kind": "text",
+      "text": " — sign in. The response carries "
+     },
+     {
+      "kind": "code",
+      "text": "bootstrap_available"
+     },
+     {
+      "kind": "text",
+      "text": ", which says which case it is: true when no account exists yet, so the first request can create the first admin instead of asking to sign in to nothing."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 2,
+    "text": "The installer refuses to run",
+    "id": "the-installer-refuses-to-run"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Checked before anything is built or started:"
+     }
+    ]
+   },
+   {
+    "kind": "list",
+    "ordered": false,
+    "items": [
+     [
+      {
+       "kind": "strong",
+       "text": "Disk space."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "Docker has <N> GB free at <path> and the build needs about 6."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "docker system prune -af"
+      },
+      {
+       "kind": "text",
+       "text": " reclaims images and build cache."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Port 8800 busy."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "port 8800 is already in use."
+      },
+      {
+       "kind": "text",
+       "text": " Set "
+      },
+      {
+       "kind": "code",
+       "text": "HELENA_PORT"
+      },
+      {
+       "kind": "text",
+       "text": " to another one."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "A stack already running."
+      },
+      {
+       "kind": "text",
+       "text": " "
+      },
+      {
+       "kind": "code",
+       "text": "this machine already runs a Helena stack."
+      },
+      {
+       "kind": "text",
+       "text": " The compose project is always named "
+      },
+      {
+       "kind": "code",
+       "text": "helena"
+      },
+      {
+       "kind": "text",
+       "text": "; running the installer again would recreate it, not start a second one. Use "
+      },
+      {
+       "kind": "code",
+       "text": "containers/deploy-platform.sh"
+      },
+      {
+       "kind": "text",
+       "text": " to update an existing deployment instead."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "Volumes left behind."
+      },
+      {
+       "kind": "text",
+       "text": " Nothing is running, but Helena volumes from an earlier install are still there — possibly written by a different user, including root, whose leftover TLS material can make a fresh panel exit with a "
+      },
+      {
+       "kind": "code",
+       "text": "PermissionError"
+      },
+      {
+       "kind": "text",
+       "text": " that does not look like the cause. Set "
+      },
+      {
+       "kind": "code",
+       "text": "HELENA_ADOPT_VOLUMES=1"
+      },
+      {
+       "kind": "text",
+       "text": " to install over them anyway; otherwise the installer stops here."
+      }
+     ]
     ]
    }
   ]

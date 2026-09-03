@@ -1,6 +1,6 @@
 # P4, P5, P7 and P8: the ink-fleet worker.
 #
-#   docker compose --env-file /etc/helena/ink.env \
+#   docker compose --env-file config/ink.env \
 #                  -f containers/compose/ink.compose.yaml up -d
 #
 # Rendering wants a GPU and so does the detector, so this one takes a card. Which
@@ -15,7 +15,7 @@
 # A second slot, on the other card:
 #
 #   HELENA_INK_SLOT=1 HELENA_INK_DEVICE=0 docker compose -p helena-ink-1 \
-#     --env-file /etc/helena/ink.env -f containers/compose/ink.compose.yaml up -d
+#     --env-file config/ink.env -f containers/compose/ink.compose.yaml up -d
 #
 # -p is required: the project name is what keeps the two from being recreations
 # of each other. Slots may share a card -- rendering is mostly IO -- but two
@@ -28,7 +28,7 @@
 #   HELENA_INK_IMAGE=helena-worker-gpu:local \
 #   HELENA_RUNTIME_IMAGE=helena-ink-9um \
 #   HELENA_INK_PHASES=P5 \
-#     docker compose -p helena-ink-9um --env-file /etc/helena/ink.env \
+#     docker compose -p helena-ink-9um --env-file config/ink.env \
 #       -f containers/compose/ink.compose.yaml up -d
 #
 # No second file, because nothing about the service differs -- same worker, same
@@ -97,14 +97,14 @@ services:
       # request pointed; every other lane is unaffected.
       HELENA_INK_UPSTREAM_ROOT: ${HELENA_INK_UPSTREAM_ROOT:-}
     env_file:
-      - ${HELENA_INK_ENV:-/etc/helena/ink.env}
+      - ${HELENA_INK_ENV:-../../config/ink.env}
       # Credentials the panel does not yet hold. Once they are set from the
       # panel, a worker reads them from the control plane at startup and this
       # line can go.
       # Optional, and the same form the panel already uses: credentials live
       # in the control plane, and a missing file here stopped the whole stack
       # from starting on any host that keeps none.
-      - path: ${HELENA_INK_AWS_ENV:-/etc/helena/aws.env}
+      - path: ${HELENA_INK_AWS_ENV:-../../config/aws.env}
         required: false
     # One card, named by index. `gpus: all` on a two-card box means both
     # services think they own both, and 6 GiB will not hold two models.

@@ -27,7 +27,7 @@ is a deliberate trade you make per mission, not a tax on using the platform.
 | 2 | Recover the surface (spiral fitter) | [Recover a surface](#/docs/tutorial/recover-a-surface) — P1, then P2 | hours on a GPU |
 | 3 | Flatten and render | [Flatten and render](#/docs/tutorial/flatten-and-render) — P3, P4 | tens of minutes |
 | 4 | Ink inference | [Detect ink](#/docs/tutorial/detect-ink) — P5 | minutes |
-| 5 | Inspect, label, iterate | [Read the result](#/docs/tutorial/read-the-result) — P6, P7, P9 | as long as you like |
+| 5 | Inspect, label, iterate | [Read the result](#/docs/tutorial/read-the-result) — P6, P7 | as long as you like |
 
 ## Before you start
 
@@ -35,9 +35,9 @@ is a deliberate trade you make per mission, not a tax on using the platform.
   first run, make it an exploration mission — no `campaign_kind`. You will
   spend the first attempt learning what the inputs look like, and a
   certification run refuses the shortcuts that make learning fast.
-- **A worker with a GPU**, counted on the Mission page's Fleet tile and
-  `POLLING` in `GET /api/fleet`. The spiral fit and the detectors need one;
-  nothing in this tutorial runs on the panel host.
+- **A worker with a GPU**, counted on the Mission page's Fleet hardware tile,
+  with a live one showing `POLLING` in `GET /api/fleet`. The spiral fit and the
+  detectors need one; nothing in this tutorial runs on the panel host.
 - **The inputs the spiral fitter reads**: an umbilicus, tracks, and the lasagna
   normal volumes. These are not all downloadable — see
   [Recover a surface](#/docs/tutorial/recover-a-surface), which is the step

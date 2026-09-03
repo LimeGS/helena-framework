@@ -13,8 +13,23 @@ What survives where:
 | You want | It is on |
 | --- | --- |
 | the queue for a phase | that phase's panel, under Mission |
-| fleet counts and hardware | two tiles on Mission |
+| fleet counts and hardware | the **Fleet** and **Fleet hardware** tiles on Mission |
 | worker liveness | `GET /api/fleet` — and only there |
+| a host's own hardware, roles and ssh target | [Configuration → Hosts](#/docs/panel/models-hosts-modules) |
+
+**Fleet hardware** only adds up enabled hosts, so disabling one drops its cores
+and cards from the total — but nothing in the claim reads that flag, and a
+"disabled" host's own worker keeps claiming. See Hosts for what enabling and
+disabling a host actually does.
+
+`GET /api/fleet` layers `workers` and `workers_silent` onto the same counts
+`/api/state`'s `fleet` field already carries — that field is where the Mission
+tiles read from, so `tasks`, `surfaces` and `stale_leases` are on the page
+already: `attempts`, `imported` (surfaces that arrived from a catalogue rather
+than being grown by an attempt), `events`, `leased`, `task_states`,
+`surfaces_by_sample`, and `qc_blocked_on_configuration` — QC jobs refused over
+a configuration mismatch rather than a busy fleet — are not. Both endpoints
+take `?mission=`, narrowing the counts to one mission's scrolls.
 
 ## Workers
 
@@ -72,14 +87,21 @@ an inference into a fact in the row.
 A job refused **before** the subprocess starts — an unreadable input, a write
 outside its run directory, a missing upstream directory, a lineage refusal —
 carries the refusal and no `ran_by` at all. For those, compare the container's
-image digest instead.
+image digest instead: `GET /api/hosts/{host_id}/images` reads what a host's
+containers actually run over ssh and checks it against what its roles expect,
+by digest rather than tag. It answers "not reachable" for a host with no ssh
+target — the common case for one that only ever registered itself by
+reporting.
 
 ## Runtime images
 
-A lane can declare the image it needs. A worker running something else refuses
-the job **by name**, before spending a lease — which is better than taking it
-and failing at the first import, but does mean a job can sit pending while the
-only worker that could run it is busy.
+A lane can declare the image it needs. The claim skips a candidate whose lane
+needs an image this worker does not run, so most of the time nothing is spent
+on a job it cannot do. A worker that has never declared its own image claims
+blind instead, and is only refused **by name** at execution — better than
+failing at the first import with no explanation, but the lease and an attempt
+are already gone by then. Either way, a job can sit pending while the only
+worker that could run it is busy.
 
 > **Note** `HELENA_RUNTIME_IMAGE` names the **lane** image a worker carries, not
 > the composed image it runs as. Backwards, the worker starts, refuses every job

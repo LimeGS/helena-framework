@@ -64,27 +64,68 @@ def test_a_fresh_observation_replaces_the_reading_it_repeats():
     assert merged[0]["seen_by"] == "worker-host"
 
 
-def test_an_unregistered_host_is_told_where_to_register() -> None:
-    """This ran every minute on a fresh install and named no way forward.
+def test_an_unregistered_host_registers_itself_by_reporting(monkeypatch) -> None:
+    """This ran every minute on a fresh install: "no host row named 'ubuntu';
+    add it under Configuration -> Hosts", while two workers on that machine
+    took every job and the mission page counted no hardware at all.
 
-    "no host row named 'work-3'; register it to see this" is true and useless:
-    the reader has the panel open in front of them and no reason to guess that
-    Configuration holds a Hosts tab. Saying where turns a log line that repeats
-    forever into one step.
-
-    The location is asserted against the panel, not spelled twice: a message
-    naming a tab that has been moved is worse than the one that named nothing.
+    A host that reports exists. Its first report writes the row, with no ssh
+    target -- that is what registering by hand adds, and only provisioning
+    needs it -- and says so in the row's notes, naming where the target goes.
     """
+    import sys
+    import types
+
+    from framework.contracts import host_report
+
+    executed: list[tuple[str, tuple]] = []
+
+    class Cursor:
+        rowcount = 0
+
+        def execute(self, sql, params=()):
+            executed.append((" ".join(sql.split()), params))
+
+        def fetchone(self):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    class Connection(Cursor):
+        def cursor(self):
+            return Cursor()
+
+    fake = types.ModuleType("psycopg2")
+    fake.connect = lambda *_, **__: Connection()
+    monkeypatch.setitem(sys.modules, "psycopg2", fake)
+    monkeypatch.setattr(host_report, "host_state",
+                        lambda _disk: {"hostname": "ubuntu", "cores": 15,
+                                       "gpus": [], "ram_free_gb": 40.0,
+                                       "ram_total_gb": 47.0})
+
+    said = host_report.report_once("postgresql://x/y", "ubuntu", None)
+
+    assert "registered 'ubuntu'" in said
+    inserts = [(sql, params) for sql, params in executed
+               if sql.startswith("INSERT INTO ink_hosts")]
+    assert len(inserts) == 1, executed
+    sql, params = inserts[0]
+    assert params[0] == "ubuntu"
+    assert "ssh_target" in sql and "''" in sql, "the row needs an ssh_target column value"
+    assert "ON CONFLICT (host_id)" in sql, "two reporters racing must not fail one"
+    assert "Configuration -> Hosts" in params[1], (
+        "the note has to say where the ssh target is added")
+
+    # The ink worker's heartbeat writes the same table and had the same gap.
     root = Path(__file__).resolve().parents[1]
-    message = (root / "framework/contracts/host_report.py").read_text()
-    assert "no host row named" in message, "the message is gone; drop this test"
-
-    said = re.search(r'add it under\s*"?\s*\n?\s*f?"([^"]*Hosts[^"]*)', message)
-    assert said, "the message no longer says where a host is registered"
-
+    store = (root / "framework/stages/03-ink/fleet/job_store.py").read_text()
+    body = store[store.index("def record_host_state("):store.index("def hosts(")]
+    assert "INSERT INTO ink_hosts" in body and "ON CONFLICT (host_id)" in body, (
+        "the heartbeat still only updates a row somebody else has to create")
     configuration = (root / "panel/web/src/routes/Configuration.tsx").read_text()
     assert 'tab === "hosts"' in configuration, (
-        "the message sends people to a Hosts tab that Configuration no longer "
-        "renders")
-    hosts_page = (root / "panel/web/src/routes/Hosts.tsx").read_text()
-    assert 'title="Hosts"' in hosts_page, "the page it names is not called Hosts"
+        "the note sends people to a Hosts tab that Configuration no longer renders")

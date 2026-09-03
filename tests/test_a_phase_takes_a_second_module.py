@@ -99,6 +99,21 @@ def test_a_missing_required_parameter_is_refused(registered):
     assert "out_path" in str(refused.value)
 
 
+def test_a_lane_with_no_runner_is_refused_rather_than_run():
+    """mesh-relations shipped with flags that its own runner's argparse does
+    not accept -- a real file at the declared path, so the job was claimed and
+    only failed once a worker actually ran it. `not_wired` makes that refusal
+    happen here instead, before a lease is ever spent."""
+    with pytest.raises(job_store.JobRejected) as refused:
+        job_store.command_for(
+            {"phase": "P8", "parameters": {"lane": "mesh-relations",
+                                           "scroll": "PHerc0139",
+                                           "out_path": "/run/x"}},
+            runner="x", output_dir="/run/x")
+    assert "mesh-relations" in str(refused.value)
+    assert "not runnable" in str(refused.value)
+
+
 def test_a_lane_cannot_shadow_another_silently(registered):
     with pytest.raises(ValueError):
         job_store.register_lane("P8", registered, {"runner": "elsewhere.py"})

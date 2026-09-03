@@ -34,11 +34,18 @@ const CHECK_MEANING: Record<string, string> = {
   ct_check: "the only check that looks outside the segmentation — needs network",
 };
 
-export function Strips({ predPath }: { predPath?: string | null }) {
+export function Strips({ predPath: given }: { predPath?: string | null }) {
   const client = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [scored, setScored] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // No caller passes a surface down today, which left the score button
+  // permanently unreachable: `predPath` was always undefined. A path here is
+  // a surface directory or the run that produced one, relative to the runs
+  // root -- the same thing the Segments table's "open" link points at -- so
+  // typing it in is a real fallback, not a placeholder for one.
+  const [typed, setTyped] = useState("");
+  const predPath = given ?? (typed.trim() || null);
 
   const strips = useQuery({
     queryKey: ["strips"],
@@ -191,11 +198,19 @@ export function Strips({ predPath }: { predPath?: string | null }) {
         </p>
       )}
 
-      {!predPath && list.length > 0 && (
-        <p className="hint">
-          Pick a surface from the runs table to score it. A strip with no passing
-          qualification still scores — the scorecard is stamped UNQUALIFIED and says so.
-        </p>
+      {!given && list.length > 0 && (
+        <div className="formgrid">
+          <label>
+            Surface path (under the runs root)
+            <input value={typed} onChange={(e) => setTyped(e.target.value)}
+                  placeholder="segmentation/PHerc826/…/surface.obj" />
+            <span className="dash">
+              the same path the Segments table's "open" link points at. A strip
+              with no passing qualification still scores — the scorecard is
+              stamped UNQUALIFIED and says so.
+            </span>
+          </label>
+        </div>
       )}
 
       {scored && (

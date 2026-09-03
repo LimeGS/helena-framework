@@ -345,14 +345,22 @@ def has_work(directory: Path) -> bool:
 
 
 def amend_scrolls(directory: Path, *, add: list[str], reason: str = "",
-                  by: str = "panel") -> dict:
-    """Add scrolls. Free while the mission is a draft, an amendment once it is not."""
+                  by: str = "panel", frozen_by_queue: bool = False) -> dict:
+    """Add scrolls. Free while the mission is a draft, an amendment once it is not.
+
+    `frozen_by_queue` is the caller's answer to a question this function
+    cannot ask on its own: a job queued against this mission has not written
+    a receipt yet, so `has_work` alone says "draft" for a mission the panel's
+    own listing already shows as frozen. The caller reads the live queue;
+    this stays free of it, so the CLI and the tests above keep working with no
+    database at all.
+    """
     manifest = load(directory)
     additions = sorted({s.strip() for s in add if s.strip()} - set(manifest["scrolls"]))
     if not additions:
         raise MissionError("nothing to add: every scroll is already in the selection")
 
-    frozen = has_work(directory)
+    frozen = has_work(directory) or frozen_by_queue
     if frozen and not reason.strip():
         raise MissionError(
             "this mission has produced work, so its selection is frozen; "
@@ -369,7 +377,8 @@ def amend_scrolls(directory: Path, *, add: list[str], reason: str = "",
 
 
 def remove_scrolls(directory: Path, *, remove: list[str], reason: str = "",
-                   protected: set[str] | None = None, by: str = "panel") -> dict:
+                   protected: set[str] | None = None, by: str = "panel",
+                   frozen_by_queue: bool = False) -> dict:
     """Remove scrolls. Free while the mission is a draft, an amendment once it is not.
 
     One rule holds either way: a scroll that has already produced work cannot be
@@ -391,7 +400,7 @@ def remove_scrolls(directory: Path, *, remove: list[str], reason: str = "",
             "disown work it did."
         )
 
-    frozen = has_work(directory)
+    frozen = has_work(directory) or frozen_by_queue
     if frozen and not reason.strip():
         raise MissionError(
             "this mission has produced work, so its selection is frozen; "

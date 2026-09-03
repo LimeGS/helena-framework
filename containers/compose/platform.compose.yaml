@@ -71,7 +71,7 @@ services:
     # repository. Optional: without `required: false` a missing file is a hard
     # error, which is what made /etc/helena/postgres.env a precondition.
     env_file:
-      - path: ${HELENA_POSTGRES_ENV:-/etc/helena/postgres.env}
+      - path: ${HELENA_POSTGRES_ENV:-../../config/postgres.env}
         required: false
     # Loopback only, on the port the workers already use. Changing it would
     # break the DSN in every worker's environment on every host at once, which
@@ -230,14 +230,14 @@ services:
     env_file:
       # Both optional. A deployment that keeps settings outside the repository
       # still gets them; one that has neither still starts.
-      - path: ${HELENA_PANEL_ENV:-/etc/helena/panel.env}
+      - path: ${HELENA_PANEL_ENV:-../../config/panel.env}
         required: false
       # Read-only S3, for the surface previews: a TIFXYZ is three private
       # objects, so the slice overlay cannot draw the sheet without them. The
       # same file the backup service below reads, rather than a third copy of
       # a credential to rotate and forget. Without it the panel runs and the
       # previews of S3-hosted surfaces are the one thing that does not work.
-      - path: ${HELENA_AWS_ENV:-/etc/helena/aws.env}
+      - path: ${HELENA_AWS_ENV:-../../config/aws.env}
         required: false
     volumes:
       # Accounts, configuration overrides, their version history, the cache,
@@ -318,9 +318,9 @@ services:
         condition: service_healthy
     network_mode: host
     env_file:
-      - path: ${HELENA_PANEL_ENV:-/etc/helena/panel.env}
+      - path: ${HELENA_PANEL_ENV:-../../config/panel.env}
         required: false
-      - path: ${HELENA_AWS_ENV:-/etc/helena/aws.env}
+      - path: ${HELENA_AWS_ENV:-../../config/aws.env}
         required: false
     environment:
       CX_DB: *dsn

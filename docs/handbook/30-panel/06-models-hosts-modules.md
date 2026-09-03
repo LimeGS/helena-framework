@@ -50,6 +50,16 @@ install_ink_weights.py --models-root ... --only ink_9um   # one repository
 install_ink_weights.py --models-root ... --verify-only    # audit, download nothing
 ```
 
+That writes into the models volume directly, from whatever machine runs it.
+`scripts/harness/install_declared_weights.py` does the equivalent job through
+the panel instead: it reads `GET /api/models?resolve=1` for what a frozen
+profile still needs, then calls `POST /api/models/download` once per row
+against that profile's own digest — the same request the page's Download
+button makes, including for a `pickle_only` checkpoint, since the request
+carries the hash. It takes a panel URL and a user's credentials, `--only
+<substring>` to filter by upstream repository or destination path, and
+`--dry-run` to plan without fetching anything.
+
 > **Cost** The full set is 17.4 GB across 32 files. Put the models root on a
 > volume with room: the `ink_3d_dino_guided` checkpoints are 1.7 GB each.
 
@@ -67,7 +77,7 @@ The page's real content is the resolution state per model, and there are eight:
 | `mismatch` | published, and they do not |
 | `pickle_only` | published, and you cannot install it — see below |
 | `no_safetensors` | the repo has none |
-| `gated` | it needs an acceptance you have not given |
+| `gated` | it needs an acceptance you have not given, or the repository does not exist — the hub answers 401 for both, so as not to leak which |
 | `not_published` | the profile names a model nobody published |
 | `unreachable` | the hub did not answer |
 | `no_family` | the profile names no model family to look up |
@@ -84,27 +94,51 @@ The page's real content is the resolution state per model, and there are eight:
 
 What every phase can be done with, and what is switched on.
 
-The platform has three extension mechanisms and each is right for what it does:
+A module has one of five kinds, and each is a different contract rather than a
+synonym for the others:
 
-- a **lane** is a program,
-- a **profile** is a model with its scale,
-- a **seeder** chooses a point.
+| Kind | Is |
+| --- | --- |
+| `lane` | a program the queue starts |
+| `profile` | a model with its weights and physical scale, routed to an adapter |
+| `backend` | what grows a surface, for segmentation |
+| `seeder` | what chooses the point to grow from |
+| `source` | where the frozen scroll catalog is read from |
 
-This page does not add a fourth. What is registered is read from the same
+This page does not add a sixth. What is registered is read from the same
 declarations the queue routes with, so a lane that appears here exists and one
-that does not cannot be queued.
+that does not cannot be queued. P0 reports only `source`, naming the
+`CX_SCROLL_SOURCE` in effect; P1 reports backends and seeders instead of
+lanes; P5 reports profiles instead of lanes; every other phase reports lanes.
 
 > **Note** It is not read-only. Modules can be enabled and disabled from here,
-> and a new P5 profile can be **registered** from a Hugging Face repo id,
-> adapter, training scale and frame count. That is a write.
+> and a new P5 profile can be **registered** from a Hugging Face repo id, an
+> adapter, training scale, frame count, a revision (`main` if left blank) and
+> the checkpoint file (`model.safetensors` unless changed). Left with nothing
+> said about what it does not claim, the profile says so itself: nothing has
+> been validated against a known positive on this deployment, which is true
+> and is what a reader needs. That is a write.
 
 ## Hosts
 
 The machines, their roles, and what they reported about themselves.
 
 The assignable roles are `segment`, `render`, `ink`, `mesh` and `build`, and the
-server refuses anything else. A role describing where infrastructure lives is a
-fact about the deployment rather than something to be inferred.
+server refuses anything else:
+
+| Role | Means |
+| --- | --- |
+| `segment` | grows surfaces with VC3D — CPU only, so any host can take it |
+| `render` | turns a surface into a layer stack — no GPU |
+| `ink` | the only stage that needs a GPU worth having |
+| `mesh` | comparative backend, research only — its surfaces are not catalogued |
+| `build` | compiles the images, which is why they are built where they run |
+
+A host can carry a role this page does not offer, such as `postgres` on the one
+running the control-plane database. That is shown, greyed, rather than dropped:
+a role describing where infrastructure lives is a fact about the deployment
+rather than something to be inferred, and a request from this page that cannot
+express it must not be able to remove it by saving an unrelated change.
 
 > **Trap** **Roles do not route work.** They decide which images a host is
 > expected to hold and nothing else — no claim path filters on them. A host with
@@ -129,11 +163,39 @@ only the image answers **503**: the host is registered, and provisioning is
 the part that did not happen — bring it up with the compose files and it
 reports itself.
 
+That last sentence is literal, not a figure of speech: a host that nobody
+registered still registers itself, the first time its worker or its
+`host_report.py` reports in. That first report inserts the row with no `ssh`
+target and a note pointing back here — "registered by its own report; add an
+ssh target under Configuration -> Hosts to provision it from the panel" — so
+the fleet counts its hardware from the start instead of the worker running
+every job on a machine this page had never heard of. Add the `ssh` target by
+hand afterwards to make it provisionable; nothing else about the row changes.
+
 Host state is measured, not assumed — by the **worker's** probe, not by this
 page. The claim filters on the `has_gpu` and VRAM the worker reported, probed
 before its first claim, because a host with no card must not take a job that
 needs one: it would fail it, burn an attempt, and leave the queue looking broken
 rather than misrouted.
+
+The table itself reports what was measured: GPUs by name and utilisation, one
+line each; cores, with the host's own total alongside when this worker is
+confined to fewer; RAM free — `MemAvailable`, what a new process could
+actually get, reclaimable cache included — over the total; and disk free on
+the volume runs land on, not on `/`. "Last seen" reads **live** for two
+different reasons that share one word: the host the panel itself runs on,
+which it can simply measure rather than wait for a report, and any host whose
+only report is a segmentation worker's heartbeat, which carries admission
+capabilities — a GPU, if there is one — and nothing else, so cores, RAM and
+disk stay dashes there even while it says live. Every other host shows the
+timestamp of its last report, or **never**.
+
+`GET /api/hosts/{id}/images` is a second check, reachable but not on this
+page yet: it asks the host over SSH which `helena-*` image digests it is
+actually running, compares them against what its roles require, and reports
+the drift — a tag identifies nothing, which is how two hosts came to run
+different bytes under the same name. It answers "not reachable" rather than
+guessing for a host with no `ssh` target or one that does not answer.
 
 > **Note** GPUs are merged **by uuid and kept for an hour**, because a worker
 > that sees no card would otherwise write an empty list over a real one and

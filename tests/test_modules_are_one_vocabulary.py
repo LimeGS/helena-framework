@@ -196,6 +196,25 @@ def test_an_adapter_nobody_wrote_is_refused_with_the_list(client, app_module, pu
     body = refused.json()["detail"]
     assert len(body["adapters"]) >= 4
     assert "command-line contract" in body["why"]
+    assert str(len(body["adapters"])) in body["why"], (
+        "the count in the refusal must be read from the list, not written in "
+        "-- it already went stale once, saying \"the four here are what "
+        "exist\" after a fifth adapter existed")
+
+
+def test_the_9um_adapter_is_a_real_choice_here(client, app_module):
+    """The backend's own allowlist -- job_store.INK_ADAPTERS -- always had
+    five entries; the panel's picker (Modules.tsx ADAPTERS) and this
+    endpoint's refusal text both hardcode their own copy of the list and both
+    had drifted to four, so a checkpoint for the ink_9um lane could not be
+    registered from the panel even though the queue would have accepted it.
+    """
+    sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))
+    import job_store  # noqa: PLC0415
+    assert "framework/stages/03-ink/scripts/run_ink_9um.py" in job_store.INK_ADAPTERS
+    modules_tsx = (ROOT / "panel/web/src/routes/Modules.tsx").read_text()
+    assert "run_ink_9um.py" in modules_tsx, (
+        "the Add-from-Hugging-Face picker is still missing a real adapter")
 
 
 def test_the_repository_must_be_owner_and_name(client, app_module, published,

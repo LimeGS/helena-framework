@@ -1,6 +1,6 @@
 # P1, and the P2/P3 job runner. One of each per host.
 #
-#   docker compose --env-file /etc/helena/segment.env \
+#   docker compose --env-file config/segment.env \
 #                  -f containers/compose/segment.compose.yaml up -d
 #
 # Named segment rather than worker, because "worker" said nothing: three of the
@@ -59,7 +59,7 @@ services:
       options: {max-size: "20m", max-file: "5"}
     network_mode: host
     env_file:
-      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+      - ${HELENA_SEGMENT_ENV:-../../config/segment.env}
     volumes:
       # Where attempts and surfaces are staged, and -- when there is no object
       # storage -- where they stay.
@@ -125,7 +125,7 @@ services:
       options: {max-size: "20m", max-file: "5"}
     network_mode: host
     env_file:
-      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+      - ${HELENA_SEGMENT_ENV:-../../config/segment.env}
     environment:
       HELENA_WORKER_PHASES: ${HELENA_FLEET_RUNNER_PHASES:-P2,P3,P8}
       # Which image this worker actually is, so a lane that declares it needs
@@ -192,7 +192,7 @@ services:
       options: {max-size: "20m", max-file: "5"}
     network_mode: host
     env_file:
-      - ${HELENA_SEGMENT_ENV:-/etc/helena/segment.env}
+      - ${HELENA_SEGMENT_ENV:-../../config/segment.env}
     # preflight writes attempts where the workers do. It had no volumes at all,
     # so /artifacts was the container's own filesystem, which it cannot write:
     # `mkdir: cannot create /artifacts/attempts: Permission denied`, forever.

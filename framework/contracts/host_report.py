@@ -37,13 +37,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from framework.contracts.host_probe import host_state  # noqa: E402
 
 
+# What a self-registered row says about itself, so the Hosts page shows why
+# the ssh target is blank rather than a machine somebody forgot to finish.
+SELF_REGISTERED_NOTE = ("registered by its own report; add an ssh target under "
+                        "Configuration -> Hosts to provision it from the panel")
+
+
 def report_once(dsn: str, host_id: str, disk: str | None) -> str:
     """One reading, written to the host's row. Returns what happened.
 
-    A missing row is normal rather than an error: a machine can run a worker
-    before anyone registers it in the panel, and the reading is simply not
-    wanted yet. Saying so and continuing beats exiting and being restarted
-    forever by systemd.
+    A machine can run a worker before anyone registers it in the panel. Its
+    first report registers it, without an ssh target, so the fleet it belongs
+    to counts its hardware from the start.
     """
     import psycopg2
 
@@ -85,12 +90,20 @@ def report_once(dsn: str, host_id: str, disk: str | None) -> str:
                 "WHERE host_id=%s",
                 (json.dumps(merged, sort_keys=True), host_id))
             if cursor.rowcount == 0:
-                # Where, not just what. This ran every minute on a fresh
-                # install, saying a row was missing and leaving no way to find
-                # out how one is made -- the reader has the panel open and no
-                # reason to guess that Configuration holds a Hosts tab.
-                return (f"no host row named {host_id!r}; add it under "
-                        f"Configuration -> Hosts in the panel to see this")
+                # A host that reports exists. This said "no host row named
+                # 'ubuntu'; add it under Configuration -> Hosts" every minute
+                # on a fresh install, and the mission page counted no hardware
+                # while two workers ran beside it. The row is made here, with
+                # no ssh target: that is what registering by hand adds, and
+                # provisioning is the only thing that needs it.
+                cursor.execute(
+                    "INSERT INTO ink_hosts (host_id, ssh_target, notes, "
+                    "last_seen_at, last_state) VALUES (%s, '', %s, now(), "
+                    "%s::jsonb) ON CONFLICT (host_id) DO UPDATE "
+                    "SET last_seen_at=now(), last_state=EXCLUDED.last_state",
+                    (host_id, SELF_REGISTERED_NOTE,
+                     json.dumps(merged, sort_keys=True)))
+                return f"registered {host_id!r} by its own report"
     return (f"{state.get('cores', '?')} cores, "
             f"{state.get('ram_free_gb', '?')}/{state.get('ram_total_gb', '?')} GB RAM, "
             f"{state.get('disk_free_gb', '?')} GB free on "

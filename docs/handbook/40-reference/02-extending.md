@@ -85,7 +85,15 @@ You do not have to implement these, and you cannot opt out of them:
 - **A profile**, frozen, with the digest of anything it pins.
 - **An output check.** The phase should look at what it produced before calling
   the job a success. P3 parses its own TIFXYZ; P4 counts slices and checks the
-  middle one is not constant. The general rule: an exit code is not evidence of
-  work done.
+  middle one is not constant; every P5 adapter calls `assess_liveness` from
+  `framework/contracts/lane_liveness.py` on its own map and gets back `ALIVE`,
+  `DEGENERATE` or `EMPTY` — a checkpoint can load cleanly, hashes and all, and
+  still have an untrained decoder that answers every input with the same
+  narrow band of numbers, and only the shape of the output distribution
+  catches that. `refuse_if_not_alive` turns anything but `ALIVE` into a
+  `LANE_NOT_USABLE` marker and a non-zero exit, unless the job set
+  `on_degenerate` to `warn`; a new ink adapter that skips the call fails the
+  suite, which checks every `run_ink*.py` script on disk by name. The general
+  rule: an exit code is not evidence of work done.
 - **A page here.** A lane nobody documented is a lane somebody works out by
   clicking.

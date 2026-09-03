@@ -238,11 +238,19 @@ fi
 # Point each one at the file that was just seeded, and only when it is really
 # there and nobody has said otherwise: a host that keeps its env somewhere else
 # has set these already, and this must not override that.
+# The platform's own files are in the same list: platform.env.example used to
+# carry HELENA_PANEL_ENV=/etc/helena/panel.env, so a clean install seeded a
+# panel.env into config/ that the panel never read, and aws.env -- the backup
+# service's credentials -- had no way to be found in config/ at all.
 for pair in \
   "HELENA_SEGMENT_ENV segment.env" \
   "HELENA_HOST_REPORT_ENV segment.env" \
   "HELENA_INK_ENV ink.env" \
-  "HELENA_QC_ENV surface-qc.env"
+  "HELENA_QC_ENV surface-qc.env" \
+  "HELENA_PANEL_ENV panel.env" \
+  "HELENA_AWS_ENV aws.env" \
+  "HELENA_INK_AWS_ENV aws.env" \
+  "HELENA_QC_AWS_ENV aws.env"
 do
   var="${pair%% *}" file="${pair#* }"
   eval "current=\${$var:-}"
@@ -415,15 +423,23 @@ if [ ! -f "$env_dir/postgres.env" ]; then
   chown "${HELENA_WORKER_UID:-1000}:${HELENA_WORKER_GID:-1000}" "$env_dir/postgres.env" 2>/dev/null || true
   say "wrote $env_dir/postgres.env from the platform's own settings"
 fi
-for pair in "platform.env HELENA_POSTGRES_ENV" "surface-qc.env HELENA_QC_POSTGRES_ENV"; do
-  file="$env_dir/${pair%% *}" var="${pair#* }"
+# Likewise HELENA_PANEL_ENV: the template named /etc/helena/panel.env, which a
+# clean install does not have. The export above already wins for this deploy's
+# own compose calls; the file is corrected too, so a `docker compose` run by
+# hand reads the same panel.env. A value naming a file that exists is left alone.
+for triple in "platform.env HELENA_POSTGRES_ENV postgres.env" \
+              "surface-qc.env HELENA_QC_POSTGRES_ENV postgres.env" \
+              "platform.env HELENA_PANEL_ENV panel.env"; do
+  set -- $triple
+  file="$env_dir/$1" var="$2" target="$env_dir/$3"
   [ -f "$file" ] || continue
+  [ -f "$target" ] || continue
   current="$(grep -oE "^$var=.*" "$file" 2>/dev/null | cut -d= -f2- || true)"
   [ -n "$current" ] && [ -f "$current" ] && continue
   if grep -qE "^$var=" "$file"; then
-    sed -i "s|^$var=.*|$var=$env_dir/postgres.env|" "$file"
+    sed -i "s|^$var=.*|$var=$target|" "$file"
   else
-    printf '%s=%s\n' "$var" "$env_dir/postgres.env" >> "$file"
+    printf '%s=%s\n' "$var" "$target" >> "$file"
   fi
 done
 
@@ -825,8 +841,10 @@ up "the ink stack" -p helena-ink-0 -f "$compose/ink.compose.yaml" --env-file "$e
 # moved -- and it claims P5 jobs, which is how a canonical 2 um run landed on a
 # worker running hours-old code and failed on a bug that was already fixed.
 #
-# Skipped, loudly, on a host that has no 9 um lane image: it is built from
-# ink-detection's own frozen lock and is not something this script can produce.
+# Skipped, loudly, on a host where the build above failed or was never
+# reached: this deploy builds the 9 um lane image itself, from ink-detection's
+# own frozen lock, a few dozen lines up. It used to be something only a
+# separate command could produce; it is not any more.
 # Two different names, and they were one for a moment: the image the frozen
 # lane environment is copied from is a Docker tag, and what the worker announces
 # itself as is the lane id the profile declares.
@@ -860,10 +878,11 @@ fi
 # The spiral slot: the segment worker carrying the villa Python environment, so
 # it can both claim a P1 job and run the fitter.
 #
-# Skipped, loudly, on a host with no villa-python image. That one is built from
-# a source checkout at the locked commit (`make build-villa-python VILLA_SRC=`)
-# and is not something this script can produce -- the same shape as the 9 um
-# slot above, and the same reason.
+# Skipped, loudly, on a host where the lane image failed to build.
+# build-worker.sh -- which the earlier worker build above already ran --
+# builds it too, from a source checkout at the locked commit; it used to need
+# a separate `make build-villa-python VILLA_SRC=` and no longer does, the
+# same change that made the 9 um slot above buildable here as well.
 #
 # Its own compose file because the service asks for a card and the rest of the
 # segment stack deliberately does not -- and not a compose profile inside that

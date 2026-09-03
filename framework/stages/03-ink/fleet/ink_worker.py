@@ -443,7 +443,7 @@ def run_streaming(argv: list[str], *, timeout: float | None, env: dict | None,
 
 
 def require_runtime(job: dict) -> None:
-    """Refuse a lane whose runtime this worker is not, before it costs a job.
+    """Refuse a lane whose runtime this worker is not. The lease and the attempt are already spent when this fires; the pre-claim skip is the cheap path.
 
     Three lanes now need an image their claiming worker does not run -- the
     9 um detector, lasagna, the spiral fitter -- because their dependencies

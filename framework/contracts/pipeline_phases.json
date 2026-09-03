@@ -206,7 +206,7 @@
       ],
       "maturity": "WORKING",
       "how_to_run": "The strict text screen requires at least ten candidates and at least two rows carrying four shapes each. The Run page draws the threshold slider with the map's own percentiles marked on it.",
-      "how_it_fails": "By being asked about a box nobody should trust. The bbox is a human claim with no producer in this pipeline, and liveness is not enforced before it runs.",
+      "how_it_fails": "By being asked about a box nobody should trust. The bbox is a human claim with no producer in this pipeline, and liveness is enforced by the queue, not by the runner.",
       "gate": "at least 10 candidates and at least 2 qualifying rows, and -- per the vetting-card discipline -- no priority review without a hash-bearing card and its input",
       "prerequisites": {
         "needs": "a probability map, and a bounding box to vet",
@@ -215,7 +215,7 @@
         ],
         "may_come_from_outside": true,
         "external_source": "the bounding box comes from a person, not from a phase",
-        "note": "Declared as gated on P6 and it is not: no code checks the liveness verdict before screening. The queue refuses a map whose receipt is not ALIVE; nothing stops the runner being called directly."
+        "note": "Gated on P6 by the queue, not by the runner: a job queued through the panel or the API is refused when the map's receipt is not ALIVE (refuse_dead_map for map_path, resolve_screened_map for screening_of), while vet_map.py called by hand checks nothing."
       },
       "runnable_here": true
     },
@@ -250,7 +250,7 @@
       "id": "P9",
       "slug": "reading",
       "name": "Rendering and reading",
-      "one_line": "Compose the assembled sheet into a readable page and recover text.",
+      "one_line": "Compose the assembled sheet into a readable page.",
       "consumes": "the published ink maps for a scroll and a measured P8 radial order",
       "produces": "ordered plate images for review",
       "lives_in": [

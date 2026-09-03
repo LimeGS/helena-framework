@@ -56,6 +56,15 @@ describe("the handbook", () => {
     }
   });
 
+  it("links a heading to its page, so a copied permalink lands on it", () => {
+    // The permalink was `#<heading>` alone, which pageFromHash cannot read:
+    // following it fell back to the first page.
+    render(<Handbook />);
+    const anchor = document.querySelector("a.hb-anchor");
+    expect(anchor).not.toBeNull();
+    expect(anchor!.getAttribute("href")).toMatch(/^#\/docs\/[a-z0-9-]+\/[a-z0-9-]+#[A-Za-z0-9_-]+$/);
+  });
+
   it("renders the first page with its sidebar", () => {
     render(<Handbook />);
     // No jest-dom in this suite, so the assertions are plain vitest: the

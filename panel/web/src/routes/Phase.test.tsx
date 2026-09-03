@@ -75,6 +75,14 @@ let state: Record<string, unknown> = {};
 function reply(path: string) {
   if (path.startsWith("/api/phases/P4/parameters")) return P4_SCHEMA;
   if (path.startsWith("/api/phase/P4")) return { ...PHASE, state };
+  if (path.startsWith("/api/phase/P5")) return {
+    ...PHASE, state,
+    contract: { id: "P5", name: "Ink detection", one_line: "Run a detector",
+                maturity: "WORKING", distributed: true },
+  };
+  // A fresh install: no receipt on disk, nothing screened yet.
+  if (path.startsWith("/api/runs")) return { runs: [] };
+  if (path.startsWith("/api/ink/maps")) return { available: true, runs: [] };
   return {};
 }
 
@@ -93,7 +101,9 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllGlobals());
 
-vi.mock("react-router", () => ({ useParams: () => ({ phaseId: "P4" }) }));
+// Read at render time, so one test can open another phase.
+let phaseId = "P4";
+vi.mock("react-router", () => ({ useParams: () => ({ phaseId }) }));
 // Partial: this module also exports `scoped`, which Phase.tsx calls to build
 // its own query. Replacing the module wholesale silently removed it.
 vi.mock("../mission", async (importOriginal) => ({
@@ -139,10 +149,14 @@ describe("the queue form", () => {
   it("shows only the chosen lane's fields", async () => {
     await openTheForm();
     await screen.findByPlaceholderText("/vol/scroll.zarr");
-    expect(screen.queryByText(/PPM file/)).toBeNull();
+    expect(screen.queryByLabelText(/PPM file/)).toBeNull();
     fireEvent.change(document.querySelector("select")!,
                      { target: { value: "chunk-gather" } });
-    await waitFor(() => expect(screen.getByText(/PPM file/)).toBeDefined());
+    // "PPM file" now names both the field's own label and, once it is
+    // required and empty, the "needs …" reason beside the queue button --
+    // getByLabelText matches the field itself and stays unambiguous either
+    // way.
+    await waitFor(() => expect(screen.getByLabelText(/PPM file/)).toBeDefined());
     expect(screen.queryByPlaceholderText("/vol/scroll.zarr")).toBeNull();
   });
 
@@ -229,5 +243,23 @@ describe("what the phase reports", () => {
       .find((path: string) => path.startsWith("/api/phases/P4/parameters"));
     expect(asked).toContain("mission=test");
     expect(asked).toContain("sample=PHerc826");
+  });
+});
+
+describe("P5", () => {
+  afterEach(() => { phaseId = "P4"; });
+
+  it("opens on Maps, where a screening queued through the fleet is", async () => {
+    // Runs indexes receipts on disk under CX_RUNS, which a fresh install has
+    // none of; the phase opened on that empty tab while its one map sat under
+    // Maps, and the empty state asked about an environment variable.
+    phaseId = "P5";
+    draw();
+    const maps = await screen.findByRole("button", { name: "Maps" });
+    expect(maps.getAttribute("aria-current")).toBe("page");
+    const runs = screen.getByRole("button", { name: "Runs" });
+    expect(runs.getAttribute("aria-current")).toBeNull();
+    fireEvent.click(runs);
+    await screen.findByText(/Screenings queued through the fleet are under Maps/);
   });
 });

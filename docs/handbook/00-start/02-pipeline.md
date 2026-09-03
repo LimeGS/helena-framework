@@ -12,19 +12,25 @@ produces another, and records the digest of both.
 | Phase | Does | Takes | Produces |
 | --- | --- | --- | --- |
 | **P0** | Volume intake | a public OME-Zarr scan | a frozen catalogue entry: scan id, µm per voxel, beam energy |
-| **P1** | Segmentation | an m7 volume (seeded grow), or an umbilicus, tracks and normals (spiral fit) | one mesh per winding, as TIFXYZ |
+| **P1** | Segmentation | an m7 volume (seeded grow), or an umbilicus, tracks and normals (spiral fit) | a TIFXYZ surface — one per winding from a fit, one from a grow |
 | **P2** | Geometry certification | a TIFXYZ surface | certified, certified-but-`resolution_limited`, a named rejection, or `GEOMETRY_UNMEASURED` |
 | **P3** | Flattening | a certified surface | a flattened sheet |
-| **P4** | Surface volume rendering | a sheet and the CT volume | a numbered TIFF stack, or Zarr |
-| **P5** | Ink detection | a layer stack | a probability map |
-| **P6** | Liveness | a probability map | whether the map carries a decision at all |
-| **P7** | Screening and adjudication | a map and its liveness | a vetting card and a verdict |
-| **P8** | Reconstruction | published meshes, or two or more certified surfaces (merge lane) | a merged surface, a column atlas |
+| **P4** | Surface volume rendering | a flattened sheet or the certified surface itself, and the CT volume | a numbered TIFF stack, optionally also a Zarr copy |
+| **P5** | Ink detection | a layer stack and an ink lane profile | a probability map |
+| **P6** | Liveness | a probability map | `ALIVE`, `DEGENERATE` or `EMPTY` — whether the map carries a decision at all |
+| **P7** | Screening and adjudication | a probability map and a claimed bounding box | candidate shapes, qualifying rows, and a pass or fail against the strict screen |
+| **P8** | Reconstruction | published meshes, or two or more certified surfaces (merge lane) | a relation graph, or a merged surface (merge lane) |
 | **P9** | Rendering and reading | the published maps and a measured P8 radial order | ordered plates |
 
 Not every run touches all ten. A screening pass is P4→P5→P7. A geometry
 campaign is P1→P2→P8. The chain is what constrains the order, not a schedule
 anybody has to follow.
+
+Three phases run more than one way, and each one names its own lanes: P1's
+seeded grow and spiral fit above, P8's column-atlas and merge lane above, and
+P4's two renderers — the default `vc-render-tifxyz`, and a chunk-gather lane
+built around a legacy PPM instead of a sheet. See the [phase page](#/docs/phases/p4)
+for what each lane needs.
 
 ## The gates, and what they refuse
 
@@ -73,6 +79,12 @@ fetches by that digest. Three consequences worth knowing:
 
 The panel writes a row; it never runs the work. A worker on a GPU host claims
 the job, runs it in the image that lane requires, and reports.
+
+Only six phases are queued this way: P1, P4, P5, P7, P8 and P9. The other four
+are not jobs you queue from the panel. P0 has no command at all. P2 runs
+automatically when the fleet finalizes a surface, or through its own `certify`
+backfill command. P3 runs from its own `flatten` command. P6 is not run; it is
+a verdict the P5 adapter writes into its own receipt.
 
 - Lanes declare the **runtime image** they need. A worker running something else
   refuses the job by name rather than taking it and failing at the first import.

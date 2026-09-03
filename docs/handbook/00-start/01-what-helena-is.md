@@ -12,6 +12,15 @@ The platform exists to make that impossible to miss. Every phase records what it
 consumed, what it produced, and the digest of both. A result that cannot say
 what it came from is refused rather than filed.
 
+Helena does not reimplement the algorithms it runs. VC3D, m7, ScrollFiesta, the
+Volume Cartographer flatteners and the ink models stay exactly what they are; a
+phase calls them through a stable adapter and records what each was given and
+what it returned. A phase implemented as a separate component rather than
+inline in `framework/stages/` is registered in `framework/registries/` and
+vendored under `framework/vendored/`, each component with a `VENDOR.json`
+recording the source commit and a hash per file. Only the technique is
+imported; findings stay at the source.
+
 ## The shape of a run
 
 Work enters as a **job**, queued against a **phase**, inside a **mission**.
@@ -25,9 +34,11 @@ Work enters as a **job**, queued against a **phase**, inside a **mission**.
   coverage, backlogs and job counts are all computed against a mission's
   scrolls, so a job queued outside one is work nobody can find afterwards.
 
-A worker on a GPU host claims the job, runs it, and publishes what it made to
-the artifact store. The panel never runs the work itself — it writes a row and
-waits, which is why a panel outage does not stop a render that is already going.
+A worker claims the job, runs it, and publishes what it made to the artifact
+store. Which worker may claim it depends on the capability the job declares —
+most phases run on a CPU-only fleet, and only ink detection and surface QC need
+a GPU. The panel never runs the work itself — it writes a row and waits, which
+is why a panel outage does not stop a render that is already going.
 
 ## Two kinds of run, and the difference matters
 
@@ -46,10 +57,11 @@ name, with a binding digest stamped over the set so changing any of them by hand
 makes the mission unreadable.
 
 > **Trap** Declaring it is not the whole story. The ink queue asks whether a
-> **campaign budget admission** has been registered for this mission and sample,
-> and the surface boundaries ask whether the surface row itself is marked. A
-> mission with `campaign_kind` and no registered admission is gated as generic. From that moment every phase
-boundary asks a harder question:
+> **campaign budget admission** has been registered for this mission, and the
+> surface boundaries ask whether the surface row itself is marked. A mission
+> with `campaign_kind` and no registered admission is gated as generic.
+
+From that moment every phase boundary asks a harder question:
 
 - the resolved lineage must be **complete**: right schema, canonical, a
   recognised surface state, no ambiguity or hash conflict, and an external
@@ -93,6 +105,12 @@ are worth knowing before you trust a green result:
   failing to open their input. Where Helena knows about it, the phase verifies
   its own output before calling the job a success — P4 counts the slices it
   wrote and checks the middle one is not a constant, and refuses if it is.
+
+A third discipline sits beside those two: geometry certification, CT support,
+the detector's own response and human review are four separate judgements, and
+none of them stands in for another. A surface can be CT-supported and
+geometrically rejected at once — they answer different questions, and a phase
+page shows each as its own field rather than folding them into one verdict.
 
 ## Where to go next
 

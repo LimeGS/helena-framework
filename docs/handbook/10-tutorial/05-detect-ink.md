@@ -14,13 +14,14 @@ with.
 | `ink-9um-hybrid-3d2d-screening@1.0.0` | `run_ink_9um.py` | a surface volume | 9.6 µm |
 | `ink-canonical-2um-screening@1.1.0` | `run_ink_canonical2um.py` | a layer stack | 2.399 µm |
 | `timesformer-gp-scroll1-screening@1.1.0` | `run_ink_timesformer.py` | a layer stack | 7.91 µm, resampled |
-| `resnet50-7.9um-scroll1-frags-screening@1.0.0` | `run_ink.py` | a layer stack | 7.9 µm |
+| `resnet50-7.9um-scroll1-frags-screening@1.0.0` | `run_ink.py` | a layer stack | 7.9 µm, resampled |
 
 > **Trap** Write the `@version`. A profile id is matched exactly, so
 > `ink-canonical-2um-screening` without one is refused as unknown. And the
-> version is not cosmetic here: `@1.0.0` routes to the generic runner and its
-> own profile says its map correlates r = 0.079 with the community map for that
-> recipe, where `@1.1.0` matches at r = 0.98. They are not comparable.
+> version is not cosmetic here: `@1.0.0` routes to the generic runner, and the
+> record left by the profile that supersedes it says that runner's map
+> correlated r = 0.079 with the community map for that recipe, on ground where
+> `@1.1.0`'s own render matched at r = 0.98. They are not comparable.
 
 A fifth adapter, `run_ink_3d_dino.py`, is declared `unroutable` — it takes a
 patch manifest rather than a layer stack — and the queue refuses it by name.
@@ -55,9 +56,10 @@ exactly that reason: pooling has to know what it is pooling from, and assuming
 
 ## What comes out
 
-A probability map: one float per pixel, brighter meaning more likely ink. The
-walkthrough's `segment.tif` and `segment_reverse.tif` correspond to running with
-direction both — a map and its reverse.
+A probability map: one float per pixel, brighter meaning more likely ink. A
+direction-both run publishes `probability.npy` and `probability_reverse.npy` —
+a map and its reverse. Both, with the run's `p50`, `p99` and the spread between
+them, show up on P5's Maps tab once the job finishes.
 
 It is a **screening output, not a reading**. The map says where a model responded,
 which is a different claim from where the ink is.

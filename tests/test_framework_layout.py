@@ -222,3 +222,31 @@ def test_the_deploys_page_counts_what_actually_runs() -> None:
         "parents as services")
     for parent in ("helena-villa", "helena-ink", "helena-gpu-runtime"):
         assert parent in page, f"{parent} is a parent image the page omits"
+
+
+def test_the_backup_page_describes_the_service_that_exists() -> None:
+    """The backup service shipped with one sentence of documentation: that the
+    container starts when HELENA_BACKUP_S3 is set. Nothing said where the
+    credentials go, that they are a file and not the panel's store, what is
+    uploaded, or how to restore. A page that names variables the compose file
+    does not read is worse than that sentence, so each one is checked.
+    """
+    page = (ROOT / "docs/handbook/50-operations/02-backups-and-object-storage.md").read_text()
+    compose = (ROOT / "containers/compose/platform.compose.yaml").read_text()
+    script = (ROOT / "containers/images/backup_to_s3.py").read_text()
+    example = (ROOT / "containers/compose/platform.env.example").read_text()
+    for variable in ("HELENA_BACKUP_S3", "HELENA_BACKUP_INTERVAL_HOURS", "HELENA_AWS_ENV"):
+        assert variable in page, f"the page does not mention {variable}"
+        assert variable in compose, f"the page documents {variable}, which compose does not read"
+        assert f"#{variable}=" in example, (
+            f"{variable} is not in platform.env.example, so nobody finds it")
+    assert "AWS_SECRET_ACCESS_KEY=..." in page and "AWS_SECRET_ACCESS_KEY=" not in example, (
+        "the template must not invite a real key; the page shows the shape")
+    for artefact in ("postgres/", "panel-state/", "runs/", "receipts/"):
+        assert artefact in page and artefact in script, (
+            f"the page and the script disagree about uploading {artefact}")
+    assert "pg_restore" in page, "a backup page with no restore is a hope"
+    names = (ROOT / "framework/stages/01-segmentation/fleet/postgres_store.py").read_text()
+    for secret in ("AWS_ACCESS_KEY_ID", "AWS_ENDPOINT_URL"):
+        assert secret in page and secret in names, (
+            f"the page names {secret} as a fleet secret and the store does not accept it")
