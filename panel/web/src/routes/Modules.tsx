@@ -24,11 +24,17 @@ type Payload = {
   kinds: Record<string, string>;
 };
 
+// The backend's own allowlist is job_store.INK_ADAPTERS; kept in step by
+// hand because the picker has to render before that answer is fetched. A
+// fifth adapter, run_ink_9um, existed here before this list did and was left
+// off -- the same drift as the API's own refusal text, which said "the four
+// here are what exist" after it had become five.
 const ADAPTERS = [
   "framework/stages/03-ink/scripts/run_ink.py",
   "framework/stages/03-ink/scripts/run_ink_timesformer.py",
   "framework/stages/03-ink/scripts/run_ink_canonical2um.py",
   "framework/stages/03-ink/scripts/run_ink_3d_dino.py",
+  "framework/stages/03-ink/scripts/run_ink_9um.py",
 ];
 
 function AddFromHuggingFace() {
