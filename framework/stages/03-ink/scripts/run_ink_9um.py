@@ -26,7 +26,10 @@ targets. The 3D-DINO lane's registry note records that Helena targets at
 8.64/9.362 um need 3.6x/3.90x linear upsampling to reach that model's scale,
 "which creates no new spatial information". These models were trained at
 ~9.6 um isotropic, including on native 9.362 um segments, so a native render
-runs without resampling at all.
+runs without resampling at all. A render at neither scale is refused unless a
+caller opts in with ``--resample-from-um``, an explicit XY-only resample to
+the model's scale -- never invented here on its own initiative; see
+``prepare_9um_isotropic_input.plan_resample`` for the method and its cost.
 
 Non-claims
 ----------
@@ -55,7 +58,7 @@ import tifffile
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3].parent))
 from framework.contracts.lane_liveness import (  # noqa: E402
-    assess_liveness, refuse_if_not_alive,
+    assess_liveness, forward_reverse_asymmetry, refuse_if_not_alive,
 )
 
 from prepare_9um_isotropic_input import (  # noqa: E402
@@ -118,7 +121,8 @@ def lane_interpreter() -> str:
 
 
 def preparation_command(*, tiff_dir: Path, destination: Path,
-                        source_voxel_um: float) -> list[str]:
+                        source_voxel_um: float,
+                        resample_from_um: float | None = None) -> list[str]:
     """The argv that pools a P4 layer stack into the runner's surface volume.
 
     A subprocess in the lane's interpreter rather than a call in this one, for
@@ -133,17 +137,21 @@ def preparation_command(*, tiff_dir: Path, destination: Path,
     the quieter version of this same bug. One interpreter for the whole lane
     means the question cannot come up.
     """
-    return [
+    argv = [
         lane_interpreter(),
         str(Path(__file__).resolve().parent / "prepare_9um_isotropic_input.py"),
         "--layers", str(tiff_dir),
         "--output", str(destination),
         "--source-voxel-um", str(source_voxel_um),
     ]
+    if resample_from_um is not None:
+        argv += ["--resample-from-um", str(resample_from_um)]
+    return argv
 
 
 def prepared_surface_volume(tiff_dir: Path, work_dir: Path, *,
-                           source_voxel_um: float) -> Path:
+                           source_voxel_um: float,
+                           resample_from_um: float | None = None) -> Path:
     """Pool a P4 layer stack into the surface volume upstream's runner reads.
 
     In this job rather than in a second queued one. A prepare job whose output
@@ -154,8 +162,10 @@ def prepared_surface_volume(tiff_dir: Path, work_dir: Path, *,
     if it is one job.
     """
     destination = Path(work_dir) / PREPARED_VOLUME_NAME
-    argv = preparation_command(tiff_dir=Path(tiff_dir), destination=destination,
-                               source_voxel_um=float(source_voxel_um))
+    argv = preparation_command(
+        tiff_dir=Path(tiff_dir), destination=destination,
+        source_voxel_um=float(source_voxel_um),
+        resample_from_um=(float(resample_from_um) if resample_from_um is not None else None))
     completed = subprocess.run(  # noqa: S603 - argv is built here
         argv, check=False, stderr=subprocess.PIPE)
     if completed.returncode == 0:
@@ -293,7 +303,8 @@ def mirror_zarr_to_local(url: str, cache_root: Path) -> str | None:
 def resolve_surface_volume(*, tiff_dir: Path | None,
                            surface_volume: str | None,
                            work_dir: Path,
-                           source_voxel_um: float | None) -> str:
+                           source_voxel_um: float | None,
+                           resample_from_um: float | None = None) -> str:
     """Whatever this run should point the runner at, from what it was given.
 
     Exactly one of the two, for the reason P5 already refuses naming both a
@@ -317,7 +328,8 @@ def resolve_surface_volume(*, tiff_dir: Path | None,
             "know what it is pooling from, and guessing 2.4 would turn a "
             "native 9 um render into a 38 um one")
     return str(prepared_surface_volume(
-        Path(tiff_dir), Path(work_dir), source_voxel_um=source_voxel_um))
+        Path(tiff_dir), Path(work_dir), source_voxel_um=source_voxel_um,
+        resample_from_um=resample_from_um))
 
 
 # Measured 6 GB (gpu-1, empties the map at batch 4) and 32 GB (RTX 5090, 1/4/8
@@ -450,6 +462,38 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     return argv
 
 
+def build_reverse_summary(probability: np.ndarray, reverse: np.ndarray) -> dict[str, Any]:
+    """Compare the forward map against the reverse `direction: both` also wrote.
+
+    Called only once the reverse array exists and has been loaded -- a
+    forward-only or reverse-only job never has a second array to compare
+    against, and this is simply never reached for one, so no receipt from
+    such a job carries any of what this returns.
+    """
+    summary: dict[str, Any] = {
+        "map": "probability_reverse.npy",
+        "p50": float(np.percentile(reverse, 50)),
+        "p99": float(np.percentile(reverse, 99)),
+    }
+    if reverse.shape == probability.shape:
+        forward_flat = probability.ravel().astype(np.float64)
+        reverse_flat = reverse.ravel().astype(np.float64)
+        if forward_flat.std() > 0 and reverse_flat.std() > 0:
+            summary["pearson_r_with_forward"] = float(
+                np.corrcoef(forward_flat, reverse_flat)[0, 1])
+        summary["identical"] = bool(np.array_equal(probability, reverse))
+        # freek_cool (villa, 2026-08-31): not the ratio at one threshold, but
+        # how it moves as the threshold rises. Measured against this lane's
+        # own control, PHerc0139 w043, the ratio grows 2.53 -> 3.36 -> 5.21
+        # across 0.5/0.6/0.7 on the real stack and falls -- 0.67, 0.56, 0.46
+        # -- once the stack's layers are shuffled. p99 and std can land in
+        # the alive range on both; this measurement does not.
+        summary["asymmetry"] = forward_reverse_asymmetry(probability, reverse)
+    else:
+        summary["shape_differs"] = [list(probability.shape), list(reverse.shape)]
+    return summary
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--profile", type=Path, required=True)
@@ -459,6 +503,13 @@ def main() -> int:
                     help="a P4 numbered TIFF layer stack, pooled here first")
     ap.add_argument("--source-pixel-um", type=float,
                     help="the scale --tiff-dir was rendered at")
+    ap.add_argument("--resample-from-um", type=float, default=None,
+                    help="opt in to resampling --tiff-dir from this scale to "
+                         "9.362 um instead of refusing it; XY-only linear "
+                         "interpolation, no claim of Z isotropy. Measured on "
+                         "PHerc0139 w043 (9.362 -> 8.640 -> 9.362 round trip): "
+                         "correlation 0.338 vs. 0.359 native, top-1% enrichment "
+                         "19.13x vs. 19.89x native -- about a 4%% cost, not free")
     ap.add_argument("--sample-id", help="recorded in the receipt")
     ap.add_argument("--checkpoint", type=Path, required=True)
     ap.add_argument("--batch-size", type=int, default=None,
@@ -501,7 +552,8 @@ def main() -> int:
     try:
         surface_volume = resolve_surface_volume(
             tiff_dir=args.tiff_dir, surface_volume=args.surface_volume,
-            work_dir=args.output, source_voxel_um=args.source_pixel_um)
+            work_dir=args.output, source_voxel_um=args.source_pixel_um,
+            resample_from_um=args.resample_from_um)
     except (ValueError, IncompatibleSourceScale) as refused:
         # Before a GPU is claimed: a scale this recipe cannot reach is not
         # something to discover after the model is resident.
@@ -589,22 +641,7 @@ def main() -> int:
     if reverse_tiff.is_file():
         reverse = read_map(reverse_tiff)
         np.save(directory / "probability_reverse.npy", reverse)
-        reverse_summary = {
-            "map": "probability_reverse.npy",
-            "p50": float(np.percentile(reverse, 50)),
-            "p99": float(np.percentile(reverse, 99)),
-        }
-        if reverse.shape == probability.shape:
-            forward_flat = probability.ravel().astype(np.float64)
-            reverse_flat = reverse.ravel().astype(np.float64)
-            if forward_flat.std() > 0 and reverse_flat.std() > 0:
-                reverse_summary["pearson_r_with_forward"] = float(
-                    np.corrcoef(forward_flat, reverse_flat)[0, 1])
-            reverse_summary["identical"] = bool(
-                np.array_equal(probability, reverse))
-        else:
-            reverse_summary["shape_differs"] = [list(probability.shape),
-                                                list(reverse.shape)]
+        reverse_summary = build_reverse_summary(probability, reverse)
 
     # No `valid` mask: unlike the tiled lanes this runner blends over the whole
     # plane, and `probability > 0` would silently drop the genuine no-ink floor
@@ -661,6 +698,10 @@ def main() -> int:
             "this recipe's no-ink floor is 0.25, not 0; a screen calibrated "
             "against a 0 floor is reading a different quantity",
             "the published map is raw: the model card's display rescale is not applied",
+            "statistics.p50 is a floor, not a detector: measured on the "
+            "control's own stack with its layers shuffled, p50 came out "
+            "identical to the real order while p99 and std separated "
+            "cleanly. See liveness.metrics and reverse.asymmetry.",
         ],
     }
     (directory / RECEIPT_NAME).write_text(

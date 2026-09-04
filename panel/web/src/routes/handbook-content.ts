@@ -4905,8 +4905,13 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " — a map and its reverse. Both, with the run's "
-     },
+      "text": " — a map and its reverse — and both feed P5's Maps tab once the job finishes."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
      {
       "kind": "code",
       "text": "p50"
@@ -4921,7 +4926,64 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " and the spread between them, show up on P5's Maps tab once the job finishes."
+      "text": " and the spread between them show up there. Measured against PHerc0139 w043, the community's confirmed positive control, with its layers shuffled to destroy the depth structure a model reads ink from while leaving the papyrus texture untouched: "
+     },
+     {
+      "kind": "code",
+      "text": "p50"
+     },
+     {
+      "kind": "text",
+      "text": " came back identical either way — 0.278 — while "
+     },
+     {
+      "kind": "code",
+      "text": "p99"
+     },
+     {
+      "kind": "text",
+      "text": " and the spread separated cleanly. "
+     },
+     {
+      "kind": "code",
+      "text": "p50"
+     },
+     {
+      "kind": "text",
+      "text": " stays on the page as a "
+     },
+     {
+      "kind": "strong",
+      "text": "floor"
+     },
+     {
+      "kind": "text",
+      "text": ", labelled that way rather than sorted beside "
+     },
+     {
+      "kind": "code",
+      "text": "p99"
+     },
+     {
+      "kind": "text",
+      "text": " as though it carried the same meaning — a high one is the signature of an input outside the lane's training domain, and nothing more."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "A direction-both run also carries a fourth number the two maps were already paid for: the ratio of forward to reverse pixels over 0.5, 0.6 and 0.7, and whether that ratio grows as the threshold rises. On the same shuffle test it grew 2.53 → 3.36 → 5.21 on the real order and fell 0.67 → 0.56 → 0.46 shuffled — the separation "
+     },
+     {
+      "kind": "code",
+      "text": "p50"
+     },
+     {
+      "kind": "text",
+      "text": " missed. It is reported, not enforced, and only when at least 300 pixels cleared a threshold on both sides; below that a handful of stray bright pixels reads as a strong ratio and is noise, so the Maps tab shows that threshold as absent rather than as a fabricated number."
      }
     ]
    },
@@ -12534,7 +12596,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "Maps is sortable by when it ran, scroll, surface, lane, state, verdict, p50, p99 and spread, and filterable by job, scroll, surface, lane, job state or verdict. A map's picture is rendered on the server, on a percentile stretch printed under it — never the raw array, because a viewer that silently rescales is exactly how a map that carries no decision comes to look like one that does. Behind it: "
+      "text": "Maps is sortable by when it ran, scroll, surface, lane, state, verdict, p99, spread, forward/reverse asymmetry and p50, and filterable by job, scroll, surface, lane, job state or verdict. p50 sorts last and is labelled \"floor\": measured directly, shuffling a confirmed control's layer order left it unchanged while p99 and spread separated cleanly, so it is shown apart from the numbers that do separate a detection from a dead map. Asymmetry — the ratio of forward to reverse pixels over 0.5/0.6/0.7 — exists only on a "
+     },
+     {
+      "kind": "code",
+      "text": "direction: both"
+     },
+     {
+      "kind": "text",
+      "text": " run and reads as absent, not a fabricated number, wherever fewer than 300 pixels cleared a threshold on either side. A map's picture is rendered on the server, on a percentile stretch printed under it — never the raw array, because a viewer that silently rescales is exactly how a map that carries no decision comes to look like one that does. Behind it: "
      },
      {
       "kind": "code",

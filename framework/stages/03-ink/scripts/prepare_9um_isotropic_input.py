@@ -15,11 +15,14 @@ XY pyramid level 2 is a factor of four and 4x in z is a factor of four, so
 2.399 um becomes 9.596 um in every axis -- which is why a native 9.362 um
 render needs none of this and passes through untouched.
 
-What this deliberately will not do is resample an arbitrary scale to the model's.
-Upsampling creates no new spatial information; the registry already says exactly
-that about routing 8.64/9.362 um targets to the 3D-DINO lane's model scale. A
-source that is neither near 2.4 nor near the model scale is refused rather than
-stretched.
+A source that is neither near 2.4 nor near the model scale is refused rather
+than silently stretched -- unless a caller explicitly says otherwise. Four of
+the thirteen eligible scrolls were scanned at 8.64 um/116 keV, which is
+neither: `resample_from_um` is that caller's declaration, an opt-in XY-only
+linear resample to the model's scale (see `plan_resample`), never invented on
+this module's own initiative. Silence still means the refusal above; the
+registry says the same thing about not inventing an upsample when routing to
+the 3D-DINO lane's model scale.
 
 Non-claims
 ----------
@@ -27,6 +30,9 @@ Non-claims
   already produced and says nothing about whether that stack found the lamina.
 * A surface volume this writes is an input to a screening lane, not evidence
   of ink.
+* A resample is not free: linear XY interpolation from a caller-declared
+  scale costs measured correlation against published letters (~4% at
+  8.640->9.362 um) -- see `plan_resample`'s docstring for the figures.
 """
 
 from __future__ import annotations
@@ -73,6 +79,12 @@ class PoolingPlan:
     output_voxel_um: float
 
 
+@dataclass(frozen=True)
+class ResamplePlan:
+    xy_zoom: float
+    output_voxel_um: float
+
+
 def plan_pooling(source_voxel_um: float) -> PoolingPlan:
     """How to get from this scale to the model's, or a refusal."""
     scale = float(source_voxel_um)
@@ -86,7 +98,41 @@ def plan_pooling(source_voxel_um: float) -> PoolingPlan:
         f"{POOLABLE_SOURCE_UM} um the pooling recipe is written for nor within "
         f"{MODEL_SCALE_TOLERANCE_UM} of the model's {MODEL_SCALE_UM} um. "
         "Reaching the model scale from here would mean inventing a factor the "
-        "model card does not give.")
+        "model card does not give. Pass --resample-from-um if this stack's "
+        "actual scale is something else and you want it resampled there "
+        "explicitly -- see plan_resample.")
+
+
+def plan_resample(resample_from_um: float, target_voxel_um: float) -> ResamplePlan:
+    """A caller-declared scale, resampled to the target -- not upstream's own
+    recipe, and only reached when a job names both scales explicitly.
+
+    Unlike plan_pooling, this is XY-only linear zoom, not integer-factor
+    pooling: the two scales this exists for (8.640/9.362, the 116 keV scan
+    family against this lane's native target) are not related by a whole
+    number, so there is no way to express the step as "one voxel in N" the
+    way the 2.4 um pooling recipe can. Z is left alone -- the slice count is
+    a property of how P4 rendered the stack, not of this in-plane mismatch.
+
+    Measured against the public control (PHerc0139 w043), round-tripped
+    9.362 -> 8.640 -> 9.362 (worse than the real case, which is one pass, not
+    two) against the community's published letters: correlation 0.359 native
+    vs. 0.338 round-tripped, top-1% enrichment over random 19.89x vs. 19.13x
+    -- a ~4% cost, against a shuffled-layer floor of 0.026 / 1.28x. Verified
+    end to end on PHerc0800 z13472_w080, rendered at 8.64 and resampled to
+    9.362: a valid ALIVE map where the unresampled input was refused outright.
+    """
+    source = float(resample_from_um)
+    target = float(target_voxel_um)
+    if not source > 0:
+        raise IncompatibleSourceScale(
+            f"resample_from_um must be positive, got {resample_from_um!r}")
+    if not target > 0:
+        raise IncompatibleSourceScale(
+            f"the target voxel size must be positive, got {target_voxel_um!r}")
+    # The array shrinks by the same fraction the physical voxel grows by:
+    # fewer, larger voxels covering the same span.
+    return ResamplePlan(xy_zoom=source / target, output_voxel_um=target)
 
 
 def _ordered_slices(directory: Path) -> list[Path]:
@@ -121,6 +167,20 @@ def _pool(volume: np.ndarray, plan: PoolingPlan) -> np.ndarray:
     return reshaped.mean(axis=(1, 3, 5), dtype=np.float32).round().astype(volume.dtype)
 
 
+def _resample_xy(volume: np.ndarray, zoom: float) -> np.ndarray:
+    """Linear interpolation in Y and X only, no pre-filter -- exactly the
+    method the correlation-against-published-letters figure in
+    plan_resample's docstring was measured with. scipy.ndimage.zoom's own
+    Gaussian pre-filter is for downsampling by a large factor to fight
+    aliasing; this platform's own measurement is the number that says
+    whether skipping it is fine here, not a general argument either way."""
+    from scipy import ndimage  # noqa: PLC0415 - optional until this path runs
+
+    resized = ndimage.zoom(volume.astype(np.float32), (1.0, zoom, zoom),
+                           order=1, prefilter=False)
+    return resized.round().astype(volume.dtype)
+
+
 def _stack_digest(slices: list[Path]) -> str:
     """One digest over the stack, in slice order, so the receipt names the
     bytes that were pooled rather than the directory they were in."""
@@ -132,23 +192,35 @@ def _stack_digest(slices: list[Path]) -> str:
 
 
 def prepare(source: Path, destination: Path, *, source_voxel_um: float,
-            chunk: int = 128) -> dict[str, Any]:
-    """Pool one P4 layer stack into an OME-Zarr the 9 um lane can stream."""
+            chunk: int = 128, resample_from_um: float | None = None) -> dict[str, Any]:
+    """Pool -- or, if resample_from_um names one, resample -- one P4 layer
+    stack into an OME-Zarr the 9 um lane can stream.
+
+    resample_from_um is a caller's explicit declaration, not a measurement
+    this reaches for on its own: without it, an out-of-tolerance scale is
+    still refused exactly as before. See plan_resample for the method and
+    what it costs.
+    """
     import zarr  # noqa: PLC0415 - optional until this lane is used
 
     source, destination = Path(source), Path(destination)
     if destination.exists():
         raise RuntimeError(f"refusing to overwrite: {destination}")
 
-    plan = plan_pooling(source_voxel_um)
+    resample_plan = (plan_resample(resample_from_um, source_voxel_um)
+                     if resample_from_um is not None else None)
+    plan = None if resample_plan is not None else plan_pooling(source_voxel_um)
     slices = _ordered_slices(source)
-    if len(slices) < plan.z_factor:
+    if plan is not None and len(slices) < plan.z_factor:
         raise IncompatibleSourceScale(
             f"{len(slices)} slices cannot be pooled {plan.z_factor}x in z; a "
             "zero-depth volume is not something to hand a model")
 
     volume = np.stack([tifffile.imread(path) for path in slices])
-    pooled = _pool(volume, plan)
+    pooled = (_resample_xy(volume, resample_plan.xy_zoom) if resample_plan is not None
+              else _pool(volume, plan))
+    output_voxel_um = (resample_plan.output_voxel_um if resample_plan is not None
+                       else plan.output_voxel_um)
 
     destination.mkdir(parents=True)
     group = zarr.open_group(str(destination), mode="w")
@@ -175,30 +247,49 @@ def prepare(source: Path, destination: Path, *, source_voxel_um: float,
         "datasets": [{
             "path": "0",
             "coordinateTransformations": [
-                {"type": "scale", "scale": [plan.output_voxel_um] * 3}],
+                {"type": "scale", "scale": [output_voxel_um] * 3}],
         }],
     }]
+
+    if resample_plan is not None:
+        recipe = ("caller-declared resample: XY-only linear zoom from "
+                  f"{float(resample_from_um)} um, no pre-filter -- see "
+                  "prepare_9um_isotropic_input.plan_resample")
+        method_fields: dict[str, Any] = {
+            "resample_from_um": float(resample_from_um),
+            "xy_zoom_factor": resample_plan.xy_zoom,
+            "interpolation": "linear, no pre-filter (scipy.ndimage.zoom order=1)",
+        }
+    else:
+        recipe = "ink_9um model card: XY pyramid level 2, 4x z mean-pooling"
+        method_fields = {"xy_factor": plan.xy_factor, "z_factor": plan.z_factor}
 
     receipt = {
         "schema": "campaignx.ink_9um_isotropic_input_receipt.v1",
         "generated_at_utc": datetime.now(timezone.utc).replace(microsecond=0)
         .isoformat().replace("+00:00", "Z"),
-        "recipe": "ink_9um model card: XY pyramid level 2, 4x z mean-pooling",
+        "recipe": recipe,
         "source": str(source),
         "source_sha256": _stack_digest(slices),
         "source_slices": len(slices),
         "source_shape_zyx": [int(n) for n in volume.shape],
         "source_voxel_um": float(source_voxel_um),
-        "xy_factor": plan.xy_factor,
-        "z_factor": plan.z_factor,
+        **method_fields,
         "output_shape_zyx": [int(n) for n in pooled.shape],
-        "output_voxel_um": plan.output_voxel_um,
-        "isotropic": True,
+        "output_voxel_um": output_voxel_um,
+        # The pooling path pools z along with xy, by construction isotropic.
+        # The resample path only ever touches xy -- z is whatever the
+        # source's own slice spacing already was, unclaimed here because
+        # this module has no source_slice_um to check it against.
+        "isotropic": resample_plan is None,
         "non_claims": [
             "pooling is not a measurement and says nothing about whether the "
             "stack it pooled found the lamina",
             "a surface volume is an input to a screening lane, not evidence of ink",
-        ],
+        ] + (["resampling from a caller-declared scale costs measured "
+              "correlation against published letters (~4% at 8.640->9.362); "
+              "see plan_resample's docstring for the figures, not asserted here"]
+             if resample_plan is not None else []),
     }
     (destination / RECEIPT_NAME).write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -213,10 +304,16 @@ def main() -> int:
                     help="OME-Zarr to write")
     ap.add_argument("--source-voxel-um", type=float, required=True)
     ap.add_argument("--chunk", type=int, default=128)
+    ap.add_argument("--resample-from-um", type=float, default=None,
+                    help="the stack's actual scale, when it is neither near "
+                         "2.4 nor near the model's own -- resamples XY "
+                         "linearly to --source-voxel-um instead of refusing. "
+                         "Only reached when named explicitly; see plan_resample.")
     args = ap.parse_args()
     try:
         receipt = prepare(args.layers, args.output,
-                          source_voxel_um=args.source_voxel_um, chunk=args.chunk)
+                          source_voxel_um=args.source_voxel_um, chunk=args.chunk,
+                          resample_from_um=args.resample_from_um)
     except IncompatibleSourceScale as refused:
         # Its own exit code, because the lane runs this as a subprocess and the
         # caller has to tell "this scale cannot be reached" -- a refusal with a

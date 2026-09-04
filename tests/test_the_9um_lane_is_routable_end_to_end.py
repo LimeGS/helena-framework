@@ -112,6 +112,27 @@ def test_the_queue_still_refuses_it_without_the_source_scale(tmp_path):
         command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
 
 
+def test_a_queued_job_can_ask_to_resample_from_a_different_scale(tmp_path):
+    """4 of the 13 eligible scrolls were scanned at 8.64 um/116 keV, which the
+    pooling guard refuses -- not an integer factor of 9.362 um. Opting in
+    unblocks them at a measured ~4% correlation cost, the largest single
+    surface unblock this lane has had."""
+    job = {"phase": "P5", "profile_id": PROFILE, "sample_id": "PHerc0268",
+           "parameters": {"tiff_dir": "/layers", "checkpoint": "/models/step.pth",
+                          "source_pixel_um": 9.362, "resample_from_um": 8.640}}
+    argv = command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
+    assert "--resample-from-um" in argv and "8.64" in argv
+
+
+def test_without_it_the_guard_still_refuses_exactly_as_before(tmp_path):
+    """The parameter is opt-in: a caller who does not name it gets the same
+    refusal as today, not a silent resample."""
+    layers = _stack(tmp_path / "layers")
+    with pytest.raises(lane.IncompatibleSourceScale):
+        lane.prepared_surface_volume(layers, tmp_path / "work",
+                                     source_voxel_um=8.640)
+
+
 # -- the chain -------------------------------------------------------------
 
 def test_a_tiff_dir_is_pooled_before_inference(tmp_path):
@@ -149,6 +170,21 @@ def test_a_scale_the_recipe_cannot_reach_refuses_before_any_gpu(tmp_path):
     with pytest.raises(lane.IncompatibleSourceScale):
         lane.prepared_surface_volume(layers, tmp_path / "work",
                                      source_voxel_um=7.9)
+
+
+def test_resampling_reaches_the_recipe_a_pool_could_not(tmp_path):
+    """8.64 um is not within tolerance of either scale the pool knows and is
+    refused on its own (proven above); resample_from_um is the opt-in that
+    reaches the model's 9.362 um scale anyway, same as the job parameter
+    pairing (source_pixel_um: 9.362, resample_from_um: 8.640) does."""
+    layers = _stack(tmp_path / "layers")
+    volume = lane.prepared_surface_volume(layers, tmp_path / "work",
+                                          source_voxel_um=9.362,
+                                          resample_from_um=8.640)
+    receipt = json.loads((volume / "INK_9UM_INPUT_RECEIPT.json").read_text())
+    assert receipt["resample_from_um"] == 8.640
+    assert receipt["isotropic"] is False, (
+        "a resample is XY-only and must not claim Z isotropy")
 
 
 # -- what the caller must say ---------------------------------------------

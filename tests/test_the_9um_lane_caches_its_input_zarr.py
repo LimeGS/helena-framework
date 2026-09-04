@@ -177,7 +177,8 @@ def test_a_tiff_dir_input_never_touches_the_cache(monkeypatch, tmp_path):
     monkeypatch.setattr(lane, "mirror_zarr_to_local",
                         lambda url, root: called.append(url) or None)
     monkeypatch.setattr(lane, "prepared_surface_volume",
-                        lambda tiff_dir, work_dir, *, source_voxel_um: Path("/pooled.zarr"))
+                        lambda tiff_dir, work_dir, *, source_voxel_um,
+                        resample_from_um=None: Path("/pooled.zarr"))
     lane.resolve_surface_volume(
         tiff_dir=Path("/layers"), surface_volume=None, work_dir=tmp_path,
         source_voxel_um=2.399)

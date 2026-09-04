@@ -9575,6 +9575,13 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
     statistics = result.get("statistics") if isinstance(result.get("statistics"), dict) else None
     published = result.get("probability_map") if isinstance(
         result.get("probability_map"), dict) else None
+    # Lives inside `reverse`, not `liveness`: the ratio needs both directions
+    # of a `direction: both` run, so a forward-only or reverse-only job -- and
+    # every lane but the 9 um one -- carries no `reverse` block at all and
+    # this stays null rather than a fabricated absence of asymmetry.
+    reverse = result.get("reverse") if isinstance(result.get("reverse"), dict) else None
+    asymmetry = (reverse or {}).get("asymmetry")
+    asymmetry = asymmetry if isinstance(asymmetry, dict) else None
     return {
         "job_id": job.get("job_id"),
         "sample_id": job.get("sample_id"),
@@ -9598,6 +9605,7 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
         "runtime_seconds": result.get("runtime_seconds"),
         "liveness": liveness,
         "statistics": statistics,
+        "asymmetry": asymmetry,
         "checkpoint_sha256": result.get("checkpoint_sha256"),
         "map_shape_yx": result.get("map_shape_yx"),
         "output_dir": str(directory) if directory else None,
