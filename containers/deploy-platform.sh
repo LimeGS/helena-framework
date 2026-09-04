@@ -907,6 +907,21 @@ fi
 spiral_lane="${HELENA_VILLA_PYTHON_IMAGE:-helena-villa-python:local}"
 spiral_runtime="${HELENA_SPIRAL_RUNTIME:-helena-villa-python}"
 if $D image inspect "$spiral_lane" >/dev/null 2>&1; then
+  # Which villa this slot is actually about to run, named rather than assumed.
+  #
+  # build-worker.sh rebuilds a stale lane image now, so by here the two should
+  # agree. When they do not, the build was skipped or failed and the slot is
+  # about to come up on the older toolchain -- which is what gpu-1 did silently
+  # for every deploy between the 23adee04 re-pin and the rebuild that followed
+  # it. The deploy says so; it does not stop, because the operator running it
+  # is the one who decides whether that is acceptable for this deploy.
+  lane_has="$($D image inspect "$spiral_lane" \
+    --format '{{index .Config.Labels "org.helena.villa.commit"}}' 2>/dev/null || true)"
+  lane_wants="$(villa_lock_entry villa_python commit)"
+  if [ -n "$lane_has" ] && [ -n "$lane_wants" ] && [ "$lane_wants" != unknown ] \
+     && [ "$lane_has" != "$lane_wants" ]; then
+    say "WARNING: $spiral_lane carries villa $(printf %.12s "$lane_has") and the lock pins $(printf %.12s "$lane_wants")"
+  fi
   # The worker built above already carries the lane: build-worker.sh chose the
   # `with_lane` target when it found this image. One tag, not two.
   #

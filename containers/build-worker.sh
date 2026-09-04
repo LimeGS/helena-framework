@@ -44,6 +44,40 @@ read_lock() {
   python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3],""))' \
     "$lock" "$1" "$2" 2>/dev/null
 }
+
+# Which villa commit an image on this host was actually built from.
+#
+# Both Containerfiles stamp org.helena.villa.commit from the VILLA_COMMIT they
+# were handed, so an image can say what it carries instead of being trusted to
+# be whatever the lock says today.
+villa_image_commit() {
+  docker image inspect "$1" \
+    --format '{{index .Config.Labels "org.helena.villa.commit"}}' 2>/dev/null
+}
+
+# Absent and stale are the same answer to "can this build use it": neither is
+# the toolchain the lock pins.
+#
+# Both gates below used to ask only whether the image existed, so a host that
+# had built villa once kept that build forever. Measured on gpu-1: the lock was
+# re-pinned from 05dcf034 to 23adee04 and every deploy after it -- including
+# the ones whose whole point was the new toolchain -- reused the 05dcf034
+# images, because they were present. Nothing said so; the worker that came out
+# carried a toolchain its own lock did not pin.
+#
+# An image with no label at all is not judged: it predates the stamp, and
+# refusing to reuse it would turn "I cannot tell" into an hour of compiling.
+villa_image_at_lock() {
+  _img="$1"; _entry="$2"
+  docker image inspect "$_img" >/dev/null 2>&1 || return 1
+  _want="$(read_lock "$_entry" commit)"
+  [ -n "$_want" ] || return 0
+  _have="$(villa_image_commit "$_img")"
+  [ -n "$_have" ] || return 0
+  [ "$_have" = "$_want" ] && return 0
+  echo "  $_img carries $(printf %.12s "$_have") and the lock pins $(printf %.12s "$_want")" >&2
+  return 1
+}
 prefix="${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}"
 base="${BASE_IMAGE:-${prefix}helena-villa:local}"
 # uv comes from a pinned image rather than a directory beside the source.
@@ -77,8 +111,8 @@ test -f "$context/containers/images/Containerfile.worker-cpp" \
 case "$base" in
   */*.*/*|*.*/*) : ;;   # already carries a registry host
   *)
-    docker image inspect "$base" >/dev/null 2>&1 || {
-      echo "the base image $base is not on this host; pulling it"
+    villa_image_at_lock "$base" volume_cartographer || {
+      echo "the base image $base is not on this host at the commit the lock pins; building it"
       # Build it. Everything it needs is pinned: the repository and the commit
       # come from the source lock, and the fetch stage verifies the tree hash it
       # gets before the toolchain is installed. This used to print instructions
@@ -164,6 +198,24 @@ case "$villa_digest" in
 esac
 echo "Villa runtime: $villa_digest"
 
+# The base finally in hand, checked rather than assumed.
+#
+# The gate above only builds a base whose name is a local alias. A
+# registry-qualified one is pulled instead, and a registry can serve a stale
+# image as easily as a host can keep one: the fleet's own registry served
+# helena-villa:local at 05dcf034 for five weeks after the lock moved to
+# 23adee04, and every worker built in that window was compiled against it
+# without saying so. Nothing here can fix that -- the
+# rebuild is the registry's, not this script's -- but a worker compiled
+# against a toolchain its lock does not pin should not come out of this
+# quietly. Said, not refused: a host mid-migration still has to be able to
+# build, and the person doing the migrating is the one who decides when.
+villa_image_at_lock "$base" volume_cartographer || {
+  echo "WARNING: $base is not the volume_cartographer commit the lock pins." >&2
+  echo "  This worker is being compiled against a toolchain this repository" >&2
+  echo "  does not pin. Rebuild and republish the base to clear it." >&2
+}
+
 echo "building $tag from $base"
 # SOURCE_DATE_EPOCH is left to the Containerfile's default. Zero is not usable:
 # a zip written at epoch 0 fails with "ZIP does not support timestamps before
@@ -173,11 +225,13 @@ echo "building $tag from $base"
 # by one directory. BuildKit skips the lane stage when `worker` is the target,
 # so a host without the lane image never needs to have it.
 spiral_lane="${HELENA_VILLA_PYTHON_IMAGE:-helena-villa-python:local}"
-# Build it if it is not here. It used to be skipped on any host that did not
-# already have the image, because the Containerfile wanted a villa checkout
-# handed in -- the same reason helena-villa was unbuildable until it learned to
-# clone the commit its lock pins. It clones now, so there is nothing to skip.
-docker image inspect "$spiral_lane" >/dev/null 2>&1 || {
+# Build it if it is not here at the locked commit. It used to be skipped on any
+# host that did not already have the image, because the Containerfile wanted a
+# villa checkout handed in -- the same reason helena-villa was unbuildable until
+# it learned to clone the commit its lock pins. It clones now, so there is
+# nothing to skip; and since it clones a commit rather than a branch, a rebuild
+# here is the same build twice, not a build that depends on the day it ran.
+villa_image_at_lock "$spiral_lane" villa_python || {
   echo "  building $spiral_lane, the spiral and lasagna lane"
   docker build -q \
     --build-arg BASE_IMAGE="${VILLA_PYTHON_BASE_IMAGE:-python:3.12-slim}" \
