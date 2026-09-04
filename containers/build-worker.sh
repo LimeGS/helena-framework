@@ -41,9 +41,43 @@ here="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 # a second name for the same one.
 lock="$here/containers/images/scrollfiesta/locks/source-lock.json"
 read_lock() {
-  python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3],""))' \
-    "$lock" "$1" "$2" 2>/dev/null
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))[sys.argv[2]].get(sys.argv[3],""))' \
+      "$lock" "$1" "$2" 2>/dev/null
+    return
+  fi
+  # The deploy runs this script from docker:27-cli, which has no python at
+  # all -- so every read here came back empty there, and the gates below read
+  # empty as "nothing to compare against" and reused whatever was on the host.
+  # That is how a fixed gate stayed a no-op on the only machine it had to work
+  # on. deploy-platform.sh already had this fallback; this did not.
+  #
+  # Contents by argument rather than a bind mount: this runs inside a container
+  # driving the host's daemon, where $PWD is not a path that daemon resolves.
+  docker run --rm -i "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - \
+    "$(cat "$lock" 2>/dev/null)" "$1" "$2" <<'PY_LOCK' 2>/dev/null
+import json, sys
+try:
+    print(json.loads(sys.argv[1])[sys.argv[2]].get(sys.argv[3], ""))
+except Exception:
+    print("")
+PY_LOCK
 }
+
+# Read once, early, and stop if it cannot be. Every decision below is made from
+# this file -- which image to reuse, which commit to compile, which tree to
+# verify the fetch against -- and an unreadable lock silently turned all three
+# into "whatever is already here". Better to say so than to build the wrong
+# thing quickly.
+test -f "$lock" || { echo "no source lock at $lock" >&2; exit 2; }
+for _entry in volume_cartographer villa_python; do
+  [ -n "$(read_lock "$_entry" commit)" ] || {
+    echo "the source lock at $lock has no readable commit for $_entry." >&2
+    echo "Without it this cannot tell a current image from a stale one, and" >&2
+    echo "cannot tell a build which commit to fetch. Refusing to guess." >&2
+    exit 2
+  }
+done
 
 # Which villa commit an image on this host was actually built from.
 #
@@ -78,6 +112,45 @@ villa_image_at_lock() {
   echo "  $_img carries $(printf %.12s "$_have") and the lock pins $(printf %.12s "$_want")" >&2
   return 1
 }
+
+# A published toolchain image, tried before an hour of compiling.
+#
+# By villa-<commit> rather than by release: that tag names the upstream commit
+# the lock pins, so what comes back either is that toolchain or does not exist.
+# A release tag would be whatever villa the last release happened to carry,
+# which is exactly the coupling the lock exists to break -- these images move
+# on upstream's cadence, not on this project's.
+#
+# Only when HELENA_PUBLIC_REGISTRY is set. deploy-platform.sh turns it on for a
+# genuinely fresh host and leaves it off for one that already had a config,
+# because staging deploys the commit under test; that decision is read here
+# rather than made a second time.
+#
+# The pull is not trusted over the gate. A registry can serve anything under
+# any name, so what makes this safe is the label check afterwards, not the tag
+# it was fetched by: an image that does not carry the locked commit is not
+# used, however it arrived.
+villa_pull_from_public() {
+  _pull_local="$1" _pull_repo="$2" _pull_entry="$3"
+  [ -n "${HELENA_PUBLIC_REGISTRY:-}" ] || return 1
+  _pull_pin="$(read_lock "$_pull_entry" commit)"
+  [ -n "$_pull_pin" ] || return 1
+  _pull_from="$HELENA_PUBLIC_REGISTRY/helena-$_pull_repo:villa-$(printf %.12s "$_pull_pin")"
+  echo "  trying $_pull_from before building it"
+  docker pull -q "$_pull_from" >/dev/null 2>&1 || {
+    echo "  not published there; building instead"
+    return 1
+  }
+  # Tagged under the name the rest of this script already expects, rather than
+  # renaming those references -- the same reason the worker pull does it.
+  docker tag "$_pull_from" "$_pull_local"
+  villa_image_at_lock "$_pull_local" "$_pull_entry" || {
+    echo "  what $_pull_from served is not the locked commit; building instead" >&2
+    return 1
+  }
+  echo "  $_pull_local came from $_pull_from, no compile needed"
+  return 0
+}
 prefix="${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}"
 base="${BASE_IMAGE:-${prefix}helena-villa:local}"
 # uv comes from a pinned image rather than a directory beside the source.
@@ -109,9 +182,16 @@ test -f "$context/containers/images/Containerfile.worker-cpp" \
 # it rather than making that a person's problem. A registry reference needs no
 # restoring; only a local alias does, and one may still be passed in.
 case "$base" in
-  */*.*/*|*.*/*) : ;;   # already carries a registry host
+  # Already carries a registry host, so it is pulled from there below rather
+  # than built here. A published toolchain is still worth trying when the copy
+  # on this host is not the locked commit: it is the same image, reachable
+  # without the compile, and the label check is what decides either way.
+  */*.*/*|*.*/*)
+    villa_image_at_lock "$base" volume_cartographer \
+      || villa_pull_from_public "$base" villa volume_cartographer || : ;;
   *)
-    villa_image_at_lock "$base" volume_cartographer || {
+    villa_image_at_lock "$base" volume_cartographer \
+      || villa_pull_from_public "$base" villa volume_cartographer || {
       echo "the base image $base is not on this host at the commit the lock pins; building it"
       # Build it. Everything it needs is pinned: the repository and the commit
       # come from the source lock, and the fetch stage verifies the tree hash it
@@ -231,7 +311,8 @@ spiral_lane="${HELENA_VILLA_PYTHON_IMAGE:-helena-villa-python:local}"
 # it learned to clone the commit its lock pins. It clones now, so there is
 # nothing to skip; and since it clones a commit rather than a branch, a rebuild
 # here is the same build twice, not a build that depends on the day it ran.
-villa_image_at_lock "$spiral_lane" villa_python || {
+villa_image_at_lock "$spiral_lane" villa_python \
+  || villa_pull_from_public "$spiral_lane" villa-python villa_python || {
   echo "  building $spiral_lane, the spiral and lasagna lane"
   docker build -q \
     --build-arg BASE_IMAGE="${VILLA_PYTHON_BASE_IMAGE:-python:3.12-slim}" \

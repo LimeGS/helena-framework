@@ -222,7 +222,10 @@ def test_the_gpu_profile_builds_its_base_rather_than_refusing():
     deploy = (ROOT / "containers/deploy-platform.sh").read_text()
 
     gate = deploy.index('if [ "$profile" = gpu ]')
-    worker_build = deploy.index("build-worker.sh")
+    # The invocation, not the first mention of the name: the script talks about
+    # that script in prose too, and a comment above the gate would otherwise
+    # read as the build happening before it.
+    worker_build = deploy.index('sh "$root/containers/build-worker.sh"')
     assert gate < worker_build, (
         "the GPU base is settled after the worker is built, which is the hour "
         "of compiling this check exists to spend only when it can pay off")
