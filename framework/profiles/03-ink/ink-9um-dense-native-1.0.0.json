@@ -54,6 +54,7 @@
   "safety": {
     "screening_only": true,
     "requires_campaign_control": true,
+    "silence_proves_absence": false,
     "non_claims": [
       "a probability map is a routing signal, not proof of ink, letters, or text",
       "no control has been run for this lane through Helena's own pipeline on this corpus; the correlation and enrichment figures in notes.checkpoint were measured independently, outside this framework's receipts, and are reported here as the reason the checkpoint was pinned -- not as this lane's own control",
