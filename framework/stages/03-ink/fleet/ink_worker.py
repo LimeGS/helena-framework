@@ -1979,6 +1979,13 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             "stderr_tail": errors,
             "statistics": (receipt or {}).get("statistics"),
             "liveness": (receipt or {}).get("liveness"),
+            # The 9 um lane's comparison of its published map against the one
+            # `direction: both` also wrote -- p50/p99 of the reverse map, the
+            # correlation between the two, and (when their shapes match) the
+            # forward/reverse asymmetry-by-threshold block. None on every
+            # other lane, and on a forward-only or reverse-only 9 um run: there
+            # is no second map to have compared it against.
+            "reverse": (receipt or {}).get("reverse"),
             "output_dir": str(output),
             "ran_by": worker_code_revision(),
         }

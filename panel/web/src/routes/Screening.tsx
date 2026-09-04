@@ -94,9 +94,16 @@ export default function Screening() {
               {screen &&
                 (["p50", "p90", "p99"] as const).map((k) => {
                   const v = screen.percentiles[k];
+                  // p50 reads "floor": measured directly, it does not move
+                  // between a real stack and the same stack with its layers
+                  // shuffled, while p99 does -- so it is not marked the same
+                  // way as a percentile that separates a detection.
                   return typeof v === "number" ? (
-                    <i key={k} style={{ left: `${v * 100}%` }}>
-                      <span>{k} {v.toFixed(3)}</span>
+                    <i key={k} style={{ left: `${v * 100}%` }}
+                       title={k === "p50"
+                         ? "a floor, not a signal — see p99 here and asymmetry on Maps"
+                         : undefined}>
+                      <span>{k === "p50" ? "floor" : k} {v.toFixed(3)}</span>
                     </i>
                   ) : null;
                 })}

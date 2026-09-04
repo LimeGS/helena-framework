@@ -235,6 +235,7 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "model_config": str,
            "batch_size": int, "num_workers": int, "layer_start": int,
            "layer_end": int, "min_valid_ratio": float,
+           "resample_from_um": float,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -535,6 +536,12 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "layer_end": {"label": "Layer window end",
                   "note": "give this with layer_start, never alone; left empty the "
                           "profile's own pinned window (or the whole stack) applies"},
+    "resample_from_um": {"label": "Resample from (um)",
+                         "note": "opt in to resampling a tiff_dir rendered at this scale "
+                                 "to 9.362 um, instead of the pooling guard refusing it; "
+                                 "XY-only, no claim of Z isotropy, about a 4% correlation "
+                                 "cost measured on the public control -- left empty the "
+                                 "guard refuses exactly as it does today"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -827,7 +834,8 @@ ALLOWED_BINARIES = frozenset({"/opt/campaignx/vc3d/bin/vc_flatten"})
 STRICTLY_POSITIVE_PARAMETERS = frozenset({
     "limit", "scale", "cache_gb", "num_slices", "slice_step",
     "layers", "spacing", "concurrency", "stripe", "max_gb",
-    "source_voxel_um", "source_pixel_um", "source_slice_um", "stride", "batch_size",
+    "source_voxel_um", "source_pixel_um", "source_slice_um", "resample_from_um",
+    "stride", "batch_size",
     "tile_size", "min_valid_ratio", "px_um", "subsample",
     # Every micron figure a fit produces is derived from this one.
     "voxel_size_um",
@@ -871,6 +879,7 @@ PARAMETER_CEILINGS: dict[str, float] = {
     "source_voxel_um": 10_000.0,
     "source_pixel_um": 10_000.0,
     "source_slice_um": 10_000.0,
+    "resample_from_um": 10_000.0,
     "voxel_size_um": 10_000.0,
     "px_um": 10_000.0,
     "min_valid_ratio": 1.0,
@@ -1003,6 +1012,8 @@ def validate_parameters(parameters: dict[str, Any], phase: str = "P5", *,
                 "takes before it finds out")
     if "source_pixel_um" in clean and not 0.01 <= clean["source_pixel_um"] <= 1000:
         raise JobRejected(f"source_pixel_um out of range: {clean['source_pixel_um']}")
+    if "resample_from_um" in clean and not 0.01 <= clean["resample_from_um"] <= 1000:
+        raise JobRejected(f"resample_from_um out of range: {clean['resample_from_um']}")
     if "min_valid_ratio" in clean and clean["min_valid_ratio"] > 1:
         raise JobRejected(f"min_valid_ratio out of range: {clean['min_valid_ratio']}")
     if clean.get("on_degenerate") not in (None, "fail", "warn"):
@@ -1127,6 +1138,14 @@ def validate_parameters(parameters: dict[str, Any], phase: str = "P5", *,
             raise JobRejected(
                 "missing required parameters for P5: ['source_pixel_um'] -- the "
                 "scale the layer stack was rendered at, which pooling needs")
+        if named[0] == "surface_volume" and clean.get("resample_from_um") not in (None, ""):
+            # resample_from_um is an instruction to pooling; a surface_volume
+            # is already at the model's scale and never reaches pooling, so
+            # this would be a knob silently ignored rather than applied.
+            raise JobRejected(
+                "resample_from_um only applies to a layer stack pooling has "
+                "to resample -- name a tiff_dir or layer_stack, not an "
+                "already-pooled surface_volume")
     if phase == "P8":
         lane_id = str(clean.get("lane") or "column-atlas")
         if lane_id == "vc3d-tifxyz-merge":
@@ -1463,7 +1482,13 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   # before this existed, because the profile pins one window
                   # and nothing could ask for another per job.
                   "layer_start": "--layer-start",
-                  "layer_end": "--layer-end"},
+                  "layer_end": "--layer-end",
+                  # Opt-in: without it, pooling refuses a scale it cannot
+                  # pool to 9.362 um exactly as it does today. With it, the
+                  # 4 scrolls scanned at 8.64 um/116 keV stop being refused --
+                  # the largest single unblock of scroll surface this lane
+                  # has had, at a measured ~4% correlation cost, not free.
+                  "resample_from_um": "--resample-from-um"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"

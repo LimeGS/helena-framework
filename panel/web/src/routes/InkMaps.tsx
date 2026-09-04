@@ -31,11 +31,32 @@ const VERDICT_KIND: Record<string, "ok" | "crit" | "warn"> = {
 };
 
 type SortKey = "ran" | "sample_id" | "surface_id" | "profile_id" | "state"
-             | "verdict" | "p50" | "p99" | "spread";
+             | "verdict" | "p50" | "p99" | "spread" | "asymmetry";
 
 const metric = (run: InkRun, name: string): number | null => {
   const value = run.liveness?.metrics?.[name];
   return typeof value === "number" ? value : null;
+};
+
+/** The forward/reverse ratio at one threshold, or null when the 300-pixel
+ *  guard suppressed it -- distinguished from "not a direction:both run" only
+ *  in `asymmetryTitle` below, since both read as a dash in the cell. */
+const asymmetryRatio = (run: InkRun, threshold: "0.5" | "0.6" | "0.7"): number | null => {
+  const ratio = run.asymmetry?.thresholds?.[threshold]?.ratio;
+  return typeof ratio === "number" ? ratio : null;
+};
+
+/** Every threshold's number or reason, and the sustained verdict, in one
+ *  hover -- the cell itself has room for one number. */
+const asymmetryTitle = (run: InkRun): string | undefined => {
+  const a = run.asymmetry;
+  if (!a) return undefined;
+  const parts = (["0.5", "0.6", "0.7"] as const).map((t) => {
+    const entry = a.thresholds[t];
+    return `p${t} ${entry.ratio === null ? `absent (${entry.reason})` : entry.ratio.toFixed(2)}`;
+  });
+  return `${parts.join(" · ")} — sustained above 1.5 at p0.6 and p0.7: `
+       + `${a.sustained_above_1_5 ? "yes" : "no"}`;
 };
 
 /** When this run last did something: it finished, or it is still waiting. */
@@ -51,6 +72,9 @@ const sortValue = (run: InkRun, key: SortKey): string | number | null => {
     case "p50": return metric(run, "p50");
     case "p99": return metric(run, "p99");
     case "spread": return metric(run, "spread_p99_p50");
+    // p0.7: their own headline threshold, and the one where a real
+    // detection's ratio has climbed the furthest from a shuffled one's.
+    case "asymmetry": return asymmetryRatio(run, "0.7");
     default: return run[key] ?? null;
   }
 };
@@ -62,14 +86,17 @@ const sortValue = (run: InkRun, key: SortKey): string | number | null => {
  * thing that works: a button in the cell, the direction stated in
  * `aria-sort` on the header itself rather than only in an arrow.
  */
-function SortHead({ column, label, sort, onSort, className }: {
+function SortHead({ column, label, sort, onSort, className, title }: {
   column: SortKey; label: string; className?: string;
+  /** A hover explanation on the header cell itself, for a column whose name
+   *  alone invites reading it as a peer of the ones beside it when it is not. */
+  title?: string;
   sort: { key: SortKey; descending: boolean };
   onSort: (key: SortKey) => void;
 }) {
   const active = sort.key === column;
   return (
-    <th className={className}
+    <th className={className} title={title}
         aria-sort={active ? (sort.descending ? "descending" : "ascending") : "none"}>
       <button type="button" className="colsort" onClick={() => onSort(column)}>
         {label}
@@ -80,6 +107,23 @@ function SortHead({ column, label, sort, onSort, className }: {
     </th>
   );
 }
+
+// p50 is measured, rigorously, not to move whether a stack's ink-bearing
+// layer order is intact or destroyed: shuffled against real order on the
+// confirmed control, it came back identical while p99 and spread separated
+// cleanly. It stays on the table -- a high p50 is the signature of an input
+// outside the lane's training domain -- but it is labelled and placed apart
+// from the numbers that do separate a detection from a dead map.
+const P50_TITLE =
+  "a floor, not a signal: shuffling a confirmed control's layer order left "
+  + "this number unchanged while p99, spread and asymmetry separated cleanly. "
+  + "Still useful -- a high p50 is the signature of an input outside the "
+  + "lane's training domain -- but not evidence of ink either way.";
+const ASYMMETRY_TITLE =
+  "forward/reverse pixel-count ratio at p0.7, guarded to null below 300 "
+  + "over-threshold pixels on either side. Real ink grows this ratio as the "
+  + "threshold rises (0.5 to 0.6 to 0.7); a shuffled or out-of-domain stack "
+  + "flattens or falls. Hover a row's cell for all three thresholds.";
 
 export default function InkMaps({ sample, mission }:
                                 { sample?: string; mission?: string }) {
@@ -237,9 +281,12 @@ function RunTable({ rows, sort, onSort, selected, onSelect }: {
             <SortHead className="l" column="profile_id" label="Lane" sort={sort} onSort={onSort} />
             <SortHead className="l" column="state" label="State" sort={sort} onSort={onSort} />
             <SortHead className="l" column="verdict" label="Liveness" sort={sort} onSort={onSort} />
-            <SortHead column="p50" label="p50" sort={sort} onSort={onSort} />
             <SortHead column="p99" label="p99" sort={sort} onSort={onSort} />
             <SortHead column="spread" label="Spread" sort={sort} onSort={onSort} />
+            <SortHead column="asymmetry" label="Asym p0.7" title={ASYMMETRY_TITLE}
+                      sort={sort} onSort={onSort} />
+            <SortHead column="p50" label="p50 (floor)" title={P50_TITLE}
+                      sort={sort} onSort={onSort} />
             <th className="l">Map</th>
           </tr>
         </thead>
@@ -284,9 +331,12 @@ function RunTable({ rows, sort, onSort, selected, onSelect }: {
                        worker, so this cell means the run never got that far. */
                     : <span className="dash">not assessed</span>}
                 </td>
-                <td><Num v={metric(run, "p50")} digits={3} /></td>
                 <td><Num v={metric(run, "p99")} digits={3} /></td>
                 <td><Num v={metric(run, "spread_p99_p50")} digits={3} /></td>
+                <td title={asymmetryTitle(run)}>
+                  <Num v={asymmetryRatio(run, "0.7")} digits={2} />
+                </td>
+                <td title={P50_TITLE}><Num v={metric(run, "p50")} digits={3} /></td>
                 <td className="l">
                   {run.maps.length
                     ? <code>{run.maps[0]}</code>
@@ -416,6 +466,54 @@ function RunInspector({ jobId, onClose }: { jobId: string; onClose: () => void }
             <Empty>this lane's receipt carries no statistics block</Empty>
           )}
         </Card>
+
+        {run.asymmetry && (
+          <Card title="Forward/reverse asymmetry"
+                note={run.asymmetry.sustained_above_1_5
+                  ? <Pill kind="ok">sustained above 1.5</Pill>
+                  : <Pill>not sustained above 1.5</Pill>}>
+            <div className="body-pad">
+              <p className="hint">
+                How the forward/reverse over-threshold pixel-count ratio moves
+                as the threshold rises. Growing across p0.5→p0.6→p0.7 is what
+                real ink looked like on the control this was measured
+                against; flat or falling is what a shuffled stack or an
+                out-of-domain surface looked like. A threshold reads as a
+                dash, not a fabricated 0 or 1, when fewer than 300 pixels
+                cleared it on either side.
+              </p>
+            </div>
+            <div className="scroller">
+              <table>
+                <thead>
+                  <tr>
+                    <th className="l">Threshold</th>
+                    <th>Forward px</th>
+                    <th>Reverse px</th>
+                    <th>Ratio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(["0.5", "0.6", "0.7"] as const).map((t) => {
+                    const entry = run.asymmetry!.thresholds[t];
+                    return (
+                      <tr key={t}>
+                        <td className="l">p{t}</td>
+                        <td>{entry.forward_over_px.toLocaleString()}</td>
+                        <td>{entry.reverse_over_px.toLocaleString()}</td>
+                        <td title={entry.reason}>
+                          {entry.ratio === null
+                            ? <span className="dash">—</span>
+                            : entry.ratio.toFixed(2)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         <Card title="Provenance">
           <div className="chain">

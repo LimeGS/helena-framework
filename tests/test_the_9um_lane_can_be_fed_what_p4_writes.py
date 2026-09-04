@@ -16,11 +16,11 @@ XY pyramid level 2 is a factor of four, 4x in z is a factor of four, and
 2.399 * 4 = 9.596 um -- which is the isotropy the models want and the reason
 a native 9.362 um render needs none of this.
 
-What is deliberately not here: a resample to some other scale. Upsampling a
-9.362 um render to 9.6 would create no new spatial information, and the same
-sentence is already in the registry as the reason the 3D-DINO lane is not
-routed at these targets. A stack that is already near the model scale passes
-through untouched, and one that is neither 2.4 nor ~9.6 is refused.
+A stack that is already near the model scale passes through untouched, and
+one that is neither 2.4 nor ~9.6 is refused -- unless a caller explicitly asks
+for `resample_from_um`, an opt-in XY-only resample to the model's scale that
+this file also covers below. Nothing here invents that resample on its own;
+absent the parameter, the refusal is unchanged.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ from prepare_9um_isotropic_input import (  # noqa: E402
     MODEL_SCALE_UM,
     IncompatibleSourceScale,
     plan_pooling,
+    plan_resample,
     prepare,
 )
 
@@ -185,3 +186,75 @@ def test_it_writes_through_whichever_zarr_api_is_installed(tmp_path, monkeypatch
 
     assert seen.get("api") == "create_dataset", (
         "a zarr 2 group has no create_array and this must not reach for one")
+
+
+# -- resample_from_um, opt-in -----------------------------------------------
+#
+# 4 of the 13 eligible scrolls (0268, 0800, 1218, 1447) were scanned at 8.64
+# um/116 keV: neither the 2.4 um the pooling recipe is written for nor within
+# tolerance of the model's own ~9.362-9.6 um, so plan_pooling refuses them
+# outright. resample_from_um is a caller's explicit declaration -- "this
+# stack is actually at this scale, resample it to the target" -- reached only
+# when a job names it; absent, the refusal above is unchanged.
+
+
+def test_plan_resample_computes_the_xy_zoom_from_source_over_target():
+    """Fewer, larger voxels covering the same physical span: the array
+    shrinks by the same fraction the voxel grows by."""
+    plan = plan_resample(8.640, 9.362)
+    assert plan.xy_zoom == pytest.approx(8.640 / 9.362)
+    assert plan.output_voxel_um == 9.362
+
+
+def test_plan_resample_refuses_a_non_positive_source():
+    with pytest.raises(IncompatibleSourceScale, match="resample_from_um"):
+        plan_resample(0, 9.362)
+
+
+def test_plan_resample_refuses_a_non_positive_target():
+    with pytest.raises(IncompatibleSourceScale, match="target"):
+        plan_resample(8.640, 0)
+
+
+def test_without_resample_from_um_the_refusal_is_unchanged(tmp_path):
+    """Point 2 of the spec this implements: absent the parameter, prepare
+    refuses 8.64 um exactly as it always has."""
+    source = _stack(tmp_path / "layers", slices=8, size=16)
+    with pytest.raises(IncompatibleSourceScale):
+        prepare(source, tmp_path / "out.zarr", source_voxel_um=8.640)
+
+
+def test_prepare_resamples_when_asked_instead_of_refusing(tmp_path):
+    zarr = pytest.importorskip("zarr")
+    source = _stack(tmp_path / "layers", slices=8, size=32)
+
+    receipt = prepare(source, tmp_path / "out.zarr", source_voxel_um=9.362,
+                      resample_from_um=8.640)
+
+    group = zarr.open_group(str(tmp_path / "out.zarr"), mode="r")
+    array = group["0"]
+    assert array.shape[0] == 8, "resampling is XY-only; z is left alone"
+    assert array.shape[1] < 32 and array.shape[2] < 32, (
+        "8.64 -> 9.362 um is fewer, larger voxels; the plane must shrink")
+    assert receipt["output_voxel_um"] == pytest.approx(9.362)
+
+
+def test_the_resample_receipt_carries_the_method_not_a_pooling_factor(tmp_path):
+    """Point 3 of the spec: the receipt records the applied factor and the
+    interpolation method -- and, since this path never pooled anything,
+    carries no xy_factor/z_factor to be mistaken for one that did."""
+    source = _stack(tmp_path / "layers", slices=8, size=16)
+
+    receipt = prepare(source, tmp_path / "out.zarr", source_voxel_um=9.362,
+                      resample_from_um=8.640)
+
+    assert receipt["resample_from_um"] == 8.640
+    assert receipt["xy_zoom_factor"] == pytest.approx(8.640 / 9.362)
+    assert receipt["interpolation"] == (
+        "linear, no pre-filter (scipy.ndimage.zoom order=1)")
+    assert "xy_factor" not in receipt and "z_factor" not in receipt
+    assert receipt["isotropic"] is False, (
+        "this path only ever touches xy and must not claim z isotropy")
+    assert any("4%" in claim for claim in receipt["non_claims"]), (
+        "the measured cost belongs in the receipt, not just the docstring"
+    )

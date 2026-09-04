@@ -28,11 +28,13 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/scripts"))
 
+import numpy as np
+
 import run_ink_9um  # noqa: E402
 from prepare_9um_isotropic_input import IncompatibleSourceScale  # noqa: E402
 from run_ink_9um import (  # noqa: E402
-    default_batch_size_for_host, detect_gpu_vram_mb, inference_command,
-    load_lane_profile, preparation_command,
+    build_reverse_summary, default_batch_size_for_host, detect_gpu_vram_mb,
+    inference_command, load_lane_profile, preparation_command,
 )
 
 PROFILE = ROOT / "framework/profiles/03-ink/ink-9um-hybrid-3d2d-screening-1.0.0.json"
@@ -435,6 +437,32 @@ def test_pooling_falls_back_to_this_interpreter(monkeypatch, tmp_path) -> None:
     assert argv[0] == sys.executable
 
 
+# -- resample_from_um, opt-in ------------------------------------------------
+#
+# 4 of the 13 eligible scrolls (0268, 0800, 1218, 1447) were scanned at 8.64
+# um/116 keV, which plan_pooling refuses outright -- not an integer factor of
+# 9.362 um, and not within tolerance of the model's own scale either. Without
+# this parameter that refusal is unchanged; naming it is an explicit request
+# to resample that scale to 9.362 um instead, at a measured ~4% correlation
+# cost against the public control.
+
+
+def test_resample_from_um_is_absent_by_default() -> None:
+    argv = preparation_command(
+        tiff_dir=Path("layers"), destination=Path("vol.zarr"),
+        source_voxel_um=9.362)
+
+    assert "--resample-from-um" not in argv
+
+
+def test_a_caller_may_ask_to_resample_from_a_different_scale() -> None:
+    argv = preparation_command(
+        tiff_dir=Path("layers"), destination=Path("vol.zarr"),
+        source_voxel_um=9.362, resample_from_um=8.640)
+
+    assert argv[argv.index("--resample-from-um") + 1] == "8.64"
+
+
 REFUSAL_EXIT = 3
 
 
@@ -513,7 +541,8 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
 
     seen: dict = {}
 
-    def fake_resolve(*, tiff_dir, surface_volume, work_dir, source_voxel_um):
+    def fake_resolve(*, tiff_dir, surface_volume, work_dir, source_voxel_um,
+                     resample_from_um=None):
         seen["work_dir"] = Path(work_dir)
         return "/somewhere/surface-volume.zarr"
 
@@ -540,3 +569,69 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
     assert seen["work_dir"] == job, (
         f"the pooled volume goes to {seen['work_dir']}, not into the job")
     assert job.is_dir(), "the lane did not create the directory it was given"
+
+
+# -- the reverse map's summary, including the asymmetry it now carries -------
+#
+# `direction: both` writes a second map and this lane used to read only the
+# first. What the reverse block says about the two together -- including
+# whether the forward/reverse ratio grows with the threshold, which p50 does
+# not -- only means anything once both arrays share a shape; `build_reverse_
+# summary` is the pure half of that comparison, split out of `main()` so it
+# does not need a subprocess and a checkpoint to exercise.
+
+def test_matching_shapes_carry_the_asymmetry_block():
+    forward = np.zeros((20, 100))
+    reverse = np.zeros((20, 100))
+    forward.flat[:1000] = 0.9   # well over every threshold
+    reverse.flat[:400] = 0.9    # ratio 2.5 throughout: sustained above 1.5
+
+    summary = build_reverse_summary(forward, reverse)
+
+    assert summary["map"] == "probability_reverse.npy"
+    assert summary["p50"] == pytest.approx(0.0)  # mostly-zero array
+    assert "pearson_r_with_forward" in summary
+    assert summary["identical"] is False
+    assert summary["asymmetry"]["sustained_above_1_5"] is True
+    assert summary["asymmetry"]["thresholds"]["0.7"]["ratio"] == pytest.approx(2.5)
+
+
+def test_a_shape_mismatch_carries_no_asymmetry():
+    """No pixel-for-pixel comparison is possible, so none is fabricated --
+    the same rule `pearson_r_with_forward` already followed for shape."""
+    forward = np.zeros((20, 100))
+    reverse = np.zeros((21, 100))
+
+    summary = build_reverse_summary(forward, reverse)
+
+    assert "shape_differs" in summary
+    assert "asymmetry" not in summary
+    assert "pearson_r_with_forward" not in summary
+
+
+def test_identical_maps_are_named_rather_than_producing_a_believable_ratio():
+    """Upstream writing the same array twice is a different failure from a
+    real reverse pass, and `identical` already exists to say so; asymmetry on
+    an identical pair is exactly 1.0 at every threshold that clears the
+    guard, which must not be mistaken for a measurement of anything."""
+    array = np.zeros((20, 100))
+    array.flat[:1000] = 0.9
+
+    summary = build_reverse_summary(array, array.copy())
+
+    assert summary["identical"] is True
+    assert summary["asymmetry"]["thresholds"]["0.7"]["ratio"] == pytest.approx(1.0)
+    assert summary["asymmetry"]["sustained_above_1_5"] is False
+
+
+def test_a_forward_only_run_never_calls_this_at_all():
+    """The gate lives in `main()`: `reverse_summary` stays `None` unless
+    `ink_reverse.tif` exists on disk, so a forward-only or reverse-only job
+    -- direction `forward` or `reverse`, never `both` -- never builds a
+    reverse block and never carries an asymmetry block, without this
+    function needing to know why it was not called."""
+    source = inspect.getsource(run_ink_9um.main)
+    assert "if reverse_tiff.is_file():" in source
+    assert "reverse_summary = build_reverse_summary(probability, reverse)" in source
+    # Nothing calls build_reverse_summary outside that guarded block.
+    assert source.count("build_reverse_summary(") == 1
