@@ -1,22 +1,25 @@
 """The spiral fitter as a P1 backend, and what it actually lets a caller choose.
 
 Upstream calls this "currently our most powerful method" for recovering a
-surface and now recommends it. At the locked commit it is a research script
-rather than a tool, and its two halves are selected two different ways:
+surface and now recommends it. At 23adee04 it has a real three-flag headless
+CLI (--dataset, --scroll-spec, --cache), and its two halves are still selected
+two different ways:
 
-  * There is no argparse. Everything runs off nine FIT_SPIRAL_* environment
-    variables, and `FIT_SPIRAL_CONFIG_OVERRIDES` is validated by upstream
-    against the keys of its own `default_config`, raising KeyError on anything
-    else. That half is this module's job, and it refuses a bad key before a GPU
-    is claimed rather than after.
-  * The scroll is not among those keys. `dataset_path`, `scroll_name`,
-    `z_begin`/`z_end`, `voxel_size_um` and `spiral_outward_sense` are
-    module-level constants, so selecting a scroll is a source rewrite. That
-    half is `repin.py`, tested beside this file.
+  * ~120 keys -- the z range and the optimizer seed among them now, alongside
+    everything the old default_config dict held -- are validated by upstream
+    against `config.Config().as_dict()` and ride FIT_SPIRAL_CONFIG_OVERRIDES.
+    That half is this module's job, and it refuses a bad key before a GPU is
+    claimed rather than after.
+  * The scroll's name, voxel size and winding sense are not among those keys.
+    They are `spiral-scroll.json` fields now, so selecting a scroll is a
+    manifest write rather than a source rewrite. That half is tested in
+    test_the_spiral_scroll_is_named_in_a_manifest_not_rebound_in_source.py.
 
 What is checked here is the first half, plus the profile telling the truth
-about both: the frozen 0.2.0 declares a scroll binding and is runnable, and the
-0.1.0 that predates the rebind still parses and refuses to run.
+about all four generations: the frozen 0.4.0 writes a manifest and is
+runnable, and 0.1.0-0.3.0 -- which respectively could not select a scroll,
+required four inputs the fit treats as optional, and drove an AST rebind this
+commit removed the target of -- still parse and refuse to run.
 """
 
 from __future__ import annotations
@@ -40,66 +43,72 @@ from adapter import (  # noqa: E402
 )
 
 PROFILE = (ROOT
-           / "framework/profiles/01-segmentation/spiral-fitter-v1-0.3.0.json")
-# Two generations behind it, each superseded for its own reason: 0.1.0 could
-# not select a scroll, 0.2.0 required four inputs the fit treats as optional.
+           / "framework/profiles/01-segmentation/spiral-fitter-v1-0.4.0.json")
+# Three generations behind it, each superseded for its own reason: 0.1.0 could
+# not select a scroll, 0.2.0 required four inputs the fit treats as optional,
+# 0.3.0 drove an AST rebind of six module constants 23adee04 removed.
 SUPERSEDED = [
     ROOT / "framework/profiles/01-segmentation/spiral-fitter-v1-0.1.0.json",
     ROOT / "framework/profiles/01-segmentation/spiral-fitter-v1-0.2.0.json",
+    ROOT / "framework/profiles/01-segmentation/spiral-fitter-v1-0.3.0.json",
 ]
 SCROLL = {"dataset_path": "/artifacts/spiral/PHerc0172",
           "scroll_name": "PHerc0172", "z_begin": 500, "z_end": 9000,
           "voxel_size_um": 7.91, "spiral_outward_sense": "CCW"}
 
 
-def fake_fit_spiral(directory: Path) -> Path:
-    """Upstream's shape, not upstream's file: a module-level `default_config`
-    dict, and constants that no environment variable reaches."""
-    script = directory / "fit_spiral.py"
-    script.write_text(
-        "import os\n"
-        "dataset_path = '/ephemeral/paul/spiral/dataset'\n"
-        "scroll_name = 's1'\n"
-        "z_begin, z_end = 4000, 17000\n"
-        "default_config = {\n"
-        "    'random_seed': 1,\n"
-        "    'disable_patches': False,\n"
-        "    'num_training_steps': 20000,\n"
-        "}\n",
+def fake_fitter_root(directory: Path) -> Path:
+    """Upstream's shape at 23adee04, not upstream's file: a lightweight
+    config.py with a Config class, importable without touching a dataset."""
+    (directory / "config.py").write_text(
+        "class Config:\n"
+        "    def __init__(self, overrides=None):\n"
+        "        self.z_begin = 4000\n"
+        "        self.z_end = 17000\n"
+        "        self.optimizer_random_seed = 1\n"
+        "        self.input_disable_patches = False\n"
+        "        self.num_training_steps = 20000\n"
+        "        for key, value in (overrides or {}).items():\n"
+        "            setattr(self, key, value)\n"
+        "\n"
+        "    def as_dict(self):\n"
+        "        return vars(self).copy()\n",
         encoding="utf-8")
-    return script
+    return directory
 
 
-def test_the_override_keys_are_read_from_the_script_not_restated(tmp_path):
-    """A second copy of a 105-key list is a second thing to keep true. The
-    keys are parsed out of the script itself, without importing it -- import
-    would execute module-level code that opens datasets."""
-    keys = spiral_config_keys(fake_fit_spiral(tmp_path))
-    assert keys == frozenset({"random_seed", "disable_patches",
-                              "num_training_steps"})
+def test_the_override_keys_are_read_from_config_not_restated(tmp_path):
+    """A second copy of a ~120-key list is a second thing to keep true. The
+    keys come from importing config.py directly -- cheap and side-effect-free,
+    unlike fit_spiral.py, whose module level opens a dataset."""
+    keys = spiral_config_keys(fake_fitter_root(tmp_path))
+    assert keys == frozenset({"z_begin", "z_end", "optimizer_random_seed",
+                              "input_disable_patches", "num_training_steps"})
 
 
 def test_an_override_upstream_would_reject_is_refused_here_first(tmp_path):
     """Upstream raises KeyError deep inside a run that has already claimed a
     GPU and loaded a dataset. This is the same refusal, before any of that."""
-    script = fake_fit_spiral(tmp_path)
-    with pytest.raises(UnknownOverrideKey, match="z_begin"):
+    root = fake_fitter_root(tmp_path)
+    with pytest.raises(UnknownOverrideKey, match="dataset_path"):
         spiral_environment({"profile_id": "p@0.1.0",
-                            "config_overrides": {"z_begin": 10000}},
-                           script=script, out_dir=tmp_path / "out",
+                            "config_overrides": {"dataset_path": "/x"}},
+                           fitter_root=root, out_dir=tmp_path / "out",
                            cache_dir=tmp_path / "cache")
 
 
 def test_the_environment_carries_the_overrides_as_the_json_upstream_parses(tmp_path):
-    script = fake_fit_spiral(tmp_path)
+    root = fake_fitter_root(tmp_path)
     env = spiral_environment(
         {"profile_id": "p@0.1.0",
-         "config_overrides": {"disable_patches": True, "random_seed": 7}},
-        script=script, out_dir=tmp_path / "out", cache_dir=tmp_path / "cache",
+         "config_overrides": {"input_disable_patches": True,
+                              "optimizer_random_seed": 7}},
+        fitter_root=root, out_dir=tmp_path / "out", cache_dir=tmp_path / "cache",
         run_tag="control-a")
     assert json.loads(env["FIT_SPIRAL_CONFIG_OVERRIDES"]) == {
-        "disable_patches": True, "random_seed": 7}
+        "input_disable_patches": True, "optimizer_random_seed": 7}
     assert env["FIT_SPIRAL_OUT_DIR"] == str(tmp_path / "out")
+    assert env["FIT_SPIRAL_RUN_DIR"] == str(tmp_path / "out")
     assert env["FIT_SPIRAL_CACHE_DIR"] == str(tmp_path / "cache")
     assert env["FIT_SPIRAL_RUN_TAG"] == "control-a"
 
@@ -108,28 +117,41 @@ def test_no_overrides_means_no_override_variable_at_all(tmp_path):
     """Upstream treats an empty string as "no overrides", but sending "{}"
     would put an empty object in the receipt as though a choice was made."""
     env = spiral_environment({"profile_id": "p@0.1.0", "config_overrides": {}},
-                             script=fake_fit_spiral(tmp_path),
+                             fitter_root=fake_fitter_root(tmp_path),
                              out_dir=tmp_path / "out", cache_dir=tmp_path / "c")
     assert "FIT_SPIRAL_CONFIG_OVERRIDES" not in env
 
 
+def test_wandb_mode_is_forced_disabled_even_if_the_base_environment_disagrees(tmp_path):
+    """Not merely defaulted: this platform has no wandb credentials and must
+    never attempt the network call that would find that out."""
+    root = fake_fitter_root(tmp_path)
+    env = spiral_environment({"config_overrides": {}}, fitter_root=root,
+                             out_dir=tmp_path / "out", cache_dir=tmp_path / "c",
+                             base_env={"WANDB_MODE": "online", "WANDB_API_KEY": "x"})
+    assert env["WANDB_MODE"] == "disabled"
+
+
+def test_rank_world_size_and_local_rank_never_survive_into_the_run(tmp_path):
+    """DistributedContext.from_env() reads exactly these three and defaults to
+    single-process when they are absent. A worker is one GPU per container,
+    and this makes that a guarantee rather than an accident of what the host
+    happened not to export."""
+    root = fake_fitter_root(tmp_path)
+    env = spiral_environment(
+        {"config_overrides": {}}, fitter_root=root, out_dir=tmp_path / "out",
+        cache_dir=tmp_path / "c",
+        base_env={"RANK": "1", "WORLD_SIZE": "4", "LOCAL_RANK": "1",
+                 "PATH": "/usr/bin"})
+    assert "RANK" not in env and "WORLD_SIZE" not in env and "LOCAL_RANK" not in env
+    assert env["PATH"] == "/usr/bin"
+
+
 def test_the_shipped_profile_is_a_valid_profile():
     profile = load_spiral_profile(PROFILE)
-    assert profile["profile_id"] == "spiral-fitter-v1@0.3.0"
+    assert profile["profile_id"] == "spiral-fitter-v1@0.4.0"
     assert profile["backend"] == "spiral"
     assert require_runnable_profile(profile) is profile
-
-
-def test_the_profile_still_records_that_the_six_are_constants(tmp_path):
-    """They are selectable now, and they are still not options: the rebind is a
-    source rewrite, and a profile that stopped saying so would read as though
-    upstream had an environment variable for the scroll."""
-    profile = load_spiral_profile(PROFILE)
-    constants = profile["upstream_module_constants"]
-    for constant in ("dataset_path", "scroll_name", "z_begin", "voxel_size_um"):
-        assert constant in constants["names"]
-        assert constant in constants["upstream_values"]
-    assert set(profile["scroll_binding"]["selectable"]) == set(constants["names"])
 
 
 def test_a_run_that_names_a_scroll_gets_all_six():
@@ -152,10 +174,10 @@ def test_the_winding_sense_is_the_only_one_with_a_default():
 
 @pytest.mark.parametrize("path", SUPERSEDED, ids=lambda p: p.stem)
 def test_every_superseded_profile_still_parses_and_will_not_run(path):
-    """A frozen profile that stops parsing takes its own record with it. Each is
-    still refused as a way to run one: 0.1.0 names no scroll, so a fit made
-    against it would use whatever dataset sat at upstream's path, and 0.2.0
-    refuses every dataset without the Paris 4 winding annotations."""
+    """A frozen profile that stops parsing takes its own record with it. Each
+    is still refused as a way to run one: 0.1.0 names no scroll, 0.2.0
+    refuses every dataset without the Paris 4 winding annotations, and 0.3.0's
+    six-constant rebind has nothing left to rebind at this commit."""
     superseded = load_spiral_profile(path)
 
     assert superseded["superseded_by"].startswith("spiral-fitter-v1@")
@@ -165,11 +187,14 @@ def test_every_superseded_profile_still_parses_and_will_not_run(path):
 
 def test_the_profile_splits_its_inputs_by_what_an_absence_costs():
     """Umbilicus, tracks and the lasagna volumes are opened directly and raise;
-    the four point-collection files are read through a loader that swallows
-    every exception, so their absence degrades a fit rather than stopping one.
+    the point-collection files are read through a loader that swallows every
+    exception, so their absence degrades a fit rather than stopping one.
 
-    0.2.0 demanded all nine, which is what the tutorial lists, and that made the
-    fitter unrunnable on every scroll without the Paris 4 winding annotations.
+    0.2.0 demanded all nine, which is what the tutorial lists, and that made
+    the fitter unrunnable on every scroll without the Paris 4 winding
+    annotations. The required set is unchanged at this commit: see the
+    profile's own notes.config_overrides for how that was verified rather
+    than assumed.
     """
     inputs = load_spiral_profile(PROFILE)["inputs"]
     required = [entry["path"] for entry in inputs["required"]]
@@ -178,8 +203,8 @@ def test_the_profile_splits_its_inputs_by_what_an_absence_costs():
     assert "umbilicus.json" in required
     assert any("tracks" in name for name in required)
     assert sum("lasagna_inputs" in name for name in required) == 3
-    assert optional == {"abs_winding.json", "patch-overlap-pcls.json",
-                        "relative_windings.json", "same_windings.json"}
+    assert {"abs_winding.json", "patch-overlap-pcls.json",
+            "relative_windings.json", "same_windings.json"} <= optional
     # Every optional input says what its absence costs, because "optional" is
     # not "free": without abs_winding.json the fit's windings are relative.
     assert all(entry.get("absence_costs") for entry in inputs["optional"])
@@ -197,3 +222,14 @@ def test_the_dataset_layout_is_selectable_and_defaults_to_upstreams():
     # so: prepare_lasagna_volume checks the group it opened against the scale.
     assert "coupled" in layout
     assert "derived" in selectable["lasagna_scale"]
+
+
+def test_the_profile_names_where_the_scroll_spec_mechanism_lives():
+    """Not "scroll_binding" any more (0.3.0's field, for the AST rebind); the
+    manifest mechanism has its own section, and the required-keys check in
+    load_spiral_profile depends on the schema saying which section a v4
+    profile must carry."""
+    profile = load_spiral_profile(PROFILE)
+    assert "scroll_binding" not in profile
+    assert profile["scroll_spec"]["filename"] == "spiral-scroll.json"
+    assert profile["scroll_spec"]["defaults"] == {"spiral_outward_sense": "CW"}

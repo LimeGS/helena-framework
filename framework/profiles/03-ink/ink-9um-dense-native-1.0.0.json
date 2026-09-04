@@ -1,0 +1,70 @@
+{
+  "schema": "campaignx.ink_lane_profile.v1",
+  "profile_id": "ink-9um-dense-native@1.0.0",
+  "method_id": "ink-9um-dense-native@1.0.0",
+  "checkpoint_sha256": "c387f9c4715d524cce921c34e059465f5ea769b45270b887dbbda85ae075ae96",
+  "pinned_source_revision": "3ea17f54a9b3d5fd1aaf73e1d2c8386dbaa9f30e",
+  "adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
+  "input_contract": {
+    "modality": "OME-Zarr surface volume",
+    "model_type": "local-3d-stem-into-2d-unet",
+    "model_family": "hybrid_3d2d",
+    "patch_size_y_x": [
+      128,
+      128
+    ],
+    "slices": 17,
+    "training_pixel_um": 9.6,
+    "training_slice_um": 9.6,
+    "isotropic_required": true,
+    "physical_resampling_required": false,
+    "normalization": "rebuilt from the checkpoint by upstream's own inference code, not restated here",
+    "normalization_provenance": [
+      "not this checkpoint's own model card: the physical input contract above is inherited from the official hybrid_3d2d architecture, verified to apply here because the state_dict matches it tensor for tensor -- 508 tensors, none missing, none extra -- so the same roi_size/in_chans/preprocessing the official checkpoints report is what this one was built to receive",
+      "this lane declares no normalization of its own for the same reason the official profile does not: inference rebuilds the model and its normalization from the checkpoint automatically, and restating one here would be a second copy of a fact the weights already carry"
+    ],
+    "scale_note": "Same physical contract as ink-9um-hybrid-3d2d-screening@1.0.0 by architecture match (see normalization_provenance); a native ~9 um render runs with no resampling, a 2.4 um source must be pooled first.",
+    "training_scrolls": null,
+    "preprocessing": "tifxyz_robust"
+  },
+  "output_contract": {
+    "maps": [
+      "probability.npy"
+    ],
+    "upstream_output": "uint8 tiled TIFF",
+    "receipt": "INK_PROFILE_RECEIPT.json",
+    "coordinate_space": "native source surface plane",
+    "no_ink_floor": 0.25,
+    "comparability": [
+      "these models train with BCE label smoothing 0.5, so the most confident no-ink output sits near 0.25 rather than 0; any screen that treats 0 as no-ink is reading a different quantity than this lane emits",
+      "the model card's display rescale (p - 0.25) / 0.5 is for viewing only and must not be applied before a quantitative read",
+      "not comparable with the 2 um or timesformer lanes: different scale, different training corpus, different no-ink floor",
+      "a single reentrained checkpoint, not a step along the official seed trajectories -- comparability with those checkpoints is a measured fact (see notes.checkpoint), not an assumption from sharing an architecture"
+    ]
+  },
+  "default_execution": {
+    "overlap": 0.5,
+    "blend_mode": "hann",
+    "direction": "both",
+    "batch_size": 1,
+    "layer_start": null,
+    "layer_end": null,
+    "compile": false
+  },
+  "safety": {
+    "screening_only": true,
+    "requires_campaign_control": true,
+    "silence_proves_absence": false,
+    "non_claims": [
+      "a probability map is a routing signal, not proof of ink, letters, or text",
+      "no control has been run for this lane through Helena's own pipeline on this corpus; the correlation and enrichment figures in notes.checkpoint were measured independently, outside this framework's receipts, and are reported here as the reason the checkpoint was pinned -- not as this lane's own control",
+      "the layer window is deliberately unpinned, for the same reason as the official profile: the models are z-offset sensitive, so a window belongs in a campaign's own calibrated profile rather than invented here"
+    ]
+  },
+  "notes": {
+    "direction": "both, which emits a forward and a reverse map -- unchanged from the official profile; nothing about this checkpoint gives either surface normal direction a different meaning.",
+    "blend_mode": "hann, for the same reason and with the same measurement pinning it in ink-9um-hybrid-3d2d-screening@1.0.0 -- this checkpoint changes only the weights, not the sliding-window mechanics.",
+    "checkpoint": "dense_native_016000, published by Erwin Nieuwlaar on 2026-08-26 (https://huggingface.co/Nieuwlaar/ink9um-dense-native, MIT, trained on public data only) as weights/dense_native_016000.safetensors, sha256 d3d95dc41dcb24ed76b84b5e12ca5dae25d7fb34edf1dfbb93e0186f91e6fc6d. Converted by loading that state_dict into the official .pth wrapper's \"model\" key -- verified tensor for tensor against the official hybrid_3d2d architecture, 508 tensors, none missing, none extra -- and installed at /models/ink_9um/comunidad/dense_native_016000.pth, sha256 c387f9c4715d524cce921c34e059465f5ea769b45270b887dbbda85ae075ae96, which is what this profile pins. Measured independently against the community-published letters for PHerc0139 w043 (top-1%-brightest overlap with the published letter mask, at 1.129 um resampled to the measurement grid): correlation 0.511, top-1% enrichment over random 21.50x -- ahead of every official checkpoint measured the same way (best single step 0.399/19.23x at s43-step020000, best 9-checkpoint ensemble 0.418/20.81x) and far above a shuffled-layer-order negative control (0.026/1.28x, i.e. random). A second community checkpoint from the same source, soup42_last4 (sha256 3700c378afb8d18fb2a50662a93707251ab9771ccf976ba3cd3d105dd0d27db4), measured worse (0.341/12.54x) and was not pinned.",
+    "batch_size": "1 by default, overridable per job -- unmeasured for this checkpoint specifically; inherited from the official profile's own finding that 4 emptied the map on a 6 GB card, which is a fact about the card and the sliding-window mechanics this checkpoint does not change."
+  }
+}

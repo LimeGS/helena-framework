@@ -1,0 +1,163 @@
+{
+  "schema": "campaignx.segmentation_backend_profile.v4",
+  "profile_id": "spiral-fitter-v1@0.4.0",
+  "name": "Spiral fitter, global winding fit",
+  "stage": "01-segmentation",
+  "status": "SELECTABLE_NOT_DEFAULT",
+  "supersedes": "spiral-fitter-v1@0.3.0",
+  "backend": "spiral",
+  "adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py",
+  "entrypoint": "spiral-fitting/fit_spiral.py",
+  "export_entrypoint": "spiral-fitting/flatten_spiral_checkpoint.py",
+  "runner": "framework/stages/01-segmentation/scripts/run_spiral_fit.py",
+  "runtime_image": "helena-villa-python",
+  "source": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "23adee047dea06526151d3a152a7d85de8da478b",
+    "note": "The volume_cartographer source-lock commit the villa image already pins, so this backend adds no second source identity to keep true. Previously 05dcf0349356bc833670d61e5eca00be58376e35; the fitter was restructured from a single research script under volume-cartographer/scripts/spiral into a top-level spiral-fitting/ package between those two commits."
+  },
+  "config_overrides": {
+    "input_disable_patches": true,
+    "input_use_tracks": true,
+    "input_use_outer_shell": false,
+    "dense_spacing_mode": "grad_mag"
+  },
+  "scroll_spec": {
+    "mechanism": "framework/stages/01-segmentation/backends/spiral/adapter.py: write_scroll_spec",
+    "filename": "spiral-scroll.json",
+    "schema_version": 1,
+    "how": "Upstream's own module docstring puts it plainly: 'Version 27 makes spiral-scroll.json the only source of the facts it carries.' At the pinned commit the scroll's name, voxel size and winding sense are read from this JSON manifest at the dataset root (or wherever --scroll-spec points), not assigned as module constants at import. The adapter writes it fresh into this run's own output directory -- never into the shared staged dataset cache, which stays reusable across runs with different z ranges -- and reads it back before the fit is allowed to start.",
+    "fields": {
+      "name": "from the job's scroll_name parameter",
+      "voxel_size_um": "from the job's voxel_size_um parameter",
+      "spiral_outward_sense": "CW or ACW, translated from the job's spiral_outward_sense (CW or CCW -- see the CW/CCW note below)",
+      "normal_zarr_group": "from the job's normal_zarr_group parameter, default '4'",
+      "lasagna_scale": "from the job's lasagna_scale parameter, default 4",
+      "paths": "path overrides for the lasagna arrays and the tracks file, written only when lasagna_volume_name or tracks_file departs from upstream's own default naming -- see dataset_layout below"
+    },
+    "cw_ccw_note": "Upstream renamed spiral_outward_sense's second value from CCW to ACW at this commit. This platform's decision, made deliberately rather than by following upstream's rename: spiral_outward_sense stays CW/CCW in every job parameter, profile default and panel form -- CCW is the word every existing operator, profile and job already types -- and adapter.translate_winding_sense is the one place CCW becomes ACW, on the way into spiral-scroll.json. A vendored tool renaming its own internal spelling is not a reason for this platform's public API to silently start meaning something else under callers who never asked for the change.",
+    "z_range_note": "z_begin/z_end are NOT scroll-spec fields at this commit -- they moved onto upstream's Config instead, alongside the ~120 keys config_overrides above already rides through FIT_SPIRAL_CONFIG_OVERRIDES. The runner sends them on that same channel, not in the manifest.",
+    "defaults": {
+      "spiral_outward_sense": "CW"
+    },
+    "defaults_note": "Only the winding sense carries a default, because CW is upstream's and a fit run with the wrong one is visibly wrong rather than quietly so. The other five (scroll_name, dataset_path, z_begin, z_end, voxel_size_um) are deliberately empty: defaulting them to Scroll 1's would make a forgotten field fit the wrong scroll under the right name.",
+    "refuses": [
+      "a scroll name that is empty, a voxel size that is not positive, a winding sense outside CW and CCW",
+      "z_end at or below z_begin",
+      "a written manifest that does not read back as what was asked for",
+      "a dataset layout this platform cannot resolve to a path override -- see dataset_layout below"
+    ]
+  },
+  "environment": {
+    "controllable": [
+      "FIT_SPIRAL_OUT_DIR",
+      "FIT_SPIRAL_RUN_DIR",
+      "FIT_SPIRAL_CACHE_DIR",
+      "FIT_SPIRAL_RUN_TAG",
+      "FIT_SPIRAL_CONFIG_OVERRIDES"
+    ],
+    "wandb_mode": "disabled",
+    "wandb_note": "Forced to disabled by the adapter on every run, not merely defaulted: upstream's own CLI already reads WANDB_MODE=disabled when nothing sets it, but this platform has no wandb credentials and must never attempt the network call that would find that out.",
+    "distributed_note": "DistributedContext.from_env() (spiral-fitting/ddp_helpers.py) reads RANK/WORLD_SIZE/LOCAL_RANK and defaults to a single-process context (rank=0, world_size=1) when they are unset. The adapter pops all three from the run's environment explicitly, so this worker's one-GPU-per-container deployment cannot accidentally trip the distributed/torchrun path by inheriting them from the host."
+  },
+  "outputs": {
+    "surface": "one combined, flattened TIFXYZ per fit, spanning upstream's own winding range (output_first_winding through model_gap_expander_num_windings - 1 by default)",
+    "checkpoint_export": {
+      "note": "The fit itself is checkpoint-centric at this commit: a successful run writes checkpoint_fitted.ckpt under its own output directory and stops there -- it does not write a TIFXYZ directly the way the previously pinned commit did. run_spiral_fit.py runs upstream's own flatten_spiral_checkpoint.py as a second subprocess after the fit exits, which reconstructs the combined spiral surface from the checkpoint and flattens it through a private, ephemeral Lasagna service (spiral-fitting/flatten_spiral_checkpoint.py starts and stops lasagna/fit_service.py itself, on a loopback port, for the one call). Only the exported TIFXYZ is registered as a surface; the checkpoint stays on the worker's disk.",
+      "also": ["checkpoints", "diagnostics"]
+    },
+    "registration_note": "The exported TIFXYZ is what makes this a P1 backend at all: it is the same artifact seed-grow produces, so it enters the same P2 certification gate rather than a parallel one. One fit now registers one surface, not one per winding as at the previous pin."
+  },
+  "notes": {
+    "config_overrides": "input_disable_patches, input_use_tracks, input_use_outer_shell and dense_spacing_mode are the deliberate translation of the previous profile's `disable_patches: true` plus its implicit input contract into this commit's renamed and reordered defaults -- not new tuning. Verified against spiral-fitting/config.py's Config defaults directly (not the tutorial): input_use_tracks now defaults False upstream (it defaulted True before this restructure), so it is re-enabled explicitly or every existing dataset's tracks/ directory would go unread; input_use_outer_shell and dense_spacing_mode default to True/'winding_model', which would newly require an outer_shell/ directory and a winding_inference/ directory this platform's staged datasets do not have, so both are pointed back at the physical inputs already staged (gradient_magnitude via dense_spacing_mode='grad_mag') rather than adopting the new required inputs. Every other key is left at upstream's default, frozen for comparability rather than tuned. Confirmed: with this exact override set, the resolved required-input set is unchanged from the previous pin -- umbilicus.json, tracks/{tracks_file}, and the three lasagna arrays -- because normals and gradient-magnitude spacing were already required by their own loss weights regardless of this restructure.",
+    "gpu": "Required. This is a fitting run, not a local grow. The export step also runs on the GPU (it reconstructs the surface with the fitted model before handing it to Lasagna), so it is not deferred to a CPU-only worker.",
+    "status": "SELECTABLE_NOT_DEFAULT: upstream recommends this method, the scroll is selectable, and it runs from the P1 queue in helena-villa-python. Not the default because no frozen reference control has compared it against vc3d-m7-seed-grow on this corpus.",
+    "inputs": "Unchanged from 0.3.0's own correction: the four point-collection files are optional (load_point_collection catches every exception and returns None), which is what makes the fitter runnable on PHerc0826, 0211 and 0257, none of which has the Paris 4 winding annotations."
+  },
+  "non_claims": [
+    "a fitted spiral is not physical-QC acceptance, not ink, and not text; it is geometry and enters the same certification gate as any other surface",
+    "no comparison against vc3d-m7-seed-grow has been run on this corpus; this profile makes the comparison possible and records nothing about which backend is better",
+    "the required_inputs are the paths the script reads at the pinned commit under this profile's config_overrides, not a claim that Campaign X currently holds them for any scroll",
+    "a scroll being selectable is not a claim that the fit is good on it: upstream's own validation is on their example, and writing spiral-scroll.json for another dataset moves the code to it without moving any evidence with it",
+    "running without abs_winding.json is not a lesser fit of the same thing: without absolute winding annotations a surface cannot be said to be the nth turn of the scroll from the fit alone",
+    "one exported surface per fit is not one surface per winding: it is upstream's own combined reconstruction across a range of windings, and a reader comparing this profile's output against 0.3.0's per-winding TIFXYZ set is comparing two different shapes of evidence"
+  ],
+  "inputs": {
+    "note": "Split by what an absence costs, read from spiral-fitting/fit_session.py's FIT_INPUT_CATALOG at the pinned commit under this profile's config_overrides, not from the tutorial. See notes.config_overrides above for how those overrides were chosen to reproduce the previous pin's required-input set exactly.",
+    "required": [
+      {
+        "path": "umbilicus.json",
+        "why": "the scroll's axis; every coordinate the fit works in is relative to it. Not published in any bucket -- it arrives as a file somebody produced, which is why it is the one input a dataset is most likely to be missing. Also the umbilicus flatten_spiral_checkpoint.py reads for the export step."
+      },
+      {
+        "path": "tracks/{tracks_file}",
+        "why": "load_tracks_from_dbm opens it with dbm.open, which raises on a missing file, and this profile's input_use_tracks override re-enables tracks (upstream's own default is now off). One large file: bandwidth-bound, and a truncated .dbm is indistinguishable from a complete one until the fit fails strangely, so its length is worth checking against the source"
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:nx}",
+        "why": "prepare_lasagna_volume runs unconditionally when input_use_normals is enabled (upstream's default), which it is here"
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:ny}",
+        "why": "prepare_lasagna_volume runs unconditionally when input_use_normals is enabled (upstream's default), which it is here"
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:grad_mag}",
+        "why": "required by this profile's dense_spacing_mode='grad_mag' override, which points dense-spacing supervision at gradient magnitude rather than upstream's new default (a winding-model mode this platform's staged datasets do not carry inputs for)"
+      }
+    ],
+    "optional": [
+      {
+        "path": "abs_winding.json",
+        "absence_costs": "the only source of absolute winding numbers -- the role is inferred from the file's basename when a caller does not state one -- so without it loss_weight_abs_winding (5.0) acts on nothing and the fit's windings are relative. Also gated on verified_patches being enabled, which this profile's input_disable_patches override turns off, so this file has no effect under this profile regardless of its presence."
+      },
+      {
+        "path": "patch-overlap-pcls.json",
+        "absence_costs": "fewer point collections constraining the fit"
+      },
+      {
+        "path": "relative_windings.json",
+        "absence_costs": "fewer point collections constraining the fit"
+      },
+      {
+        "path": "same_windings.json",
+        "absence_costs": "fewer point collections constraining the fit"
+      },
+      {
+        "path": "fibers",
+        "absence_costs": "fewer point collections constraining the fit; new at this commit and not part of the previous pin's input set"
+      }
+    ],
+    "not_applicable_under_this_profile": [
+      "verified_patches, unverified_patches (input_disable_patches: true)",
+      "outer_shell (input_use_outer_shell: false)",
+      "surf_sdt, winding_inference (dense_spacing_mode: 'grad_mag', not 'phase' or 'winding_model')",
+      "fiber_directions (loss_weight_fiber_directions defaults to 0.0, upstream's own default, not overridden here)"
+    ]
+  },
+  "dataset_layout": {
+    "mechanism": "framework/stages/01-segmentation/backends/spiral/adapter.py: validate_layout, scroll_spec_document",
+    "how": "Upstream's headless CLI resolves the lasagna arrays and the tracks file at fixed conventional relative paths under the dataset root (lasagna_inputs/las_008_{array}.ome.zarr, tracks/2um_ds2_ps256_surf_v2.dbm) unless spiral-scroll.json's `paths` object overrides them. This platform's own stager (stage_spiral_dataset.py) names lasagna volumes for their scroll rather than upstream's own prepared set, so a staged dataset needs those overrides in the common case; the adapter writes them into `paths` only when lasagna_volume_name or tracks_file departs from upstream's default naming, so a run against upstream's own layout gets no overrides at all.",
+    "coupled": "The lasagna volume name, the zarr group and the scale are one decision. prepare_lasagna_volume opens root[normal_zarr_group] and then checks its shape against ceil(scroll_shape / lasagna_scale); getting the pair apart produces a volume that opens and a warning nobody reads.",
+    "selectable": {
+      "lasagna_volume_name": {
+        "default": "las_008_{array}.ome.zarr",
+        "note": "one name under lasagna_inputs/, carrying {array} for normal_x, normal_y and gradient_magnitude. Upstream's own volumes are prepared; a set downloaded from the open-data bucket's lasagna predictions is named for its scroll instead"
+      },
+      "normal_zarr_group": {
+        "default": "4",
+        "note": "which level inside the zarr the fit reads. Downloading more than one is 57x more data than the fit uses. A direct spiral-scroll.json field at this commit, same name as before"
+      },
+      "lasagna_scale": {
+        "default": 4,
+        "derived": "2 ** normal_zarr_group when the volumes or the group move and the scale is not stated -- the relation a pyramid level satisfies, and the one a lookup table got wrong by giving level 3 a scale of 4 instead of 8",
+        "note": "upstream's own trio does not satisfy that relation, because its volumes are prepared rather than downloaded as a level; it stays the default because reproducing upstream is a meaningful run. A direct spiral-scroll.json field at this commit, same name and same default as before"
+      },
+      "tracks_file": {
+        "default": "2um_ds2_ps256_surf_v2.dbm",
+        "note": "upstream's own alternative, m7_ds2_z3000_18000_surf.dbm, is a comment beside the constant at the previous pin; unverified at this commit"
+      }
+    },
+    "defaults_are_upstreams": true
+  }
+}

@@ -58,25 +58,8 @@ exactly that reason: pooling has to know what it is pooling from, and assuming
 
 A probability map: one float per pixel, brighter meaning more likely ink. A
 direction-both run publishes `probability.npy` and `probability_reverse.npy` —
-a map and its reverse — and both feed P5's Maps tab once the job finishes.
-
-`p50`, `p99` and the spread between them show up there. Measured against
-PHerc0139 w043, the community's confirmed positive control, with its layers
-shuffled to destroy the depth structure a model reads ink from while leaving
-the papyrus texture untouched: `p50` came back identical either way — 0.278 —
-while `p99` and the spread separated cleanly. `p50` stays on the page as a
-**floor**, labelled that way rather than sorted beside `p99` as though it
-carried the same meaning — a high one is the signature of an input outside
-the lane's training domain, and nothing more.
-
-A direction-both run also carries a fourth number the two maps were already
-paid for: the ratio of forward to reverse pixels over 0.5, 0.6 and 0.7, and
-whether that ratio grows as the threshold rises. On the same shuffle test it
-grew 2.53 → 3.36 → 5.21 on the real order and fell 0.67 → 0.56 → 0.46
-shuffled — the separation `p50` missed. It is reported, not enforced, and
-only when at least 300 pixels cleared a threshold on both sides; below that a
-handful of stray bright pixels reads as a strong ratio and is noise, so the
-Maps tab shows that threshold as absent rather than as a fabricated number.
+a map and its reverse. Both, with the run's `p50`, `p99` and the spread between
+them, show up on P5's Maps tab once the job finishes.
 
 It is a **screening output, not a reading**. The map says where a model responded,
 which is a different claim from where the ink is.

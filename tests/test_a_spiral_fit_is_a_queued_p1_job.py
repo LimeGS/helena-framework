@@ -28,7 +28,12 @@ from job_store import (  # noqa: E402
     validate_parameters,
 )
 
-PROFILE_ID = "spiral-fitter-v1@0.3.0"
+PROFILE_ID = "spiral-fitter-v1@0.4.0"
+# spiral-fitter-v1@0.4.1 joined the same lane as an A/B sibling, not a
+# replacement -- see test_grow_track_patches_is_a_queued_p1_lane_too.py and
+# tests/test_a_patches_enabled_fit_does_not_require_patches_nobody_has.py for
+# what makes it a different profile rather than the same one renamed.
+PROFILE_ID_0_4_1 = "spiral-fitter-v1@0.4.1"
 RUNNER = PHASE_RUNNERS["P1"]
 FIT = {"scroll_name": "PHerc0172", "dataset_path": "/artifacts/spiral/PHerc0172",
        "z_begin": 500, "z_end": 9000, "voxel_size_um": 7.91,
@@ -86,13 +91,49 @@ def test_the_lane_pins_the_frozen_profile_and_the_form_can_read_it():
     form with no way to learn the list can only send nothing and be refused."""
     schema = phase_parameter_schema("P1")
     lanes = {lane["id"]: lane for lane in schema["lanes"]}
-    assert lanes["spiral-fit"]["profiles"] == [PROFILE_ID]
+    assert lanes["spiral-fit"]["profiles"] == [PROFILE_ID, PROFILE_ID_0_4_1]
 
 
 def test_a_job_naming_another_profile_is_refused():
     with pytest.raises(JobRejected, match="accepts profiles"):
         command_for(job(profile_id="spiral-fitter-v1@0.1.0"),
                     runner=RUNNER, output_dir="/runs/p1-1")
+
+
+def test_a_job_naming_the_patches_enabled_sibling_is_accepted():
+    """0.4.1 shares the spiral-fit lane with 0.4.0; only the profile id
+    differs on the command line -- the runner resolves everything else
+    (config_overrides, inputs) from the frozen profile itself."""
+    argv = argv_of(profile_id=PROFILE_ID_0_4_1)
+    assert argv[argv.index("--profile-id") + 1] == PROFILE_ID_0_4_1
+
+
+def test_a_job_can_name_where_grown_patches_are():
+    """spiral-fitter-v1@0.4.1's own reason to exist: without this flag,
+    unverified_patches has no path override and the fit runs exactly as
+    0.4.0 would -- silently."""
+    argv = argv_of(profile_id=PROFILE_ID_0_4_1,
+                   parameters={"unverified_patches_dir": "unverified_patches"})
+    assert argv[argv.index("--unverified-patches-dir") + 1] == "unverified_patches"
+
+
+def test_the_form_does_not_ask_for_what_the_server_already_owns():
+    """artifact_store was required and server-owned at once: a caller who read
+    the form's own required list and sent it got refused as smuggled, and one
+    who left it out -- correctly -- had nowhere left to learn that from this
+    table. It is filled_by_deployment, so it is never something to type in."""
+    schema = phase_parameter_schema("P1")
+    fields = {f["name"]: f for f in schema["fields"]}
+    assert fields["artifact_store"]["filled_by_deployment"] is True
+    assert fields["artifact_store"]["required"] is False
+
+
+def test_supplying_artifact_store_from_the_request_is_still_refused():
+    """The field being server-owned did not change -- only the form's claim
+    that a caller must supply it."""
+    complete = {**FIT, **PUBLISHES_TO}
+    with pytest.raises(JobRejected, match="server's to decide"):
+        validate_parameters(complete, "P1", server_owned=())
 
 
 # -- the command -----------------------------------------------------------
@@ -128,15 +169,16 @@ def test_a_job_with_no_sample_is_refused_rather_than_filed_nowhere():
 
 
 def test_a_job_with_no_profile_is_refused():
-    """The fitter's 105 upstream settings come from the profile. A run that
+    """The fitter's upstream settings come from the profile. A run that
     named none would record a configuration nobody chose."""
     with pytest.raises(JobRejected):
         command_for({**job(), "profile_id": None}, runner=RUNNER, output_dir="/o")
 
 
 def test_a_dry_run_reaches_the_runner():
-    """It preflights the dataset and the rebind and stops before the GPU, which
-    is the only way to find out that a dataset is incomplete without paying."""
+    """It preflights the dataset and writes spiral-scroll.json, then stops
+    before the GPU, which is the only way to find out that a dataset is
+    incomplete without paying."""
     assert "--dry-run" in argv_of(parameters={"dry_run": True})
 
 
@@ -233,7 +275,7 @@ def test_the_form_is_served_with_every_field_and_the_frozen_profile(panel):
     # Not required: it is the one with a default, and the default is upstream's.
     assert not fields["spiral_outward_sense"]["required"]
     lanes = {lane["id"]: lane for lane in body["lanes"]}
-    assert lanes["spiral-fit"]["profiles"] == [PROFILE_ID]
+    assert lanes["spiral-fit"]["profiles"] == [PROFILE_ID, PROFILE_ID_0_4_1]
 
 
 def test_the_segmentation_page_lists_it_and_says_where_it_runs(panel):

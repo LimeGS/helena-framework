@@ -1,5 +1,5 @@
 import { useFleet } from "../api";
-import {Card, Tile, queryGate} from "../components/Bits";
+import {Card, Pill, Tile, queryGate} from "../components/Bits";
 
 export default function Fleet() {
   const { data, isLoading, error } = useFleet();
@@ -76,12 +76,32 @@ export default function Fleet() {
                     data.workers.map((w) => (
                       <tr key={w.worker_id}>
                         <td className="l wrap">{w.worker_id}</td>
-                        <td>{w.attempts}</td>
+                        <td className="l">
+                          <Pill kind={w.state === "POLLING" ? "ok" : "warn"}>
+                            {w.state}
+                          </Pill>
+                        </td>
+                        <td className="l">
+                          {/* Only a worker that has ever claimed a GPU has an
+                              opinion here -- gpu_visible is null for one that
+                              never has, and that is not a finding. A worker
+                              that is POLLING fine and cannot see its card is
+                              the one state a healthy-looking row used to hide:
+                              helena-ink-0 kept POLLING for five hours after its
+                              container's GPU passthrough broke. */}
+                          {w.gpu_visible === false ? (
+                            <Pill kind="crit">no GPU</Pill>
+                          ) : w.gpu_visible === true ? (
+                            <Pill kind="ok">GPU</Pill>
+                          ) : (
+                            <span className="dash">—</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td>no attempt has a worker assigned</td>
+                      <td>no worker has ever polled</td>
                     </tr>
                   )}
                 </tbody>

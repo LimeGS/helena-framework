@@ -111,8 +111,7 @@ def write_run(directory: Path, array: np.ndarray, *,
 
 def p5_job(job_id: str, output: Path, *, state: str = "succeeded",
            statistics: dict | None = None, liveness: dict | None = None,
-           surface_id: str | None = "surface:PHerc0172:0041",
-           reverse: dict | None = None) -> dict:
+           surface_id: str | None = "surface:PHerc0172:0041") -> dict:
     parameters: dict = {"layer_stack": "/ssd/vc3d/artifacts/layers/p4-9931"}
     if surface_id:
         parameters["surface_id"] = surface_id
@@ -128,10 +127,6 @@ def p5_job(job_id: str, output: Path, *, state: str = "succeeded",
             "exit_code": 0, "runtime_seconds": 214.6,
             "statistics": statistics,
             "liveness": liveness or ALIVE,
-            # Always present, per ink_worker.py -- None on every lane but the
-            # 9 um one, and on that lane's own forward-only or reverse-only
-            # runs, since there is then no second map to compare.
-            "reverse": reverse,
             "output_dir": str(output),
             "checkpoint_sha256": "c" * 64,
             "map_shape_yx": [512, 512],
@@ -219,10 +214,9 @@ def test_an_unreachable_queue_says_so_instead_of_serving_an_empty_table(
 def test_the_table_carries_every_column_it_promises(panel, client, monkeypatch,
                                                     tmp_path):
     output = tmp_path / "runs" / "first-letters" / "p5-0001"
-    statistics = {"p50": 0.3121, "p90": 0.7, "p99": 0.884, "max": 0.99}
     write_run(output, np.linspace(0.05, 0.95, 4096, dtype=np.float32).reshape(64, 64),
-              statistics=statistics)
-    with_queue(panel, monkeypatch, [p5_job("p5-0001", output, statistics=statistics)])
+              statistics={"p50": 0.3121, "p90": 0.7, "p99": 0.884, "max": 0.99})
+    with_queue(panel, monkeypatch, [p5_job("p5-0001", output)])
 
     body = client.get("/api/ink/maps").json()
     assert body["available"] is True
@@ -239,78 +233,6 @@ def test_the_table_carries_every_column_it_promises(panel, client, monkeypatch,
     assert row["liveness"]["metrics"]["spread_p99_p50"] == pytest.approx(0.5719)
     assert row["maps"] == ["probability.npy"]
     assert row["published"]["artifact_sha256"] == "f" * 64
-    # p50 is unchanged by the demotion below: still in the receipt, still in
-    # both places it always was. What changed is how the panel presents it,
-    # not whether it is there.
-    assert row["statistics"]["p50"] == pytest.approx(0.3121)
-
-
-# --------------------------------------------------------------------------
-# Forward/reverse asymmetry
-#
-# Lives inside `result["reverse"]`, which only the 9 um lane's worker ever
-# writes, and only for a `direction: both` run whose forward and reverse maps
-# shared a shape. Every other lane, and that lane's own forward-only or
-# reverse-only runs, carry `reverse: None` -- and the row's `asymmetry` must
-# come out None too, not a fabricated absence-that-looks-like-a-zero.
-# --------------------------------------------------------------------------
-
-ASYMMETRY = {
-    "thresholds": {
-        "0.5": {"forward_over_px": 12000, "reverse_over_px": 4743, "ratio": 2.53},
-        "0.6": {"forward_over_px": 9000, "reverse_over_px": 2679, "ratio": 3.36},
-        "0.7": {"forward_over_px": 5000, "reverse_over_px": 960, "ratio": 5.21},
-    },
-    "sustained_above_1_5": True,
-}
-
-
-def test_the_table_carries_the_asymmetry_block_when_the_lane_wrote_one(
-        panel, client, monkeypatch, tmp_path):
-    output = tmp_path / "runs" / "first-letters" / "p5-9um"
-    write_run(output, np.linspace(0.05, 0.95, 4096, dtype=np.float32).reshape(64, 64))
-    job = p5_job("p5-9um", output, reverse={
-        "map": "probability_reverse.npy", "p50": 0.278, "p99": 0.594,
-        "pearson_r_with_forward": 0.41, "identical": False,
-        "asymmetry": ASYMMETRY,
-    })
-    with_queue(panel, monkeypatch, [job])
-
-    (row,) = client.get("/api/ink/maps").json()["runs"]
-    assert row["asymmetry"] == ASYMMETRY
-    assert row["asymmetry"]["thresholds"]["0.7"]["ratio"] == pytest.approx(5.21)
-    assert row["asymmetry"]["sustained_above_1_5"] is True
-
-
-def test_a_run_with_no_reverse_map_carries_no_asymmetry(
-        panel, client, monkeypatch, tmp_path):
-    """A `direction: forward` or `direction: reverse` job -- or any run from
-    a lane other than the 9 um one -- has nothing to compare and must not
-    report an asymmetry block at all."""
-    output = tmp_path / "runs" / "first-letters" / "p5-forward-only"
-    write_run(output, np.linspace(0.05, 0.95, 4096, dtype=np.float32).reshape(64, 64))
-    with_queue(panel, monkeypatch, [p5_job("p5-forward-only", output)])
-
-    (row,) = client.get("/api/ink/maps").json()["runs"]
-    assert row["asymmetry"] is None
-
-
-def test_a_reverse_block_with_no_asymmetry_reports_none_rather_than_crashing(
-        panel, client, monkeypatch, tmp_path):
-    """The 9 um lane still writes `reverse` when the two maps' shapes differ
-    -- p50/p99 of the reverse map, `shape_differs`, and no `asymmetry` key at
-    all, since no pixel-for-pixel ratio is possible. The row must read that
-    the same way as a run with no reverse block at all, not error on it."""
-    output = tmp_path / "runs" / "first-letters" / "p5-shape-mismatch"
-    write_run(output, np.linspace(0.05, 0.95, 4096, dtype=np.float32).reshape(64, 64))
-    job = p5_job("p5-shape-mismatch", output, reverse={
-        "map": "probability_reverse.npy", "p50": 0.3, "p99": 0.6,
-        "shape_differs": [[64, 64], [65, 64]],
-    })
-    with_queue(panel, monkeypatch, [job])
-
-    (row,) = client.get("/api/ink/maps").json()["runs"]
-    assert row["asymmetry"] is None
 
 
 def test_a_lane_that_writes_no_statistics_reports_none_rather_than_zero(
