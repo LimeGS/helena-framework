@@ -1,0 +1,72 @@
+{
+  "schema": "campaignx.grow_track_patches_profile.v1",
+  "profile_id": "grow-track-patches-v1@0.1.0",
+  "name": "Track-graph patch growth, headless",
+  "stage": "01-segmentation",
+  "status": "SELECTABLE_NOT_DEFAULT",
+  "backend": "spiral",
+  "adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py",
+  "entrypoints": {
+    "pack": "spiral-fitting/convert_track_store.py",
+    "index": "spiral-fitting/build_track_crossings.py",
+    "grow": "spiral-fitting/grow_track_graph.py"
+  },
+  "runner": "framework/stages/01-segmentation/scripts/run_grow_track_patches.py",
+  "runtime_image": "helena-villa-python",
+  "source": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "23adee047dea06526151d3a152a7d85de8da478b",
+    "note": "The same pin spiral-fitter-v1@0.4.0/0.4.1 use: convert_track_store.py, build_track_crossings.py and grow_track_graph.py are siblings of fit_spiral.py in the same spiral-fitting/ package this platform already images, so this lane adds no second source identity to keep true and needs no image change."
+  },
+  "why_this_lane_exists": {
+    "problem": "The published verified_patches villa ships (PHercParis4's own examples) are for a scroll ineligible for this team's target scrolls. Villa's own recipe for growing patches on a different, already-tracked scroll is VC3D's GUI action 'Actions > Grow track patches' (bruniss, 2026-09-01), which blocks any queued or automated use.",
+    "finding": "grow_track_graph.py, in the same pinned spiral-fitting/ package, already has a complete headless argparse CLI (tracks, crossings, output positionals; --seeds/--random-count) -- it is not GUI-only at the Python level. Confirmed by reading the file directly (framework/stages/01-segmentation/scripts/run_grow_track_patches.py's own module docstring traces every link).",
+    "chain": "tracks/{tracks_file} (this platform's own staged DBM) -> convert_track_store.py -> <tracks_file>.vctracks -> build_track_crossings.py -> <tracks_file>.crossings.npz -> grow_track_graph.py -> band-seed<N>-<timestamp>.tifxyz patches, confirmed link by link: convert_track_store.py opens the same DBM load_tracks_from_dbm opens (dbm.open); build_track_crossings.py computes source_ids by the identical (key_ordinal << 32) | local_index walk over sorted(dbm.keys()) that convert_track_store.py uses, over the same file, so CrossingCsr's own alignment check against the packed store passes; grow_track_graph.py's PackedTracks/CrossingCsr classes read exactly the files each writes. No step is GUI-only or shells out to a compiled VC3D binary -- confirmed by reading every import in all three files."
+  },
+  "config_overrides": {
+    "note": "There is no Config-validated override channel here the way FIT_SPIRAL_CONFIG_OVERRIDES exists for the fit; grow_track_graph.py's own tuning is plain argparse flags, translated by run_grow_track_patches.py's GROWTH_FLAGS table into growth_overrides below."
+  },
+  "growth_overrides": {},
+  "notes": {
+    "growth_overrides": "Empty in this profile: every grow_track_graph.py tuning flag is left at upstream's own argparse default, frozen for comparability rather than tuned -- the same discipline spiral-fitter-v1@0.4.0 applies to its own ~120 unlisted Config keys. Verified directly against grow_track_graph.py's own `def main` argparse block at the pinned commit (not assumed): random_top_percent=30.0 (draws seeds from the longest 30% of tracks by arclength), min_valid_vertices=20000 (random mode only: smaller outputs are discarded and do not count toward the quota), growth_min_span=80.0 (vx of consistent rail support a growth proposal needs), min_connect=3 (distinct spaced opposite-family rails a lattice proposal needs), min_size=0.0/max_size=(4 * 600**2 * 9.6**2 / 1e8) cm^2 (the former fixed 600-vx growth-window radius, expressed as an equivalent area), max_thick_cell_frac=0.05, reject_any_fold_fixes=False, gate_tol=9.0, resample_spacing=5.0 vx (working raster spacing before output reduction), min_track_arclength=40.0 vx, output_spacing=20.0 vx (the written grid's 3D vertex spacing), border_erode_vx=40.0, workers=1 (in-process; concurrent seed growth is opt-in). A future profile version that tunes any of these should list only what changed, the same way spiral-fitter-v1@0.4.0's own config_overrides lists four keys out of ~120.",
+    "output": "Grown patches are written directly into the staged dataset's own unverified_patches_dir (see dataset_layout below), not into this run's own --out directory -- that directory holds only this lane's own receipt. They are not registered as surfaces: there is no import_surface call in run_grow_track_patches.py, because a grown patch is an input to a future fit, not a certified, content-addressed artifact of its own. P2 never sees them directly.",
+    "verified_vs_unverified": "Deliberately unverified. Nothing in this pipeline attaches a human review to a grown patch, and spiral-fitting's own FIT_INPUT_CATALOG treats verified_patches and unverified_patches very differently: verified_patches is required the instant it is enabled, gates abs_winding.json's absolute-winding annotations, and is trusted outright (unverified patches are masked against it in fit_spiral.py's own `_mask_unverified_patches_near_trusted_geometry`). Calling algorithmically-grown, unreviewed geometry 'verified' would misuse all three -- see spiral-fitter-v1@0.4.1's own notes for how this lane's output is meant to be consumed.",
+    "cpu_only": "This lane needs no GPU, verified by reading every import in convert_track_store.py, build_track_crossings.py, grow_track_graph.py and the two tracks.py functions they call (write_packed_track_store, build_crossing_partner_csr_disk_backed). grow_track_graph.py imports only ast/collections/dataclasses/functools/json/math/struct/time/zipfile/numpy -- no torch, no cuda, no subprocess to a compiled binary. tracks.py imports torch/kornia at module level for functions elsewhere in that file, so the subprocess needs an interpreter where torch is importable (helena-villa-python already is one), but neither function this lane calls performs a CUDA op -- both are dbm/pickle/numpy/struct bit-shuffling, optionally accelerated by the same compiled vc_spiral nanobind kernel fit_spiral.py's own crossing lookup already uses (with a slower pure-Python fallback when it is unavailable, never a hard requirement). gpu_required: false in this lane's queue registration, matched by a test asserting no torch/cupy import in run_grow_track_patches.py's own source.",
+    "status": "SELECTABLE_NOT_DEFAULT: runnable end to end (confirmed by reading, not by running against real data in this change), never selected automatically. Growing patches costs real compute over a large track graph; nothing here decides that cost is worth paying for any given scroll."
+  },
+  "non_claims": [
+    "this lane does not decide whether patches help. A villa contributor (pmh47, 2026-08-24) reported track-graph patches as 'currently strangely unhelpful in the spiral (despite being very high-quality patches in themselves)' -- this lane exists to make spiral-fitter-v1@0.4.1's A/B against 0.4.0 possible, not to predict its outcome",
+    "grown patches are not verified, not reviewed, and not a claim of geometric correctness beyond what the growth algorithm's own gates (rail consensus, four-cycle witnesses, bridge trimming) already enforce",
+    "a patch existing in unverified_patches_dir is not a claim that it improves any fit that reads it; that is exactly the open question this lane and spiral-fitter-v1@0.4.1 together make measurable",
+    "this lane does not certify, register or content-address its output the way a surface is; a grown patch has no artifact_sha256 and enters no P2 gate",
+    "concurrent grow-track-patches runs against the same scroll write into the same shared unverified_patches_dir and the same tracks/ sidecars (the .vctracks store and the .crossings.npz); this profile does not add locking, and running two at once against one scroll is not something this lane refuses"
+  ],
+  "dataset_layout": {
+    "mechanism": "framework/stages/01-segmentation/scripts/run_grow_track_patches.py, reusing adapter.validate_layout's directory-name checks",
+    "how": "tracks_file names which staged DBM to grow from (adapter.DEFAULT_TRACKS_FILE, the same default spiral-fitter-v1@0.4.0/0.4.1 use, so a grow-track-patches run against a freshly staged dataset needs no override to find its tracks). unverified_patches_dir names where grown patches land, directly under the dataset root; there is no upstream default for it to reproduce (see spiral-fitter-v1@0.4.1's own notes on adapter.DEFAULT_UNVERIFIED_PATCHES_DIR), so this profile picks one -- 'unverified_patches' -- so a dataset grown against this profile and fit against 0.4.1 with the matching --unverified-patches-dir connect without a copy step.",
+    "tracks_file": "2um_ds2_ps256_surf_v2.dbm",
+    "unverified_patches_dir": "unverified_patches"
+  },
+  "inputs": {
+    "required": [
+      {
+        "path": "tracks/{tracks_file}",
+        "why": "the one input this lane reads. convert_track_store.py and build_track_crossings.py both open it with dbm.open (via tracks.normalize_tracks_dbm_path); a dataset staged without it has nothing to grow from."
+      }
+    ],
+    "produces": [
+      {
+        "path": "tracks/{tracks_file}.vctracks",
+        "why": "the packed, memory-mapped track store convert_track_store.py writes beside the DBM. Reused across runs against the same DBM (checked by a source_db_signature comparison, not by trust) and beside it in the shared per-scroll cache, the same place tracks/lasagna already live."
+      },
+      {
+        "path": "tracks/{tracks_file}.crossings.npz",
+        "why": "the exact-crossing CSR sidecar build_track_crossings.py writes beside the DBM. Its own build_cache() skips the work when a current one already exists."
+      },
+      {
+        "path": "{unverified_patches_dir}/band-seed<N>-<timestamp>.tifxyz",
+        "why": "one grown patch per successfully grown seed, upstream's own naming, unchanged."
+      }
+    ]
+  }
+}

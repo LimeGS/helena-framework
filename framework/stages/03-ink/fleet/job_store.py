@@ -132,22 +132,42 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
     # scroll, which slab of it, at what scale and which way the winding goes,
     # and those six are the whole decision.
     "P1": {"lane": str,
-           # The six upstream assigns at module level. They are parameters here
-           # because the rebind makes them so; see repin.py beside the adapter.
+           # The six Helena has always asked for. At the pinned commit they
+           # become spiral-scroll.json fields (name, voxel size, winding
+           # sense) and FIT_SPIRAL_CONFIG_OVERRIDES entries (z_begin, z_end);
+           # see adapter.py's module docstring for the mechanism.
            "scroll_name": str, "dataset_path": str,
            "z_begin": int, "z_end": int, "voxel_size_um": float,
            "spiral_outward_sense": str,
-           # Which lasagna scale and which tracks file the fit reads. Upstream
-           # writes both as f-strings over dataset_path, so they are part of the
-           # rebind rather than settings; they default to upstream's own values,
-           # which is why they are not required.
+           # Which lasagna volume set, at which zarr group and scale, and
+           # which tracks file the fit reads. Upstream resolves these at
+           # conventional paths under the dataset root unless spiral-scroll.json
+           # overrides them; they default to upstream's own values, which is
+           # why they are not required.
            "lasagna_volume_name": str, "normal_zarr_group": str,
            "lasagna_scale": int, "tracks_file": str,
+           # Where spiral-fitter-v1@0.4.1 finds grown, unverified track-graph
+           # patches: one directory directly under the dataset root, with no
+           # upstream default to fall back to (adapter.py's
+           # DEFAULT_UNVERIFIED_PATCHES_DIR is empty on purpose -- see the
+           # spiral-fit lane's own note below). Also the grow-track-patches
+           # lane's own --unverified-patches-dir, so the two name the same
+           # thing the same way rather than each inventing a parameter for it.
+           "unverified_patches_dir": str,
            # Two fits differing only in this are the only error bar this
            # geometry has; upstream accepts it as a config key, so it costs an
-           # override rather than a source rewrite.
+           # override rather than a source rewrite. Reused, not duplicated,
+           # by the grow-track-patches lane below for its own --random-seed
+           # (which random-count draw a run repeats): both are "the seed that
+           # makes an otherwise-random choice reproducible."
            "random_seed": int,
-           "run_tag": str, "artifact_store": str, "dry_run": bool},
+           "run_tag": str, "artifact_store": str, "dry_run": bool,
+           # grow-track-patches's own choice of which tracks to grow from:
+           # explicit rows, or how many random ones. Exactly one is required
+           # on that lane, checked in validate_parameters rather than here --
+           # PHASE_REQUIRED is phase-wide and the spiral-fit lane needs
+           # neither.
+           "seeds": list, "random_count": int},
     # Both take a bounded batch. Neither takes a path: what they read comes from
     # the control plane, and where they publish is the fleet's artifact store.
     "P2": {"limit": int, "sample": str, "surface_id": str, "dry_run": bool},
@@ -213,7 +233,8 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "source_slice_um": float, "model_family": str,
            "source_pixel_um": float, "depth_center": int, "stride": int,
            "model_config": str,
-           "batch_size": int, "num_workers": int, "min_valid_ratio": float,
+           "batch_size": int, "num_workers": int, "layer_start": int,
+           "layer_end": int, "min_valid_ratio": float,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -281,7 +302,10 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "spiral_outward_sense": {
         "label": "Winding direction", "placeholder": "CW",
         "note": "which way the scroll winds outward, CW or CCW. A property of "
-                "the scroll rather than a setting; the wrong one fits backwards"},
+                "the scroll rather than a setting; the wrong one fits backwards. "
+                "Written into the fitter's own spiral-scroll.json as CW or ACW: "
+                "upstream renamed its half of this word, this platform's did not, "
+                "and CCW is translated to ACW at that one boundary"},
     "lasagna_volume_name": {
         "label": "Lasagna volumes", "placeholder": "las_008_{array}.ome.zarr",
         "note": "one name under lasagna_inputs/, carrying {array} for nx, ny "
@@ -301,13 +325,34 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
         "label": "Tracks file", "placeholder": "2um_ds2_ps256_surf_v2.dbm",
         "note": "the .dbm under tracks/ the fit reads; upstream carries one "
                 "alternative in a comment beside the constant"},
+    "unverified_patches_dir": {
+        "label": "Grown patches directory", "placeholder": "unverified_patches",
+        "note": "one directory directly under the dataset root holding grown, "
+                "unverified track-graph patches (grow-track-patches's own "
+                "output). Left empty, spiral-fitter-v1@0.4.1 fits with no "
+                "patches loaded at all -- silently, not as a refusal -- "
+                "because upstream has no default directory for this the way "
+                "it has for tracks or lasagna. Also grow-track-patches's own "
+                "choice of where it writes"},
+    "seeds": {
+        "label": "Seed track rows", "placeholder": "[1024, 2048]",
+        "note": "grow-track-patches: explicit track rows to grow, one patch "
+                "per row. Exactly one of this or Random patch count is "
+                "required"},
+    "random_count": {
+        "label": "Random patch count", "placeholder": "10",
+        "note": "grow-track-patches: grow this many patches from random "
+                "unused long tracks instead of naming seeds explicitly. "
+                "Exactly one of this or Seed track rows is required"},
     "random_seed": {
         "label": "Seed", "placeholder": "1",
-        "note": "two fits of one target differing only in this are the only "
-                "error bar this geometry has: the fit publishes no uncertainty "
-                "and its paper reports no run-to-run variability. Leave it empty "
-                "for upstream's own, and queue a second job with another to get "
-                "a pair"},
+        "note": "spiral-fit: two fits of one target differing only in this are "
+                "the only error bar this geometry has: the fit publishes no "
+                "uncertainty and its paper reports no run-to-run variability. "
+                "Leave it empty for upstream's own, and queue a second job "
+                "with another to get a pair. grow-track-patches: which "
+                "random draw of unused long tracks Random patch count picks; "
+                "unused there without Random patch count"},
     "run_tag": {"label": "Run label",
                 "note": "upstream's own tag for this fit, carried into its "
                         "checkpoints and diagnostics"},
@@ -484,6 +529,12 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "num_workers": {"label": "DataLoader workers",
                     "note": "processes reading tiles ahead of the model; left empty the "
                             "runner's own default (4) applies"},
+    "layer_start": {"label": "Layer window start",
+                    "note": "give this with layer_end, never alone; left empty the "
+                            "profile's own pinned window (or the whole stack) applies"},
+    "layer_end": {"label": "Layer window end",
+                  "note": "give this with layer_start, never alone; left empty the "
+                          "profile's own pinned window (or the whole stack) applies"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -561,6 +612,8 @@ for _control_field in CONTROL_BINDING_PARAMETERS:
 # Where the queue needs one of two names and not both. "required" cannot say it:
 # neither is required and exactly one must be there.
 EXACTLY_ONE_OF: dict[str, tuple[dict[str, Any], ...]] = {
+    "P1": ({"lane": "grow-track-patches",
+            "names": ("seeds", "random_count")},),
     "P4": ({"lane": "vc-render-tifxyz",
             "names": ("segmentation", "flattened_surface")},),
     # Three ways of naming one input: a layer stack on disk, a published P4 job
@@ -683,8 +736,14 @@ PHASE_REQUIRED: dict[str, tuple[str, ...]] = {
     # wrong one is visibly wrong rather than quietly so. The other five have
     # none on purpose: defaulting them to Scroll 1's values would let a
     # forgotten field fit the wrong scroll under the right name.
-    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um",
-           "artifact_store"),
+    #
+    # artifact_store is not among them: it is server-owned (SERVER_OWNED_PARAMETERS
+    # below), filled from server_parameters before this table is ever consulted.
+    # Listing it here told a caller who read this table to send it, and the
+    # enqueue that reads SERVER_OWNED_PARAMETERS refused exactly that as
+    # smuggled -- required and forbidden, from two tables that never checked
+    # each other.
+    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um"),
     "P2": (),
     # Flattening publishes, and a sheet published nowhere is a sheet the next
     # phase cannot read -- the same way a surface on a worker's disk was.
@@ -895,7 +954,25 @@ def validate_parameters(parameters: dict[str, Any], phase: str = "P5", *,
     unknown = set(parameters) - set(allowed)
     if unknown:
         raise JobRejected(f"unknown parameters for {phase}: {sorted(unknown)}")
-    missing = [k for k in PHASE_REQUIRED[phase] if parameters.get(k) in (None, "")]
+    # PHASE_REQUIRED is phase-wide, which was exact as long as P1 had one
+    # lane. grow-track-patches shares the phase but needs none of spiral-fit's
+    # six -- it grows patches from an already-staged dataset, not a scroll
+    # binding -- so a job naming a lane other than spiral-fit is checked
+    # against that lane's own `required` instead of the flat tuple (an
+    # unregistered lane name checks against nothing here and is refused a few
+    # lines below instead, by the pre-existing generic "lane-local
+    # requirements" block's own lane_for() call -- that check already runs
+    # for every phase but P4 and reports the better message, "unknown P1
+    # lane", for this exact case). Every other phase is unaffected: this only
+    # ever reads a lane other than the phase's own PHASE_REQUIRED for P1's
+    # second lane.
+    required_here = PHASE_REQUIRED[phase]
+    if phase == "P1":
+        lane_id = str(parameters.get("lane") or next(iter(PHASE_LANES.get("P1", {})), ""))
+        if lane_id and lane_id != "spiral-fit":
+            lane_spec = PHASE_LANES.get("P1", {}).get(lane_id)
+            required_here = lane_spec.get("required", ()) if lane_spec else ()
+    missing = [k for k in required_here if parameters.get(k) in (None, "")]
     if missing:
         raise JobRejected(f"missing required parameters for {phase}: {missing}")
 
@@ -949,6 +1026,15 @@ def validate_parameters(parameters: dict[str, Any], phase: str = "P5", *,
                 raise JobRejected(
                     f"z_end ({clean['z_end']}) must be above z_begin "
                     f"({clean['z_begin']}); an empty slab fits nothing")
+        if clean.get("lane") == "grow-track-patches":
+            named = [k for k in ("seeds", "random_count") if clean.get(k) not in (None, "")]
+            if len(named) != 1:
+                raise JobRejected(
+                    "grow-track-patches needs exactly one of seeds or "
+                    "random_count: growing nothing and growing an explicit "
+                    "list plus a random quota are both requests this lane "
+                    "refuses to guess between"
+                    + (f"; got {named}" if named else ""))
     if phase == "P7":
         named = [k for k in ("map_path", "screening_of") if clean.get(k) not in (None, "")]
         if len(named) != 1:
@@ -1370,7 +1456,14 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   # from an S3 stream into a local one -- exposed anyway
                   # because the runner already accepts it and a caller on a
                   # host with more cores has no other way to ask for more.
-                  "num_workers": "--num-workers"},
+                  "num_workers": "--num-workers",
+                  # Both null by default -- upstream reads the whole stack.
+                  # A band-position experiment (top/center/bottom thirds) had
+                  # to be built as three separate on-disk layer directories
+                  # before this existed, because the profile pins one window
+                  # and nothing could ask for another per job.
+                  "layer_start": "--layer-start",
+                  "layer_end": "--layer-end"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"
@@ -1759,19 +1852,83 @@ register_lane("P1", "spiral-fit", {
     "runner": PHASE_RUNNERS["P1"],
     "image": "helena-villa-python",
     "gpu_required": True,
-    "profiles": ("spiral-fitter-v1@0.3.0",),
+    # 0.4.0 (patches disabled, the minimal route) and 0.4.1 (patches on,
+    # reading spiral-fitter-v1@0.4.1's own unverified_patches_dir) are
+    # siblings for an A/B comparison, not a supersession -- neither profile
+    # names the other as superseded_by, and both stay selectable here.
+    "profiles": ("spiral-fitter-v1@0.4.0", "spiral-fitter-v1@0.4.1"),
+    # Not artifact_store: server-owned, so a form that shows this list as
+    # what a caller must fill in must not name it -- see PHASE_REQUIRED["P1"],
+    # which this restates rather than replaces: "build": "legacy" below means
+    # declarative_argv (and its own `required` check) never runs for this
+    # lane, so PHASE_REQUIRED["P1"] is what actually enforces this list in
+    # validate_parameters. Kept here too so a lane-aware reader (and the
+    # panel's own schema endpoint) does not have to know that.
     "required": ("scroll_name", "dataset_path", "z_begin", "z_end",
-                 "voxel_size_um", "artifact_store"),
+                 "voxel_size_um"),
     # Named, so the worker collects it. A lane that writes a receipt and does
     # not declare its name has that receipt silently dropped.
     "receipt": "SPIRAL_FIT_RECEIPT.json",
     "build": "legacy",
     "note": ("Fits one global spiral through tracks, point collections and a "
-             "lasagna normal field, and writes one TIFXYZ per winding. Those "
-             "enter P2's certification gate exactly as a grown surface does. "
-             "The scroll is selected by rewriting the six module constants "
-             "upstream assigns at import; the receipt carries the digest of "
-             "the script before and after."),
+             "lasagna normal field, then exports one combined, flattened "
+             "TIFXYZ from the fitted checkpoint. That surface enters P2's "
+             "certification gate exactly as a grown one does. The scroll is "
+             "selected by writing spiral-scroll.json, the manifest that "
+             "replaced upstream's six import-time constants at 23adee04; the "
+             "receipt carries its digest."),
+})
+
+# grow-track-patches: a way onto 0.4.1's own unverified_patches_dir for a
+# scroll villa's published verified_patches cannot cover (they are
+# PHercParis4's own examples). Registered as its own P1 lane rather than
+# folded into stage_spiral_dataset.py -- unlike that stager's fetch-and-verify
+# jobs, this is real compute over the whole track graph with its own tunable
+# growth parameters and a --seeds/--random-count choice per run, the same
+# shape of decision spiral-fit's own scroll binding is, not a download.
+#
+# `image` is the fitter's own for the same reason spiral-fit needs it:
+# convert_track_store.py, build_track_crossings.py and grow_track_graph.py are
+# siblings of fit_spiral.py in the one image that carries spiral-fitting/.
+# `gpu_required` is explicitly False -- verified by reading every import in
+# all three scripts and the two tracks.py functions they call: no torch op,
+# no cuda, no subprocess to a compiled VC3D binary. See
+# run_grow_track_patches.py's own module docstring for the citation trail.
+register_lane("P1", "grow-track-patches", {
+    "name": "Track-graph patch growth, headless",
+    "runner": "framework/stages/01-segmentation/scripts/run_grow_track_patches.py",
+    "image": "helena-villa-python",
+    "gpu_required": False,
+    "profiles": ("grow-track-patches-v1@0.1.0",),
+    "required": ("dataset_path",),
+    # mission_id/requested_by_job_id are not here: declarative_argv only ever
+    # sees `parameters`, never the job row those two live on (unlike the P1
+    # legacy branch above, which reads job.get("mission_id") directly), and
+    # neither is a PHASE_PARAMETERS["P1"] key a request could smuggle one in
+    # as. run_grow_track_patches.py's own --mission-id/--requested-by-job-id
+    # flags exist for direct/test invocation; the queue does not reach them
+    # yet -- said here rather than silently, since a receipt this lane writes
+    # from the queue will carry both as null.
+    "flags": {
+        "dataset_path": "--dataset-path",
+        "tracks_file": "--tracks-file",
+        "unverified_patches_dir": "--unverified-patches-dir",
+        "seeds": "--seeds-json",
+        "random_count": "--random-count",
+        "random_seed": "--random-seed",
+        "dry_run": "--dry-run",
+    },
+    "json_flags": ("seeds",),
+    "output_flag": "--out",
+    "receipt": "GROW_TRACK_PATCHES_RECEIPT.json",
+    "note": ("Grows patches from an already-staged scroll's track graph "
+             "(tracks/{tracks_file}), through upstream's own headless "
+             "convert_track_store.py -> build_track_crossings.py -> "
+             "grow_track_graph.py chain, and writes them into the dataset's "
+             "own unverified_patches_dir so a spiral-fitter-v1@0.4.1 run "
+             "naming the same directory finds them without a copy step. "
+             "Not registered as a surface: a grown patch is an input to a "
+             "future fit, not a certified artifact of its own."),
 })
 
 # P8's alternative, and the proof the table is the route rather than decoration:
@@ -1915,6 +2072,7 @@ def command_for(job: dict[str, Any], *, runner: str, output_dir: str,
                            ("normal_zarr_group", "--normal-zarr-group"),
                            ("lasagna_scale", "--lasagna-scale"),
                            ("tracks_file", "--tracks-file"),
+                           ("unverified_patches_dir", "--unverified-patches-dir"),
                            ("random_seed", "--random-seed")):
             # `is not None`, not truthiness. Seed 0 and scale 0 are values a
             # caller can mean, and dropping them sent the run with upstream's
@@ -2557,6 +2715,19 @@ class InkJobStore:
                 "scope. Create a mission and queue into that.")
         if phase == "P5" and not profile_id:
             raise JobRejected("P5 jobs must name a profile_id")
+        if phase == "P5":
+            # ink_adapter raises only when the profile it found declares
+            # something the queue already knows cannot run -- unroutable, no
+            # adapter and no checkpoint, or an adapter nobody taught the
+            # queue. A profile this host cannot find at all is not one of
+            # those: it falls back to the default adapter silently, exactly
+            # as it does when a worker resolves it later, so a genuine
+            # deployment skew still fails where it runs rather than on a
+            # guess made here. What this catches is the job-shape mismatch
+            # that used to cost a claimed lease before failing -- ink-3d-dino
+            # among them, whose own adapter declares it takes a patch
+            # manifest, not a job the queue can build one for.
+            ink_adapter(profile_id)
         supplied = dict(server_parameters or {})
         clean = validate_parameters({**parameters, **supplied}, phase,
                                     server_owned=supplied)
@@ -2638,7 +2809,8 @@ class InkJobStore:
     def claim(self, *, worker_id: str, host_id: str, lease_seconds: int = 3600,
               phases: Sequence[str] | None = None,
               has_gpu: bool = True, gpu_vram_gb: float = 1e9,
-              runtime: str | None = None) -> dict | None:
+              runtime: str | None = None,
+              gpu_visible: bool | None = None) -> dict | None:
         """Take one pending job, or return None. Expired leases are recycled first.
 
         `phases` is what this worker can actually run. Without it every worker
@@ -2656,6 +2828,16 @@ class InkJobStore:
         this one only looked like it did. The defaults are permissive because
         every caller today is a GPU host, and a default that silently claimed
         nothing would be a worse failure than the one being fixed.
+
+        `gpu_visible` is a separate fact from `has_gpu`: it is not read by this
+        query at all, and it does not filter anything here -- it is only
+        written onto the worker's own row, below, so the fleet page can show
+        it. helena-ink-0 lost its container's GPU passthrough silently and kept
+        polling for five hours: `has_gpu` was computed correctly and used to
+        stop it claiming P5 work, and every bit of that was invisible, because
+        nothing this call wrote ever said a card had gone missing. `None` means
+        the caller has never claimed a GPU at all -- a CPU-only ink worker, if
+        one exists, has nothing here to report.
 
         `runtime` is which image this worker is, and it is the same filter one
         column over. Three lanes need an image their claiming worker may not be
@@ -2710,17 +2892,24 @@ class InkJobStore:
             # Written on every poll, claimed or not, because "this worker is
             # alive and looking" is the fact the fleet page could not state.
             # An idle worker and a blocked one showed the same thing, and the
-            # blocked ones were blocked for eighteen hours.
+            # blocked ones were blocked for eighteen hours. gpu_visible rides
+            # the same heartbeat for the same reason: a worker whose card had
+            # gone silent showed the same POLLING row as a healthy one, for
+            # five hours, because nothing this statement wrote said anything
+            # about a GPU at all.
             cursor.execute(
                 """INSERT INTO ink_workers
-                       (worker_id, host_id, runtime, last_poll_at, phases)
-                   VALUES (%s, %s, %s, now(), %s)
+                       (worker_id, host_id, runtime, last_poll_at, phases,
+                        gpu_visible)
+                   VALUES (%s, %s, %s, now(), %s, %s)
                    ON CONFLICT (worker_id) DO UPDATE
                       SET host_id = EXCLUDED.host_id,
                           runtime = EXCLUDED.runtime,
                           phases = EXCLUDED.phases,
-                          last_poll_at = now()""",
-                (worker_id, host_id, runtime, list(phases) if phases else []),
+                          last_poll_at = now(),
+                          gpu_visible = EXCLUDED.gpu_visible""",
+                (worker_id, host_id, runtime, list(phases) if phases else [],
+                 gpu_visible),
             )
 
             cursor.execute(
@@ -3335,13 +3524,20 @@ class InkJobStore:
         `state` is the distinction the fleet page could not draw: a worker with
         nothing to claim and a worker that cannot claim looked identical, and
         `docker ps` said "Up" for both.
+
+        `gpu_visible` is the other distinction it could not draw: `state` alone
+        says a worker is POLLING whether or not its GPU is still there, because
+        the claim loop keeps running on a card that has gone silent -- that was
+        exactly helena-ink-0 for five hours. `True`/`False` is a worker that
+        claims a GPU and currently can, or cannot, reach it; `None` is a worker
+        that has never claimed one at all and has nothing here to report.
         """
         threshold = int(silent_after or self.WORKER_SILENT_SECONDS)
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """SELECT worker_id, host_id, runtime, phases,
                           last_poll_at, last_claim_at,
-                          EXTRACT(EPOCH FROM (now() - last_poll_at))
+                          EXTRACT(EPOCH FROM (now() - last_poll_at)), gpu_visible
                      FROM ink_workers ORDER BY worker_id""")
             return [{
                 "worker_id": worker_id, "host_id": host_id, "runtime": runtime,
@@ -3350,8 +3546,9 @@ class InkJobStore:
                 "last_claim_at": last_claim.isoformat() if last_claim else None,
                 "seconds_since_poll": round(float(since), 1),
                 "state": "POLLING" if float(since) <= threshold else "SILENT",
+                "gpu_visible": gpu_visible,
             } for (worker_id, host_id, runtime, phases, last_poll, last_claim,
-                   since) in cursor.fetchall()]
+                   since, gpu_visible) in cursor.fetchall()]
 
     SELF_REGISTERED_NOTE = ("registered by its own report; add an ssh target "
                             "under Configuration -> Hosts to provision it from "

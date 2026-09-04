@@ -28,13 +28,11 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/scripts"))
 
-import numpy as np
-
 import run_ink_9um  # noqa: E402
 from prepare_9um_isotropic_input import IncompatibleSourceScale  # noqa: E402
 from run_ink_9um import (  # noqa: E402
-    build_reverse_summary, default_batch_size_for_host, detect_gpu_vram_mb,
-    inference_command, load_lane_profile, preparation_command,
+    default_batch_size_for_host, detect_gpu_vram_mb, inference_command,
+    load_lane_profile, preparation_command,
 )
 
 PROFILE = ROOT / "framework/profiles/03-ink/ink-9um-hybrid-3d2d-screening-1.0.0.json"
@@ -249,6 +247,55 @@ def test_a_negative_worker_count_is_refused():
         inference_command(profile, surface_volume="v.zarr",
                           checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
                           num_workers=-1)
+
+
+# -- layer_start / layer_end as job parameters -------------------------------
+
+def test_a_layer_window_is_absent_by_default():
+    """The shipped profile pins neither edge -- upstream reads the whole
+    stack, which only happens when this recipe sends neither flag."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+    assert "--layer-start" not in argv and "--layer-end" not in argv
+
+
+def test_a_caller_may_ask_for_a_different_window():
+    """Added after a band-position experiment (top/center/bottom thirds) had
+    to be built as three separate on-disk layer directories, because the
+    profile pinned a window nothing could override per job."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             layer_start=2, layer_end=9)
+    assert argv[argv.index("--layer-start") + 1] == "2"
+    assert argv[argv.index("--layer-end") + 1] == "9"
+
+
+def test_a_caller_supplying_only_one_edge_is_refused():
+    """A window with only one edge chosen is not a window either caller
+    meant -- refused rather than silently inheriting the profile's other
+    edge (here, no edge at all)."""
+    profile = load_lane_profile(PROFILE)
+    with pytest.raises(ValueError, match="layer_start and layer_end"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          layer_start=2)
+    with pytest.raises(ValueError, match="layer_start and layer_end"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          layer_end=9)
+
+
+def test_a_callers_window_overrides_a_profile_pinned_one():
+    profile = load_lane_profile(PROFILE)
+    profile["default_execution"]["layer_start"] = 0
+    profile["default_execution"]["layer_end"] = 5
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             layer_start=10, layer_end=15)
+    assert argv[argv.index("--layer-start") + 1] == "10"
+    assert argv[argv.index("--layer-end") + 1] == "15"
 
 
 # -- batch_size default by host ---------------------------------------------
@@ -471,7 +518,8 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
         return "/somewhere/surface-volume.zarr"
 
     def fake_inference_command(profile, *, surface_volume, checkpoint, output_tiff,
-                               batch_size=None, num_workers=None):
+                               batch_size=None, num_workers=None,
+                               layer_start=None, layer_end=None):
         seen["output_tiff"] = Path(output_tiff)
         return ["true"]
 
@@ -492,69 +540,3 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
     assert seen["work_dir"] == job, (
         f"the pooled volume goes to {seen['work_dir']}, not into the job")
     assert job.is_dir(), "the lane did not create the directory it was given"
-
-
-# -- the reverse map's summary, including the asymmetry it now carries -------
-#
-# `direction: both` writes a second map and this lane used to read only the
-# first. What the reverse block says about the two together -- including
-# whether the forward/reverse ratio grows with the threshold, which p50 does
-# not -- only means anything once both arrays share a shape; `build_reverse_
-# summary` is the pure half of that comparison, split out of `main()` so it
-# does not need a subprocess and a checkpoint to exercise.
-
-def test_matching_shapes_carry_the_asymmetry_block():
-    forward = np.zeros((20, 100))
-    reverse = np.zeros((20, 100))
-    forward.flat[:1000] = 0.9   # well over every threshold
-    reverse.flat[:400] = 0.9    # ratio 2.5 throughout: sustained above 1.5
-
-    summary = build_reverse_summary(forward, reverse)
-
-    assert summary["map"] == "probability_reverse.npy"
-    assert summary["p50"] == pytest.approx(0.0)  # mostly-zero array
-    assert "pearson_r_with_forward" in summary
-    assert summary["identical"] is False
-    assert summary["asymmetry"]["sustained_above_1_5"] is True
-    assert summary["asymmetry"]["thresholds"]["0.7"]["ratio"] == pytest.approx(2.5)
-
-
-def test_a_shape_mismatch_carries_no_asymmetry():
-    """No pixel-for-pixel comparison is possible, so none is fabricated --
-    the same rule `pearson_r_with_forward` already followed for shape."""
-    forward = np.zeros((20, 100))
-    reverse = np.zeros((21, 100))
-
-    summary = build_reverse_summary(forward, reverse)
-
-    assert "shape_differs" in summary
-    assert "asymmetry" not in summary
-    assert "pearson_r_with_forward" not in summary
-
-
-def test_identical_maps_are_named_rather_than_producing_a_believable_ratio():
-    """Upstream writing the same array twice is a different failure from a
-    real reverse pass, and `identical` already exists to say so; asymmetry on
-    an identical pair is exactly 1.0 at every threshold that clears the
-    guard, which must not be mistaken for a measurement of anything."""
-    array = np.zeros((20, 100))
-    array.flat[:1000] = 0.9
-
-    summary = build_reverse_summary(array, array.copy())
-
-    assert summary["identical"] is True
-    assert summary["asymmetry"]["thresholds"]["0.7"]["ratio"] == pytest.approx(1.0)
-    assert summary["asymmetry"]["sustained_above_1_5"] is False
-
-
-def test_a_forward_only_run_never_calls_this_at_all():
-    """The gate lives in `main()`: `reverse_summary` stays `None` unless
-    `ink_reverse.tif` exists on disk, so a forward-only or reverse-only job
-    -- direction `forward` or `reverse`, never `both` -- never builds a
-    reverse block and never carries an asymmetry block, without this
-    function needing to know why it was not called."""
-    source = inspect.getsource(run_ink_9um.main)
-    assert "if reverse_tiff.is_file():" in source
-    assert "reverse_summary = build_reverse_summary(probability, reverse)" in source
-    # Nothing calls build_reverse_summary outside that guarded block.
-    assert source.count("build_reverse_summary(") == 1

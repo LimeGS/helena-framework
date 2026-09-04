@@ -1,0 +1,150 @@
+{
+  "schema": "campaignx.segmentation_backend_profile.v4",
+  "profile_id": "spiral-fitter-v1@0.4.1",
+  "name": "Spiral fitter, global winding fit, with track-graph patches",
+  "stage": "01-segmentation",
+  "status": "SELECTABLE_NOT_DEFAULT",
+  "sibling_of": "spiral-fitter-v1@0.4.0",
+  "backend": "spiral",
+  "adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py",
+  "entrypoint": "spiral-fitting/fit_spiral.py",
+  "export_entrypoint": "spiral-fitting/flatten_spiral_checkpoint.py",
+  "runner": "framework/stages/01-segmentation/scripts/run_spiral_fit.py",
+  "runtime_image": "helena-villa-python",
+  "source": {
+    "repository": "https://github.com/ScrollPrize/villa.git",
+    "commit": "23adee047dea06526151d3a152a7d85de8da478b",
+    "note": "The same pin as spiral-fitter-v1@0.4.0. Nothing about this profile changes which commit runs; it changes which of that commit's own config keys are set."
+  },
+  "config_overrides": {
+    "input_disable_patches": false,
+    "input_use_verified_patches": false,
+    "input_use_tracks": true,
+    "input_use_outer_shell": false,
+    "dense_spacing_mode": "grad_mag"
+  },
+  "scroll_spec": {
+    "mechanism": "framework/stages/01-segmentation/backends/spiral/adapter.py: write_scroll_spec",
+    "filename": "spiral-scroll.json",
+    "schema_version": 1,
+    "how": "Unchanged from 0.4.0: the scroll's name, voxel size and winding sense are spiral-scroll.json fields, written fresh into this run's own output directory and read back before the fit starts. This profile changes what the adapter is asked to write into `paths`, not the mechanism -- see dataset_layout below for the new `unverified_patches` override this profile relies on.",
+    "cw_ccw_note": "Unchanged from 0.4.0 -- see that profile or adapter.py's module docstring for the CW/CCW -> CW/ACW decision.",
+    "z_range_note": "Unchanged from 0.4.0: z_begin/z_end ride FIT_SPIRAL_CONFIG_OVERRIDES, not the manifest.",
+    "defaults": {
+      "spiral_outward_sense": "CW"
+    },
+    "defaults_note": "Unchanged from 0.4.0.",
+    "refuses": [
+      "a scroll name that is empty, a voxel size that is not positive, a winding sense outside CW and CCW",
+      "z_end at or below z_begin",
+      "a written manifest that does not read back as what was asked for",
+      "a dataset layout this platform cannot resolve to a path override -- see dataset_layout below"
+    ]
+  },
+  "environment": {
+    "controllable": [
+      "FIT_SPIRAL_OUT_DIR",
+      "FIT_SPIRAL_RUN_DIR",
+      "FIT_SPIRAL_CACHE_DIR",
+      "FIT_SPIRAL_RUN_TAG",
+      "FIT_SPIRAL_CONFIG_OVERRIDES"
+    ],
+    "wandb_mode": "disabled",
+    "wandb_note": "Unchanged from 0.4.0.",
+    "distributed_note": "Unchanged from 0.4.0."
+  },
+  "outputs": {
+    "surface": "Unchanged from 0.4.0: one combined, flattened TIFXYZ per fit.",
+    "checkpoint_export": {
+      "note": "Unchanged from 0.4.0.",
+      "also": ["checkpoints", "diagnostics"]
+    },
+    "registration_note": "Unchanged from 0.4.0."
+  },
+  "notes": {
+    "why_this_profile_exists": "The research team proved the minimal route (0.4.0, input_disable_patches: true) cannot land its output surface on the actual sheet of papyrus by construction: upstream's own build_seed_rays_from_meshes docstring (villa/vesuvius/neural_tracing/winding_models/infer_winding_volume.py) says the raw spiral surface is spliced with verified-patch geometry specifically because the raw fit alone 'can sit a winding or more away from the sheet.' A physical CT-intensity gate measured this platform's patch-less fits landing on the sheet in 0-8% of tiles, against 57% for a correctly-placed community segment. Without patches there is nothing to splice with. This profile makes the patches-on route runnable so the two can actually be A/B compared -- it is not a claim that patches help: a villa contributor (pmh47, 2026-08-24) reported track-graph patches specifically as 'currently strangely unhelpful in the spiral (despite being very high-quality patches in themselves),' and this platform has not measured that either way yet.",
+    "config_overrides": "Verified directly against spiral-fitting/config.py's Config defaults and spiral-fitting/fit_session.py's FIT_INPUT_CATALOG at the pinned commit (23adee04), the same way 0.4.0's own notes were verified -- not against the tutorial, and not by flipping one flag and assuming the rest follows.\n\ninput_disable_patches: false is the one flag this profile exists to flip. What that alone changes, read from fit_session.input_source_enabled: `enabled = bool(config.get(input_use_KIND_patches, True)) and not bool(config.get('input_disable_patches', False))`. With patches no longer force-disabled, both input_use_verified_patches and input_use_unverified_patches revert to their own Config defaults, which are both True (config.py lines 389-390) -- upstream's default is patches ON, and 0.3.0/0.4.0's disable_patches/input_disable_patches override was the deliberate opt-out. Flipping only this one key, with everything else left at default, would therefore make verified_patches load-bearing:\n\nFIT_INPUT_CATALOG's own entry is `FitInputSpec('verified_patches', 'directory', conventional_relative='verified_patches', enabled=_verified_patches_enabled, required=_verified_patches_enabled)` -- required equals enabled here, unlike every other optional input in the catalog. fit_spiral.py's own loader (`_load_patches_from_dir`, called from FitContext.__init__) does `os.listdir(path)` on `verified_patches_path` whenever `use_verified_patches` is true, which raises FileNotFoundError on a directory that is not there -- not the friendlier 'No patches could be loaded' RuntimeError, which only fires when the directory exists and is empty. This platform holds no human-verified, winding-annotated patch set for any of its target scrolls (the published verified_patches upstream ships are for PHercParis4, ineligible here, which is the whole reason grow-track-patches exists) -- so leaving input_use_verified_patches at its True default would make this profile crash on every dataset it can currently run against. input_use_verified_patches: false is therefore not optional tuning: without it this profile does not run.\n\nWith verified_patches off, its two downstream couplings both go inert, both confirmed by reading fit_session.py directly rather than assumed: (1) abs_winding.json's PCL role is ABSOLUTE, and `pcl_input_enabled` gates ABSOLUTE on `input_source_enabled(config, 'verified_patches')` -- so abs_winding.json still has no effect under this profile, for a different reason than under 0.4.0 (there it was inert because input_disable_patches was true; here it is inert because input_use_verified_patches is false, even though input_disable_patches is now false). (2) `_shell_losses_enabled`/`_outer_shell_required` do not depend on verified_patches at all -- outer_shell stays not_applicable_under_this_profile for the same reason it is under 0.4.0, input_use_outer_shell: false, carried forward unchanged.\n\nunverified_patches is the profile's actual patch source, left at its True default (input_use_unverified_patches is not overridden -- upstream's own default is already what this profile needs) but its FIT_INPUT_CATALOG entry (`FitInputSpec('unverified_patches', 'directory', enabled=_unverified_patches_enabled)`, no conventional_relative, required left at the catalog's default of _never) carries no dataset-relative default at all: fit_session.conventional_input_paths resolves it as `spec.path_override('unverified_patches')` and nothing else -- there is no fallback path the way verified_patches, fibers or outer_shell have one. Confirmed the adapter had no way to write that override at all: SCROLL_SPEC_PATH_OVERRIDE_KEYS (adapter.py) mirrored only 10 of upstream's 12 SCROLL_SPEC_PATH_OVERRIDE_KEYS entries, missing exactly verified_patches and unverified_patches -- harmless while every profile ran with patches disabled, load-bearing here. Fixed alongside this profile (adapter.py, and a new opt-in `unverified_patches_dir` dataset_layout key, empty by default so 0.4.0's own written spiral-scroll.json is byte-for-byte unchanged). This profile therefore also requires a per-run --unverified-patches-dir (or the dataset's own staged layout naming one) to actually consult any patches; without it unverified_patches resolves to no override, self.unverified_patches_path is None, use_unverified_patches is False, and the fit runs exactly as if patches were still off -- silently, with no error. See non_claims.\n\ninput_use_tracks, input_use_outer_shell and dense_spacing_mode are carried forward from 0.4.0 unchanged, for the same reasons 0.4.0's own notes give: input_use_tracks defaults False upstream and this platform's staged datasets have a tracks/ directory to read; input_use_outer_shell and dense_spacing_mode default to True/'winding_model' upstream, which would newly require outer_shell/ and winding_inference/ directories this platform does not stage.\n\nEvery other key -- all ~120 remaining Config entries, including every patch-loss weight (loss_weight_patch_radius, loss_weight_patch_dt, loss_weight_unverified_patch_radius, loss_weight_unverified_patch_dt and their _within/_margin/_norm_p siblings) and every patch-sampling count (sample_count_patches_per_step, sample_count_unverified_patches_per_step, etc.) -- is left at upstream's own default, frozen for comparability rather than tuned, exactly as 0.4.0 does for its own 116.",
+    "gpu": "Required. Unchanged from 0.4.0 -- this is the same fit and export pipeline with a different patch configuration, not a different runtime.",
+    "status": "SELECTABLE_NOT_DEFAULT, and deliberately a sibling of 0.4.0 rather than its successor: no `supersedes`/`superseded_by` link exists between them. They exist to be compared, not to replace one another -- see non_claims.",
+    "inputs": "Same FIT_INPUT_CATALOG, same pinned commit, different resolved required set: see inputs below and notes.config_overrides above for the full derivation."
+  },
+  "non_claims": [
+    "this profile is not a claim that patches help. It exists to make the A/B measurable, not to predict its outcome -- a villa contributor separately reported track-graph patches as 'currently strangely unhelpful in the spiral' on the same kind of geometry this platform would feed it, and this platform has not measured either direction yet",
+    "spiral-fitter-v1@0.4.1 is a sibling of 0.4.0, not its successor: both stay independently selectable and runnable, and neither profile's fit is a lesser or corrected version of the other's",
+    "unverified_patches here are grown by framework/stages/01-segmentation/scripts/run_grow_track_patches.py's graph-topological growth over the track graph, not reviewed by a person -- calling them 'verified' would be wrong twice over: nothing here reviews them, and this profile deliberately routes them through the input this codebase's own fit treats as unverified (masked against trusted geometry, never required, no absolute-winding coupling)",
+    "a fitted spiral is not physical-QC acceptance, not ink, and not text; it is geometry and enters the same certification gate as any other surface",
+    "no comparison against spiral-fitter-v1@0.4.0 or vc3d-m7-seed-grow has been run on this corpus; this profile makes the comparison possible and records nothing about which is better",
+    "the required_inputs are the paths the script reads at the pinned commit under this profile's config_overrides, not a claim that Campaign X currently holds them for any scroll -- unverified_patches in particular requires framework/stages/01-segmentation/scripts/run_grow_track_patches.py to have already run against the same scroll and the same --unverified-patches-dir this run names",
+    "running without abs_winding.json is not a lesser fit of the same thing: without absolute winding annotations a surface cannot be said to be the nth turn of the scroll from the fit alone. Unchanged from 0.4.0, and abs_winding.json is inert under this profile for a different reason (input_use_verified_patches: false rather than input_disable_patches: true) -- see notes.config_overrides",
+    "one exported surface per fit is not one surface per winding: it is upstream's own combined reconstruction across a range of windings"
+  ],
+  "inputs": {
+    "note": "Split by what an absence costs, read from spiral-fitting/fit_session.py's FIT_INPUT_CATALOG at the pinned commit under THIS profile's config_overrides -- not 0.4.0's, and not the tutorial's. The one input whose required-ness this profile actually changes from 0.4.0 is unverified_patches (not_applicable there, optional-but-load-bearing here); everything else in this section either carries over unchanged or moves for the reasons notes.config_overrides traces in full.",
+    "required": [
+      {
+        "path": "umbilicus.json",
+        "why": "Unchanged from 0.4.0: the scroll's axis; every coordinate the fit works in is relative to it."
+      },
+      {
+        "path": "tracks/{tracks_file}",
+        "why": "Unchanged from 0.4.0: load_tracks_from_dbm opens it with dbm.open, and this profile's input_use_tracks override re-enables tracks. Also the input framework/stages/01-segmentation/scripts/run_grow_track_patches.py reads to grow patches in the first place, so a dataset missing it cannot supply unverified_patches either."
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:nx}",
+        "why": "Unchanged from 0.4.0: prepare_lasagna_volume runs unconditionally when input_use_normals is enabled (upstream's default, not overridden here)."
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:ny}",
+        "why": "Unchanged from 0.4.0."
+      },
+      {
+        "path": "lasagna_inputs/{lasagna_volume_name:grad_mag}",
+        "why": "Unchanged from 0.4.0: required by this profile's dense_spacing_mode='grad_mag' override."
+      }
+    ],
+    "optional": [
+      {
+        "path": "{unverified_patches_dir}",
+        "absence_costs": "the whole reason this profile exists over 0.4.0: without it (or without --unverified-patches-dir naming where it is), unverified_patches has no path override, self.unverified_patches_path is None, use_unverified_patches is False, and the fit runs exactly as 0.4.0 would -- silently, not as a refusal. Not listed as required because upstream's own FIT_INPUT_CATALOG never requires unverified_patches (required=_never, unlike verified_patches) even when it is enabled; this platform's own runner and job parameters are what make naming it a deliberate, per-run choice rather than an accident of a missing flag -- see run_spiral_fit.py's --unverified-patches-dir and the receipt it writes either way."
+      },
+      {
+        "path": "patch-overlap-pcls.json",
+        "absence_costs": "Unchanged from 0.4.0: fewer point collections constraining the fit."
+      },
+      {
+        "path": "relative_windings.json",
+        "absence_costs": "Unchanged from 0.4.0."
+      },
+      {
+        "path": "same_windings.json",
+        "absence_costs": "Unchanged from 0.4.0."
+      },
+      {
+        "path": "fibers",
+        "absence_costs": "Unchanged from 0.4.0."
+      }
+    ],
+    "not_applicable_under_this_profile": [
+      "verified_patches (input_use_verified_patches: false -- see notes.config_overrides for why this is required, not merely unused, under this profile)",
+      "abs_winding.json (gated on verified_patches being enabled; false here for a different reason than 0.4.0's input_disable_patches, same inert result)",
+      "outer_shell (input_use_outer_shell: false, unchanged from 0.4.0)",
+      "surf_sdt, winding_inference (dense_spacing_mode: 'grad_mag', unchanged from 0.4.0)",
+      "fiber_directions (loss_weight_fiber_directions defaults to 0.0, unchanged from 0.4.0)"
+    ]
+  },
+  "dataset_layout": {
+    "mechanism": "framework/stages/01-segmentation/backends/spiral/adapter.py: validate_layout, scroll_spec_document",
+    "how": "Unchanged from 0.4.0 for lasagna_volume_name/normal_zarr_group/lasagna_scale/tracks_file -- see that profile for the mechanism. This profile adds a fifth, unrelated layout key: unverified_patches_dir, which names one directory directly under the dataset root (default upstream: none at all -- see notes.config_overrides) and becomes a `paths.unverified_patches` override in spiral-scroll.json whenever it is non-empty.",
+    "selectable": {
+      "lasagna_volume_name": {"default": "las_008_{array}.ome.zarr", "note": "Unchanged from 0.4.0."},
+      "normal_zarr_group": {"default": "4", "note": "Unchanged from 0.4.0."},
+      "lasagna_scale": {"default": 4, "note": "Unchanged from 0.4.0."},
+      "tracks_file": {"default": "2um_ds2_ps256_surf_v2.dbm", "note": "Unchanged from 0.4.0. Also the input framework/stages/01-segmentation/scripts/run_grow_track_patches.py reads by default."},
+      "unverified_patches_dir": {
+        "default": "",
+        "note": "Empty means not asked for: no path override is written, and this profile then behaves like 0.4.0 with input_use_verified_patches also off -- a patches-enabled profile that fits with no patches loaded at all, silently. A run against this profile should name --unverified-patches-dir explicitly (the grow-track-patches lane's own default is 'unverified_patches'); the adapter does not invent one, for the same reason tracks_file and lasagna_volume_name are not invented -- upstream has no default of its own for this key to reproduce."
+      }
+    },
+    "defaults_are_upstreams": false
+  }
+}

@@ -69,15 +69,9 @@ export default function RunDetail() {
               <output>{threshold.toFixed(3)}</output>
               <div className="ticks">
                 {marks.map((m) => (
-                  // p50 reads "floor": measured directly, it does not move
-                  // between a real stack and the same stack with its layers
-                  // shuffled, while p99 does.
-                  <i key={m.k} style={{ left: `${m.v * 100}%` }}
-                     title={m.k === "p50"
-                       ? "a floor, not a signal — see p99 here and asymmetry on Maps"
-                       : undefined}>
+                  <i key={m.k} style={{ left: `${m.v * 100}%` }}>
                     <span>
-                      {m.k === "p50" ? "floor" : m.k} {m.v.toFixed(3)}
+                      {m.k} {m.v.toFixed(3)}
                     </span>
                   </i>
                 ))}

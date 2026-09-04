@@ -11,7 +11,7 @@ const Row = memo(function Row({ r }: { r: Run }) {
       </td>
       <td className="l">{r.sample_id}</td>
       <td className="l wrap">{r.lane_id}</td>
-      {(["p90", "p99", "max", "p50"] as const).map((k) => (
+      {(["p50", "p90", "p99", "max"] as const).map((k) => (
         <td key={k}>
           <Num v={r.stats[k]} />
         </td>
@@ -57,17 +57,10 @@ export default function Runs() {
               <th className="l grow">Run</th>
               <th className="l">Scroll</th>
               <th className="l">Lane</th>
+              <th>p50</th>
               <th>p90</th>
               <th>p99</th>
               <th>max</th>
-              {/* Not a peer of p90/p99/max: measured directly, shuffling a
-                  confirmed control's layer order left this number unchanged
-                  while p99 separated cleanly. Still useful as a floor -- a
-                  high p50 is the signature of an input outside the lane's
-                  training domain -- and nothing more. */}
-              <th title="a floor, not a signal: shuffling a confirmed control's layer order left p50 unchanged while p99 and max separated cleanly. See p90/p99/max above.">
-                p50 (floor)
-              </th>
               <th className="l">Normalization</th>
               <th className="l">Contract</th>
               <th className="l">Liveness</th>

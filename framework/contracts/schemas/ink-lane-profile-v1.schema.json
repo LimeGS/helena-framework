@@ -40,6 +40,7 @@
     "input_contract": {"type": "object", "additionalProperties": true},
     "output_contract": {"type": "object", "additionalProperties": true},
     "default_execution": {"type": "object", "additionalProperties": true},
+    "notes": {"type": "object", "additionalProperties": true},
     "safety": {
       "type": "object",
       "additionalProperties": false,
@@ -51,7 +52,8 @@
       "properties": {
         "screening_only": {"const": true},
         "requires_campaign_control": {"const": true},
-        "silence_proves_absence": {"const": false}
+        "silence_proves_absence": {"const": false},
+        "non_claims": {"type": "array", "items": {"type": "string"}}
       }
     }
   }
