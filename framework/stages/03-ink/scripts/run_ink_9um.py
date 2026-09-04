@@ -363,7 +363,9 @@ def default_batch_size_for_host(profile: dict[str, Any]) -> int:
 def inference_command(profile: dict[str, Any], *, surface_volume: str,
                       checkpoint: Path, output_tiff: Path,
                       batch_size: int | None = None,
-                      num_workers: int | None = None) -> list[str]:
+                      num_workers: int | None = None,
+                      layer_start: int | None = None,
+                      layer_end: int | None = None) -> list[str]:
     """The exact argv, so the receipt can carry it and a run can be repeated.
 
     ``input_zarr``, ``checkpoint`` and ``output_tiff`` are positional in
@@ -384,8 +386,17 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     setting once HELENA_INK_9UM_ZARR_CACHE turns the workers' own read from an
     S3 stream into a local one they can outrun the model with.
 
+    ``layer_start``/``layer_end`` override the profile's own pinned window
+    (default_execution.layer_start/layer_end, both null by default -- upstream
+    reads the whole stack). A caller who names one names both: a job asking
+    for one edge of the window and inheriting the other from the profile is
+    not a window anyone chose, and this lane refuses to guess the missing
+    edge. Added after a band-position experiment (top/center/bottom thirds of
+    a stack) had to be built as three separate on-disk layer directories,
+    because the profile pinned a window nothing could override per job.
+
     Neither is a change to overlap, blend mode or direction: nothing has
-    measured what changing those costs, and this stays the two knobs that do.
+    measured what changing those costs, and this stays the four knobs that do.
     """
     execution = profile["default_execution"]
     direction = execution["direction"]
@@ -419,13 +430,23 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     # it off.
     if execution.get("compile") is False:
         argv.append("--no-compile")
-    # Only when the profile pins one. These models are sensitive to z offset
+    # A caller's window wins whole, not edge by edge -- see the docstring.
+    if layer_start is not None or layer_end is not None:
+        if layer_start is None or layer_end is None:
+            raise ValueError(
+                "layer_start and layer_end must be given together: a window "
+                "with only one edge chosen is not a window either caller meant")
+        resolved_layer_start, resolved_layer_end = int(layer_start), int(layer_end)
+    else:
+        resolved_layer_start = execution.get("layer_start")
+        resolved_layer_end = execution.get("layer_end")
+    # Only when pinned or asked for. These models are sensitive to z offset
     # and upstream defaults both bounds to None; a window chosen here would be
     # a setting no receipt records and no second run reproduces.
-    if execution.get("layer_start") is not None:
-        argv.extend(["--layer-start", str(int(execution["layer_start"]))])
-    if execution.get("layer_end") is not None:
-        argv.extend(["--layer-end", str(int(execution["layer_end"]))])
+    if resolved_layer_start is not None:
+        argv.extend(["--layer-start", str(int(resolved_layer_start))])
+    if resolved_layer_end is not None:
+        argv.extend(["--layer-end", str(int(resolved_layer_end))])
     return argv
 
 
@@ -448,6 +469,12 @@ def main() -> int:
                     help="override upstream's own DataLoader worker count "
                          "(default 4); worth raising once the input is cached "
                          "locally and the workers are no longer S3-bound")
+    ap.add_argument("--layer-start", type=int, default=None,
+                    help="override the profile's default_execution.layer_start "
+                         "-- must be given with --layer-end, never alone")
+    ap.add_argument("--layer-end", type=int, default=None,
+                    help="override the profile's default_execution.layer_end "
+                         "-- must be given with --layer-start, never alone")
     ap.add_argument("--output", type=Path, required=True,
                     help="the job's directory: the map, the pooled volume and "
                          "the receipt are all written inside it")
@@ -484,7 +511,9 @@ def main() -> int:
                              checkpoint=args.checkpoint,
                              output_tiff=output_tiff,
                              batch_size=args.batch_size,
-                             num_workers=args.num_workers)
+                             num_workers=args.num_workers,
+                             layer_start=args.layer_start,
+                             layer_end=args.layer_end)
     if args.print_command:
         print(json.dumps(argv))
         return 0
