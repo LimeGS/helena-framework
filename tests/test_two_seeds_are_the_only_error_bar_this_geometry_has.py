@@ -223,20 +223,37 @@ def test_a_real_pair_is_not_caught_by_that_guard(tmp_path):
 def test_the_seed_key_is_read_from_the_commit_that_will_run(tmp_path):
     """Naming one in a profile pins the profile to a commit range nobody wrote
     down, and the wrong name is a KeyError today and a silent identical pair the
-    day that validation is loosened."""
+    day that validation is loosened.
+
+    At 23adee04 the seed lives on spiral-fitting/config.py's Config class,
+    read by importing it directly rather than parsing a default_config dict
+    out of fit_spiral.py's AST -- config.py does no dataset I/O, so importing
+    it is as cheap as parsing was."""
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation/backends/spiral"))
     import adapter
 
-    pinned = ROOT / "vendor/villa/volume-cartographer/scripts/spiral/fit_spiral.py"
-    if pinned.is_file():
-        assert adapter.seed_key(pinned) == "random_seed"
+    pinned = ROOT / "vendor/villa/spiral-fitting"
+    if (pinned / "config.py").is_file():
+        assert adapter.seed_key(pinned) == "optimizer_random_seed"
 
-    later = tmp_path / "fit_spiral.py"
-    later.write_text("default_config = {'optimizer_random_seed': 1}\n")
+    later = tmp_path / "later"
+    later.mkdir()
+    (later / "config.py").write_text(
+        "class Config:\n"
+        "    def __init__(self, overrides=None):\n"
+        "        self.optimizer_random_seed = 1\n"
+        "    def as_dict(self):\n"
+        "        return vars(self).copy()\n")
     assert adapter.seed_key(later) == "optimizer_random_seed"
 
-    neither = tmp_path / "other.py"
-    neither.write_text("default_config = {'disable_patches': False}\n")
+    neither = tmp_path / "neither"
+    neither.mkdir()
+    (neither / "config.py").write_text(
+        "class Config:\n"
+        "    def __init__(self, overrides=None):\n"
+        "        self.input_disable_patches = False\n"
+        "    def as_dict(self):\n"
+        "        return vars(self).copy()\n")
     with pytest.raises(adapter.UnknownOverrideKey, match="named something else"):
         adapter.seed_key(neither)
 

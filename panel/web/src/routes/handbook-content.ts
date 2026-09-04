@@ -2955,7 +2955,7 @@ export const HANDBOOK: Page[] = [
       },
       {
        "kind": "code",
-       "text": "spiral-fitter-v1@0.3.0"
+       "text": "spiral-fitter-v1@0.4.0"
       },
       {
        "kind": "text",
@@ -3348,7 +3348,7 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them with "
+      "text": "A fit produces one combined, flattened TIFXYZ spanning a range of windings, exported from the fitted checkpoint, and it becomes a surface. Certify it with "
      },
      {
       "kind": "strong",
@@ -5505,7 +5505,7 @@ export const HANDBOOK: Page[] = [
   "section": "20-phases",
   "sectionTitle": "The phases",
   "title": "P1 — Segmentation",
-  "summary": "Recover papyrus as geometry, in TIFXYZ — a seeded grow, or a global spiral fit, one mesh per winding.",
+  "summary": "Recover papyrus as geometry, in TIFXYZ — a seeded grow, or a global spiral fit exported as one combined, flattened mesh.",
   "outline": [
    {
     "id": "the-backends",
@@ -6584,7 +6584,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "code",
-        "text": "spiral-fitter-v1@0.3.0"
+        "text": "spiral-fitter-v1@0.4.0"
        },
        {
         "kind": "text",
@@ -6608,7 +6608,7 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "where the windings are published"
+        "text": "where the exported surface is published"
        }
       ]
      ],
@@ -6884,7 +6884,15 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "resolve the profile, bind the scroll, survey the dataset, rewrite and read back the fitter — and stop before the fit"
+        "text": "resolve the profile, bind the scroll, survey the dataset, write and read back "
+       },
+       {
+        "kind": "code",
+        "text": "spiral-scroll.json"
+       },
+       {
+        "kind": "text",
+        "text": " — and stop before the fit"
        }
       ]
      ]
@@ -6911,7 +6919,15 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "This is worth knowing because it is unusual. Upstream's "
+      "text": "This is worth knowing because it changed underneath this platform once already. Before commit "
+     },
+     {
+      "kind": "code",
+      "text": "23adee04"
+     },
+     {
+      "kind": "text",
+      "text": ", upstream's "
      },
      {
       "kind": "code",
@@ -6919,7 +6935,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " is a research script, not a tool: it has no argparse, and the scroll is chosen by six "
+      "text": " was a research script with no argparse, and the scroll was chosen by six "
      },
      {
       "kind": "strong",
@@ -6927,11 +6943,28 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " assigned at import — "
+      "text": " assigned at import. Helena rebound those by rewriting a private copy of the script and reading it back — a source rewrite, because that was the only interface there was."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "As of "
      },
      {
       "kind": "code",
-      "text": "dataset_path"
+      "text": "23adee04"
+     },
+     {
+      "kind": "text",
+      "text": " the fitter has a real three-flag CLI ("
+     },
+     {
+      "kind": "code",
+      "text": "--dataset"
      },
      {
       "kind": "text",
@@ -6939,7 +6972,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "scroll_name"
+      "text": "--scroll-spec"
      },
      {
       "kind": "text",
@@ -6947,27 +6980,44 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "code",
-      "text": "z_begin"
+      "text": "--cache"
      },
      {
       "kind": "text",
-      "text": ", "
+      "text": "), and the scroll's name, voxel size and winding sense live in a JSON manifest, "
      },
      {
       "kind": "code",
-      "text": "z_end"
+      "text": "spiral-scroll.json"
      },
      {
       "kind": "text",
-      "text": ", "
+      "text": ", at the dataset root (or wherever "
      },
      {
       "kind": "code",
-      "text": "voxel_size_um"
+      "text": "--scroll-spec"
      },
      {
       "kind": "text",
-      "text": ", "
+      "text": " points). Helena writes that manifest fresh for every run — into the run's own output directory, never into the shared staged dataset — and reads it back before the fit is allowed to start. There is nothing left to rewrite: selecting a scroll is a manifest write now, not a source rewrite, and the receipt's "
+     },
+     {
+      "kind": "code",
+      "text": "scroll_spec"
+     },
+     {
+      "kind": "text",
+      "text": " field carries the manifest and its digest."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "One deliberate translation happens at that boundary: upstream renamed "
      },
      {
       "kind": "code",
@@ -6975,7 +7025,55 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": ". None of them is one of the 105 keys its config accepts."
+      "text": "'s second value from "
+     },
+     {
+      "kind": "code",
+      "text": "CCW"
+     },
+     {
+      "kind": "text",
+      "text": " to "
+     },
+     {
+      "kind": "code",
+      "text": "ACW"
+     },
+     {
+      "kind": "text",
+      "text": " at this commit. Helena's own vocabulary did not follow — every job, profile and panel field still says "
+     },
+     {
+      "kind": "code",
+      "text": "CW"
+     },
+     {
+      "kind": "text",
+      "text": "/"
+     },
+     {
+      "kind": "code",
+      "text": "CCW"
+     },
+     {
+      "kind": "text",
+      "text": " — and "
+     },
+     {
+      "kind": "code",
+      "text": "CCW"
+     },
+     {
+      "kind": "text",
+      "text": " becomes "
+     },
+     {
+      "kind": "code",
+      "text": "ACW"
+     },
+     {
+      "kind": "text",
+      "text": " only in the manifest Helena writes for the fitter to read."
      }
     ]
    },
@@ -6983,25 +7081,36 @@ export const HANDBOOK: Page[] = [
     "kind": "p",
     "spans": [
      {
-      "kind": "text",
-      "text": "So Helena rebinds them: it stages a private copy of the script and rewrites "
-     },
-     {
-      "kind": "strong",
-      "text": "twelve"
+      "kind": "code",
+      "text": "z_begin"
      },
      {
       "kind": "text",
-      "text": " module-level assignments — the six scroll constants, the four dataset-path templates, and the two layout literals the lasagna shape check reads — reading each one back after the rewrite, and recording the digest of both the original and the result. Selecting a scroll is a source rewrite, and the receipt says exactly which source ran."
-     }
-    ]
-   },
-   {
-    "kind": "p",
-    "spans": [
+      "text": "/"
+     },
+     {
+      "kind": "code",
+      "text": "z_end"
+     },
      {
       "kind": "text",
-      "text": "Settings, as opposed to the scroll, go through the one interface the script does have — a JSON object whose keys are validated against upstream's own list before a GPU is claimed, rather than raising deep inside a run that has already paid for one. Those overrides come from the "
+      "text": ", the optimizer's seed, and everything upstream used to validate against a "
+     },
+     {
+      "kind": "code",
+      "text": "default_config"
+     },
+     {
+      "kind": "text",
+      "text": " dict now validate against upstream's "
+     },
+     {
+      "kind": "code",
+      "text": "Config"
+     },
+     {
+      "kind": "text",
+      "text": " class instead — around 120 keys where there used to be 105 — but the channel is the same one it always was: a JSON object of overrides, validated against upstream's own accepted keys before a GPU is claimed, rather than raising deep inside a run that has already paid for one. Those overrides come from the "
      },
      {
       "kind": "strong",
@@ -7063,6 +7172,16 @@ export const HANDBOOK: Page[] = [
       {
        "kind": "text",
        "text": "."
+      }
+     ],
+     [
+      {
+       "kind": "strong",
+       "text": "A dataset laid out for the old fitter still works."
+      },
+      {
+       "kind": "text",
+       "text": " The physical inputs (umbilicus, tracks, the three lasagna arrays) did not move; only the mechanism that names them to the fitter did."
       }
      ],
      [
@@ -7190,7 +7309,31 @@ export const HANDBOOK: Page[] = [
     "spans": [
      {
       "kind": "text",
-      "text": "One TIFXYZ per winding, each registered as a surface. That is what makes this a P1 backend at all: it produces the same artifact seeded growth does, so it enters the same certification gate rather than a parallel one."
+      "text": "As of "
+     },
+     {
+      "kind": "code",
+      "text": "23adee04"
+     },
+     {
+      "kind": "text",
+      "text": " the fit itself is checkpoint-centric: a successful run writes "
+     },
+     {
+      "kind": "code",
+      "text": "checkpoint_fitted.ckpt"
+     },
+     {
+      "kind": "text",
+      "text": " and stops there, it does not write a TIFXYZ directly. The runner's second step runs upstream's own "
+     },
+     {
+      "kind": "code",
+      "text": "flatten_spiral_checkpoint.py"
+     },
+     {
+      "kind": "text",
+      "text": " against that checkpoint, which reconstructs the combined spiral surface and flattens it through a private, ephemeral Lasagna service — producing one combined, flattened TIFXYZ spanning a range of windings, not one TIFXYZ per winding as before. That single surface is what gets registered. It is what makes this a P1 backend at all: it produces the same artifact seeded growth does, so it enters the same certification gate rather than a parallel one."
      }
     ]
    },

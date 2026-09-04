@@ -1699,7 +1699,7 @@ def fleet_status(samples: set[str] | None = None) -> dict:
 # The frozen profile a spiral fit runs against. Named once: the queue validates
 # a job's profile_id against the lane's list, and the Segmentation page tells a
 # reader which one to pick. Both have to be the same string.
-SPIRAL_PROFILE_ID = "spiral-fitter-v1@0.3.0"
+SPIRAL_PROFILE_ID = "spiral-fitter-v1@0.4.0"
 
 SEGMENTATION_BACKENDS = [
     {
@@ -1725,9 +1725,9 @@ SEGMENTATION_BACKENDS = [
     {
         "id": "spiral",
         "name": "Spiral fitter (global winding fit)",
-        "method_id": "spiral-fitter@0.1.0",
+        "method_id": "spiral-fitter@0.2.0",
         "binary": "fit_spiral.py",
-        "profile_schema": "campaignx.segmentation_backend_profile.v2",
+        "profile_schema": "campaignx.segmentation_backend_profile.v4",
         # Not adoptable *here*: this form plans a seeded grow and the fitter has
         # no seed. Runnable, and the note says where. Left in the list rather
         # than hidden because "can we run the method upstream recommends" is a
@@ -1737,8 +1737,9 @@ SEGMENTATION_BACKENDS = [
                       "profile_id": SPIRAL_PROFILE_ID},
         "note": "Upstream's recommended surface-recovery method, and a global "
                 "fit rather than a grow: it has no seed for this form to plan. "
-                "Queue it from Phases -> P1 -> Run. It writes one TIFXYZ per "
-                "winding and each is certified by P2 like any other surface.",
+                "Queue it from Phases -> P1 -> Run. It writes a checkpoint, "
+                "which the runner exports to one combined, flattened TIFXYZ "
+                "certified by P2 like any other surface.",
     },
     {
         "id": "thaumato",

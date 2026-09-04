@@ -132,15 +132,18 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
     # scroll, which slab of it, at what scale and which way the winding goes,
     # and those six are the whole decision.
     "P1": {"lane": str,
-           # The six upstream assigns at module level. They are parameters here
-           # because the rebind makes them so; see repin.py beside the adapter.
+           # The six Helena has always asked for. At the pinned commit they
+           # become spiral-scroll.json fields (name, voxel size, winding
+           # sense) and FIT_SPIRAL_CONFIG_OVERRIDES entries (z_begin, z_end);
+           # see adapter.py's module docstring for the mechanism.
            "scroll_name": str, "dataset_path": str,
            "z_begin": int, "z_end": int, "voxel_size_um": float,
            "spiral_outward_sense": str,
-           # Which lasagna scale and which tracks file the fit reads. Upstream
-           # writes both as f-strings over dataset_path, so they are part of the
-           # rebind rather than settings; they default to upstream's own values,
-           # which is why they are not required.
+           # Which lasagna volume set, at which zarr group and scale, and
+           # which tracks file the fit reads. Upstream resolves these at
+           # conventional paths under the dataset root unless spiral-scroll.json
+           # overrides them; they default to upstream's own values, which is
+           # why they are not required.
            "lasagna_volume_name": str, "normal_zarr_group": str,
            "lasagna_scale": int, "tracks_file": str,
            # Two fits differing only in this are the only error bar this
@@ -282,7 +285,10 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "spiral_outward_sense": {
         "label": "Winding direction", "placeholder": "CW",
         "note": "which way the scroll winds outward, CW or CCW. A property of "
-                "the scroll rather than a setting; the wrong one fits backwards"},
+                "the scroll rather than a setting; the wrong one fits backwards. "
+                "Written into the fitter's own spiral-scroll.json as CW or ACW: "
+                "upstream renamed its half of this word, this platform's did not, "
+                "and CCW is translated to ACW at that one boundary"},
     "lasagna_volume_name": {
         "label": "Lasagna volumes", "placeholder": "las_008_{array}.ome.zarr",
         "note": "one name under lasagna_inputs/, carrying {array} for nx, ny "
@@ -1779,7 +1785,7 @@ register_lane("P1", "spiral-fit", {
     "runner": PHASE_RUNNERS["P1"],
     "image": "helena-villa-python",
     "gpu_required": True,
-    "profiles": ("spiral-fitter-v1@0.3.0",),
+    "profiles": ("spiral-fitter-v1@0.4.0",),
     # Not artifact_store: server-owned, so a form that shows this list as
     # what a caller must fill in must not name it -- see PHASE_REQUIRED["P1"].
     "required": ("scroll_name", "dataset_path", "z_begin", "z_end",
@@ -1789,11 +1795,12 @@ register_lane("P1", "spiral-fit", {
     "receipt": "SPIRAL_FIT_RECEIPT.json",
     "build": "legacy",
     "note": ("Fits one global spiral through tracks, point collections and a "
-             "lasagna normal field, and writes one TIFXYZ per winding. Those "
-             "enter P2's certification gate exactly as a grown surface does. "
-             "The scroll is selected by rewriting the six module constants "
-             "upstream assigns at import; the receipt carries the digest of "
-             "the script before and after."),
+             "lasagna normal field, then exports one combined, flattened "
+             "TIFXYZ from the fitted checkpoint. That surface enters P2's "
+             "certification gate exactly as a grown one does. The scroll is "
+             "selected by writing spiral-scroll.json, the manifest that "
+             "replaced upstream's six import-time constants at 23adee04; the "
+             "receipt carries its digest."),
 })
 
 # P8's alternative, and the proof the table is the route rather than decoration:
