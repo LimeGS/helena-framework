@@ -1,12 +1,16 @@
-"""Two ways outside data reached further than it should, from an audit.
+"""Three ways outside data reached further than it should, from an audit.
 
-Both were in code written the same day, and neither had been reviewed. A
-third -- the spiral fitter's dataset-layout rewrite emitting an f-string a
-crafted `lasagna_volume_name` could put an expression inside -- was fixed the
-same way and is covered where the mechanism that used to make it possible now
-lives: see test_the_spiral_scroll_is_named_in_a_manifest_not_rebound_in_source.py.
-At 23adee04 that rewrite is gone entirely (the scroll's layout is JSON now,
-never source), so this file no longer carries a test for it.
+All three were in code written the same day, and none had been reviewed.
+
+**The rewrite emitted an f-string.** `rebind_layout` built each templated path
+by `.format()`-ing a caller value and wrapping the result as `f"{value!r}"`.
+`repr()` quotes a string; it does not neutralise braces that the surrounding `f`
+prefix then reads as expressions. `{{` and `}}` are escapes rather than fields,
+so they survived a validator that only looked for unresolved field names, and
+`.format()` turned them back into single braces. The emitted line ran arbitrary
+code at import, on a GPU worker, before any fitting started. The emitted form is
+a concatenation now, which has no interpolation context at all, and the value is
+refused before it gets there.
 
 **An S3 key was trusted as a path.** `os.path.relpath(key, source)` on a key
 from a public bucket returns `../..` segments happily, and joining that under
@@ -20,6 +24,7 @@ which is exactly the kind of thing that stops being true quietly.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -29,6 +34,70 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation/backends/spiral"))
 sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation/scripts"))
 sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation"))
+
+import repin  # noqa: E402
+
+PINNED = ROOT / "vendor/villa/volume-cartographer/scripts/spiral/fit_spiral.py"
+
+
+# -- the injection ---------------------------------------------------------
+
+@pytest.mark.parametrize("payload", [
+    # The auditor's own proof-of-concept, kept verbatim.
+    "las_{array}_{{__import__('os').system('id')}}",
+    "las_{array}_{{open('/tmp/x','w')}}",
+    "{array}}{",
+    "x{array}{oops}",
+    "las_{array}/../../etc",
+])
+def test_a_volume_name_that_could_carry_an_expression_is_refused(payload):
+    with pytest.raises(repin.ScrollNotRebindable):
+        repin.validate_layout({"lasagna_volume_name": payload})
+
+
+def test_a_tracks_name_carries_no_braces_either():
+    with pytest.raises(repin.ScrollNotRebindable, match="no braces"):
+        repin.validate_layout({"tracks_file": "{__import__('os')}.dbm"})
+
+
+def test_the_rewrite_emits_a_concatenation_and_never_an_f_string():
+    """The structural half of the fix, and the one that holds even if the
+    validator above is ever loosened: there is no interpolation context to
+    escape into, so an injected value is data inside a literal."""
+    import ast
+
+    if not PINNED.is_file():
+        pytest.skip("upstream fit_spiral.py is not vendored here")
+    rewritten = repin.rebind_layout(
+        PINNED.read_text(encoding="utf-8"),
+        {"lasagna_volume_name": "PHerc0826_{array}.ome.zarr",
+         "normal_zarr_group": "3"})
+
+    for statement in ast.parse(rewritten).body:
+        if not isinstance(statement, ast.Assign):
+            continue
+        for target in statement.targets:
+            if isinstance(target, ast.Name) and target.id in repin.TEMPLATE_CONSTANTS:
+                node = statement.value
+                assert isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add)
+                assert isinstance(node.left, ast.Name)
+                assert node.left.id == "dataset_path"
+                assert isinstance(node.right, ast.Constant)
+                assert not isinstance(node, ast.JoinedStr)
+
+
+def test_the_readback_checks_a_shape_and_not_a_substring():
+    """`wanted in unparse(node)` passes for a node that also carries something
+    else. The accepted shape is `dataset_path + <the exact literal>`, which
+    nothing but the intended rewrite produces."""
+    import ast
+
+    source = (ROOT / "framework/stages/01-segmentation/backends/spiral"
+              / "repin.py").read_text(encoding="utf-8")
+    assert "isinstance(node, _ast.BinOp)" in source
+    assert "node.right.value == wanted" in source
+    # And the emitter must not reintroduce the f-string it used to write.
+    assert 'f"f{' not in source and "f'f{" not in source
 
 
 # -- the key that was a path ----------------------------------------------

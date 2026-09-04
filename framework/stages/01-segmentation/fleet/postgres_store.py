@@ -3996,16 +3996,6 @@ class PostgresFleetStore:
         return binding
 
     def register_snapshot(self, payload: dict[str, Any]) -> str:
-        """Record where a scroll's CT lives, and its m7 prediction when it has one.
-
-        sample_id and ct_uri are the only two this ever required; a scroll with
-        a published m7 gets the rest along with it, from bootstrap_sources or
-        the control cohort, and a scroll with none -- a community mesh and
-        surface volume P4 and P5 read directly, nothing upstream of them -- gets
-        a source with m7_uri absent rather than no way to be named at all.
-        """
-        if not payload.get("sample_id") or not payload.get("ct_uri"):
-            raise ValueError("register_snapshot requires sample_id and ct_uri")
         identity = {
             key: payload.get(key)
             for key in (
@@ -4022,8 +4012,6 @@ class PostgresFleetStore:
         }
         source_id = str(payload.get("source_snapshot_id") or stable_id("source", identity))
         value = {**payload, "source_snapshot_id": source_id}
-        shape_xyz = payload.get("shape_xyz")
-        voxel_size_um = payload.get("voxel_size_um")
         with self.connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
@@ -4036,10 +4024,10 @@ class PostgresFleetStore:
                         payload["sample_id"],
                         payload["ct_uri"],
                         payload.get("ct_sha256"),
-                        payload.get("m7_uri"),
+                        payload["m7_uri"],
                         payload.get("m7_sha256"),
-                        json.dumps(shape_xyz) if shape_xyz is not None else None,
-                        float(voxel_size_um) if voxel_size_um is not None else None,
+                        json.dumps(payload["shape_xyz"]),
+                        float(payload["voxel_size_um"]),
                         payload.get("coordinate_frame", "ct_l0_xyz"),
                         json.dumps(value, sort_keys=True, separators=(",", ":")),
                     ),

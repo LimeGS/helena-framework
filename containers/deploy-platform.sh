@@ -685,27 +685,11 @@ postgres_image="${HELENA_POSTGRES_IMAGE:-postgres:16-alpine}"
 $D pull -q "$postgres_image" >/dev/null \
   || say "could not refresh $postgres_image; keeping the copy on this host"
 
-# The backup image is small, but "small" still means volume-cartographer's
-# base layer on a fresh host -- worth trying the public registry first for the
-# same reason the panel and both workers do.
-backup_pulled=false
-if [ -n "$HELENA_PUBLIC_REGISTRY" ]; then
-  public_backup_image="$HELENA_PUBLIC_REGISTRY/helena-backup:$(cat "$root/VERSION")"
-  say "pulling $public_backup_image"
-  if $D pull -q "$public_backup_image" >/dev/null 2>&1; then
-    $D tag "$public_backup_image" "helena-backup:local-$commit"
-    backup_pulled=true
-  else
-    say "could not pull it; building helena-backup:local-$commit from this checkout instead"
-  fi
-fi
-if [ "$backup_pulled" = false ]; then
-  # It carries this repo's own script, so building it is cheap regardless.
-  $D build -q --build-arg BASE_IMAGE=postgres:16-alpine --build-arg BUILD_COMMIT="$commit" \
-    -f "$root/containers/images/Containerfile.backup" -t "helena-backup:local-$commit" "$root" >/dev/null \
-    || { echo "the backup image failed to build" >&2; exit 5; }
-  say "built helena-backup:local-$commit"
-fi
+# The backup image is small and built here; it carries this repo's own script.
+$D build -q --build-arg BASE_IMAGE=postgres:16-alpine --build-arg BUILD_COMMIT="$commit" \
+  -f "$root/containers/images/Containerfile.backup" -t "helena-backup:local-$commit" "$root" >/dev/null \
+  || { echo "the backup image failed to build" >&2; exit 5; }
+say "built helena-backup:local-$commit"
 
 set_image platform.env HELENA_PANEL_IMAGE "$panel_image"
 set_image platform.env HELENA_BACKUP_IMAGE "helena-backup:local-$commit"

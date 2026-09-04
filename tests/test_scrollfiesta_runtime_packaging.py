@@ -62,7 +62,7 @@ def test_source_and_license_locks_are_exact_and_fail_closed() -> None:
     assert lock["scrollfiesta"]["commit"] == "f344c17931b9e264a17c8d760a4c478390133bd4"
     assert lock["scrollfiesta"]["native_version"] == "0.9.0"
     assert lock["scrollfiesta"]["python_version"] == "0.1.0"
-    assert lock["volume_cartographer"]["commit"] == "23adee047dea06526151d3a152a7d85de8da478b"
+    assert lock["volume_cartographer"]["commit"] == "05dcf0349356bc833670d61e5eca00be58376e35"
     assert lock["build_policy"]["forbidden_runtime_cli"] == ["grid_pipeline"]
     assert lock["build_policy"]["distribution"] == "INTERNAL_RESEARCH_ONLY"
 

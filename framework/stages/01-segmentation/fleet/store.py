@@ -398,15 +398,10 @@ CREATE TABLE IF NOT EXISTS source_snapshots (
   sample_id TEXT NOT NULL,
   ct_uri TEXT NOT NULL,
   ct_sha256 TEXT,
-  -- m7, its shape and its scale are all NULL-able: a source registered for a
-  -- scroll with no published m7 -- PHerc1667's community mesh and surface
-  -- volume, read by P4 and P5 directly -- has a CT and nothing else. P1 still
-  -- refuses without m7; this table just stops being the reason a CT alone
-  -- could not be named at all.
-  m7_uri TEXT,
+  m7_uri TEXT NOT NULL,
   m7_sha256 TEXT,
-  shape_xyz_json TEXT,
-  voxel_size_um REAL,
+  shape_xyz_json TEXT NOT NULL,
+  voxel_size_um REAL NOT NULL,
   coordinate_frame TEXT NOT NULL,
   payload_json TEXT NOT NULL,
   created_at TEXT NOT NULL
@@ -1463,72 +1458,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS preflight_jobs_one_live_per_request
 COMMIT;"""
         )
 
-    @staticmethod
-    def _migrate_source_snapshot_optional_m7(connection: sqlite3.Connection) -> None:
-        """Let a source_snapshots row name a CT and nothing else.
-
-        `CREATE TABLE IF NOT EXISTS` will not drop a NOT NULL from a table that
-        already exists, and SQLite cannot drop one in place, so a database made
-        before this keeps m7_uri, shape_xyz_json and voxel_size_um required --
-        register_snapshot() would raise on a fresh install and the schema would
-        reject the same row on a deployed one. The rows are copied as they are;
-        every one written so far had all three anyway.
-
-        Five tables carry `FOREIGN KEY(source_snapshot_id) REFERENCES
-        source_snapshots`, and `connect()` runs every session with
-        `PRAGMA foreign_keys = ON` -- so DROP TABLE here raised `FOREIGN KEY
-        constraint failed` against any database that had ever written a
-        surface, a preflight job or a probe promotion, which every deployment
-        this migration exists for has. Rebuilding a referenced table is
-        SQLite's own documented exception to leaving `foreign_keys` alone:
-        turn it off for this connection, do the rebuild inside one
-        transaction, and turn it back on before anything else runs on this
-        connection. `PRAGMA foreign_key_check` is deliberately not run here:
-        it is not scoped to this table, and this migration runs before
-        `_migrate_discovery_lifecycle_v18`, whose own job is catching drift
-        that predates either of them -- a global check here would report that
-        drift under this migration's name instead.
-        """
-        columns = {
-            str(row["name"]): row
-            for row in connection.execute("PRAGMA table_info(source_snapshots)")
-        }
-        m7_column = columns.get("m7_uri")
-        if m7_column is None or not m7_column["notnull"]:
-            return
-        # Off before the transaction: SQLite ignores a change to this pragma
-        # once one is open.
-        connection.execute("PRAGMA foreign_keys = OFF")
-        try:
-            connection.executescript(
-                """BEGIN IMMEDIATE;
-CREATE TABLE source_snapshots_upgrade (
-  source_snapshot_id TEXT PRIMARY KEY,
-  sample_id TEXT NOT NULL,
-  ct_uri TEXT NOT NULL,
-  ct_sha256 TEXT,
-  m7_uri TEXT,
-  m7_sha256 TEXT,
-  shape_xyz_json TEXT,
-  voxel_size_um REAL,
-  coordinate_frame TEXT NOT NULL,
-  payload_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-INSERT INTO source_snapshots_upgrade SELECT * FROM source_snapshots;
-DROP TABLE source_snapshots;
-ALTER TABLE source_snapshots_upgrade RENAME TO source_snapshots;
-CREATE INDEX IF NOT EXISTS source_snapshots_by_sample ON source_snapshots(sample_id);
-COMMIT;"""
-            )
-        finally:
-            connection.execute("PRAGMA foreign_keys = ON")
-
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as connection:
             connection.executescript(SQLITE_SCHEMA)
-            self._migrate_source_snapshot_optional_m7(connection)
             self._migrate_discovery_lifecycle_v18(connection)
             connection.executescript(SQLITE_DISCOVERY_BRIDGE_V19)
             self._migrate_discovery_import_cardinality_v19(connection)
@@ -6221,16 +6154,6 @@ COMMIT;"""
         return binding
 
     def register_snapshot(self, payload: dict[str, Any]) -> str:
-        """Record where a scroll's CT lives, and its m7 prediction when it has one.
-
-        sample_id and ct_uri are the only two this ever required; a scroll with
-        a published m7 gets the rest along with it, from bootstrap_sources or
-        the control cohort, and a scroll with none -- a community mesh and
-        surface volume P4 and P5 read directly, nothing upstream of them -- gets
-        a source with m7_uri absent rather than no way to be named at all.
-        """
-        if not payload.get("sample_id") or not payload.get("ct_uri"):
-            raise ValueError("register_snapshot requires sample_id and ct_uri")
         identity = {
             key: payload.get(key)
             for key in (
@@ -6247,18 +6170,11 @@ COMMIT;"""
         }
         source_id = str(payload.get("source_snapshot_id") or stable_id("source", identity))
         now = utc_now()
-        shape_xyz = payload.get("shape_xyz")
-        voxel_size_um = payload.get("voxel_size_um")
         with self.connect() as connection:
             connection.execute(
                 """INSERT INTO source_snapshots(source_snapshot_id,sample_id,ct_uri,ct_sha256,m7_uri,m7_sha256,shape_xyz_json,voxel_size_um,coordinate_frame,payload_json,created_at)
                    VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(source_snapshot_id) DO NOTHING""",
-                (source_id, payload["sample_id"], payload["ct_uri"], payload.get("ct_sha256"),
-                 payload.get("m7_uri"), payload.get("m7_sha256"),
-                 _dump(shape_xyz) if shape_xyz is not None else None,
-                 float(voxel_size_um) if voxel_size_um is not None else None,
-                 payload.get("coordinate_frame", "ct_l0_xyz"),
-                 _dump({**payload, "source_snapshot_id": source_id}), now),
+                (source_id, payload["sample_id"], payload["ct_uri"], payload.get("ct_sha256"), payload["m7_uri"], payload.get("m7_sha256"), _dump(payload["shape_xyz"]), float(payload["voxel_size_um"]), payload.get("coordinate_frame", "ct_l0_xyz"), _dump({**payload, "source_snapshot_id": source_id}), now),
             )
         return source_id
 

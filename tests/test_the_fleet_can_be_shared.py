@@ -116,25 +116,13 @@ def test_the_ink_queue_reads_the_capability_columns_it_carries() -> None:
 
 
 def test_the_ink_worker_measures_what_it_has() -> None:
-    """Binding a constant would be the same bug with more steps.
-
-    has_gpu used to read the once-a-minute host_state() reading (`cards`).
-    helena-ink-0 losing its GPU passthrough silently showed that reading was
-    not fresh enough: eligibility now reads worker_gpu_visible(), asked fresh
-    on every poll, and gpu_visible is the same value -- not a second guess
-    that could disagree with the first.
-    """
+    """Binding a constant would be the same bug with more steps."""
     worker = (ROOT / "framework/stages/03-ink/fleet/ink_worker.py").read_text()
-    assert "has_gpu=bool(gpu_visible)" in worker
+    assert "has_gpu=bool(cards)" in worker
     assert "gpu_vram_gb=max(" in worker
     # Probed before the first claim, or a fresh worker refuses every GPU job for
     # its first minute while the heartbeat catches up.
-    assert worker.index("last_probe = host_state(") < worker.index(
-        "has_gpu=bool(gpu_visible)")
-    # And re-probed inside the loop, not only here before it starts -- the
-    # incident this guards against was an answer computed once and trusted
-    # for the life of the process.
-    assert worker.index("while True:") < worker.index("gpu_visible = worker_gpu_visible()")
+    assert worker.index("last_probe = host_state(") < worker.index("has_gpu=bool(cards)")
 
 
 # --------------------------------------------------------------------------

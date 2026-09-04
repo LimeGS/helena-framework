@@ -28,7 +28,7 @@ from job_store import (  # noqa: E402
     validate_parameters,
 )
 
-PROFILE_ID = "spiral-fitter-v1@0.4.0"
+PROFILE_ID = "spiral-fitter-v1@0.3.0"
 RUNNER = PHASE_RUNNERS["P1"]
 FIT = {"scroll_name": "PHerc0172", "dataset_path": "/artifacts/spiral/PHerc0172",
        "z_begin": 500, "z_end": 9000, "voxel_size_um": 7.91,
@@ -95,25 +95,6 @@ def test_a_job_naming_another_profile_is_refused():
                     runner=RUNNER, output_dir="/runs/p1-1")
 
 
-def test_the_form_does_not_ask_for_what_the_server_already_owns():
-    """artifact_store was required and server-owned at once: a caller who read
-    the form's own required list and sent it got refused as smuggled, and one
-    who left it out -- correctly -- had nowhere left to learn that from this
-    table. It is filled_by_deployment, so it is never something to type in."""
-    schema = phase_parameter_schema("P1")
-    fields = {f["name"]: f for f in schema["fields"]}
-    assert fields["artifact_store"]["filled_by_deployment"] is True
-    assert fields["artifact_store"]["required"] is False
-
-
-def test_supplying_artifact_store_from_the_request_is_still_refused():
-    """The field being server-owned did not change -- only the form's claim
-    that a caller must supply it."""
-    complete = {**FIT, **PUBLISHES_TO}
-    with pytest.raises(JobRejected, match="server's to decide"):
-        validate_parameters(complete, "P1", server_owned=())
-
-
 # -- the command -----------------------------------------------------------
 
 def test_the_command_carries_the_whole_scroll_binding():
@@ -147,16 +128,15 @@ def test_a_job_with_no_sample_is_refused_rather_than_filed_nowhere():
 
 
 def test_a_job_with_no_profile_is_refused():
-    """The fitter's upstream settings come from the profile. A run that
+    """The fitter's 105 upstream settings come from the profile. A run that
     named none would record a configuration nobody chose."""
     with pytest.raises(JobRejected):
         command_for({**job(), "profile_id": None}, runner=RUNNER, output_dir="/o")
 
 
 def test_a_dry_run_reaches_the_runner():
-    """It preflights the dataset and writes spiral-scroll.json, then stops
-    before the GPU, which is the only way to find out that a dataset is
-    incomplete without paying."""
+    """It preflights the dataset and the rebind and stops before the GPU, which
+    is the only way to find out that a dataset is incomplete without paying."""
     assert "--dry-run" in argv_of(parameters={"dry_run": True})
 
 

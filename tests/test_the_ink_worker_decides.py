@@ -518,11 +518,9 @@ def test_a_silent_worker_is_not_an_idle_one():
         def fetchall(self):
             return [
                 ("gpu-1-ink0", "gpu-1", "helena-worker-gpu", ["P5"],
-                 now - timedelta(seconds=4), now - timedelta(seconds=90), 4.0,
-                 True),
+                 now - timedelta(seconds=4), now - timedelta(seconds=90), 4.0),
                 ("gpu-1-ink1", "gpu-1", "helena-worker-gpu", ["P5"],
-                 now - timedelta(hours=18), now - timedelta(hours=18), 64800.0,
-                 True),
+                 now - timedelta(hours=18), now - timedelta(hours=18), 64800.0),
             ]
 
     class Connection:
