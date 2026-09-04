@@ -619,19 +619,19 @@
       },
       "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
       "known_checkpoint_sha256": null,
-      "local_adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py",
-      "method_id": "spiral-fitter@0.2.0",
+      "local_adapter": "framework/stages/01-segmentation/backends/spiral/adapter.py with repin.py beside it",
+      "method_id": "spiral-fitter@0.1.0",
       "method_kind": "GLOBAL_WINDING_SPIRAL_FIT",
       "notes": [
         "Upstream calls it their most powerful surface-recovery method and now recommends it; the tutorial's own fallback when it fails in a difficult region is GrowPatch, which is what seed-grow already does.",
-        "At the pinned commit (23adee04) fit_spiral.py is a headless CLI over a service-oriented rewrite: three flags (--dataset, --scroll-spec, --cache), the scroll's identity read from a spiral-scroll.json manifest at the dataset root, and everything else -- around 120 keys, including the z range and the optimizer seed -- through FIT_SPIRAL_CONFIG_OVERRIDES, validated against upstream's Config class.",
-        "The scroll's name, voxel size and winding sense are no longer module constants assigned at import (that mechanism, and the AST rebind this adapter used to drive it, existed only at the previously pinned commit, 05dcf034). They are spiral-scroll.json fields; the adapter writes that manifest fresh for every run, atomically, and reads it back before the run is allowed to start. spiral_outward_sense is CW or ACW there; this platform keeps CW/CCW as its own public vocabulary and translates CCW to ACW at that one boundary.",
-        "The adapter imports upstream's lightweight config.py directly to get the accepted override keys, rather than parsing fit_spiral.py's own AST as before -- config.py does no dataset I/O, unlike fit_spiral.py, whose module level opens Zarr groups -- and rejects an unknown override before a GPU is claimed instead of after.",
-        "The fit itself is checkpoint-centric now: a run writes checkpoint_fitted.ckpt and stops. Getting a surface out of it is a second subprocess, upstream's own flatten_spiral_checkpoint.py, which reconstructs the combined spiral surface and flattens it through a private Lasagna service. Both subprocesses run from the P1 queue on the spiral-fit lane, through framework/stages/01-segmentation/scripts/run_spiral_fit.py, in helena-villa-python -- the image that carries spiral-fitting/ and lasagna/. helena-villa is compiled binaries and cannot run either; a worker in the wrong runtime refuses by name before the lease.",
-        "The exported surface is published to the fleet's artifact store and registered with import_surface, the same route a grown surface takes, so P2's geometry certification and the lamina gate apply unchanged. One fit now produces one surface (a combined, flattened range of windings), not one TIFXYZ per winding as at the previous pin."
+        "At the pinned commit fit_spiral.py is a research script, not a tool: no argparse, nine FIT_SPIRAL_* environment variables, and settings only through FIT_SPIRAL_CONFIG_OVERRIDES, whose 105 accepted keys upstream validates against its own default_config.",
+        "The scroll is not among those keys: dataset_path, scroll_name, z_begin/z_end, voxel_size_um and spiral_outward_sense are module-level constants assigned at import. It is selected here by rewriting those six assignments into a private copy of the script, located in the parse tree rather than by text, and read back before the run. The image keeps the bytes its source lock verified; the receipt carries the digest of the script before and after, and refuses the run if a constant is absent, shadowed or computed.",
+        "The adapter parses upstream's accepted keys out of the script with ast rather than importing it -- import executes module-level code that resolves dataset paths and opens Zarr groups -- and rejects an unknown override before a GPU is claimed instead of after.",
+        "Runs from the P1 queue on the spiral-fit lane, through framework/stages/01-segmentation/scripts/run_spiral_fit.py, in helena-villa-python -- the image that carries scripts/spiral and its Python dependencies. helena-villa is compiled binaries and cannot run it; a worker in the wrong runtime refuses by name before the lease.",
+        "Each fitted winding is published to the fleet's artifact store and registered with import_surface, the same route a grown surface takes, so P2's geometry certification and the lamina gate apply unchanged."
       ],
-      "recommended_policy": "Select per run against vc3d-m7-seed-grow, never as the default, until a frozen reference control compares the two on this corpus. Its exported TIFXYZ enters the same P2 certification gate as a grown surface, so the comparison is like for like. A scroll being selectable is not evidence the fit is good on it: upstream's validation is on their own example.",
-      "source_url": "https://github.com/ScrollPrize/villa/tree/main/spiral-fitting",
+      "recommended_policy": "Select per run against vc3d-m7-seed-grow, never as the default, until a frozen reference control compares the two on this corpus. Its per-winding TIFXYZ enters the same P2 certification gate as a grown surface, so the comparison is like for like. A scroll being selectable is not evidence the fit is good on it: upstream's validation is on their own example.",
+      "source_url": "https://github.com/ScrollPrize/villa/tree/main/volume-cartographer/scripts/spiral",
       "stage_id": "01-segmentation",
       "training_or_reference_domain": [
         "Herculaneum CT",
@@ -1052,35 +1052,6 @@
         "PHercParis4",
         "PHerc0814",
         "public 2.399 um volumes pooled to ~9.6 um isotropic, plus 5 native 9.362 um segments"
-      ],
-      "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
-    },
-    {
-      "input_contract": {
-        "input": "OME-Zarr surface volume at ~9 um isotropic",
-        "isotropic_required": true,
-        "model_family": "hybrid_3d2d",
-        "output": "uint8 tiled TIFF, converted to probability.npy",
-        "physical_resampling_required": false,
-        "training_pixel_um": 9.6
-      },
-      "integration_status": "RUNNABLE_EXPERIMENTAL_NOT_DEFAULT",
-      "known_checkpoint_sha256": "c387f9c4715d524cce921c34e059465f5ea769b45270b887dbbda85ae075ae96",
-      "local_adapter": "framework/stages/03-ink/scripts/run_ink_9um.py",
-      "method_id": "ink-9um-dense-native@1.0.0",
-      "method_kind": "HYBRID_3D_STEM_2D_UNET_INK",
-      "notes": [
-        "dense_native_016000, published by Erwin Nieuwlaar on 2026-08-26 (huggingface.co/Nieuwlaar/ink9um-dense-native, MIT, trained on public data only) as weights/dense_native_016000.safetensors, sha256 d3d95dc41dcb24ed76b84b5e12ca5dae25d7fb34edf1dfbb93e0186f91e6fc6d. Converted by loading that state_dict into the official .pth wrapper's 'model' key -- verified tensor for tensor against the official hybrid_3d2d architecture, 508 tensors, none missing, none extra -- and installed at /models/ink_9um/comunidad/dense_native_016000.pth, sha256 c387f9c4715d524cce921c34e059465f5ea769b45270b887dbbda85ae075ae96, which is what this entry names. Not one of the fourteen scrollprize/ink_9um checkpoints -- a community reentraining, registered by digest for the same reason those are.",
-        "Measured independently against the community-published letters for PHerc0139 w043 (top-1%-brightest overlap with the published letter mask, at 1.129 um resampled to the measurement grid): correlation 0.511, top-1% enrichment over random 21.50x -- ahead of every official checkpoint measured the same way (best single step 0.399/19.23x at s43-step020000, best 9-checkpoint ensemble 0.418/20.81x) and far above a shuffled-layer-order negative control (0.026/1.28x, i.e. random). A second community checkpoint from the same source, soup42_last4 (sha256 3700c378afb8d18fb2a50662a93707251ab9771ccf976ba3cd3d105dd0d27db4), measured worse (0.341/12.54x) and was not registered.",
-        "The measurement above was made outside this framework's own receipts, not through a campaign control run here -- the reason it is reported as why the checkpoint was pinned, and not treated as this lane's own control.",
-        "Same physical input contract, execution mechanics (overlap 0.5, hann blend, both directions) and BCE label-smoothing 0.25 no-ink floor as ink-9um-hybrid-3d2d@1.0.0: this checkpoint changes only the weights, verified by the tensor-for-tensor architecture match above."
-      ],
-      "recommended_policy": "Run through this recipe's own entrypoint, koine_machines.inference.infer, never the generic runner -- the same distinction that cost ink-canonical-2um a map correlating r=0.079 instead of r=0.885. Screening only, and not routed by default until a campaign control exists for it. A community checkpoint, measured independently rather than through this framework's own receipts -- select it deliberately, not as a silent replacement for an official one.",
-      "source_url": "https://huggingface.co/Nieuwlaar/ink9um-dense-native",
-      "stage_id": "03-ink",
-      "training_or_reference_domain": [
-        "PHerc0139",
-        "public data only (community reentraining)"
       ],
       "validation_status": "UPSTREAM_ONLY_NOT_LOCALLY_VALIDATED"
     }

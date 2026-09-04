@@ -55,7 +55,7 @@ import tifffile
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3].parent))
 from framework.contracts.lane_liveness import (  # noqa: E402
-    assess_liveness, refuse_if_not_alive,
+    assess_liveness, forward_reverse_asymmetry, refuse_if_not_alive,
 )
 
 from prepare_9um_isotropic_input import (  # noqa: E402
@@ -363,9 +363,7 @@ def default_batch_size_for_host(profile: dict[str, Any]) -> int:
 def inference_command(profile: dict[str, Any], *, surface_volume: str,
                       checkpoint: Path, output_tiff: Path,
                       batch_size: int | None = None,
-                      num_workers: int | None = None,
-                      layer_start: int | None = None,
-                      layer_end: int | None = None) -> list[str]:
+                      num_workers: int | None = None) -> list[str]:
     """The exact argv, so the receipt can carry it and a run can be repeated.
 
     ``input_zarr``, ``checkpoint`` and ``output_tiff`` are positional in
@@ -386,17 +384,8 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     setting once HELENA_INK_9UM_ZARR_CACHE turns the workers' own read from an
     S3 stream into a local one they can outrun the model with.
 
-    ``layer_start``/``layer_end`` override the profile's own pinned window
-    (default_execution.layer_start/layer_end, both null by default -- upstream
-    reads the whole stack). A caller who names one names both: a job asking
-    for one edge of the window and inheriting the other from the profile is
-    not a window anyone chose, and this lane refuses to guess the missing
-    edge. Added after a band-position experiment (top/center/bottom thirds of
-    a stack) had to be built as three separate on-disk layer directories,
-    because the profile pinned a window nothing could override per job.
-
     Neither is a change to overlap, blend mode or direction: nothing has
-    measured what changing those costs, and this stays the four knobs that do.
+    measured what changing those costs, and this stays the two knobs that do.
     """
     execution = profile["default_execution"]
     direction = execution["direction"]
@@ -430,24 +419,46 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     # it off.
     if execution.get("compile") is False:
         argv.append("--no-compile")
-    # A caller's window wins whole, not edge by edge -- see the docstring.
-    if layer_start is not None or layer_end is not None:
-        if layer_start is None or layer_end is None:
-            raise ValueError(
-                "layer_start and layer_end must be given together: a window "
-                "with only one edge chosen is not a window either caller meant")
-        resolved_layer_start, resolved_layer_end = int(layer_start), int(layer_end)
-    else:
-        resolved_layer_start = execution.get("layer_start")
-        resolved_layer_end = execution.get("layer_end")
-    # Only when pinned or asked for. These models are sensitive to z offset
+    # Only when the profile pins one. These models are sensitive to z offset
     # and upstream defaults both bounds to None; a window chosen here would be
     # a setting no receipt records and no second run reproduces.
-    if resolved_layer_start is not None:
-        argv.extend(["--layer-start", str(int(resolved_layer_start))])
-    if resolved_layer_end is not None:
-        argv.extend(["--layer-end", str(int(resolved_layer_end))])
+    if execution.get("layer_start") is not None:
+        argv.extend(["--layer-start", str(int(execution["layer_start"]))])
+    if execution.get("layer_end") is not None:
+        argv.extend(["--layer-end", str(int(execution["layer_end"]))])
     return argv
+
+
+def build_reverse_summary(probability: np.ndarray, reverse: np.ndarray) -> dict[str, Any]:
+    """Compare the forward map against the reverse `direction: both` also wrote.
+
+    Called only once the reverse array exists and has been loaded -- a
+    forward-only or reverse-only job never has a second array to compare
+    against, and this is simply never reached for one, so no receipt from
+    such a job carries any of what this returns.
+    """
+    summary: dict[str, Any] = {
+        "map": "probability_reverse.npy",
+        "p50": float(np.percentile(reverse, 50)),
+        "p99": float(np.percentile(reverse, 99)),
+    }
+    if reverse.shape == probability.shape:
+        forward_flat = probability.ravel().astype(np.float64)
+        reverse_flat = reverse.ravel().astype(np.float64)
+        if forward_flat.std() > 0 and reverse_flat.std() > 0:
+            summary["pearson_r_with_forward"] = float(
+                np.corrcoef(forward_flat, reverse_flat)[0, 1])
+        summary["identical"] = bool(np.array_equal(probability, reverse))
+        # freek_cool (villa, 2026-08-31): not the ratio at one threshold, but
+        # how it moves as the threshold rises. Measured against this lane's
+        # own control, PHerc0139 w043, the ratio grows 2.53 -> 3.36 -> 5.21
+        # across 0.5/0.6/0.7 on the real stack and falls -- 0.67, 0.56, 0.46
+        # -- once the stack's layers are shuffled. p99 and std can land in
+        # the alive range on both; this measurement does not.
+        summary["asymmetry"] = forward_reverse_asymmetry(probability, reverse)
+    else:
+        summary["shape_differs"] = [list(probability.shape), list(reverse.shape)]
+    return summary
 
 
 def main() -> int:
@@ -469,12 +480,6 @@ def main() -> int:
                     help="override upstream's own DataLoader worker count "
                          "(default 4); worth raising once the input is cached "
                          "locally and the workers are no longer S3-bound")
-    ap.add_argument("--layer-start", type=int, default=None,
-                    help="override the profile's default_execution.layer_start "
-                         "-- must be given with --layer-end, never alone")
-    ap.add_argument("--layer-end", type=int, default=None,
-                    help="override the profile's default_execution.layer_end "
-                         "-- must be given with --layer-start, never alone")
     ap.add_argument("--output", type=Path, required=True,
                     help="the job's directory: the map, the pooled volume and "
                          "the receipt are all written inside it")
@@ -511,9 +516,7 @@ def main() -> int:
                              checkpoint=args.checkpoint,
                              output_tiff=output_tiff,
                              batch_size=args.batch_size,
-                             num_workers=args.num_workers,
-                             layer_start=args.layer_start,
-                             layer_end=args.layer_end)
+                             num_workers=args.num_workers)
     if args.print_command:
         print(json.dumps(argv))
         return 0
@@ -589,22 +592,7 @@ def main() -> int:
     if reverse_tiff.is_file():
         reverse = read_map(reverse_tiff)
         np.save(directory / "probability_reverse.npy", reverse)
-        reverse_summary = {
-            "map": "probability_reverse.npy",
-            "p50": float(np.percentile(reverse, 50)),
-            "p99": float(np.percentile(reverse, 99)),
-        }
-        if reverse.shape == probability.shape:
-            forward_flat = probability.ravel().astype(np.float64)
-            reverse_flat = reverse.ravel().astype(np.float64)
-            if forward_flat.std() > 0 and reverse_flat.std() > 0:
-                reverse_summary["pearson_r_with_forward"] = float(
-                    np.corrcoef(forward_flat, reverse_flat)[0, 1])
-            reverse_summary["identical"] = bool(
-                np.array_equal(probability, reverse))
-        else:
-            reverse_summary["shape_differs"] = [list(probability.shape),
-                                                list(reverse.shape)]
+        reverse_summary = build_reverse_summary(probability, reverse)
 
     # No `valid` mask: unlike the tiled lanes this runner blends over the whole
     # plane, and `probability > 0` would silently drop the genuine no-ink floor
@@ -661,6 +649,10 @@ def main() -> int:
             "this recipe's no-ink floor is 0.25, not 0; a screen calibrated "
             "against a 0 floor is reading a different quantity",
             "the published map is raw: the model card's display rescale is not applied",
+            "statistics.p50 is a floor, not a detector: measured on the "
+            "control's own stack with its layers shuffled, p50 came out "
+            "identical to the real order while p99 and std separated "
+            "cleanly. See liveness.metrics and reverse.asymmetry.",
         ],
     }
     (directory / RECEIPT_NAME).write_text(

@@ -27,6 +27,34 @@ const DEGENERATE = {
   interpretation: "the map carries no decision. Do not screen this map.",
 };
 
+// The reference numbers from the control's own real-order run: the ratio
+// grows 2.53 -> 3.36 -> 5.21 as the threshold rises, and is sustained above
+// 1.5 at both 0.6 and 0.7.
+const ASYMMETRY_SUSTAINED = {
+  thresholds: {
+    "0.5": { forward_over_px: 12000, reverse_over_px: 4743, ratio: 2.53 },
+    "0.6": { forward_over_px: 9000, reverse_over_px: 2679, ratio: 3.36 },
+    "0.7": { forward_over_px: 5000, reverse_over_px: 960, ratio: 5.21 },
+  },
+  sustained_above_1_5: true,
+};
+
+// The 300-pixel guard, tripped at p0.7: a handful of reverse pixels would
+// otherwise read as the strongest ratio in the row.
+const ASYMMETRY_GUARDED = {
+  thresholds: {
+    "0.5": { forward_over_px: 12000, reverse_over_px: 4743, ratio: 2.53 },
+    "0.6": { forward_over_px: 9000, reverse_over_px: 2679, ratio: 3.36 },
+    "0.7": {
+      forward_over_px: 500, reverse_over_px: 96, ratio: null,
+      reason: "fewer than 300 px over 0.7 on reverse (500 forward, 96 reverse): "
+            + "a ratio built from a handful of pixels reads as a strong signal "
+            + "and is noise",
+    },
+  },
+  sustained_above_1_5: false,
+};
+
 const CANONICAL = {
   job_id: "p5-canonical", sample_id: "PHerc0172",
   surface_id: "surface:PHerc0172:0041",
@@ -38,6 +66,8 @@ const CANONICAL = {
   runtime_seconds: 214.6, liveness: ALIVE,
   statistics: { valid_pixels: 262144, p50: 0.3121, p90: 0.7, p99: 0.884,
                 max: 0.99, fraction_above_0_5: 0.0145 },
+  // Only the 9 um lane's direction:both runs ever carry this.
+  asymmetry: null,
   checkpoint_sha256: "c".repeat(64), map_shape_yx: [512, 512],
   output_dir: "/srv/helena/runs/first-letters/pherc0172-p5-canonical",
   maps: ["probability.npy"],
@@ -62,6 +92,13 @@ const TIMESFORMER = {
                manifest_sha256: "b".repeat(64), files: 4 },
   state: "failed",
   refused: "DEGENERATE map: the lane produced no decision",
+};
+
+// The one lane whose `direction: both` runs carry an asymmetry block.
+const NINE_UM = {
+  ...CANONICAL,
+  job_id: "p5-9um", profile_id: "ink-9um-hybrid-3d2d",
+  asymmetry: ASYMMETRY_SUSTAINED,
 };
 
 const DISPLAY = {
@@ -90,6 +127,8 @@ const DETAIL = {
              input_contract: {} },
   probability_map: null,
 };
+
+const DETAIL_ASYMMETRIC = { ...DETAIL, asymmetry: ASYMMETRY_GUARDED };
 
 let list: any = { available: true, runs: [CANONICAL, TIMESFORMER] };
 let detail: any = DETAIL;
@@ -183,6 +222,42 @@ describe("the P5 run table", () => {
     draw();
     expect(await screen.findByText(/no P5 job has run in this scope yet/)).toBeTruthy();
   });
+
+  it("labels p50 a floor rather than a bare column, with a tooltip saying why",
+     async () => {
+    draw();
+    expect(await screen.findByText("p5-canonical")).toBeTruthy();
+    const header = screen.getByRole("columnheader", { name: /^p50/ });
+    expect(header.textContent).toContain("(floor)");
+    expect(header.getAttribute("title")).toMatch(/not a signal/);
+    expect(header.getAttribute("title")).toMatch(/shuffling/);
+  });
+
+  it("shows the forward/reverse asymmetry ratio at p0.7, guarded when a row's " +
+     "count is too small", async () => {
+    list = { available: true, runs: [CANONICAL, NINE_UM] };
+    draw();
+    expect(await screen.findByText("p5-9um")).toBeTruthy();
+    const row = screen.getByText("p5-9um").closest("tr")!;
+    // 5.21 is the p0.7 ratio in ASYMMETRY_SUSTAINED.
+    expect(within(row).getByText("5.21")).toBeTruthy();
+
+    // p5-canonical never wrote a reverse map, so its cell is a dash.
+    const canonicalRow = screen.getByText("p5-canonical").closest("tr")!;
+    expect(within(canonicalRow).getByText("—")).toBeTruthy();
+  });
+
+  it("sorts on asymmetry using the p0.7 ratio", async () => {
+    list = { available: true, runs: [CANONICAL, NINE_UM] };
+    draw();
+    expect(await screen.findByText("p5-9um")).toBeTruthy();
+    const jobIds = () => screen.getAllByRole("row").slice(1)
+      .map((row) => row.querySelector("td button")!.textContent);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Asym/ }));
+    // Ascending: the row with no ratio (null) sorts last.
+    expect(jobIds()).toEqual(["p5-9um", "p5-canonical"]);
+  });
 });
 
 describe("inspecting one run", () => {
@@ -272,5 +347,36 @@ describe("inspecting one run", () => {
     expect(within(card).getByText("DEGENERATE")).toBeTruthy();
     expect(within(card).getByText(/Do not screen this map/)).toBeTruthy();
     expect(screen.getByText(/the lane produced no decision/)).toBeTruthy();
+  });
+
+  it("carries no asymmetry card for a run that never wrote a reverse map",
+     async () => {
+    await open();
+    expect(screen.queryByText("Forward/reverse asymmetry")).toBeNull();
+  });
+
+  it("shows every threshold's ratio, and a guarded one as a dash with its reason",
+     async () => {
+    detail = DETAIL_ASYMMETRIC;
+    await open();
+    const card = screen.getByRole("heading", { name: "Forward/reverse asymmetry" })
+      .closest("section")!;
+    expect(within(card).getByText("2.53")).toBeTruthy();
+    expect(within(card).getByText("3.36")).toBeTruthy();
+    // p0.7 was guarded away in ASYMMETRY_GUARDED.
+    const guardedRow = within(card).getByText("p0.7").closest("tr")!;
+    const guardedCell = within(guardedRow).getByText("—").closest("td")!;
+    expect(guardedCell.getAttribute("title")).toMatch(/fewer than 300 px/);
+    expect(within(card).getByText("not sustained above 1.5")).toBeTruthy();
+  });
+
+  it("marks sustained asymmetry rather than leaving it to the raw numbers",
+     async () => {
+    detail = { ...DETAIL, asymmetry: ASYMMETRY_SUSTAINED };
+    await open();
+    const card = screen.getByRole("heading", { name: "Forward/reverse asymmetry" })
+      .closest("section")!;
+    expect(within(card).getByText("sustained above 1.5")).toBeTruthy();
+    expect(within(card).getByText("5.21")).toBeTruthy();
   });
 });

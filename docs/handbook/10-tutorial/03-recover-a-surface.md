@@ -35,7 +35,7 @@ worker, and a missing chunk is counted separately from a network failure so
 Queue P1 from its own phase panel. Two things refuse the job before any field
 is read:
 
-- **the profile.** `spiral-fitter-v1@0.4.0` is the only one this lane accepts;
+- **the profile.** `spiral-fitter-v1@0.3.0` is the only one this lane accepts;
   another, or none, is refused.
 - **the worker.** This lane declares the `helena-villa-python` image. An
   ordinary GPU worker will not claim it — the row sits `pending`, looking
@@ -71,8 +71,7 @@ a request can move.
 
 ## Then certify it
 
-A fit produces one combined, flattened TIFXYZ spanning a range of windings,
-exported from the fitted checkpoint, and it becomes a surface. Certify it
+A fit produces one TIFXYZ per winding, and each becomes a surface. Certify them
 with **certify** under Maintenance on the P1 panel, or with
 `POST /api/geometry/certify`; the [P2](#/docs/phases/p2) panel shows the
 verdicts and has no button of its own.

@@ -223,7 +223,7 @@ def test_an_explicit_zero_seed_reaches_the_command():
         server_owned=("artifact_store",))
     argv = [str(token) for token in command_for(
         {"job_id": "p1-1", "sample_id": "PHerc0172", "phase": "P1",
-         "profile_id": "spiral-fitter-v1@0.4.0", "parameters": parameters},
+         "profile_id": "spiral-fitter-v1@0.3.0", "parameters": parameters},
         runner="ignored", output_dir="/runs/p1-1")]
     assert "--random-seed" in argv
     assert argv[argv.index("--random-seed") + 1] == "0"

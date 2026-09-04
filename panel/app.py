@@ -810,48 +810,16 @@ def _load_receipt(path: Path) -> Run | None:
 
 def _scan(directory: Path, mission_id: str) -> list[Run]:
     runs = []
-    try:
-        entries = sorted(directory.iterdir())
-    except (FileNotFoundError, NotADirectoryError):
-        # A mission or run directory a concurrent job removed between the
-        # stamp above finding it and this walk reaching it -- normal under
-        # a fleet cleaning up after itself, not evidence the scan failed.
-        return runs
-    for entry in entries:
-        try:
-            if not entry.is_dir():
-                continue
-            receipts = sorted(entry.glob("*RECEIPT*.json"))
-        except (FileNotFoundError, NotADirectoryError):
+    for entry in sorted(directory.iterdir()):
+        if not entry.is_dir():
             continue
-        for receipt in receipts:
+        for receipt in sorted(entry.glob("*RECEIPT*.json")):
             run = _load_receipt(receipt)
             if run:
                 run.mission_id = mission_id
                 runs.append(run)
                 break
     return runs
-
-
-def _run_directory_stamps(root: Path) -> list[tuple[str, float]]:
-    """(name, mtime) for every directory under root.
-
-    Walked with os.walk rather than Path.rglob: a directory a concurrent job
-    just finished with and removed -- routine under this fleet's own
-    cleanup, not evidence the walk failed -- raised FileNotFoundError inside
-    rglob's own generator, which a caller cannot resume past; the exception
-    surfaced here as a 500 on every page that reads mission state. os.walk's
-    onerror callback lets the walk skip past exactly that entry and continue
-    rather than losing the whole request to one race.
-    """
-    stamps: list[tuple[str, float]] = []
-    for dirpath, dirnames, _filenames in os.walk(root, onerror=lambda _exc: None):
-        for name in list(dirnames):
-            try:
-                stamps.append((name, os.stat(os.path.join(dirpath, name)).st_mtime))
-            except (FileNotFoundError, NotADirectoryError):
-                dirnames.remove(name)
-    return stamps
 
 
 def index_runs(force: bool = False, mission_id: str | None = None) -> list[Run]:
@@ -863,7 +831,9 @@ def index_runs(force: bool = False, mission_id: str | None = None) -> list[Run]:
     """
     if not RUNS.exists():
         return []
-    stamp = tuple(sorted(_run_directory_stamps(RUNS)))
+    stamp = tuple(sorted(
+        (p.name, p.stat().st_mtime) for p in RUNS.rglob("*") if p.is_dir()
+    ))
     if not force and _cache["stamp"] == stamp:
         runs = _cache["runs"]
     else:
@@ -925,7 +895,7 @@ def control_policy_names_a_volume_for(sample: str) -> bool:
 
 
 def scroll_has_a_source(sample: str | None) -> bool:
-    """Whether this platform can name any volume for this scroll.
+    """Whether a grow could read anything for this scroll.
 
     The frozen catalog first, then the sources this control plane has
     registered -- the same order P3 resolves in, and for the same reason: the
@@ -934,17 +904,8 @@ def scroll_has_a_source(sample: str | None) -> bool:
     addresses come from the control manifest, so a check against the catalog
     alone answered "no volume" for a scroll whose volume the platform could name.
 
-    A registered source needs only a CT here, not an m7 prediction too. m7 is
-    what P1 screens against, and PHerc1667 -- a community mesh, a published
-    surface volume, a published ink map, all at 2.399 um and none needing P1 --
-    has no m7 published anywhere and never will. Requiring it here meant the
-    mission this scroll needs could not even be created, for a reason P1 alone
-    has. scroll_has_a_growable_source is the narrower question, for callers
-    that are about to start or advertise a grow rather than just a mission's
-    source coverage.
-
-    Only a scroll with no CT anywhere is refused, which is the case the
-    refusal describes.
+    Only a scroll with neither is refused, which is the case the refusal
+    describes.
     """
     if not sample:
         return False
@@ -963,35 +924,6 @@ def scroll_has_a_source(sample: str | None) -> bool:
     except HTTPException:
         # No control plane to ask. The catalog is then all there is, and it has
         # already said no.
-        return False
-    try:
-        return any(row.get("ct_uri") for row in store.snapshots({sample}))
-    except Exception:  # noqa: BLE001 -- an unreachable store is not a verdict
-        return True
-
-
-def scroll_has_a_growable_source(sample: str | None) -> bool:
-    """Whether P1 specifically could seed a grow for this scroll.
-
-    scroll_has_a_source accepts a registered CT alone, because P4 and P5 can
-    read one directly and a mission needs nowhere else to record it. P1 cannot:
-    it seeds from the m7 surface prediction over the CT, and bootstrap_sources
-    -- the fleet code that actually resolves a grow's source -- still requires
-    both. A caller about to start a grow, or a form advertising that one is
-    possible, asks this instead; asking scroll_has_a_source there would answer
-    "yes" for a source a grow can never read and let the refusal move from a
-    clear 400 here to `unknown samples requested` out of the bootstrap
-    subprocess.
-    """
-    if not sample:
-        return False
-    if sample in growable_scrolls():
-        return True
-    if control_policy_names_a_volume_for(sample):
-        return True
-    try:
-        store = fleet_store_read_only()
-    except HTTPException:
         return False
     try:
         return any(row.get("ct_uri") and row.get("m7_uri")
@@ -1699,7 +1631,7 @@ def fleet_status(samples: set[str] | None = None) -> dict:
 # The frozen profile a spiral fit runs against. Named once: the queue validates
 # a job's profile_id against the lane's list, and the Segmentation page tells a
 # reader which one to pick. Both have to be the same string.
-SPIRAL_PROFILE_ID = "spiral-fitter-v1@0.4.0"
+SPIRAL_PROFILE_ID = "spiral-fitter-v1@0.3.0"
 
 SEGMENTATION_BACKENDS = [
     {
@@ -1725,9 +1657,9 @@ SEGMENTATION_BACKENDS = [
     {
         "id": "spiral",
         "name": "Spiral fitter (global winding fit)",
-        "method_id": "spiral-fitter@0.2.0",
+        "method_id": "spiral-fitter@0.1.0",
         "binary": "fit_spiral.py",
-        "profile_schema": "campaignx.segmentation_backend_profile.v4",
+        "profile_schema": "campaignx.segmentation_backend_profile.v2",
         # Not adoptable *here*: this form plans a seeded grow and the fitter has
         # no seed. Runnable, and the note says where. Left in the list rather
         # than hidden because "can we run the method upstream recommends" is a
@@ -1737,9 +1669,8 @@ SEGMENTATION_BACKENDS = [
                       "profile_id": SPIRAL_PROFILE_ID},
         "note": "Upstream's recommended surface-recovery method, and a global "
                 "fit rather than a grow: it has no seed for this form to plan. "
-                "Queue it from Phases -> P1 -> Run. It writes a checkpoint, "
-                "which the runner exports to one combined, flattened TIFXYZ "
-                "certified by P2 like any other surface.",
+                "Queue it from Phases -> P1 -> Run. It writes one TIFXYZ per "
+                "winding and each is certified by P2 like any other surface.",
     },
     {
         "id": "thaumato",
@@ -3084,7 +3015,7 @@ def api_missions():
 
 
 def refuse_scrolls_with_no_volume(scrolls: list[str], doing: str) -> None:
-    """Refuse a mission that freezes a scroll nothing on this platform can read.
+    """Refuse a mission that freezes a scroll nothing can ever grow.
 
     /api/missions took any string at all: "PHercInventado" and "PHerc9999" both
     created missions, and so did PHerc0139 on a control plane that had never
@@ -3092,15 +3023,11 @@ def refuse_scrolls_with_no_volume(scrolls: list[str], doing: str) -> None:
     with "resolves to no volume" -- so a mission looked frozen and correct for
     as long as nobody tried to grow in it.
 
-    scroll_has_a_source passes anything in the frozen eligible catalog, so this
-    does not force an order on the work: a catalogued scroll can be named here
-    long before P0 has frozen anything for it. It also passes a scroll with a
-    registered CT and no m7 -- PHerc1667's community mesh and surface volume,
-    read by P4 and P5 directly -- because a mission is a set of scrolls to work
-    on, not a promise that every phase can. P1 asks the narrower question,
-    scroll_has_a_growable_source, itself. What this refuses is a name with no
-    address anywhere on this platform -- the case that no run of any phase will
-    ever change.
+    scroll_has_a_source is the same predicate P1 uses, and it passes anything in
+    the frozen eligible catalog, so this does not force an order on the work: a
+    catalogued scroll can be named here long before P0 has frozen anything for
+    it. What it refuses is a name with no address in the catalog and none on
+    this control plane -- the case that no run will ever change.
     """
     # Nothing to check against is not evidence of anything. A fresh deployment
     # has no catalogue until the first refresh finishes, and refusing every
@@ -3119,12 +3046,11 @@ def refuse_scrolls_with_no_volume(scrolls: list[str], doing: str) -> None:
     raise HTTPException(400, {
         "detail": f"{doing} cannot include {', '.join(missing)}: "
                   "no volume this deployment can read.",
-        "why": "A mission freezes what will be worked on. P1 grows from a CT "
-               "volume and the m7 surface prediction over it; P4 and P5 can "
-               "read a registered CT directly and need no m7 at all. These "
-               "names are in neither the frozen eligible catalog nor the "
-               "sources registered on this control plane, so a mission "
-               "holding them could read nothing at any phase.",
+        "why": "A mission freezes what will be worked on, and P1 grows from a "
+               "CT volume and the m7 surface prediction over it. These names "
+               "are in neither the frozen eligible catalog nor the sources "
+               "registered on this control plane, so a mission holding them "
+               "could never grow anything -- and would say so only at P1.",
         "how": "Name a scroll from the catalog below, or register a source for "
                "this one first.",
         "known": growable_scrolls(),
@@ -4790,23 +4716,19 @@ def api_segmentation_options(sample: str | None = Query(None)):
             ),
         },
         # Whether this scroll can be grown at all, so the form can say it beside
-        # the button instead of letting the queue refuse afterwards. This is the
-        # narrower, P1-specific question -- a registered CT with no m7 is a
-        # source (scroll_has_a_source says so, and a mission may hold it) but
-        # not a growable one -- so a scroll the eligible catalog does not name
-        # and that has no registered m7 either shows here as not growable, and
-        # the way in for one is Import surface.
+        # the button instead of letting the queue refuse afterwards. A scroll the
+        # eligible catalog does not name has no m7 prediction to seed on, and the
+        # way in for one is Import surface.
         "source": {
             "sample": stored_scroll(sample),
-            "growable": (scroll_has_a_growable_source(stored_scroll(sample))
+            "growable": (scroll_has_a_source(stored_scroll(sample))
                          if sample else True),
             "growable_scrolls": growable_scrolls(),
             "note": ("P1 grows from a CT volume and the m7 surface prediction "
                      "over it, resolved from the frozen catalog first and from "
                      "this control plane's registered sources second. A scroll "
-                     "with no registered m7 has no address to grow at, even if "
-                     "a CT is registered for it; a surface for it can still "
-                     "arrive through Import surface."),
+                     "with neither has no address to grow at; a surface for it "
+                     "can still arrive through Import surface."),
         },
         # The VC3D growth parameters are a different layer and the page should say
         # so: they are written per attempt by the executor, and the two the profile
@@ -7588,117 +7510,6 @@ def api_import(request: ImportRequest, http: Request):
                          "origin": "IMPORTED"}, status_code=201)
 
 
-# -- naming a volume the catalog will never carry -------------------------
-#
-# register_snapshot() was reachable from exactly one place: the P0 freeze
-# flow, for a scroll the frozen catalog names or the one pinned control
-# cohort. PHerc1667 is neither. It has a community mesh, a published surface
-# volume and a published ink map, all at 2.399 um, and no m7 surface
-# prediction anywhere -- growable_scrolls() only lists scrolls with one, so it
-# never will be catalogued, and that is correct: P1 has nothing to screen
-# against. What PHerc1667 needs is P4 reading the mesh through its existing
-# raw `segmentation` parameter and P5 reading the ink map the same way -- the
-# path other uncatalogued scrolls already use -- and neither could be asked
-# for it, because scroll_has_a_source refused the mission before either phase
-# ran, and nothing could register the CT that would have satisfied it.
-#
-# Same precedent as /api/segmentation/import just above: registers a URI and,
-# where known, a digest, and never fetches either. Somebody publishing a
-# volume has already hashed it if they are going to; this is not the thing
-# that checks.
-
-
-class SourceRegistrationRequest(BaseModel):
-    """A CT this control plane did not grow into, named for a scroll that may
-    have no catalog entry and no m7 prediction at all."""
-
-    sample_id: str = Field(min_length=1, max_length=64)
-    ct_uri: str = Field(min_length=1, max_length=2048)
-    ct_sha256: str | None = Field(default=None, max_length=64)
-    # Optional, on purpose: an m7-less registration is exactly the case this
-    # endpoint exists for. Supplying one is still honoured -- it is the same
-    # field bootstrap_sources and the control cohort populate -- and makes the
-    # scroll growable through scroll_has_a_growable_source once it lands.
-    m7_uri: str | None = Field(default=None, max_length=2048)
-    m7_sha256: str | None = Field(default=None, max_length=64)
-    shape_xyz: list[int] | None = None
-    voxel_size_um: float | None = None
-    coordinate_frame: str | None = Field(default=None, max_length=64)
-    note: str = Field("", max_length=2000)
-
-
-def _require_registrable_source_uri(uri: str, field: str) -> None:
-    """Syntax only. s3, http and https are the schemes every reader in this
-    fleet already opens (probe_uri, open_prediction); anything else would be
-    accepted here and silently unreadable everywhere downstream."""
-    parsed = urlparse(uri)
-    if parsed.scheme not in ("s3", "http", "https"):
-        raise HTTPException(
-            400, f"{field} must be an s3://, http:// or https:// URI")
-    if not parsed.netloc or not parsed.path.strip("/"):
-        raise HTTPException(400, f"{field} names no bucket or path")
-
-
-def _require_registrable_sha256(digest: str | None, field: str) -> None:
-    if digest is not None and not re.fullmatch(r"[0-9a-f]{64}", digest):
-        raise HTTPException(
-            400, f"{field} must be a 64-character lowercase sha256, or omitted")
-
-
-@app.post("/api/segmentation/sources", status_code=201)
-def api_register_source(request: SourceRegistrationRequest, http: Request):
-    """Register where a scroll's CT lives, so a mission can include it.
-
-    The third way register_snapshot() gets called, beside the frozen catalog's
-    own bootstrap and the pinned control cohort -- for a scroll neither names.
-    Registering here does not put the scroll in the eligible catalog and is not
-    a claim that an m7 prediction exists for it: P1 still refuses without one,
-    through scroll_has_a_growable_source, whether or not this call ever runs.
-    It exists so scroll_has_a_source can say yes, and so /api/segmentation/
-    import -- which already refuses "no source snapshot; bootstrap it before
-    importing surfaces against it" -- has something to import against, for a
-    scroll P4 and P5 read straight from a raw volume with nothing upstream.
-    """
-    if not DSN:
-        raise HTTPException(409, "CX_DB is not set; there is no control plane")
-    sample = stored_scroll(request.sample_id)
-    if not sample:
-        raise HTTPException(400, "sample_id is required")
-    _require_registrable_source_uri(request.ct_uri, "ct_uri")
-    _require_registrable_sha256(request.ct_sha256, "ct_sha256")
-    if request.m7_uri:
-        _require_registrable_source_uri(request.m7_uri, "m7_uri")
-    _require_registrable_sha256(request.m7_sha256, "m7_sha256")
-    if request.shape_xyz is not None and len(request.shape_xyz) != 3:
-        raise HTTPException(400, "shape_xyz must have exactly 3 values [x, y, z]")
-    if request.voxel_size_um is not None and request.voxel_size_um <= 0:
-        raise HTTPException(400, "voxel_size_um must be a positive number")
-    payload: dict[str, Any] = {
-        "schema": "campaignx.source_snapshot.v1",
-        "sample_id": sample,
-        "ct_uri": request.ct_uri,
-        "ct_sha256": request.ct_sha256,
-        "m7_uri": request.m7_uri,
-        "m7_sha256": request.m7_sha256,
-        "shape_xyz": request.shape_xyz,
-        "voxel_size_um": request.voxel_size_um,
-        "coordinate_frame": request.coordinate_frame or "ct_l0_xyz",
-        "source_status": ("URI_LOCKED_HASH_UNAVAILABLE" if not request.ct_sha256
-                          else "HASH_LOCKED_NOT_IMMUTABLE"),
-        "registered_by": getattr(http.state, "username", None) or "anonymous",
-        "registered_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "note": request.note,
-    }
-    source_snapshot_id = fleet_store().register_snapshot(payload)
-    return JSONResponse({
-        "sample_id": sample,
-        "source_snapshot_id": source_snapshot_id,
-        "ct_uri": request.ct_uri,
-        "m7_uri": request.m7_uri,
-        "growable": bool(request.m7_uri),
-    }, status_code=201)
-
-
 # -- bringing a surface in from a browser --------------------------------
 #
 # Two ways into the catalogue already existed and neither serves a person with
@@ -9575,6 +9386,13 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
     statistics = result.get("statistics") if isinstance(result.get("statistics"), dict) else None
     published = result.get("probability_map") if isinstance(
         result.get("probability_map"), dict) else None
+    # Lives inside `reverse`, not `liveness`: the ratio needs both directions
+    # of a `direction: both` run, so a forward-only or reverse-only job -- and
+    # every lane but the 9 um one -- carries no `reverse` block at all and
+    # this stays null rather than a fabricated absence of asymmetry.
+    reverse = result.get("reverse") if isinstance(result.get("reverse"), dict) else None
+    asymmetry = (reverse or {}).get("asymmetry")
+    asymmetry = asymmetry if isinstance(asymmetry, dict) else None
     return {
         "job_id": job.get("job_id"),
         "sample_id": job.get("sample_id"),
@@ -9598,6 +9416,7 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
         "runtime_seconds": result.get("runtime_seconds"),
         "liveness": liveness,
         "statistics": statistics,
+        "asymmetry": asymmetry,
         "checkpoint_sha256": result.get("checkpoint_sha256"),
         "map_shape_yx": result.get("map_shape_yx"),
         "output_dir": str(directory) if directory else None,
@@ -12131,12 +11950,7 @@ def api_queue_segmentation(request: SegmentationRunRequest, http: Request):
     # names neither the cause nor the way out. A scroll outside that catalog has
     # no m7 surface prediction to seed on, and no run will ever change that, so
     # it is a refusal to state plainly and a 600s subprocess not to start.
-    #
-    # scroll_has_a_growable_source, not scroll_has_a_source: a registered CT
-    # with no m7 is a source a mission may hold, but bootstrap_sources still
-    # requires both, and asking the wider question here would trade this 400
-    # for that same traceback one call deeper.
-    if not scroll_has_a_growable_source(fleet_sample):
+    if not scroll_has_a_source(fleet_sample):
         raise HTTPException(400, {
             "detail": f"{fleet_sample} resolves to no volume: a grow here would "
                       "have nothing to read.",

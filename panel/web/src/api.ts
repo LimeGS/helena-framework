@@ -63,23 +63,6 @@ export type Finding = {
   detail: string;
   severity: "critical" | "warning";
 };
-// One row per ink worker that has ever polled, from InkJobStore.workers().
-// `gpu_visible` is the fresh, per-poll nvidia-smi answer -- true/false for a
-// worker that claims a GPU, null for one that has never claimed one at all.
-// `state` alone cannot say a GPU is gone: helena-ink-0 kept POLLING for five
-// hours after its container's device passthrough broke, because the claim
-// loop that writes last_poll_at never stopped running.
-export type InkWorker = {
-  worker_id: string;
-  host_id: string;
-  runtime: string | null;
-  phases: string[];
-  last_poll_at: string | null;
-  last_claim_at: string | null;
-  seconds_since_poll: number;
-  state: "POLLING" | "SILENT";
-  gpu_visible: boolean | null;
-};
 export type Fleet = {
   available: boolean;
   reason?: string;
@@ -91,8 +74,7 @@ export type Fleet = {
   stale_leases?: number;
   task_states?: { state: string; count: number }[];
   events_by_type?: { type: string; count: number }[];
-  workers?: InkWorker[];
-  workers_silent?: InkWorker[];
+  workers?: { worker_id: string; attempts: number }[];
   surfaces_by_sample?: { sample_id: string; count: number; area_cm2: number }[];
 };
 export type State = {
@@ -104,6 +86,26 @@ export type State = {
   lane_count: number;
 };
 export type Liveness = { verdict: string; reason?: string; interpretation?: string; metrics?: Record<string, number> };
+/** One threshold's forward/reverse pixel-count ratio, or the reason it is
+ *  absent. `ratio` is null -- never a fabricated 0 or 1 -- below 300
+ *  over-threshold pixels on either side; `reason` is set only then. */
+export type AsymmetryThreshold = {
+  forward_over_px: number;
+  reverse_over_px: number;
+  ratio: number | null;
+  reason?: string;
+};
+/** How the forward/reverse pixel-count ratio moves as the threshold rises.
+ *  Only present for a `direction: both` run whose forward and reverse maps
+ *  share a shape; growing across 0.5 -> 0.6 -> 0.7 is what real ink looked
+ *  like on the control this was measured against, and flat or falling is
+ *  what a shuffled or out-of-domain stack looked like. `sustained_above_1_5`
+ *  is their own reading of the numbers at 0.6 and 0.7, reported rather than
+ *  enforced -- nothing here gates a job on it. */
+export type Asymmetry = {
+  thresholds: Record<"0.5" | "0.6" | "0.7", AsymmetryThreshold>;
+  sustained_above_1_5: boolean;
+};
 export type Run = {
   run_id: string;
   schema: string;
@@ -215,11 +217,20 @@ export type InkRun = {
   created_at: string | null;
   updated_at: string | null;
   runtime_seconds: number | null;
-  /** The one block every ink lane produces identically. p50, p99 and the
-   *  spread between them live in `metrics`; the TimeSformer lane writes no
-   *  `statistics` at all, so this is the only place they are always found. */
+  /** The one block every ink lane produces identically. p99, spread and std
+   *  live in `metrics` and separate a real detection from a dead one; `p50`
+   *  is beside them in the same object but is not a peer -- measured
+   *  directly, shuffling a confirmed control's layer order left p50
+   *  unchanged while p99 and spread separated cleanly. p50 stays useful as a
+   *  floor (a high one is the signature of an input outside the lane's
+   *  training domain) and nothing more. The TimeSformer lane writes no
+   *  `statistics` at all, so this is the only place p50/p99 are always
+   *  found. */
   liveness: Liveness | null;
   statistics: Record<string, number> | null;
+  /** Only present for a `direction: both` run on the 9 um lane; see
+   *  `Asymmetry` above. */
+  asymmetry: Asymmetry | null;
   checkpoint_sha256: string | null;
   map_shape_yx: [number, number] | null;
   output_dir: string | null;

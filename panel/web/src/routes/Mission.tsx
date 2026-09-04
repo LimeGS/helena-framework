@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router";
-import { useAppState, useFleet, useHosts, type Target } from "../api";
+import { useAppState, useHosts, type Target } from "../api";
 import { Card, Empty, Num, Pill, Tile } from "../components/Bits";
 
 const TargetRow = memo(function TargetRow({ t }: { t: Target }) {
@@ -72,55 +72,6 @@ function Hardware() {
   );
 }
 
-/**
- * Which workers are alive, and which of the GPU ones cannot see their card.
- *
- * `state` alone cannot draw this line: a worker whose GPU passthrough breaks
- * keeps polling on schedule, so POLLING looks identical to healthy. helena-
- * ink-0 did exactly that for five hours -- `docker ps` said "Up", this row
- * would have said POLLING, and nothing said a card was missing until someone
- * noticed six P5 jobs were not draining.
- *
- * gpu_visible is read fresh, per worker, per poll (ink_worker.py's
- * worker_gpu_visible()) -- deliberately not the host-wide hardware count in
- * the tile above, which would have kept showing a card present the whole
- * time, reported by whichever *other* worker on the same host could still
- * see one. A host can look fully hardware-equipped while one of its workers
- * cannot reach any of it.
- */
-function Workers() {
-  const { data } = useFleet();
-  if (!data?.available) {
-    return (
-      <Tile title="Workers" tone="warn" value="—">
-        <p>{data?.reason ?? "no connection to the fleet"}</p>
-      </Tile>
-    );
-  }
-  const workers = data.workers ?? [];
-  const silent = workers.filter((w) => w.state === "SILENT");
-  const blind = workers.filter((w) => w.gpu_visible === false);
-  const troubled = Array.from(new Set([...silent, ...blind].map((w) => w.worker_id)));
-
-  return (
-    <Tile title="Workers" value={workers.length}
-         tone={troubled.length ? "alert" : workers.length ? "steady" : "warn"}>
-      {workers.length === 0 ? (
-        <p>no worker has ever polled</p>
-      ) : (
-        <>
-          <p>
-            {workers.length - silent.length} polling
-            {silent.length > 0 && <> · <b>{silent.length}</b> silent</>}
-            {blind.length > 0 && <> · <b>{blind.length}</b> blind to their GPU</>}
-          </p>
-          {troubled.length > 0 && <p className="wrap">{troubled.join(", ")}</p>}
-        </>
-      )}
-    </Tile>
-  );
-}
-
 export default function Mission() {
   const { data, isLoading, error } = useAppState();
 
@@ -147,8 +98,6 @@ export default function Mission() {
             <p>{fleet.reason}</p>
           )}
         </Tile>
-
-        <Workers />
 
         <Tile title="Runs" tone="steady" value={data.run_count}>
           <p>{data.lane_count} ink lanes with a declared profile</p>

@@ -194,3 +194,114 @@ def refuse_if_not_alive(
         return 3
     print(f"\nWARNING: {message}", file=stream)
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Forward/reverse asymmetry by threshold
+#
+# p50, p99 and std above are read off *one* map, and a rigorous measurement
+# found one of them does not do what the panel's receipt implied it did. The
+# control's stack (PHerc0139 w043, where the community's published letters
+# confirm real ink) was run twice on the same checkpoint: once in its real
+# layer order, once with the layers shuffled -- which destroys the depth
+# structure a model reads ink from and leaves the papyrus texture untouched.
+#
+#   metric              real order   shuffled
+#   p50                    0.278       0.278
+#   p99                    0.776       0.594
+#   std                    0.167       0.109
+#
+# p50 came back identical. It is still worth carrying -- a high p50 is the
+# signature of an input outside the lane's training domain -- but a floor is
+# not a detector, and nothing here should sort it beside p99 as though it
+# were one.
+#
+# What did separate the two runs is a measurement `direction: both` was
+# already paying for and nothing read: how the ratio of forward to reverse
+# over-threshold pixels moves as the threshold rises. Published by villa
+# contributor freek_cool (2026-08-31) and confirmed against the same control:
+#
+#   ratio @        0.5    0.6    0.7
+#   real order     2.53   3.36   5.21
+#   shuffled       0.67   0.56   0.46
+#
+# Real ink grows the ratio as the threshold climbs; the shuffled control's
+# falls. On PHerc826, where the community records no sheet under the render,
+# the ratio sits close to one and stays flat rather than growing: 0.94/0.95/
+# 0.98 unanchored, 1.00/1.00/0.91 anchored -- neither shape a real detection
+# makes.
+FORWARD_REVERSE_THRESHOLDS = (0.5, 0.6, 0.7)
+
+# Below this many over-threshold pixels on either side, a ratio is not a
+# measurement. Two pixels on the reverse map against one on the forward map
+# is a ratio of 2.0 that means nothing; the floor is the villa contributor's
+# own number, chosen because a handful of stray bright pixels is common and a
+# ratio built from them reads exactly like a strong asymmetry.
+MIN_OVER_THRESHOLD_PIXELS = 300
+
+# Their own operative reading of the numbers, not a gate: sustained asymmetry
+# above this bar at both the 0.6 and the 0.7 threshold is what a real
+# detection looks like on the control above. Reported alongside the raw
+# ratios rather than enforced -- turning it into something that blocks a job
+# needs the calibration this platform has refused to skip everywhere else.
+SUSTAINED_ASYMMETRY_RATIO = 1.5
+
+
+def forward_reverse_asymmetry(
+    forward: np.ndarray, reverse: np.ndarray, *, valid: np.ndarray | None = None,
+) -> dict:
+    """How the forward/reverse pixel-count ratio moves as the threshold rises.
+
+    Needs both directions of a `direction: both` run and nothing else -- not a
+    receipt, not a checkpoint, not the liveness verdict. A lane that only ever
+    writes one direction has nothing to compare and must not call this; there
+    is no default that means "no reverse map" here, only the caller's choice
+    not to call it.
+
+    Each threshold's ratio is forward-over-threshold-pixels divided by
+    reverse-over-threshold-pixels, or ``None`` with a stated reason when
+    either side has fewer than ``MIN_OVER_THRESHOLD_PIXELS`` -- never a
+    fabricated 0 or 1, which would look exactly like a measurement.
+    """
+    forward = np.asarray(forward, dtype=np.float64)
+    reverse = np.asarray(reverse, dtype=np.float64)
+    if forward.shape != reverse.shape:
+        raise ValueError(
+            f"forward {forward.shape} and reverse {reverse.shape} are not the "
+            "same shape; nothing here compares one pixel against another")
+    mask = np.ones(forward.shape, bool) if valid is None else np.asarray(valid, bool)
+    mask = mask & np.isfinite(forward) & np.isfinite(reverse)
+
+    thresholds: dict[str, dict] = {}
+    ratios: dict[float, float | None] = {}
+    for threshold in FORWARD_REVERSE_THRESHOLDS:
+        forward_over = int((mask & (forward >= threshold)).sum())
+        reverse_over = int((mask & (reverse >= threshold)).sum())
+        entry = {
+            "forward_over_px": forward_over, "reverse_over_px": reverse_over,
+        }
+        short = []
+        if forward_over < MIN_OVER_THRESHOLD_PIXELS:
+            short.append(f"forward {forward_over}")
+        if reverse_over < MIN_OVER_THRESHOLD_PIXELS:
+            short.append(f"reverse {reverse_over}")
+        if short:
+            entry["ratio"] = None
+            entry["reason"] = (
+                f"fewer than {MIN_OVER_THRESHOLD_PIXELS} px over {threshold} on "
+                f"{' and '.join(short)}: a ratio built from a handful of pixels "
+                "reads as a strong signal and is noise"
+            )
+        else:
+            entry["ratio"] = forward_over / reverse_over
+        ratios[threshold] = entry["ratio"]
+        thresholds[str(threshold)] = entry
+
+    sustained = (
+        ratios[0.6] is not None and ratios[0.6] > SUSTAINED_ASYMMETRY_RATIO
+        and ratios[0.7] is not None and ratios[0.7] > SUSTAINED_ASYMMETRY_RATIO
+    )
+    return {
+        "thresholds": thresholds,
+        "sustained_above_1_5": sustained,
+    }

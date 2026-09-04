@@ -442,6 +442,18 @@ export const AREAS: Area[] = [
           "strip is qualified to judge what; screening against an unqualified strip " +
           "produces a number that means nothing.",
       },
+      {
+        name: "Threshold slider",
+        kind: "slider",
+        what: "Recolours the map at that probability, live, with p50, p90 and p99 marked along it.",
+        when: "Looking for the level where the map's brightest structure sits apart from its background.",
+        recommend:
+          "The p50 mark reads \"floor\" rather than \"p50\": a high p50 says the " +
+          "input sits outside what the lane was trained on, but measured directly " +
+          "it does not move between a real stack and the same stack with its " +
+          "layers shuffled, so it is not evidence of ink either way. p99 is the " +
+          "one that separates them.",
+      },
     ],
   },
   {
@@ -479,11 +491,25 @@ export const AREAS: Area[] = [
         name: "Column headers",
         kind: "button",
         what: "Sorts the table on that column; a second press reverses it.",
-        when: "Sort on spread when you are looking for lanes that have gone flat.",
+        when:
+          "Sort on spread when you are looking for lanes that have gone flat; sort " +
+          "on asymmetry when p99 and spread land in the alive range on a stack that " +
+          "turns out to carry no ink.",
         recommend:
-          "p50, p99 and spread come from the liveness block, which is the only set of " +
-          "numbers every ink lane writes. The statistics block in the receipt is " +
-          "richer and two of the four lanes do not write one.",
+          "p99 and spread come from the liveness block, which is the only set of " +
+          "numbers every ink lane writes. p50 lives in that same block and is shown " +
+          "beside them, but it is not a peer: measured directly, shuffling a " +
+          "confirmed control's layer order -- which destroys the depth structure a " +
+          "model reads ink from and leaves the papyrus texture alone -- left p50 " +
+          "identical while p99 and spread separated cleanly. It stays useful as a " +
+          "floor, labelled \"floor\" for that reason -- a high p50 is the signature " +
+          "of an input outside the lane's training domain -- and nothing more. " +
+          "Asymmetry exists only for a direction:both run: the ratio of forward to " +
+          "reverse pixels over 0.5/0.6/0.7, reported as absent rather than a " +
+          "fabricated number when fewer than 300 pixels cleared a threshold on " +
+          "either side. Real ink grows that ratio as the threshold rises; a " +
+          "shuffled or out-of-domain stack flattens or falls. The statistics block " +
+          "in the receipt is richer and two of the four lanes do not write one.",
       },
       {
         name: "Job id",
@@ -527,6 +553,17 @@ export const AREAS: Area[] = [
         recommend:
           "Open the receipt first. It names the profile and the checkpoint hash, which " +
           "is what makes the run reproducible.",
+      },
+      {
+        name: "Threshold slider",
+        kind: "slider",
+        what: "Recolours the map at that probability, live, with p50, p90 and p99 marked along it.",
+        when: "Looking for the level where the map's brightest structure sits apart from its background.",
+        recommend:
+          "The p50 mark reads \"floor\": measured directly, it does not move " +
+          "between a real stack and the same stack with its layers shuffled, so " +
+          "it is not evidence of ink either way. p99 is the one that separates " +
+          "them, and the Maps tab's asymmetry column is the newer one.",
       },
     ],
   },

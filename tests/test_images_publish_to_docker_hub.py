@@ -50,18 +50,10 @@ def test_every_image_the_readme_named_is_published():
     script = "\n".join(CI_PARSED["publish images to docker hub"]["script"])
     for call in ("publish_running helena-panel panel",
                  "publish_running helena-segment worker-cpp",
-                 'publish_running "${gpu_runtime:-helena-gpu-runtime-0}" worker-gpu',
+                 "publish_running helena-gpu-runtime-0 worker-gpu",
                  "publish_built containers/images/Containerfile.backup backup",
                  "publish_built containers/images/Containerfile.control-tunnel control-tunnel"):
         assert call in script, f"missing: {call}"
-
-
-def test_the_gpu_runtime_container_is_found_by_its_running_name():
-    """gpu-1 itself runs its one card as helena-gpu-runtime-1, not -0 -- the
-    index is the device's, and a hardcoded -0 skipped a host that had
-    something to publish."""
-    script = "\n".join(CI_PARSED["publish images to docker hub"]["script"])
-    assert "docker ps --filter 'name=^helena-gpu-runtime-'" in script
 
 
 def test_published_tags_are_by_version_not_by_commit():
@@ -93,12 +85,11 @@ def test_an_explicit_value_always_wins_over_the_default():
     assert 'if [ -z "$HELENA_PUBLIC_REGISTRY" ]' in after
 
 
-def test_every_built_image_tries_the_public_registry_first():
+def test_the_panel_worker_cpp_and_worker_gpu_all_try_the_public_registry_first():
     for image, tag_var in (
         ("helena-panel", "panel_image"),
         ("helena-worker-cpp", "worker_tag"),
         ("helena-worker-gpu", "ink_tag"),
-        ("helena-backup", "helena-backup:local-"),
     ):
         assert f'"$HELENA_PUBLIC_REGISTRY/{image}:' in DEPLOY, (
             f"{image} never tries HELENA_PUBLIC_REGISTRY before building")
@@ -109,7 +100,7 @@ def test_a_pull_from_either_registry_skips_the_local_build():
     """Both the internal registry and HELENA_PUBLIC_REGISTRY have to be tried
     and have to fail before an hour of compiling volume-cartographer starts --
     a pull that succeeded from either must not be followed by a build anyway."""
-    for flag in ("panel_pulled", "worker_pulled", "ink_pulled", "backup_pulled"):
+    for flag in ("panel_pulled", "worker_pulled", "ink_pulled"):
         assert f"{flag}=false" in DEPLOY
         assert f'{flag}" = false' in DEPLOY or f'"{flag}" = false' in DEPLOY
         assert f"{flag}=true" in DEPLOY

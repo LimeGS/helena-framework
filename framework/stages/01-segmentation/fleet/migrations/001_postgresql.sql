@@ -1115,24 +1115,4 @@ INSERT INTO segment_schema_migrations(version, description)
 VALUES (26, 'the seed-agreement axis: how far a second run of the same fit landed')
 ON CONFLICT(version) DO NOTHING;
 
--- A source snapshot that names a CT and nothing else.
---
--- Every row here so far came from bootstrap_sources, reading the frozen
--- catalog, or the pinned control cohort -- both always carry an m7 prediction,
--- so m7_uri, shape_xyz and voxel_size_um being NOT NULL cost nothing. PHerc1667
--- has a community mesh and a published surface volume that P4 and P5 read
--- directly and no m7 anywhere; register_snapshot() was the only thing standing
--- between it and this table, and this table was the part still refusing.
---
--- Dropping NOT NULL rather than backfilling a placeholder: an empty string or a
--- zero voxel size would be a claim about a volume nobody measured, the same
--- lie a fabricated pixel_um would have been elsewhere in this schema.
-ALTER TABLE segment_source_snapshots ALTER COLUMN m7_uri DROP NOT NULL;
-ALTER TABLE segment_source_snapshots ALTER COLUMN shape_xyz DROP NOT NULL;
-ALTER TABLE segment_source_snapshots ALTER COLUMN voxel_size_um DROP NOT NULL;
-
-INSERT INTO segment_schema_migrations(version, description)
-VALUES (27, 'a source snapshot may name a CT with no m7 prediction over it')
-ON CONFLICT(version) DO NOTHING;
-
 COMMIT;

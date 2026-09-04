@@ -132,18 +132,15 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
     # scroll, which slab of it, at what scale and which way the winding goes,
     # and those six are the whole decision.
     "P1": {"lane": str,
-           # The six Helena has always asked for. At the pinned commit they
-           # become spiral-scroll.json fields (name, voxel size, winding
-           # sense) and FIT_SPIRAL_CONFIG_OVERRIDES entries (z_begin, z_end);
-           # see adapter.py's module docstring for the mechanism.
+           # The six upstream assigns at module level. They are parameters here
+           # because the rebind makes them so; see repin.py beside the adapter.
            "scroll_name": str, "dataset_path": str,
            "z_begin": int, "z_end": int, "voxel_size_um": float,
            "spiral_outward_sense": str,
-           # Which lasagna volume set, at which zarr group and scale, and
-           # which tracks file the fit reads. Upstream resolves these at
-           # conventional paths under the dataset root unless spiral-scroll.json
-           # overrides them; they default to upstream's own values, which is
-           # why they are not required.
+           # Which lasagna scale and which tracks file the fit reads. Upstream
+           # writes both as f-strings over dataset_path, so they are part of the
+           # rebind rather than settings; they default to upstream's own values,
+           # which is why they are not required.
            "lasagna_volume_name": str, "normal_zarr_group": str,
            "lasagna_scale": int, "tracks_file": str,
            # Two fits differing only in this are the only error bar this
@@ -216,8 +213,7 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "source_slice_um": float, "model_family": str,
            "source_pixel_um": float, "depth_center": int, "stride": int,
            "model_config": str,
-           "batch_size": int, "num_workers": int, "layer_start": int,
-           "layer_end": int, "min_valid_ratio": float,
+           "batch_size": int, "num_workers": int, "min_valid_ratio": float,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -285,10 +281,7 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "spiral_outward_sense": {
         "label": "Winding direction", "placeholder": "CW",
         "note": "which way the scroll winds outward, CW or CCW. A property of "
-                "the scroll rather than a setting; the wrong one fits backwards. "
-                "Written into the fitter's own spiral-scroll.json as CW or ACW: "
-                "upstream renamed its half of this word, this platform's did not, "
-                "and CCW is translated to ACW at that one boundary"},
+                "the scroll rather than a setting; the wrong one fits backwards"},
     "lasagna_volume_name": {
         "label": "Lasagna volumes", "placeholder": "las_008_{array}.ome.zarr",
         "note": "one name under lasagna_inputs/, carrying {array} for nx, ny "
@@ -491,12 +484,6 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "num_workers": {"label": "DataLoader workers",
                     "note": "processes reading tiles ahead of the model; left empty the "
                             "runner's own default (4) applies"},
-    "layer_start": {"label": "Layer window start",
-                    "note": "give this with layer_end, never alone; left empty the "
-                            "profile's own pinned window (or the whole stack) applies"},
-    "layer_end": {"label": "Layer window end",
-                  "note": "give this with layer_start, never alone; left empty the "
-                          "profile's own pinned window (or the whole stack) applies"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -696,14 +683,8 @@ PHASE_REQUIRED: dict[str, tuple[str, ...]] = {
     # wrong one is visibly wrong rather than quietly so. The other five have
     # none on purpose: defaulting them to Scroll 1's values would let a
     # forgotten field fit the wrong scroll under the right name.
-    #
-    # artifact_store is not among them: it is server-owned (SERVER_OWNED_PARAMETERS
-    # below), filled from server_parameters before this table is ever consulted.
-    # Listing it here told a caller who read this table to send it, and the
-    # enqueue that reads SERVER_OWNED_PARAMETERS refused exactly that as
-    # smuggled -- required and forbidden, from two tables that never checked
-    # each other.
-    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um"),
+    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um",
+           "artifact_store"),
     "P2": (),
     # Flattening publishes, and a sheet published nowhere is a sheet the next
     # phase cannot read -- the same way a surface on a worker's disk was.
@@ -1389,14 +1370,7 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   # from an S3 stream into a local one -- exposed anyway
                   # because the runner already accepts it and a caller on a
                   # host with more cores has no other way to ask for more.
-                  "num_workers": "--num-workers",
-                  # Both null by default -- upstream reads the whole stack.
-                  # A band-position experiment (top/center/bottom thirds) had
-                  # to be built as three separate on-disk layer directories
-                  # before this existed, because the profile pins one window
-                  # and nothing could ask for another per job.
-                  "layer_start": "--layer-start",
-                  "layer_end": "--layer-end"},
+                  "num_workers": "--num-workers"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"
@@ -1785,22 +1759,19 @@ register_lane("P1", "spiral-fit", {
     "runner": PHASE_RUNNERS["P1"],
     "image": "helena-villa-python",
     "gpu_required": True,
-    "profiles": ("spiral-fitter-v1@0.4.0",),
-    # Not artifact_store: server-owned, so a form that shows this list as
-    # what a caller must fill in must not name it -- see PHASE_REQUIRED["P1"].
+    "profiles": ("spiral-fitter-v1@0.3.0",),
     "required": ("scroll_name", "dataset_path", "z_begin", "z_end",
-                 "voxel_size_um"),
+                 "voxel_size_um", "artifact_store"),
     # Named, so the worker collects it. A lane that writes a receipt and does
     # not declare its name has that receipt silently dropped.
     "receipt": "SPIRAL_FIT_RECEIPT.json",
     "build": "legacy",
     "note": ("Fits one global spiral through tracks, point collections and a "
-             "lasagna normal field, then exports one combined, flattened "
-             "TIFXYZ from the fitted checkpoint. That surface enters P2's "
-             "certification gate exactly as a grown one does. The scroll is "
-             "selected by writing spiral-scroll.json, the manifest that "
-             "replaced upstream's six import-time constants at 23adee04; the "
-             "receipt carries its digest."),
+             "lasagna normal field, and writes one TIFXYZ per winding. Those "
+             "enter P2's certification gate exactly as a grown surface does. "
+             "The scroll is selected by rewriting the six module constants "
+             "upstream assigns at import; the receipt carries the digest of "
+             "the script before and after."),
 })
 
 # P8's alternative, and the proof the table is the route rather than decoration:
@@ -2586,19 +2557,6 @@ class InkJobStore:
                 "scope. Create a mission and queue into that.")
         if phase == "P5" and not profile_id:
             raise JobRejected("P5 jobs must name a profile_id")
-        if phase == "P5":
-            # ink_adapter raises only when the profile it found declares
-            # something the queue already knows cannot run -- unroutable, no
-            # adapter and no checkpoint, or an adapter nobody taught the
-            # queue. A profile this host cannot find at all is not one of
-            # those: it falls back to the default adapter silently, exactly
-            # as it does when a worker resolves it later, so a genuine
-            # deployment skew still fails where it runs rather than on a
-            # guess made here. What this catches is the job-shape mismatch
-            # that used to cost a claimed lease before failing -- ink-3d-dino
-            # among them, whose own adapter declares it takes a patch
-            # manifest, not a job the queue can build one for.
-            ink_adapter(profile_id)
         supplied = dict(server_parameters or {})
         clean = validate_parameters({**parameters, **supplied}, phase,
                                     server_owned=supplied)
@@ -2680,8 +2638,7 @@ class InkJobStore:
     def claim(self, *, worker_id: str, host_id: str, lease_seconds: int = 3600,
               phases: Sequence[str] | None = None,
               has_gpu: bool = True, gpu_vram_gb: float = 1e9,
-              runtime: str | None = None,
-              gpu_visible: bool | None = None) -> dict | None:
+              runtime: str | None = None) -> dict | None:
         """Take one pending job, or return None. Expired leases are recycled first.
 
         `phases` is what this worker can actually run. Without it every worker
@@ -2699,16 +2656,6 @@ class InkJobStore:
         this one only looked like it did. The defaults are permissive because
         every caller today is a GPU host, and a default that silently claimed
         nothing would be a worse failure than the one being fixed.
-
-        `gpu_visible` is a separate fact from `has_gpu`: it is not read by this
-        query at all, and it does not filter anything here -- it is only
-        written onto the worker's own row, below, so the fleet page can show
-        it. helena-ink-0 lost its container's GPU passthrough silently and kept
-        polling for five hours: `has_gpu` was computed correctly and used to
-        stop it claiming P5 work, and every bit of that was invisible, because
-        nothing this call wrote ever said a card had gone missing. `None` means
-        the caller has never claimed a GPU at all -- a CPU-only ink worker, if
-        one exists, has nothing here to report.
 
         `runtime` is which image this worker is, and it is the same filter one
         column over. Three lanes need an image their claiming worker may not be
@@ -2763,24 +2710,17 @@ class InkJobStore:
             # Written on every poll, claimed or not, because "this worker is
             # alive and looking" is the fact the fleet page could not state.
             # An idle worker and a blocked one showed the same thing, and the
-            # blocked ones were blocked for eighteen hours. gpu_visible rides
-            # the same heartbeat for the same reason: a worker whose card had
-            # gone silent showed the same POLLING row as a healthy one, for
-            # five hours, because nothing this statement wrote said anything
-            # about a GPU at all.
+            # blocked ones were blocked for eighteen hours.
             cursor.execute(
                 """INSERT INTO ink_workers
-                       (worker_id, host_id, runtime, last_poll_at, phases,
-                        gpu_visible)
-                   VALUES (%s, %s, %s, now(), %s, %s)
+                       (worker_id, host_id, runtime, last_poll_at, phases)
+                   VALUES (%s, %s, %s, now(), %s)
                    ON CONFLICT (worker_id) DO UPDATE
                       SET host_id = EXCLUDED.host_id,
                           runtime = EXCLUDED.runtime,
                           phases = EXCLUDED.phases,
-                          last_poll_at = now(),
-                          gpu_visible = EXCLUDED.gpu_visible""",
-                (worker_id, host_id, runtime, list(phases) if phases else [],
-                 gpu_visible),
+                          last_poll_at = now()""",
+                (worker_id, host_id, runtime, list(phases) if phases else []),
             )
 
             cursor.execute(
@@ -3395,20 +3335,13 @@ class InkJobStore:
         `state` is the distinction the fleet page could not draw: a worker with
         nothing to claim and a worker that cannot claim looked identical, and
         `docker ps` said "Up" for both.
-
-        `gpu_visible` is the other distinction it could not draw: `state` alone
-        says a worker is POLLING whether or not its GPU is still there, because
-        the claim loop keeps running on a card that has gone silent -- that was
-        exactly helena-ink-0 for five hours. `True`/`False` is a worker that
-        claims a GPU and currently can, or cannot, reach it; `None` is a worker
-        that has never claimed one at all and has nothing here to report.
         """
         threshold = int(silent_after or self.WORKER_SILENT_SECONDS)
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """SELECT worker_id, host_id, runtime, phases,
                           last_poll_at, last_claim_at,
-                          EXTRACT(EPOCH FROM (now() - last_poll_at)), gpu_visible
+                          EXTRACT(EPOCH FROM (now() - last_poll_at))
                      FROM ink_workers ORDER BY worker_id""")
             return [{
                 "worker_id": worker_id, "host_id": host_id, "runtime": runtime,
@@ -3417,9 +3350,8 @@ class InkJobStore:
                 "last_claim_at": last_claim.isoformat() if last_claim else None,
                 "seconds_since_poll": round(float(since), 1),
                 "state": "POLLING" if float(since) <= threshold else "SILENT",
-                "gpu_visible": gpu_visible,
             } for (worker_id, host_id, runtime, phases, last_poll, last_claim,
-                   since, gpu_visible) in cursor.fetchall()]
+                   since) in cursor.fetchall()]
 
     SELF_REGISTERED_NOTE = ("registered by its own report; add an ssh target "
                             "under Configuration -> Hosts to provision it from "

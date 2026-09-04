@@ -23,8 +23,8 @@
   },
   "volume_cartographer": {
     "repository": "https://github.com/ScrollPrize/villa.git",
-    "commit": "23adee047dea06526151d3a152a7d85de8da478b",
-    "tree": "85538bf561d13aaf50000ea5c712372505f82496",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "tree": "9116ebcd63f58cb723de9a028b657420235ea480",
     "required_runtime_artifacts": [
       "flatboi",
       "vc_obj2tifxyz_legacy"
@@ -69,19 +69,19 @@
   },
   "villa_python": {
     "repository": "https://github.com/ScrollPrize/villa.git",
-    "commit": "23adee047dea06526151d3a152a7d85de8da478b",
-    "tree": "85538bf561d13aaf50000ea5c712372505f82496",
+    "commit": "05dcf0349356bc833670d61e5eca00be58376e35",
+    "tree": "9116ebcd63f58cb723de9a028b657420235ea480",
     "same_commit_as": "volume_cartographer",
     "trees": [
-      "spiral-fitting",
+      "volume-cartographer/scripts/spiral",
       "lasagna"
     ],
     "required_file_sha256": {
-      "spiral-fitting/fit_spiral.py": "795373d17476639b5a54fd72a77cb3689e01d3d607ff19fb58aa02cbc53b69ef",
-      "spiral-fitting/pyproject.toml": "f6c1bf37e838e85bdb42586f54ce7698efaf6597a78ee3692ba07cc11095558a",
-      "lasagna/fit.py": "0f6d9d7a071bb76fb9750fb9d6638d49881e66fd4c33611a4cef10da846656ed"
+      "volume-cartographer/scripts/spiral/fit_spiral.py": "eaa0681ef61ded8ca55babf36c7e7646878f51e360071e6644cc0beac375d689",
+      "volume-cartographer/scripts/spiral/pyproject.toml": "4fc4c0a1f62c67010f8159c4a1768e5a44d380d539368b8f38862a9e33dea61a",
+      "lasagna/fit.py": "b0665bf88e98a488e3669e6e85be3a180694c7e7c5a207001e5410bae22e588e"
     },
-    "note": "The spiral fitter and lasagna are Python at the same commit the compiled binaries come from, so they add no second source identity. They ship in their own image rather than in helena-villa: that one is a runtime with no Python ML stack by design, and torch would multiply it for binaries that never import it. As of 23adee04 the fitter moved from volume-cartographer/scripts/spiral (a single research script) to a top-level spiral-fitting/ package: a ~5000-line fit_spiral.py plus fit_session.py, config.py, checkpoint_io.py, spiral_service.py and a nanobind/cmake native extension (spiral-fitting/cpp -> vc_spiral). pyproject.toml stays pinned for the same reason it always was: build-system and dependency drift under an unpinned commit is exactly what a source lock exists to catch."
+    "note": "The spiral fitter and lasagna are Python at the same commit the compiled binaries come from, so they add no second source identity. They ship in their own image rather than in helena-villa: that one is a runtime with no Python ML stack by design, and torch would multiply it for binaries that never import it."
   },
   "villa_ink_detection": {
     "repository": "https://github.com/ScrollPrize/villa.git",

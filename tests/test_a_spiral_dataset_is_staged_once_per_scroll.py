@@ -263,10 +263,10 @@ def test_a_volume_name_with_a_field_nobody_fills_is_refused():
     """A `{scroll}` that survives into the binding reaches the fit as a
     directory that does not exist."""
     sys.path.insert(0, str(ROOT / "framework/stages/01-segmentation/backends/spiral"))
-    import adapter
+    import repin
 
-    with pytest.raises(adapter.ScrollSpecRefused, match="still carries"):
-        adapter.validate_layout(
+    with pytest.raises(repin.ScrollNotRebindable, match="still carries"):
+        repin.validate_layout(
             {"lasagna_volume_name": "PHerc{scroll}_{array}.ome.zarr"})
 
 

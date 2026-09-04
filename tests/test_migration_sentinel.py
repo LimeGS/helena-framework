@@ -52,7 +52,7 @@ def test_every_declared_version_is_consecutive_from_one():
         "gap means a database can record the top one without the rest having run")
 
 
-def test_migration_versions_are_consecutive_through_literal_27():
+def test_migration_versions_are_consecutive_through_literal_26():
     """v20 adds the routing receipts the size gate reads; v21 the expansion
     authorities that are the only way off the diagnostic path; v22 the preflight
     queue, which needed a version of its own because a table in the base block
@@ -64,10 +64,8 @@ def test_migration_versions_are_consecutive_through_literal_27():
     sheet under the surface rather than two welded together; v26 adds the
     seed-agreement axis, which is the only one that is not about the surface at
     all but about whether the fit that produced it is reproducible, and is kept
-    apart from the other four because it can contradict them; v27 lets a source
-    snapshot name a CT with no m7 prediction over it, for a scroll like
-    PHerc1667 that publishes no m7 anywhere and never will."""
-    assert declared_versions() == list(range(1, 28))
+    apart from the other four because it can contradict them."""
+    assert declared_versions() == list(range(1, 27))
 
 
 def test_the_migration_declares_every_column_the_store_writes():

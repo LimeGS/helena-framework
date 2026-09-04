@@ -90,19 +90,6 @@ def test_a_queued_job_can_ask_for_a_different_worker_count(tmp_path):
     assert "--num-workers" in argv and "8" in argv
 
 
-def test_a_queued_job_can_ask_for_a_different_layer_window(tmp_path):
-    """A band-position experiment (top/center/bottom thirds of a stack) had
-    to be built as three separate on-disk layer directories before this,
-    because the profile pinned a window nothing could override per job."""
-    job = {"phase": "P5", "profile_id": PROFILE, "sample_id": "PHerc0139",
-           "parameters": {"surface_volume": "/vol.zarr",
-                          "checkpoint": "/models/step.pth",
-                          "layer_start": 2, "layer_end": 9}}
-    argv = command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
-    assert "--layer-start" in argv and "2" in argv
-    assert "--layer-end" in argv and "9" in argv
-
-
 def test_the_queue_still_refuses_it_without_the_source_scale(tmp_path):
     """Pooling needs to know what it is pooling from. Guessing 2.4 would pool
     a native 9 um render into a 38 um one."""

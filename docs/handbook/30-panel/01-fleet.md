@@ -14,8 +14,7 @@ What survives where:
 | --- | --- |
 | the queue for a phase | that phase's panel, under Mission |
 | fleet counts and hardware | the **Fleet** and **Fleet hardware** tiles on Mission |
-| worker liveness, summarised | the **Workers** tile on Mission — silent and GPU-blind counts, by name |
-| worker liveness, every row | `GET /api/fleet` |
+| worker liveness | `GET /api/fleet` — and only there |
 | a host's own hardware, roles and ssh target | [Configuration → Hosts](#/docs/panel/models-hosts-modules) |
 
 **Fleet hardware** only adds up enabled hosts, so disabling one drops its cores
@@ -42,12 +41,9 @@ carries, and when it last asked for work.
 | `POLLING` | it polled within sixty seconds — six missed polls is the threshold |
 | `SILENT` | it has not, and something is wrong |
 
-The **Workers** tile on Mission renders a summary of this: how many workers
-are polling, how many are `SILENT`, how many claim a GPU and cannot currently
-see one (below) — and, whenever either count is nonzero, which workers by
-name. The full per-worker table — every row, every column, not just the
-troubled ones — is still `GET /api/fleet` only; no page lists all of them
-one row at a time.
+> **Trap** Nothing in the UI renders this yet. `GET /api/fleet` computes it and
+> returns `workers_silent` as its own list; no page shows either. Until one
+> does, this is an endpoint you curl.
 
 The row is written by the **poll**, claimed or not — so a worker that is looking
 and finding nothing still appears, and its absence is the signal. `last_claim_at`
@@ -60,23 +56,6 @@ eighteen hours that way.
 The host's own heartbeat cannot answer this: it is written by a different branch
 of the same loop, so it keeps reporting while the claim beside it is blocked,
 and the host looks healthy because part of it is.
-
-### GPU visibility
-
-Claiming a GPU and reaching one are not the same fact. helena-ink-0's
-container lost its GPU passthrough silently — `nvidia-smi` inside it started
-answering "No devices were found", not a crash — while the worker kept
-polling on schedule and this table kept saying `POLLING`, because polling and
-device passthrough are unrelated failures. Six P5 jobs sat pending for five
-hours with nothing in any log to say why.
-
-`gpu_visible` is the fix: `true`/`false` for a worker that claims a GPU,
-asked fresh with `nvidia-smi` on every poll — deliberately not
-`host_state()`'s once-a-minute, whole-host reading, which would have kept
-showing a card present the whole time, reported by whichever *other* worker
-on the same host could still see one. `null` is a worker that has never
-claimed a GPU at all, such as a CPU-only ink worker if one is ever deployed —
-not a finding, and drawn with no opinion rather than a false "no GPU".
 
 ## Jobs
 
