@@ -260,9 +260,11 @@ the compose defaults and the build script are checked against. Profiles, runs
 and receipts carry their own immutable identities, which never move with it.
 
 ## TODO
+- Update to the latest villa commit (Ongoing tonight).
 
-- **Publish the images, for real.** The pull-before-build mechanism exists
+## DONE**Publish the images, for real.** The pull-before-build mechanism exists
   (`HELENA_PUBLIC_REGISTRY`, above) and so does the CI job that would push to
   it — `publish images to docker hub`, `when: manual` on purpose, gated on a
   Docker Hub token nobody has added yet. Until somebody clicks it, every
   install still builds Volume Cartographer from source.
+
