@@ -223,6 +223,13 @@ HELENA_PUBLIC_REGISTRY="${HELENA_PUBLIC_REGISTRY:-}"
 if [ -z "$HELENA_PUBLIC_REGISTRY" ] && [ "$platform_env_is_new" = true ]; then
   HELENA_PUBLIC_REGISTRY="docker.io/limegs"
 fi
+# Exported, because build-worker.sh makes the same decision for the toolchain
+# images and this is the one place it is decided. A plain assignment is not
+# visible to it: a value that arrived in the environment stays exported and one
+# this default just set does not, so villa would try the public registry on a
+# host that was handed the variable and silently compile on the fresh host the
+# default exists for -- the exact case it was written for.
+export HELENA_PUBLIC_REGISTRY
 
 # The compose files name their env files as ${HELENA_*_ENV:-/etc/helena/...},
 # and the templates that set those variables set them to this fleet's absolute

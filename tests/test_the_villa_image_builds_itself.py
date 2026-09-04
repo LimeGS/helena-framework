@@ -350,3 +350,183 @@ def test_a_registry_base_that_disagrees_with_the_lock_says_so():
 
     assert "WARNING" in done.stderr and "lock pins" in done.stderr, (
         f"a stale registry base was compiled against in silence:\n{done.stdout}{done.stderr}")
+
+
+# -- a published toolchain, tried before the compile --------------------------
+#
+# The publish job pushes helena-villa and helena-villa-python under
+# villa-<upstream commit>. That only saves anybody the hour if the build tries
+# the pull first -- and only stays safe if what comes back is checked rather
+# than trusted for having the right name.
+
+
+def _recorded_argv_with_a_public_registry(label, pull_succeeds):
+    """A host with a stale image and a public registry that may or may not
+    have the locked toolchain."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        pulled_label = json.loads(LOCK.read_text())["volume_cartographer"]["commit"]
+        (tmp / "docker").write_text(
+            '#!/bin/sh\n'
+            'if [ "$1" = "pull" ]; then\n'
+            f'  echo "$@" >>"$PULLED"; exit {0 if pull_succeeds else 1}\n'
+            'fi\n'
+            'if [ "$1" = "tag" ]; then echo "$@" >>"$PULLED"; exit 0; fi\n'
+            'if [ "$1" = "image" ] && [ "$2" = "inspect" ]; then\n'
+            '  case "$*" in\n'
+            # Before a pull the host has the stale one; after a successful pull
+            # the retagged image is the locked one. The marker file is what
+            # separates the two, the way a real retag would.
+            '    *org.helena.villa.commit*)\n'
+            '      if [ -f "$PULLED" ] && grep -q "^tag" "$PULLED"; then\n'
+            f'        echo "{pulled_label}"\n'
+            '      else\n'
+            f'        echo "{label}"\n'
+            '      fi ;;\n'
+            '    *.Id*) echo "sha256:feed0000" ;;\n'
+            '    *RepoDigests*) echo "" ;;\n'
+            '  esac\n'
+            '  exit 0\n'
+            'fi\n'
+            'if [ "$1" = "build" ] || [ "$1$2" = "buildxbuild" ]; then\n'
+            '  printf "%s\\n" "$@" >>"$RECORD"\n'
+            'fi\n'
+            'exit 0\n')
+        (tmp / "docker").chmod(0o755)
+        record, pulled = tmp / "argv", tmp / "pulled"
+        record.write_text("")
+        environ = {**os.environ, "PATH": f"{tmp}:{os.environ['PATH']}",
+                   "RECORD": str(record), "PULLED": str(pulled),
+                   "HELENA_PUBLIC_REGISTRY": "docker.io/limegs"}
+        for name in ("HELENA_REGISTRY", "BASE_IMAGE", "VILLA_IMAGE_DIGEST",
+                     "VILLA_BASE_IMAGE", "UV_CONTEXT"):
+            environ.pop(name, None)
+        done = subprocess.run(
+            ["sh", str(ROOT / "containers/build-worker.sh"), str(ROOT)],
+            capture_output=True, text=True, env=environ)
+        return (record.read_text().splitlines(),
+                pulled.read_text().splitlines() if pulled.exists() else [], done)
+
+
+def test_a_published_toolchain_is_pulled_by_the_commit_the_lock_pins():
+    """Not by release: these move on upstream's cadence, so a release tag
+    would be whatever villa the last one happened to carry."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    _, pulled, _ = _recorded_argv_with_a_public_registry(stale, pull_succeeds=True)
+
+    wanted = json.loads(LOCK.read_text())["volume_cartographer"]["commit"][:12]
+    assert any(f"docker.io/limegs/helena-villa:villa-{wanted}" in line for line in pulled), (
+        f"the pull did not name the locked commit: {pulled}")
+
+
+def test_a_successful_pull_skips_the_compile():
+    """The whole point: an hour of volume-cartographer, not paid."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    argv, _, done = _recorded_argv_with_a_public_registry(stale, pull_succeeds=True)
+
+    tagged = [argv[i + 1] for i, word in enumerate(argv[:-1]) if word == "-t"]
+    assert "helena-villa:local" not in tagged, (
+        f"villa was compiled anyway after a successful pull:\n{done.stdout}{done.stderr}")
+
+
+def test_a_registry_without_it_still_builds():
+    """A published image that is not there is not a reason to give up."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    argv, _, done = _recorded_argv_with_a_public_registry(stale, pull_succeeds=False)
+
+    assert f"VILLA_COMMIT={lock()['commit']}" in argv, (
+        f"a failed pull left nothing building it:\n{done.stdout}{done.stderr}")
+
+
+def test_the_deploy_exports_the_variable_the_build_reads():
+    """A plain assignment is not visible to build-worker.sh: a value that
+    arrived in the environment stays exported and one the default just set
+    does not -- so villa would compile on exactly the fresh host the default
+    exists for."""
+    deploy = (ROOT / "containers/deploy-platform.sh").read_text()
+    assert "export HELENA_PUBLIC_REGISTRY" in deploy
+
+
+# -- the environment the deploy actually runs this in -------------------------
+#
+# .deploy uses image: docker:27-cli, which has no python at all. read_lock
+# shelled out to python3, so every read came back empty there -- and the gate
+# read empty as "nothing to compare against" and reused whatever the host had.
+# A fixed gate that is a no-op on the only machine it has to work on is not a
+# fix. Measured: the deploy of 71510092 carried the gate and rebuilt nothing;
+# helena-villa-python:local stayed at 05dcf034 through it.
+
+
+def _run_without_python3(docker_run_prints):
+    """build-worker.sh on a PATH with no python3, the way the deploy has it."""
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        (tmp / "docker").write_text(
+            '#!/bin/sh\n'
+            'if [ "$1" = "run" ]; then\n'
+            f'  {docker_run_prints}\n'
+            '  exit 0\n'
+            'fi\n'
+            'if [ "$1" = "image" ]; then exit 1; fi\n'
+            'if [ "$1" = "build" ] || [ "$1$2" = "buildxbuild" ]; then\n'
+            '  printf "%s\\n" "$@" >>"$RECORD"\n'
+            'fi\n'
+            'exit 0\n')
+        (tmp / "docker").chmod(0o755)
+        record = tmp / "argv"
+        record.write_text("")
+        # A PATH with the ordinary utilities and no python of any name --
+        # /usr/bin/python3 exists on the machine these tests run on, which is
+        # exactly what the deploy's image does not have. Symlinked rather than
+        # filtered by PATH order, since `command -v` would find it either way.
+        binz = tmp / "bin"
+        binz.mkdir()
+        for source in ("/bin", "/usr/bin"):
+            for tool in Path(source).iterdir():
+                if tool.name.startswith("python") or (binz / tool.name).exists():
+                    continue
+                try:
+                    (binz / tool.name).symlink_to(tool)
+                except OSError:
+                    pass
+        environ = {**os.environ, "PATH": f"{tmp}:{binz}",
+                   "RECORD": str(record), "HELENA_PYTHON_IMAGE": "python:3.11-slim"}
+        for name in ("HELENA_REGISTRY", "BASE_IMAGE", "VILLA_IMAGE_DIGEST",
+                     "VILLA_BASE_IMAGE", "UV_CONTEXT", "HELENA_PUBLIC_REGISTRY"):
+            environ.pop(name, None)
+        done = subprocess.run(
+            ["sh", str(ROOT / "containers/build-worker.sh"), str(ROOT)],
+            capture_output=True, text=True, env=environ)
+        return record.read_text().splitlines(), done
+
+
+def test_without_a_host_python_the_lock_is_read_through_a_container():
+    """deploy-platform.sh already had this fallback; this script did not."""
+    builder = (ROOT / "containers/build-worker.sh").read_text()
+    assert 'command -v python3' in builder
+    assert '"${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 -' in builder, (
+        "there is no way to read the lock where the deploy actually runs this")
+
+
+def test_an_unreadable_lock_stops_rather_than_reusing_whatever_is_here():
+    """The failure that made the gate inert: empty reads were taken as
+    'nothing to compare against' and everything on the host looked current."""
+    _, done = _run_without_python3('true')   # the container prints nothing
+
+    assert done.returncode == 2, (
+        "an unreadable lock let the build carry on:\n"
+        f"rc={done.returncode}\n{done.stdout}{done.stderr}")
+    assert "Refusing to guess" in done.stderr
+
+
+def test_the_container_fallback_lets_the_build_proceed():
+    """And when the fallback does answer, the lock is not what stops it.
+
+    This host has no villa image either, so the run still ends at the digest
+    refusal further down -- a different exit 2, and not this one.
+    """
+    commit = lock()["commit"]
+    _, done = _run_without_python3(f'echo "{commit}"')
+
+    assert "Refusing to guess" not in done.stderr, (
+        f"the lock read fine and the build refused anyway:\n{done.stdout}{done.stderr}")

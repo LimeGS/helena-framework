@@ -549,6 +549,92 @@ deploy to gpu-1:
     - if: $CI_COMMIT_BRANCH == "staging"
 
 # ---------------------------------------------------------------------------
+# the toolchain
+# ---------------------------------------------------------------------------
+
+# Compile the two villa images at the commit the lock pins, and publish them
+# to the internal registry.
+#
+# Manual, because this is the hour of volume-cartographer that everything else
+# here exists to avoid paying twice. It is not part of a deploy: a deploy that
+# might spend an hour is a deploy nobody can time.
+#
+# Why a job at all, rather than somebody building it on the host: nothing on
+# these machines is hand-prepared, and an image built by hand is one whose
+# provenance is a person's memory. build-worker.sh already pins both -- commit,
+# tree, and the fetch check the tree hash before the toolchain is installed --
+# so this runs that script rather than restating its build arguments here,
+# where they would drift.
+#
+# BASE_IMAGE without the registry prefix on purpose. Prefixed, the script reads
+# the name as one to pull rather than build, which is right for a deploy and
+# wrong for the job whose whole purpose is producing it.
+build and publish the villa toolchain:
+  stage: build
+  tags: [gpu-1]
+  image: docker:27-cli
+  variables:
+    HELENA_DEPLOY_HOST: "gpu-1"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "staging"
+      when: manual
+      allow_failure: true
+  timeout: 3h
+  script:
+    - *on_its_host
+    - |
+      # The lock is this job's subject, so it is read here rather than assumed,
+      # and by the same containerised route build-worker.sh uses -- this image
+      # has no python either.
+      read_pin() {
+        docker run --rm -i "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - \
+          "$(cat containers/images/scrollfiesta/locks/source-lock.json)" "$1" <<'PY_PIN'
+      import json, sys
+      print(json.loads(sys.argv[1])[sys.argv[2]]["commit"])
+      PY_PIN
+      }
+      villa_commit="$(read_pin volume_cartographer)"
+      villa_python_commit="$(read_pin villa_python)"
+      test -n "$villa_commit" -a -n "$villa_python_commit" || {
+        echo "the lock did not read; refusing to build an unpinned toolchain" >&2
+        exit 2
+      }
+      echo "volume_cartographer $villa_commit"
+      echo "villa_python        $villa_python_commit"
+    - |
+      # One script, already holding every pin. It builds whichever of the two
+      # is absent or not at the locked commit, and leaves both under their
+      # local names.
+      BASE_IMAGE=helena-villa:local \
+      HELENA_VILLA_PYTHON_IMAGE=helena-villa-python:local \
+      sh containers/build-worker.sh "$PWD" "helena-worker-cpp:toolchain-$CI_COMMIT_SHORT_SHA"
+    - |
+      # Published by the commit they carry, read off the image rather than off
+      # the lock: what is pushed is what was built, and if those two ever
+      # disagree the tag should say what is in the layers.
+      publish_internal() {
+        local_image="$1" repo="$2"
+        [ -n "$HELENA_REGISTRY" ] || {
+          echo "no internal registry configured; $repo stays on this daemon"
+          return 0
+        }
+        carries="$(docker image inspect "$local_image" \
+          --format '{{index .Config.Labels "org.helena.villa.commit"}}' 2>/dev/null)"
+        test -n "$carries" || { echo "$local_image carries no villa commit" >&2; return 1; }
+        short="$(printf %.12s "$carries")"
+        for name in "villa-$short" local; do
+          docker tag "$local_image" "$HELENA_REGISTRY/$repo:$name"
+          docker push "$HELENA_REGISTRY/$repo:$name"
+        done
+        echo "published $repo at $short"
+      }
+      publish_internal helena-villa:local helena-villa
+      publish_internal helena-villa-python:local helena-villa-python
+    - |
+      echo "Both images are on this host and in the internal registry."
+      echo "Run 'publish images to docker hub' to put them on Docker Hub too."
+
+# ---------------------------------------------------------------------------
 # publish
 # ---------------------------------------------------------------------------
 
@@ -618,6 +704,58 @@ publish images to docker hub:
       }
       publish_built containers/images/Containerfile.backup backup --build-arg BASE_IMAGE=postgres:16-alpine
       publish_built containers/images/Containerfile.control-tunnel control-tunnel
+    - |
+      # The toolchain images, which nothing published before -- and they are
+      # the expensive half: a stranger's first install compiled volume-
+      # cartographer for an hour because the only copies lived on the hosts
+      # that had already done so.
+      #
+      # Neither fits the two helpers above. They do not run as containers --
+      # they are what the workers are built FROM, not services -- so there is
+      # no container for publish_running to read; and publish_built would
+      # recompile villa inside this job, which is the cost being removed.
+      # What is published is the image this host already has.
+      #
+      # Checked first, against the lock rather than against hope. An image
+      # whose label disagrees is skipped, not pushed: publishing a stale
+      # toolchain as `latest` would hand every fresh install the wrong one --
+      # the same failure the build gate exists to stop, one registry further
+      # out. The lock is read the way deploy-platform.sh reads it, by handing
+      # the file's contents to python rather than mounting a path that does
+      # not mean the same thing inside this job as it does on the host.
+      lock_commit() {
+        docker run --rm -i "${HELENA_PYTHON_IMAGE:-python:3.11-slim}" python3 - \
+          "$(cat containers/images/scrollfiesta/locks/source-lock.json)" "$1" <<'PY_LOCK'
+      import json, sys
+      print(json.loads(sys.argv[1])[sys.argv[2]].get("commit", ""))
+      PY_LOCK
+      }
+      publish_toolchain() {
+        image="$1" repo="$2" entry="$3"
+        docker image inspect "$image" >/dev/null 2>&1 || {
+          echo "$image is not on this host; skipping helena-$repo" >&2
+          return 0
+        }
+        carries="$(docker image inspect "$image" \
+          --format '{{index .Config.Labels "org.helena.villa.commit"}}' 2>/dev/null)"
+        pinned="$(lock_commit "$entry")"
+        if [ -z "$carries" ] || [ -z "$pinned" ] || [ "$carries" != "$pinned" ]; then
+          echo "$image carries ${carries:-no villa commit} and the lock pins ${pinned:-nothing readable};" >&2
+          echo "  skipping helena-$repo rather than publishing a stale toolchain" >&2
+          return 0
+        fi
+        # Three names for one image. $version is what a deploy at this release
+        # asks for; villa-<commit> is the toolchain's own identity, which is an
+        # upstream sha and so means the same thing to every clone, unlike one
+        # from this project's history; latest is the stranger's default.
+        short="villa-$(printf %.12s "$carries")"
+        for name in "$version" "$short" latest; do
+          docker tag "$image" "docker.io/limegs/helena-$repo:$name"
+          docker push "docker.io/limegs/helena-$repo:$name"
+        done
+      }
+      publish_toolchain "${HELENA_REGISTRY:+${HELENA_REGISTRY%/}/}helena-villa:local" villa volume_cartographer
+      publish_toolchain "${HELENA_VILLA_PYTHON_IMAGE:-helena-villa-python:local}" villa-python villa_python
 
 # ---------------------------------------------------------------------------
 # verify
