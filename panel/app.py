@@ -810,16 +810,48 @@ def _load_receipt(path: Path) -> Run | None:
 
 def _scan(directory: Path, mission_id: str) -> list[Run]:
     runs = []
-    for entry in sorted(directory.iterdir()):
-        if not entry.is_dir():
+    try:
+        entries = sorted(directory.iterdir())
+    except (FileNotFoundError, NotADirectoryError):
+        # A mission or run directory a concurrent job removed between the
+        # stamp above finding it and this walk reaching it -- normal under
+        # a fleet cleaning up after itself, not evidence the scan failed.
+        return runs
+    for entry in entries:
+        try:
+            if not entry.is_dir():
+                continue
+            receipts = sorted(entry.glob("*RECEIPT*.json"))
+        except (FileNotFoundError, NotADirectoryError):
             continue
-        for receipt in sorted(entry.glob("*RECEIPT*.json")):
+        for receipt in receipts:
             run = _load_receipt(receipt)
             if run:
                 run.mission_id = mission_id
                 runs.append(run)
                 break
     return runs
+
+
+def _run_directory_stamps(root: Path) -> list[tuple[str, float]]:
+    """(name, mtime) for every directory under root.
+
+    Walked with os.walk rather than Path.rglob: a directory a concurrent job
+    just finished with and removed -- routine under this fleet's own
+    cleanup, not evidence the walk failed -- raised FileNotFoundError inside
+    rglob's own generator, which a caller cannot resume past; the exception
+    surfaced here as a 500 on every page that reads mission state. os.walk's
+    onerror callback lets the walk skip past exactly that entry and continue
+    rather than losing the whole request to one race.
+    """
+    stamps: list[tuple[str, float]] = []
+    for dirpath, dirnames, _filenames in os.walk(root, onerror=lambda _exc: None):
+        for name in list(dirnames):
+            try:
+                stamps.append((name, os.stat(os.path.join(dirpath, name)).st_mtime))
+            except (FileNotFoundError, NotADirectoryError):
+                dirnames.remove(name)
+    return stamps
 
 
 def index_runs(force: bool = False, mission_id: str | None = None) -> list[Run]:
@@ -831,9 +863,7 @@ def index_runs(force: bool = False, mission_id: str | None = None) -> list[Run]:
     """
     if not RUNS.exists():
         return []
-    stamp = tuple(sorted(
-        (p.name, p.stat().st_mtime) for p in RUNS.rglob("*") if p.is_dir()
-    ))
+    stamp = tuple(sorted(_run_directory_stamps(RUNS)))
     if not force and _cache["stamp"] == stamp:
         runs = _cache["runs"]
     else:
