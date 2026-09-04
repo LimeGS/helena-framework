@@ -63,6 +63,23 @@ export type Finding = {
   detail: string;
   severity: "critical" | "warning";
 };
+// One row per ink worker that has ever polled, from InkJobStore.workers().
+// `gpu_visible` is the fresh, per-poll nvidia-smi answer -- true/false for a
+// worker that claims a GPU, null for one that has never claimed one at all.
+// `state` alone cannot say a GPU is gone: helena-ink-0 kept POLLING for five
+// hours after its container's device passthrough broke, because the claim
+// loop that writes last_poll_at never stopped running.
+export type InkWorker = {
+  worker_id: string;
+  host_id: string;
+  runtime: string | null;
+  phases: string[];
+  last_poll_at: string | null;
+  last_claim_at: string | null;
+  seconds_since_poll: number;
+  state: "POLLING" | "SILENT";
+  gpu_visible: boolean | null;
+};
 export type Fleet = {
   available: boolean;
   reason?: string;
@@ -74,7 +91,8 @@ export type Fleet = {
   stale_leases?: number;
   task_states?: { state: string; count: number }[];
   events_by_type?: { type: string; count: number }[];
-  workers?: { worker_id: string; attempts: number }[];
+  workers?: InkWorker[];
+  workers_silent?: InkWorker[];
   surfaces_by_sample?: { sample_id: string; count: number; area_cm2: number }[];
 };
 export type State = {

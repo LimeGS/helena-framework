@@ -496,6 +496,52 @@ from framework.contracts.host_probe import (  # noqa: E402,F401
 )
 
 
+def worker_gpu_visible(*, nvidia_smi: str = "nvidia-smi") -> bool | None:
+    """Whether *this worker's own* visible device answers, asked fresh.
+
+    helena-ink-0 kept polling for five hours with nvidia-smi inside the
+    container reporting "No devices were found" -- a passthrough glitch, not a
+    crash -- while helena-ink-9um, on the same host and carrying the identical
+    DeviceRequests, kept seeing its card the whole time. The worker's own "do I
+    have a GPU" answer had been decided once, at startup, and never asked
+    again: six P5 jobs sat pending for five hours with nothing in any log --
+    the process never died, `docker ps` said "Up", and the fleet row said
+    POLLING, which is what a worker with nothing to claim looks like too.
+    `docker restart` was the whole fix, because nothing had actually broken
+    that a restart could not re-probe.
+
+    host_state() cannot stand in for this. It strips CUDA_VISIBLE_DEVICES and
+    NVIDIA_VISIBLE_DEVICES on purpose, because it wants the whole host's
+    inventory for the Hosts page -- the question there is "what does this
+    machine have". The question here is narrower and is the one that was
+    missing: "can this process, right now, reach the device it was given". So
+    those variables are kept rather than stripped, and this is called every
+    poll rather than once a minute, so a lost device is caught within one
+    polling interval instead of riding out however long it takes someone to
+    notice a queue has stopped draining.
+
+    Three answers, not two. `None` is a worker that has never claimed a GPU at
+    all -- nvidia-smi is not even on its PATH, which is what a CPU-only ink
+    worker looks like, if one is ever deployed. `False` is a worker that does
+    claim one and cannot currently reach it: nvidia-smi is present and either
+    ran and found nothing, or failed outright. `True` is the only proof that
+    counts -- a device nvidia-smi listed just now. Config-level claims --
+    DeviceRequests, an env var, a driver that answered a heartbeat ago -- are
+    not asked here at all, because the whole point of asking again is that
+    exactly those claims can lie.
+    """
+    try:
+        probed = subprocess.run(
+            [nvidia_smi, "--query-gpu=uuid", "--format=csv,noheader"],
+            capture_output=True, text=True, timeout=10)
+    except FileNotFoundError:
+        return None
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+    if probed.returncode != 0:
+        return False
+    return bool(probed.stdout.strip())
+
 
 def record_artifact(job: dict, output: Path, *, runs_root: Path) -> dict | None:
     """Register what this job produced, with what it read as lineage.
@@ -2173,6 +2219,13 @@ def main() -> int:
     # that claimed before its first probe would have no cards recorded and
     # would refuse every GPU job for the first minute of its life.
     last_probe = host_state(args.runs_root)
+    # Printed only when it changes, not every poll: the worker that lost its
+    # GPU for five hours logged nothing at all about it, and a line repeated
+    # every ten seconds for five hours is a log nobody reads either. A sentinel
+    # distinct from True, False and None -- gpu_visible's own three answers --
+    # so the very first probe always prints once, whatever it finds.
+    _UNKNOWN = object()
+    last_gpu_visible: bool | None | object = _UNKNOWN
     while True:
         if time.time() - last_state > 60:
             try:
@@ -2182,16 +2235,39 @@ def main() -> int:
                 print(f"host state not recorded: {exc}", file=sys.stderr, flush=True)
             last_state = time.time()
 
+        # This worker's own device, asked fresh on every poll -- not the
+        # host-wide reading above, and not something decided once at startup.
+        # helena-ink-0 once lost its container's GPU passthrough silently and
+        # kept polling; has_gpu stayed whatever it was the one time it had been
+        # computed, and nothing this worker wrote said a card was missing.
+        gpu_visible = worker_gpu_visible()
+        if gpu_visible != last_gpu_visible:
+            print(
+                "this worker claims no GPU (nvidia-smi is not on its PATH)"
+                if gpu_visible is None else
+                "this worker's GPU is no longer visible to nvidia-smi"
+                if gpu_visible is False else
+                "this worker's GPU is visible", file=sys.stderr, flush=True)
+            last_gpu_visible = gpu_visible
+
         try:
             # What this machine actually has, measured rather than assumed.
             # A host with no card must not take a job that needs one: it fails
             # it, burns an attempt, and leaves the queue looking broken instead
-            # of misrouted.
+            # of misrouted. gpu_vram_gb still reads the once-a-minute host
+            # probe, the only one that carries VRAM; eligibility itself now
+            # reads the fresher, per-poll, worker-scoped probe above rather
+            # than that same once-a-minute reading.
             cards = (last_probe or {}).get("gpus") or []
             job = store.claim(
                 worker_id=worker_id, host_id=args.host_id,
                 lease_seconds=args.lease_seconds, phases=phases,
-                has_gpu=bool(cards),
+                has_gpu=bool(gpu_visible),
+                # Recorded on ink_workers on every poll, so a worker whose card
+                # has gone silent stops looking exactly like a worker with
+                # nothing to claim -- today that row says nothing about a GPU
+                # at all, healthy or not.
+                gpu_visible=gpu_visible,
                 # Which image this worker is, so a lane needing another one is
                 # left for the worker that has it. require_runtime already
                 # refused those by name -- but at execution, having taken the

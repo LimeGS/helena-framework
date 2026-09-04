@@ -15101,17 +15101,35 @@ export const HANDBOOK: Page[] = [
       [
        {
         "kind": "text",
-        "text": "worker liveness"
+        "text": "worker liveness, summarised"
+       }
+      ],
+      [
+       {
+        "kind": "text",
+        "text": "the "
+       },
+       {
+        "kind": "strong",
+        "text": "Workers"
+       },
+       {
+        "kind": "text",
+        "text": " tile on Mission — silent and GPU-blind counts, by name"
+       }
+      ]
+     ],
+     [
+      [
+       {
+        "kind": "text",
+        "text": "worker liveness, every row"
        }
       ],
       [
        {
         "kind": "code",
         "text": "GET /api/fleet"
-       },
-       {
-        "kind": "text",
-        "text": " — and only there"
        }
       ]
      ],
@@ -15341,12 +15359,27 @@ export const HANDBOOK: Page[] = [
     ]
    },
    {
-    "kind": "callout",
-    "tone": "trap",
+    "kind": "p",
     "spans": [
      {
       "kind": "text",
-      "text": "Nothing in the UI renders this yet. "
+      "text": "The "
+     },
+     {
+      "kind": "strong",
+      "text": "Workers"
+     },
+     {
+      "kind": "text",
+      "text": " tile on Mission renders a summary of this: how many workers are polling, how many are "
+     },
+     {
+      "kind": "code",
+      "text": "SILENT"
+     },
+     {
+      "kind": "text",
+      "text": ", how many claim a GPU and cannot currently see one (below) — and, whenever either count is nonzero, which workers by name. The full per-worker table — every row, every column, not just the troubled ones — is still "
      },
      {
       "kind": "code",
@@ -15354,15 +15387,7 @@ export const HANDBOOK: Page[] = [
      },
      {
       "kind": "text",
-      "text": " computes it and returns "
-     },
-     {
-      "kind": "code",
-      "text": "workers_silent"
-     },
-     {
-      "kind": "text",
-      "text": " as its own list; no page shows either. Until one does, this is an endpoint you curl."
+      "text": " only; no page lists all of them one row at a time."
      }
     ]
    },
@@ -15414,6 +15439,98 @@ export const HANDBOOK: Page[] = [
      {
       "kind": "text",
       "text": "The host's own heartbeat cannot answer this: it is written by a different branch of the same loop, so it keeps reporting while the claim beside it is blocked, and the host looks healthy because part of it is."
+     }
+    ]
+   },
+   {
+    "kind": "h",
+    "level": 3,
+    "text": "GPU visibility",
+    "id": "gpu-visibility"
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "text",
+      "text": "Claiming a GPU and reaching one are not the same fact. helena-ink-0's container lost its GPU passthrough silently — "
+     },
+     {
+      "kind": "code",
+      "text": "nvidia-smi"
+     },
+     {
+      "kind": "text",
+      "text": " inside it started answering \"No devices were found\", not a crash — while the worker kept polling on schedule and this table kept saying "
+     },
+     {
+      "kind": "code",
+      "text": "POLLING"
+     },
+     {
+      "kind": "text",
+      "text": ", because polling and device passthrough are unrelated failures. Six P5 jobs sat pending for five hours with nothing in any log to say why."
+     }
+    ]
+   },
+   {
+    "kind": "p",
+    "spans": [
+     {
+      "kind": "code",
+      "text": "gpu_visible"
+     },
+     {
+      "kind": "text",
+      "text": " is the fix: "
+     },
+     {
+      "kind": "code",
+      "text": "true"
+     },
+     {
+      "kind": "text",
+      "text": "/"
+     },
+     {
+      "kind": "code",
+      "text": "false"
+     },
+     {
+      "kind": "text",
+      "text": " for a worker that claims a GPU, asked fresh with "
+     },
+     {
+      "kind": "code",
+      "text": "nvidia-smi"
+     },
+     {
+      "kind": "text",
+      "text": " on every poll — deliberately not "
+     },
+     {
+      "kind": "code",
+      "text": "host_state()"
+     },
+     {
+      "kind": "text",
+      "text": "'s once-a-minute, whole-host reading, which would have kept showing a card present the whole time, reported by whichever "
+     },
+     {
+      "kind": "em",
+      "text": "other"
+     },
+     {
+      "kind": "text",
+      "text": " worker on the same host could still see one. "
+     },
+     {
+      "kind": "code",
+      "text": "null"
+     },
+     {
+      "kind": "text",
+      "text": " is a worker that has never claimed a GPU at all, such as a CPU-only ink worker if one is ever deployed — not a finding, and drawn with no opinion rather than a false \"no GPU\"."
      }
     ]
    },

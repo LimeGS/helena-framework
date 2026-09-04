@@ -2659,7 +2659,8 @@ class InkJobStore:
     def claim(self, *, worker_id: str, host_id: str, lease_seconds: int = 3600,
               phases: Sequence[str] | None = None,
               has_gpu: bool = True, gpu_vram_gb: float = 1e9,
-              runtime: str | None = None) -> dict | None:
+              runtime: str | None = None,
+              gpu_visible: bool | None = None) -> dict | None:
         """Take one pending job, or return None. Expired leases are recycled first.
 
         `phases` is what this worker can actually run. Without it every worker
@@ -2677,6 +2678,16 @@ class InkJobStore:
         this one only looked like it did. The defaults are permissive because
         every caller today is a GPU host, and a default that silently claimed
         nothing would be a worse failure than the one being fixed.
+
+        `gpu_visible` is a separate fact from `has_gpu`: it is not read by this
+        query at all, and it does not filter anything here -- it is only
+        written onto the worker's own row, below, so the fleet page can show
+        it. helena-ink-0 lost its container's GPU passthrough silently and kept
+        polling for five hours: `has_gpu` was computed correctly and used to
+        stop it claiming P5 work, and every bit of that was invisible, because
+        nothing this call wrote ever said a card had gone missing. `None` means
+        the caller has never claimed a GPU at all -- a CPU-only ink worker, if
+        one exists, has nothing here to report.
 
         `runtime` is which image this worker is, and it is the same filter one
         column over. Three lanes need an image their claiming worker may not be
@@ -2731,17 +2742,24 @@ class InkJobStore:
             # Written on every poll, claimed or not, because "this worker is
             # alive and looking" is the fact the fleet page could not state.
             # An idle worker and a blocked one showed the same thing, and the
-            # blocked ones were blocked for eighteen hours.
+            # blocked ones were blocked for eighteen hours. gpu_visible rides
+            # the same heartbeat for the same reason: a worker whose card had
+            # gone silent showed the same POLLING row as a healthy one, for
+            # five hours, because nothing this statement wrote said anything
+            # about a GPU at all.
             cursor.execute(
                 """INSERT INTO ink_workers
-                       (worker_id, host_id, runtime, last_poll_at, phases)
-                   VALUES (%s, %s, %s, now(), %s)
+                       (worker_id, host_id, runtime, last_poll_at, phases,
+                        gpu_visible)
+                   VALUES (%s, %s, %s, now(), %s, %s)
                    ON CONFLICT (worker_id) DO UPDATE
                       SET host_id = EXCLUDED.host_id,
                           runtime = EXCLUDED.runtime,
                           phases = EXCLUDED.phases,
-                          last_poll_at = now()""",
-                (worker_id, host_id, runtime, list(phases) if phases else []),
+                          last_poll_at = now(),
+                          gpu_visible = EXCLUDED.gpu_visible""",
+                (worker_id, host_id, runtime, list(phases) if phases else [],
+                 gpu_visible),
             )
 
             cursor.execute(
@@ -3356,13 +3374,20 @@ class InkJobStore:
         `state` is the distinction the fleet page could not draw: a worker with
         nothing to claim and a worker that cannot claim looked identical, and
         `docker ps` said "Up" for both.
+
+        `gpu_visible` is the other distinction it could not draw: `state` alone
+        says a worker is POLLING whether or not its GPU is still there, because
+        the claim loop keeps running on a card that has gone silent -- that was
+        exactly helena-ink-0 for five hours. `True`/`False` is a worker that
+        claims a GPU and currently can, or cannot, reach it; `None` is a worker
+        that has never claimed one at all and has nothing here to report.
         """
         threshold = int(silent_after or self.WORKER_SILENT_SECONDS)
         with self._connect() as connection, connection.cursor() as cursor:
             cursor.execute(
                 """SELECT worker_id, host_id, runtime, phases,
                           last_poll_at, last_claim_at,
-                          EXTRACT(EPOCH FROM (now() - last_poll_at))
+                          EXTRACT(EPOCH FROM (now() - last_poll_at)), gpu_visible
                      FROM ink_workers ORDER BY worker_id""")
             return [{
                 "worker_id": worker_id, "host_id": host_id, "runtime": runtime,
@@ -3371,8 +3396,9 @@ class InkJobStore:
                 "last_claim_at": last_claim.isoformat() if last_claim else None,
                 "seconds_since_poll": round(float(since), 1),
                 "state": "POLLING" if float(since) <= threshold else "SILENT",
+                "gpu_visible": gpu_visible,
             } for (worker_id, host_id, runtime, phases, last_poll, last_claim,
-                   since) in cursor.fetchall()]
+                   since, gpu_visible) in cursor.fetchall()]
 
     SELF_REGISTERED_NOTE = ("registered by its own report; add an ssh target "
                             "under Configuration -> Hosts to provision it from "
