@@ -242,3 +242,111 @@ def test_no_default_image_only_resolves_inside_the_fleet():
             f"{name} is a bare name, so with no HELENA_REGISTRY set it resolves "
             f"to Docker Hub's library/{name.split(':')[0]} -- which exists only "
             f"for official images. Qualify it, or add it above if it is one.")
+
+
+# -- absent and stale are the same answer ------------------------------------
+#
+# The gates used to ask only "is the image here". gpu-1 kept its 05dcf034 build
+# through every deploy after the lock moved to 23adee04 -- the image was
+# present, so nothing rebuilt it, and the workers that came out carried a
+# toolchain their own lock did not pin. Nothing said so.
+
+
+def _recorded_build_argv_on_a_host_that_has(label, env=None):
+    """Same harness, but `docker image inspect` succeeds and reports a label.
+
+    The fake above answers "nothing is on this host" to every inspect, so it can
+    only ever exercise the absent case. A stale image is a *present* one, which
+    is exactly what the old gate could not tell apart from a current one.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp = Path(tmp)
+        (tmp / "docker").write_text(
+            '#!/bin/sh\n'
+            'if [ "$1" = "image" ] && [ "$2" = "inspect" ]; then\n'
+            # The label query the gate makes, and the two the digest resolution
+            # makes afterwards; anything else about the image is not asked for.
+            '  case "$*" in\n'
+            '    *org.helena.villa.commit*) printf "%s\\n" "' + label + '" ;;\n'
+            '    *.Id*) echo "sha256:feed0000" ;;\n'
+            '    *RepoDigests*) echo "" ;;\n'
+            '  esac\n'
+            '  exit 0\n'
+            'fi\n'
+            'if [ "$1" = "build" ] || [ "$1$2" = "buildxbuild" ]; then\n'
+            '  printf "%s\\n" "$@" >>"$RECORD"\n'
+            'fi\n'
+            'exit 0\n')
+        (tmp / "docker").chmod(0o755)
+        record = tmp / "argv"
+        record.write_text("")
+        environ = {**os.environ, "PATH": f"{tmp}:{os.environ['PATH']}", "RECORD": str(record)}
+        for name in ("HELENA_REGISTRY", "BASE_IMAGE", "VILLA_IMAGE_DIGEST",
+                     "VILLA_BASE_IMAGE", "UV_CONTEXT"):
+            environ.pop(name, None)
+        for key, value in (env or {}).items():
+            environ.pop(key, None) if value is None else environ.update({key: value})
+        done = subprocess.run(
+            ["sh", str(ROOT / "containers/build-worker.sh"), str(ROOT)],
+            capture_output=True, text=True, env=environ)
+        return record.read_text().splitlines(), done
+
+
+def test_an_image_already_at_the_locked_commit_is_not_rebuilt():
+    """The whole point of the old gate, which this must not cost: a host that
+    is already current does not recompile volume-cartographer."""
+    argv, _ = _recorded_build_argv_on_a_host_that_has(lock()["commit"])
+
+    assert f"VILLA_COMMIT={lock()['commit']}" not in argv, (
+        "an image already at the locked commit was rebuilt anyway")
+
+
+def test_an_image_at_some_other_commit_is_rebuilt():
+    """05dcf034 is the commit gpu-1 actually kept; the lock has moved since."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    assert lock()["commit"] != stale, "pick a commit the lock does not pin"
+
+    argv, done = _recorded_build_argv_on_a_host_that_has(stale)
+
+    assert f"VILLA_COMMIT={lock()['commit']}" in argv, (
+        "a stale base image was reused instead of rebuilt:\n"
+        f"{done.stdout}{done.stderr}")
+
+
+def test_the_stale_lane_image_is_rebuilt_too():
+    """Two images read this lock, and the spiral lane is the one gpu-1 ran the
+    old fitter out of."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    villa_python = json.loads(LOCK.read_text())["villa_python"]
+    assert villa_python["commit"] != stale
+
+    argv, done = _recorded_build_argv_on_a_host_that_has(stale)
+
+    # Its own `-t helena-villa-python:local`, not the worker build's
+    # `LANE_IMAGE=helena-villa-python:local`: the second is there either way,
+    # and matching it would pass against the gate this test exists to catch.
+    tagged = [argv[i + 1] for i, word in enumerate(argv[:-1]) if word == "-t"]
+    assert "helena-villa-python:local" in tagged, (
+        "the stale spiral lane image was reused instead of rebuilt:\n"
+        f"{done.stdout}{done.stderr}")
+
+
+def test_an_image_with_no_villa_label_is_left_alone():
+    """An image built before the stamp existed cannot be judged by it, and
+    turning "I cannot tell" into an hour of compiling is its own failure."""
+    argv, _ = _recorded_build_argv_on_a_host_that_has("")
+
+    assert f"VILLA_COMMIT={lock()['commit']}" not in argv, (
+        "an unlabelled image was rebuilt on a guess")
+
+
+def test_a_registry_base_that_disagrees_with_the_lock_says_so():
+    """A registry-qualified base is pulled, not built here, so the gate cannot
+    fix it -- gpu-1 pulled 05dcf034 for five weeks after the lock moved. It
+    still must not come out of the build quietly."""
+    stale = "05dcf0349356bc833670d61e5eca00be58376e35"
+    _, done = _recorded_build_argv_on_a_host_that_has(
+        stale, env={"HELENA_REGISTRY": "registry.example.invalid"})
+
+    assert "WARNING" in done.stderr and "lock pins" in done.stderr, (
+        f"a stale registry base was compiled against in silence:\n{done.stdout}{done.stderr}")
