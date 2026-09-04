@@ -213,7 +213,8 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "source_slice_um": float, "model_family": str,
            "source_pixel_um": float, "depth_center": int, "stride": int,
            "model_config": str,
-           "batch_size": int, "num_workers": int, "min_valid_ratio": float,
+           "batch_size": int, "num_workers": int, "layer_start": int,
+           "layer_end": int, "min_valid_ratio": float,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -484,6 +485,12 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
     "num_workers": {"label": "DataLoader workers",
                     "note": "processes reading tiles ahead of the model; left empty the "
                             "runner's own default (4) applies"},
+    "layer_start": {"label": "Layer window start",
+                    "note": "give this with layer_end, never alone; left empty the "
+                            "profile's own pinned window (or the whole stack) applies"},
+    "layer_end": {"label": "Layer window end",
+                  "note": "give this with layer_start, never alone; left empty the "
+                          "profile's own pinned window (or the whole stack) applies"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -1376,7 +1383,14 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   # from an S3 stream into a local one -- exposed anyway
                   # because the runner already accepts it and a caller on a
                   # host with more cores has no other way to ask for more.
-                  "num_workers": "--num-workers"},
+                  "num_workers": "--num-workers",
+                  # Both null by default -- upstream reads the whole stack.
+                  # A band-position experiment (top/center/bottom thirds) had
+                  # to be built as three separate on-disk layer directories
+                  # before this existed, because the profile pins one window
+                  # and nothing could ask for another per job.
+                  "layer_start": "--layer-start",
+                  "layer_end": "--layer-end"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"

@@ -249,6 +249,55 @@ def test_a_negative_worker_count_is_refused():
                           num_workers=-1)
 
 
+# -- layer_start / layer_end as job parameters -------------------------------
+
+def test_a_layer_window_is_absent_by_default():
+    """The shipped profile pins neither edge -- upstream reads the whole
+    stack, which only happens when this recipe sends neither flag."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+    assert "--layer-start" not in argv and "--layer-end" not in argv
+
+
+def test_a_caller_may_ask_for_a_different_window():
+    """Added after a band-position experiment (top/center/bottom thirds) had
+    to be built as three separate on-disk layer directories, because the
+    profile pinned a window nothing could override per job."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             layer_start=2, layer_end=9)
+    assert argv[argv.index("--layer-start") + 1] == "2"
+    assert argv[argv.index("--layer-end") + 1] == "9"
+
+
+def test_a_caller_supplying_only_one_edge_is_refused():
+    """A window with only one edge chosen is not a window either caller
+    meant -- refused rather than silently inheriting the profile's other
+    edge (here, no edge at all)."""
+    profile = load_lane_profile(PROFILE)
+    with pytest.raises(ValueError, match="layer_start and layer_end"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          layer_start=2)
+    with pytest.raises(ValueError, match="layer_start and layer_end"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          layer_end=9)
+
+
+def test_a_callers_window_overrides_a_profile_pinned_one():
+    profile = load_lane_profile(PROFILE)
+    profile["default_execution"]["layer_start"] = 0
+    profile["default_execution"]["layer_end"] = 5
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             layer_start=10, layer_end=15)
+    assert argv[argv.index("--layer-start") + 1] == "10"
+    assert argv[argv.index("--layer-end") + 1] == "15"
+
+
 # -- batch_size default by host ---------------------------------------------
 
 class _FakeCompletedProcess:
@@ -469,7 +518,8 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
         return "/somewhere/surface-volume.zarr"
 
     def fake_inference_command(profile, *, surface_volume, checkpoint, output_tiff,
-                               batch_size=None, num_workers=None):
+                               batch_size=None, num_workers=None,
+                               layer_start=None, layer_end=None):
         seen["output_tiff"] = Path(output_tiff)
         return ["true"]
 
