@@ -95,6 +95,25 @@ def test_a_job_naming_another_profile_is_refused():
                     runner=RUNNER, output_dir="/runs/p1-1")
 
 
+def test_the_form_does_not_ask_for_what_the_server_already_owns():
+    """artifact_store was required and server-owned at once: a caller who read
+    the form's own required list and sent it got refused as smuggled, and one
+    who left it out -- correctly -- had nowhere left to learn that from this
+    table. It is filled_by_deployment, so it is never something to type in."""
+    schema = phase_parameter_schema("P1")
+    fields = {f["name"]: f for f in schema["fields"]}
+    assert fields["artifact_store"]["filled_by_deployment"] is True
+    assert fields["artifact_store"]["required"] is False
+
+
+def test_supplying_artifact_store_from_the_request_is_still_refused():
+    """The field being server-owned did not change -- only the form's claim
+    that a caller must supply it."""
+    complete = {**FIT, **PUBLISHES_TO}
+    with pytest.raises(JobRejected, match="server's to decide"):
+        validate_parameters(complete, "P1", server_owned=())
+
+
 # -- the command -----------------------------------------------------------
 
 def test_the_command_carries_the_whole_scroll_binding():

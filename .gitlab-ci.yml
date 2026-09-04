@@ -599,7 +599,12 @@ publish images to docker hub:
       }
       publish_running helena-panel panel
       publish_running helena-segment worker-cpp
-      publish_running helena-gpu-runtime-0 worker-gpu
+      # One per card, and the index is the device's own -- gpu-1 itself runs
+      # its one card as helena-gpu-runtime-1, not -0. Whichever is first to
+      # answer `docker ps` is published; none running falls through to the
+      # same not-running skip as every other container here.
+      gpu_runtime="$(docker ps --filter 'name=^helena-gpu-runtime-' --format '{{.Names}}' | head -1)"
+      publish_running "${gpu_runtime:-helena-gpu-runtime-0}" worker-gpu
     - |
       # Neither runs persistently on this host by default -- backup only
       # starts where HELENA_BACKUP_S3 is set, and control-tunnel joins a

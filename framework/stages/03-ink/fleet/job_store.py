@@ -683,8 +683,14 @@ PHASE_REQUIRED: dict[str, tuple[str, ...]] = {
     # wrong one is visibly wrong rather than quietly so. The other five have
     # none on purpose: defaulting them to Scroll 1's values would let a
     # forgotten field fit the wrong scroll under the right name.
-    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um",
-           "artifact_store"),
+    #
+    # artifact_store is not among them: it is server-owned (SERVER_OWNED_PARAMETERS
+    # below), filled from server_parameters before this table is ever consulted.
+    # Listing it here told a caller who read this table to send it, and the
+    # enqueue that reads SERVER_OWNED_PARAMETERS refused exactly that as
+    # smuggled -- required and forbidden, from two tables that never checked
+    # each other.
+    "P1": ("scroll_name", "dataset_path", "z_begin", "z_end", "voxel_size_um"),
     "P2": (),
     # Flattening publishes, and a sheet published nowhere is a sheet the next
     # phase cannot read -- the same way a surface on a worker's disk was.
@@ -1760,8 +1766,10 @@ register_lane("P1", "spiral-fit", {
     "image": "helena-villa-python",
     "gpu_required": True,
     "profiles": ("spiral-fitter-v1@0.3.0",),
+    # Not artifact_store: server-owned, so a form that shows this list as
+    # what a caller must fill in must not name it -- see PHASE_REQUIRED["P1"].
     "required": ("scroll_name", "dataset_path", "z_begin", "z_end",
-                 "voxel_size_um", "artifact_store"),
+                 "voxel_size_um"),
     # Named, so the worker collects it. A lane that writes a receipt and does
     # not declare its name has that receipt silently dropped.
     "receipt": "SPIRAL_FIT_RECEIPT.json",
@@ -2557,6 +2565,19 @@ class InkJobStore:
                 "scope. Create a mission and queue into that.")
         if phase == "P5" and not profile_id:
             raise JobRejected("P5 jobs must name a profile_id")
+        if phase == "P5":
+            # ink_adapter raises only when the profile it found declares
+            # something the queue already knows cannot run -- unroutable, no
+            # adapter and no checkpoint, or an adapter nobody taught the
+            # queue. A profile this host cannot find at all is not one of
+            # those: it falls back to the default adapter silently, exactly
+            # as it does when a worker resolves it later, so a genuine
+            # deployment skew still fails where it runs rather than on a
+            # guess made here. What this catches is the job-shape mismatch
+            # that used to cost a claimed lease before failing -- ink-3d-dino
+            # among them, whose own adapter declares it takes a patch
+            # manifest, not a job the queue can build one for.
+            ink_adapter(profile_id)
         supplied = dict(server_parameters or {})
         clean = validate_parameters({**parameters, **supplied}, phase,
                                     server_owned=supplied)
