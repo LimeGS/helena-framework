@@ -154,6 +154,7 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            # lane's own --unverified-patches-dir, so the two name the same
            # thing the same way rather than each inventing a parameter for it.
            "unverified_patches_dir": str,
+           "verified_patches_dir": str,
            # Two fits differing only in this are the only error bar this
            # geometry has; upstream accepts it as a config key, so it costs an
            # override rather than a source rewrite. Reused, not duplicated,
@@ -326,6 +327,12 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
         "label": "Tracks file", "placeholder": "2um_ds2_ps256_surf_v2.dbm",
         "note": "the .dbm under tracks/ the fit reads; upstream carries one "
                 "alternative in a comment beside the constant"},
+    "verified_patches_dir": {
+        "label": "Verified patches directory", "placeholder": "verified_patches",
+        "note": "one directory directly under the dataset root holding verified "
+                "patches (<uuid>/{x,y,z}.tif + meta.json). Left empty, none are "
+                "loaded. The profile decides whether they supervise the fit: "
+                "spiral-fitter-v1@0.4.1 keeps input_use_verified_patches off"},
     "unverified_patches_dir": {
         "label": "Grown patches directory", "placeholder": "unverified_patches",
         "note": "one directory directly under the dataset root holding grown, "
@@ -1964,6 +1971,7 @@ register_lane("P1", "grow-track-patches", {
         "dataset_path": "--dataset-path",
         "tracks_file": "--tracks-file",
         "unverified_patches_dir": "--unverified-patches-dir",
+        "verified_patches_dir": "--verified-patches-dir",
         "seeds": "--seeds-json",
         "random_count": "--random-count",
         "random_seed": "--random-seed",
@@ -2124,6 +2132,7 @@ def command_for(job: dict[str, Any], *, runner: str, output_dir: str,
                            ("lasagna_scale", "--lasagna-scale"),
                            ("tracks_file", "--tracks-file"),
                            ("unverified_patches_dir", "--unverified-patches-dir"),
+                           ("verified_patches_dir", "--verified-patches-dir"),
                            ("random_seed", "--random-seed")):
             # `is not None`, not truthiness. Seed 0 and scale 0 are values a
             # caller can mean, and dropping them sent the run with upstream's

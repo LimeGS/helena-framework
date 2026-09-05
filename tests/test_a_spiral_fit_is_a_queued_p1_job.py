@@ -117,6 +117,15 @@ def test_a_job_can_name_where_grown_patches_are():
     assert argv[argv.index("--unverified-patches-dir") + 1] == "unverified_patches"
 
 
+def test_a_verified_patches_directory_rides_the_same_channel():
+    """Upstream's other patch role, named the same way: one directory under
+    the dataset root, passed through as-is, and the profile -- not the job --
+    decides whether it supervises the fit."""
+    argv = command_for(job(parameters={"verified_patches_dir": "verified_patches"}),
+                       runner=RUNNER, output_dir="/runs/p1-x")
+    assert argv[argv.index("--verified-patches-dir") + 1] == "verified_patches"
+
+
 def test_the_form_does_not_ask_for_what_the_server_already_owns():
     """artifact_store was required and server-owned at once: a caller who read
     the form's own required list and sent it got refused as smuggled, and one
