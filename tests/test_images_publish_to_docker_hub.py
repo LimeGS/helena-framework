@@ -245,3 +245,14 @@ def test_the_internal_registry_comes_from_the_variable():
     assert "$HELENA_REGISTRY/" in script
     assert '[ -n "$HELENA_REGISTRY" ]' in script, (
         "with no registry configured this must say so, not push to a bare name")
+
+
+def test_the_toolchain_push_is_bounded_and_verified_against_the_registry():
+    """`docker push` retries a refused layer with no cap of its own. The first
+    run of the job spent an hour re-sending an 8.4 GB layer into a registry
+    answering 500; only the 3 h timeout would have ended it. And an exit code
+    from push is not the bytes being there: the registry's tag list is."""
+    script = "\n".join(CI_PARSED[TOOLCHAIN]["script"])
+    assert 'timeout 1500 docker push "$HELENA_REGISTRY/$repo:$name"' in script
+    assert "/tags/list" in script, "nothing asks the registry whether the tag landed"
+    assert "is not in the registry's tag list after the push" in script

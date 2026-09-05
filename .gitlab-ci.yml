@@ -624,9 +624,30 @@ build and publish the villa toolchain:
         short="$(printf %.12s "$carries")"
         for name in "villa-$short" local; do
           docker tag "$local_image" "$HELENA_REGISTRY/$repo:$name"
-          docker push "$HELENA_REGISTRY/$repo:$name"
+          # Bounded, and checked. `docker push` retries a refused layer on
+          # its own with no cap: the first run of this job spent an hour re-
+          # sending the 8.4 GB layer of helena-villa-python into a registry
+          # answering 500, and only the 3 h job timeout would have stopped it.
+          # A push that has not finished in 25 minutes is not going to, so it
+          # is killed here with the daemon's own reason left in the log -- and
+          # a push that "succeeded" is still asked about: the registry's own
+          # tag list is the only thing that says the bytes are there.
+          timeout 1500 docker push "$HELENA_REGISTRY/$repo:$name" || {
+            echo "pushing $repo:$name did not finish; the registry refused or" >&2
+            echo "stalled -- see the daemon's reason above (a 500 on a large" >&2
+            echo "layer is its storage or an upload limit, not this host)" >&2
+            exit 1
+          }
+          listed="$(docker run --rm "${HELENA_CURL_IMAGE:-curlimages/curl:8.11.1}" \
+            --silent --fail "https://${HELENA_REGISTRY%%/*}/v2/${HELENA_REGISTRY#*/}/$repo/tags/list" 2>/dev/null || true)"
+          case "$listed" in
+            *"\"$name\""*) ;;
+            *) echo "$repo:$name is not in the registry's tag list after the push:" >&2
+               echo "  $listed" >&2
+               exit 1 ;;
+          esac
         done
-        echo "published $repo at $short"
+        echo "published $repo at $short, and the registry lists it"
       }
       publish_internal helena-villa:local helena-villa
       publish_internal helena-villa-python:local helena-villa-python
