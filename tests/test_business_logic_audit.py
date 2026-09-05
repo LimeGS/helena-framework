@@ -790,3 +790,81 @@ def test_unexpected_exception_is_a_failed_check_not_a_false_pass(monkeypatch) ->
     report = MODULE.run_audit(ROOT)
     assert report["status"] == "FAILED"
     assert report["checks"][0]["evidence"] == ("ValueError: unexpected",)
+
+
+# -- the experimental lane's exemption is the marker, never the null ----------
+#
+# check_stage_and_profile_identity binds every profile that names a method to
+# its registry checkpoint. ink-9um-experimental pins nothing on purpose and says
+# so by safety.experimental_unpinned_checkpoint. Run against a copy of the
+# repository so the three cases can be tried without editing the real profiles:
+# a bare null must still fail (that is a pin somebody forgot), the marked
+# profile must pass, and a marked profile that also pins must fail (one of the
+# two is a lie).
+
+EXPERIMENTAL_MARK = "experimental_unpinned_checkpoint"
+
+
+def _audit_root(tmp_path: Path) -> Path:
+    """The slice of the repository check_stage_and_profile_identity reads."""
+    import shutil
+
+    root = tmp_path / "repo"
+    for stage_id in MODULE.EXPECTED_STAGES:
+        src = ROOT / "framework/stages" / stage_id / "stage.json"
+        dst = root / "framework/stages" / stage_id / "stage.json"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, dst)
+    shutil.copytree(ROOT / "framework/profiles", root / "framework/profiles")
+    shutil.copytree(ROOT / "framework/registries", root / "framework/registries")
+    return root
+
+
+def _rewrite(root: Path, name: str, **fields) -> None:
+    path = root / "framework/profiles/03-ink" / name
+    profile = json.loads(path.read_text())
+    for key, value in fields.items():
+        if key == "safety":
+            profile["safety"] = {**profile.get("safety", {}), **value}
+        else:
+            profile[key] = value
+    path.write_text(json.dumps(profile))
+
+
+def test_the_shipped_profiles_pass_the_identity_check(tmp_path: Path) -> None:
+    root = _audit_root(tmp_path)
+    list(MODULE.check_stage_and_profile_identity(root))
+
+
+def test_a_bare_null_checkpoint_still_fails_the_binding(tmp_path: Path) -> None:
+    root = _audit_root(tmp_path)
+    _rewrite(root, "ink-9um-hybrid-3d2d-screening-1.0.0.json", checkpoint_sha256=None)
+
+    with pytest.raises(MODULE.AuditFailure, match="differs from registry"):
+        list(MODULE.check_stage_and_profile_identity(root))
+
+
+def test_the_marker_exempts_a_null_and_nothing_else(tmp_path: Path) -> None:
+    """A known digest on purpose: an unknown one trips the earlier, broader
+    rule -- no profile may name a checkpoint the registry does not know --
+    before this branch is reached, and that rule is not the one under test."""
+    root = _audit_root(tmp_path)
+    known = json.loads((root / "framework/profiles/03-ink/"
+                        "ink-9um-hybrid-3d2d-screening-1.0.0.json").read_text()
+                       )["checkpoint_sha256"]
+    _rewrite(root, "ink-9um-experimental-1.0.0.json",
+             checkpoint_sha256=known, safety={EXPERIMENTAL_MARK: True})
+
+    with pytest.raises(MODULE.AuditFailure, match="one of the two is a lie"):
+        list(MODULE.check_stage_and_profile_identity(root))
+
+
+def test_an_unknown_digest_is_refused_before_the_marker_is_even_read(tmp_path: Path) -> None:
+    """The broader rule stays in front: marking a profile experimental does
+    not let it name weights the registry has never heard of."""
+    root = _audit_root(tmp_path)
+    _rewrite(root, "ink-9um-experimental-1.0.0.json",
+             checkpoint_sha256="e" * 64, safety={EXPERIMENTAL_MARK: True})
+
+    with pytest.raises(MODULE.AuditFailure, match="registry does not know"):
+        list(MODULE.check_stage_and_profile_identity(root))

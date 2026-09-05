@@ -596,3 +596,67 @@ def test_volume_is_checked_when_it_is_an_input_and_not_a_cache(tmp_path):
     with pytest.raises(ink_worker.WorkerRefused, match="does not exist"):
         ink_worker.refuse_unreadable_inputs(
             {"phase": "P4", "parameters": {"volume": absent}})
+
+
+# -- P7 adjudicates evidence, and an exploratory map is not that --------------
+#
+# The exclusion execution_mode exists for, at the one place a P5 map becomes
+# evidence. Read off the source: the resolver is integration-shaped (a store, a
+# job, a destination) and the contract it has to keep is two lines.
+
+
+def test_p7_refuses_a_screening_that_certifies_nothing() -> None:
+    from pathlib import Path as _Path
+    source = (_Path(__file__).resolve().parents[1]
+              / "framework/stages/03-ink/fleet/ink_worker.py").read_text()
+    resolver = source[source.index('screening_id = str(job["parameters"]["screening_of"])'):]
+    resolver = resolver[:resolver.index("fetch_artifact_set(")]
+
+    assert "execution_mode.declares_uncertified(result)" in resolver
+    # Before the ALIVE check, not after: an exploratory map that is ALIVE is
+    # still not evidence.
+    assert resolver.index("declares_uncertified(result)") < resolver.index('verdict != "ALIVE"')
+
+
+def test_a_screening_from_before_stamps_existed_still_adjudicates() -> None:
+    """Every P5 on the fleet from before this carries no stamp and came out of
+    a pinned lane. Reading its silence as a refusal would block every existing
+    map the day this deployed; the gate refuses a declaration, not an absence."""
+    from framework.contracts import execution_mode
+
+    legacy = {"liveness": {"verdict": "ALIVE"}, "statistics": {"p99": 0.7}}
+    assert execution_mode.declares_uncertified(legacy) is False
+    # ...while the reader's question keeps failing closed, as it must.
+    assert execution_mode.is_certified(legacy) is False
+
+
+def test_the_experimental_lanes_screening_is_refused_by_its_own_declaration() -> None:
+    from framework.contracts import execution_mode
+
+    trust = execution_mode.Trust(execution_mode.EXPLORATORY)
+    trust.blocks("the checkpoint is not pinned")
+    stamped = trust.stamp({"liveness": {"verdict": "ALIVE"}})
+
+    assert execution_mode.declares_uncertified(stamped) is True
+    for field in ("execution_mode", "certified", "uncertified_because"):
+        # Each declaration alone is enough: a row that kept only one of the
+        # three fields still refuses.
+        alone = {"liveness": {"verdict": "ALIVE"}, field: stamped[field]}
+        assert execution_mode.declares_uncertified(alone) is True, field
+
+
+def test_a_certified_stamp_is_not_a_declaration_of_the_opposite() -> None:
+    from framework.contracts import execution_mode
+
+    stamped = execution_mode.Trust().stamp({"liveness": {"verdict": "ALIVE"}})
+    assert execution_mode.declares_uncertified(stamped) is False
+    assert execution_mode.is_certified(stamped) is True
+
+
+def test_the_stamp_travels_from_the_receipt_to_the_job_row() -> None:
+    """P7 reads the job row, not the receipt file, so the row has to carry it."""
+    from pathlib import Path as _Path
+    source = (_Path(__file__).resolve().parents[1]
+              / "framework/stages/03-ink/fleet/ink_worker.py").read_text()
+    for field in ("certified", "execution_mode", "uncertified_because"):
+        assert f'"{field}": (receipt or {{}}).get("{field}")' in source, field

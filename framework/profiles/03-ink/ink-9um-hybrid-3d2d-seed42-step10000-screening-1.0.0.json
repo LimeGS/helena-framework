@@ -56,7 +56,8 @@
     "batch_size": 1,
     "layer_start": null,
     "layer_end": null,
-    "compile": false
+    "compile": false,
+    "amp_dtype": "bf16"
   },
   "safety": {
     "screening_only": true,

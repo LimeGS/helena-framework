@@ -57,6 +57,7 @@ import tifffile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3].parent))
+from framework.contracts import execution_mode  # noqa: E402
 from framework.contracts.lane_liveness import (  # noqa: E402
     assess_liveness, forward_reverse_asymmetry, refuse_if_not_alive,
 )
@@ -85,6 +86,58 @@ UINT8_FULL_SCALE = 255.0
 # rather than after argparse rejects it at the far end of a queued job.
 DIRECTIONS = ("forward", "reverse", "both")
 BLEND_MODES = ("auto", "constant", "gaussian", "hann")
+# The autocast dtype for CUDA inference. Upstream's `auto` reads
+# `mixed_precision` from the checkpoint's own config and, when a checkpoint
+# does not carry one, falls back to PyTorch's default CUDA autocast -- fp16.
+# Measured by the 5090 team on the ink_9um checkpoints, which carry none: fp16
+# returns NaN, and upstream's uint8 cast turns NaN into a map that looks like
+# a result. So this lane never sends `auto`; the profile pins the dtype and
+# the receipt records which one ran.
+AMP_DTYPES = ("default", "fp16", "bf16")
+
+
+EXPERIMENTAL_MARK = "experimental_unpinned_checkpoint"
+
+
+def checkpoint_verdict(profile: dict[str, Any], checkpoint_sha: str
+                       ) -> tuple[execution_mode.Trust, str | None]:
+    """Whether this checkpoint may run under this profile, and in which lane.
+
+    Three cases, and only the third is new. A profile that pins a digest and
+    is handed a different one is refused: that is a hash mismatch, which
+    execution_mode keeps as an integrity refusal in every lane, because running
+    anyway would act on weights known not to be the ones meant. A profile that
+    pins nothing and does not say so is refused too -- that is a pin somebody
+    forgot. And a profile that declares, by its own marker, that it pins
+    nothing runs whatever it is handed, in the EXPLORATORY lane, with the
+    absence recorded as the reason its receipt certifies nothing.
+
+    Returns the lane the run belongs in and, when refused, why.
+    """
+    declared = profile.get("checkpoint_sha256")
+    experimental = (profile.get("safety") or {}).get(EXPERIMENTAL_MARK) is True
+    if experimental and declared:
+        return execution_mode.Trust(), (
+            f"profile {profile['profile_id']} is marked experimental and still "
+            f"pins {declared}; one of the two is a lie, and this lane refuses to "
+            "guess which")
+    if experimental:
+        trust = execution_mode.Trust(execution_mode.EXPLORATORY)
+        trust.blocks(
+            f"the checkpoint is not pinned: {profile['profile_id']} runs whatever "
+            f"weights it is handed, and this run was handed {checkpoint_sha}")
+        return trust, None
+    if not declared:
+        return execution_mode.Trust(), (
+            f"profile {profile['profile_id']} pins no checkpoint_sha256, so "
+            "nothing can say whether the checkpoint is the weights it means. "
+            "Add the digest to the profile -- upstream's LFS metadata carries "
+            f"it -- or mark the profile {EXPERIMENTAL_MARK} if that is the point")
+    if checkpoint_sha != declared:
+        return execution_mode.Trust(), (
+            f"checkpoint digest {checkpoint_sha} is not the {declared} this "
+            "profile declares. Nothing was run.")
+    return execution_mode.Trust(), None
 
 
 def sha256_file(path: Path) -> str:
@@ -377,7 +430,8 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
                       batch_size: int | None = None,
                       num_workers: int | None = None,
                       layer_start: int | None = None,
-                      layer_end: int | None = None) -> list[str]:
+                      layer_end: int | None = None,
+                      amp_dtype: str | None = None) -> list[str]:
     """The exact argv, so the receipt can carry it and a run can be repeated.
 
     ``input_zarr``, ``checkpoint`` and ``output_tiff`` are positional in
@@ -407,8 +461,13 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
     a stack) had to be built as three separate on-disk layer directories,
     because the profile pinned a window nothing could override per job.
 
+    ``amp_dtype`` overrides the profile's pinned autocast dtype. Job-settable
+    for the same reason batch_size is -- it is a property of the card, not of
+    the science -- but never absent: see AMP_DTYPES for why `auto` is not
+    among the choices.
+
     Neither is a change to overlap, blend mode or direction: nothing has
-    measured what changing those costs, and this stays the four knobs that do.
+    measured what changing those costs, and this stays the five knobs that do.
     """
     execution = profile["default_execution"]
     direction = execution["direction"]
@@ -425,6 +484,12 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
         raise ValueError(f"batch_size must be at least 1, got {resolved_batch_size}")
     if num_workers is not None and int(num_workers) < 0:
         raise ValueError(f"num_workers must be at least 0, got {num_workers}")
+    resolved_amp = execution.get("amp_dtype") if amp_dtype is None else amp_dtype
+    if resolved_amp not in AMP_DTYPES:
+        raise ValueError(
+            f"amp_dtype {resolved_amp!r} is not one of {list(AMP_DTYPES)}: the "
+            "profile has to pin one, because upstream's own default falls "
+            "back to fp16 on these checkpoints and fp16 returns NaN")
 
     interpreter = lane_interpreter()
     argv = [
@@ -434,6 +499,7 @@ def inference_command(profile: dict[str, Any], *, surface_volume: str,
         "--blend-mode", str(blend_mode),
         "--direction", str(direction),
         "--batch-size", str(resolved_batch_size),
+        "--amp-dtype", str(resolved_amp),
     ]
     if num_workers is not None:
         argv += ["--num-workers", str(int(num_workers))]
@@ -526,6 +592,11 @@ def main() -> int:
     ap.add_argument("--layer-end", type=int, default=None,
                     help="override the profile's default_execution.layer_end "
                          "-- must be given with --layer-start, never alone")
+    ap.add_argument("--amp-dtype", choices=AMP_DTYPES, default=None,
+                    help="override the profile's default_execution.amp_dtype "
+                         "(pinned bf16: upstream's own default falls back to "
+                         "fp16 on these checkpoints, and fp16 returns NaN that "
+                         "the uint8 cast turns into a map that looks like one)")
     ap.add_argument("--output", type=Path, required=True,
                     help="the job's directory: the map, the pooled volume and "
                          "the receipt are all written inside it")
@@ -565,7 +636,8 @@ def main() -> int:
                              batch_size=args.batch_size,
                              num_workers=args.num_workers,
                              layer_start=args.layer_start,
-                             layer_end=args.layer_end)
+                             layer_end=args.layer_end,
+                             amp_dtype=args.amp_dtype)
     if args.print_command:
         print(json.dumps(argv))
         return 0
@@ -576,16 +648,9 @@ def main() -> int:
     # queueable, that cost multiplies by the size of the sweep. Hashing 138 MB
     # takes under a second; the run it saves takes minutes on a GPU.
     checkpoint_sha = sha256_file(args.checkpoint)
-    declared = profile["checkpoint_sha256"]
-    if not declared:
-        print(f"profile {profile['profile_id']} pins no checkpoint_sha256, so "
-              f"nothing can say whether {args.checkpoint} is the weights it "
-              "means. Add the digest to the profile -- upstream's LFS metadata "
-              "carries it.", file=sys.stderr)
-        return 3
-    if checkpoint_sha != declared:
-        print(f"checkpoint digest {checkpoint_sha} is not the {declared} this "
-              f"profile declares. Nothing was run.", file=sys.stderr)
+    trust, refused = checkpoint_verdict(profile, checkpoint_sha)
+    if refused:
+        print(refused, file=sys.stderr)
         return 3
 
     started = time.time()
@@ -660,6 +725,9 @@ def main() -> int:
         "runner": "koine_machines.inference.infer",
         "pinned_source_revision": profile.get("pinned_source_revision"),
         "command": argv,
+        # Read back off the argv that ran rather than restated from the
+        # profile: what the receipt records is what was sent.
+        "amp_dtype": argv[argv.index("--amp-dtype") + 1],
         "input": {
             "surface_volume": str(surface_volume),
             "sample_id": args.sample_id,
@@ -704,10 +772,16 @@ def main() -> int:
             "cleanly. See liveness.metrics and reverse.asymmetry.",
         ],
     }
+    # Every receipt says which lane produced it, the certified ones included:
+    # is_certified fails closed on a document with no stamp, so a certified run
+    # that did not say so would be refused downstream exactly like an
+    # exploratory one. The stamp is this module's statement about the run.
+    receipt = trust.stamp(receipt)
     (directory / RECEIPT_NAME).write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: receipt[k] for k in ("statistics", "liveness",
-                                              "runtime_seconds")}, indent=2))
+                                              "runtime_seconds", "certified")},
+                     indent=2))
     return refuse_if_not_alive(
         liveness, lane=profile["method_id"], output=directory,
         on_degenerate=args.on_degenerate)
