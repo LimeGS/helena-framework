@@ -9582,6 +9582,10 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
     reverse = result.get("reverse") if isinstance(result.get("reverse"), dict) else None
     asymmetry = (reverse or {}).get("asymmetry")
     asymmetry = asymmetry if isinstance(asymmetry, dict) else None
+    # The real asymmetry against the p95 of N shuffled-layer runs; null on a
+    # job that asked for none, which is every job before this existed.
+    shuffle_control = result.get("shuffle_control")
+    shuffle_control = shuffle_control if isinstance(shuffle_control, dict) else None
     return {
         "job_id": job.get("job_id"),
         "sample_id": job.get("sample_id"),
@@ -9601,6 +9605,7 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
         # maps P7 refuses to adjudicate.
         "certified": result.get("certified"),
         "execution_mode": result.get("execution_mode"),
+        "shuffle_control": shuffle_control,
         "state": job.get("state"),
         "mission_id": job.get("mission_id"),
         "attempts": job.get("attempts"),

@@ -219,6 +219,17 @@ export const useMapMeta = (runId: string | undefined, name: string | undefined) 
  * see it -- and until these existed the only way to look at one was to open a
  * shell on the GPU host and render the array by hand.
  */
+export type ShuffleControl = {
+  seeds: number;
+  enough_seeds: boolean;
+  min_seeds_for_a_percentile: number;
+  percentile: number;
+  real: Record<"0.5" | "0.6" | "0.7", number | null>;
+  p95: Record<"0.5" | "0.6" | "0.7", number | null>;
+  exceeds_p95: Record<"0.5" | "0.6" | "0.7", boolean | null>;
+  sustained_exceeds_p95: boolean;
+};
+
 export type InkRun = {
   job_id: string;
   sample_id: string;
@@ -249,6 +260,11 @@ export type InkRun = {
   /** Only present for a `direction: both` run on the 9 um lane; see
    *  `Asymmetry` above. */
   asymmetry: Asymmetry | null;
+  /** The real asymmetry against the p95 of N shuffled-layer runs -- the only
+   *  control where there are no labels. Null unless the job asked for
+   *  `shuffle_seeds`. `enough_seeds` is whether N reached the floor (8) for
+   *  the percentile to mean anything; it is stated, never enforced. */
+  shuffle_control: ShuffleControl | null;
   checkpoint_sha256: string | null;
   map_shape_yx: [number, number] | null;
   output_dir: string | null;

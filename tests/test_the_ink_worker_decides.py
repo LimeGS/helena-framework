@@ -658,5 +658,5 @@ def test_the_stamp_travels_from_the_receipt_to_the_job_row() -> None:
     from pathlib import Path as _Path
     source = (_Path(__file__).resolve().parents[1]
               / "framework/stages/03-ink/fleet/ink_worker.py").read_text()
-    for field in ("certified", "execution_mode", "uncertified_because"):
+    for field in ("certified", "execution_mode", "uncertified_because", "shuffle_control"):
         assert f'"{field}": (receipt or {{}}).get("{field}")' in source, field

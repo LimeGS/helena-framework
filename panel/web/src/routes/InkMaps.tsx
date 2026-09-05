@@ -55,8 +55,22 @@ const asymmetryTitle = (run: InkRun): string | undefined => {
     const entry = a.thresholds[t];
     return `p${t} ${entry.ratio === null ? `absent (${entry.reason})` : entry.ratio.toFixed(2)}`;
   });
-  return `${parts.join(" · ")} — sustained above 1.5 at p0.6 and p0.7: `
-       + `${a.sustained_above_1_5 ? "yes" : "no"}`;
+  const head = `${parts.join(" · ")} — sustained above 1.5 at p0.6 and p0.7: `
+             + `${a.sustained_above_1_5 ? "yes" : "no"}`;
+  const s = run.shuffle_control;
+  if (!s) return head;
+  // The control, on the same hover: a ratio the shuffled volume also gives
+  // is not one to read as ink, however high it climbed.
+  const envelope = (["0.5", "0.6", "0.7"] as const).map((t) => {
+    const p95 = s.p95[t];
+    const over = s.exceeds_p95[t];
+    return `p${t} shuffled p95 ${p95 === null ? "absent" : p95.toFixed(2)}`
+         + `${over === null ? "" : over ? " (real above)" : " (real BELOW)"}`;
+  });
+  return `${head}\nShuffled-layer control, ${s.seeds} seed${s.seeds === 1 ? "" : "s"}`
+       + `${s.enough_seeds ? "" : ` (under the ${s.min_seeds_for_a_percentile} the p95 needs)`}: `
+       + `${envelope.join(" · ")} — real exceeds p95 at p0.6 and p0.7: `
+       + `${s.sustained_exceeds_p95 ? "yes" : "no"}`;
 };
 
 /** When this run last did something: it finished, or it is still waiting. */

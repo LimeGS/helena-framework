@@ -235,7 +235,7 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "model_config": str,
            "batch_size": int, "num_workers": int, "layer_start": int,
            "layer_end": int, "min_valid_ratio": float,
-           "resample_from_um": float, "amp_dtype": str,
+           "resample_from_um": float, "amp_dtype": str, "shuffle_seeds": int,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -542,6 +542,13 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
                                  "XY-only, no claim of Z isotropy, about a 4% correlation "
                                  "cost measured on the public control -- left empty the "
                                  "guard refuses exactly as it does today"},
+    "shuffle_seeds": {"label": "Shuffled-layer seeds", "placeholder": "8",
+                      "note": "run N extra inferences with the volume's z layers "
+                              "shuffled and record the real forward/reverse "
+                              "asymmetry against their p95 -- the only control "
+                              "where there are no labels. 8 is the floor for the "
+                              "percentile to mean anything; costs N direction:both "
+                              "runs, about 12 s each on a 3090"},
     "amp_dtype": {"label": "Autocast dtype", "placeholder": "bf16",
                   "note": "the 9 um lane pins bf16: upstream's own default reads "
                           "the checkpoint's mixed_precision and these carry none, "
@@ -847,7 +854,7 @@ STRICTLY_POSITIVE_PARAMETERS = frozenset({
 })
 NON_NEGATIVE_PARAMETERS = frozenset({
     "group_idx", "depth_center", "anchor_cap", "strip_cols",
-    "z_begin", "z_end",
+    "z_begin", "z_end", "shuffle_seeds",
     # Both were in neither set, so a negative reached the fitter: the scale is
     # a power-of-two level and the seed is fed to the optimizer's RNG.
     "lasagna_scale", "random_seed", "optimizer_random_seed",
@@ -885,6 +892,8 @@ PARAMETER_CEILINGS: dict[str, float] = {
     "source_pixel_um": 10_000.0,
     "source_slice_um": 10_000.0,
     "resample_from_um": 10_000.0,
+    # Each one is a direction:both inference. Sixty-four is eight envelopes.
+    "shuffle_seeds": 64,
     "voxel_size_um": 10_000.0,
     "px_um": 10_000.0,
     "min_valid_ratio": 1.0,
@@ -1501,7 +1510,11 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   "resample_from_um": "--resample-from-um",
                   # A property of the card, like batch_size. The profile pins
                   # bf16 and this only exists for a card that cannot do it.
-                  "amp_dtype": "--amp-dtype"},
+                  "amp_dtype": "--amp-dtype",
+                  # N extra direction:both runs on shuffled copies, and the
+                  # real asymmetry against their p95 in the receipt. Zero or
+                  # absent is the ordinary run.
+                  "shuffle_seeds": "--shuffle-seeds"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"
