@@ -72,6 +72,20 @@ def test_naming_none_of_the_three_is_still_refused() -> None:
         validate_parameters({"checkpoint": "/models/c.pth"}, "P5")
 
 
+def test_shuffle_seeds_is_bounded_on_both_sides() -> None:
+    """Each seed is a direction:both inference: negative is not a count, and
+    a thousand is a queue somebody meant to write differently."""
+    for bad in (-1, 65):
+        with pytest.raises(JobRejected, match="shuffle_seeds"):
+            validate_parameters({"surface_volume": PUBLIC_VOLUME,
+                                 "checkpoint": "/models/c.pth",
+                                 "shuffle_seeds": bad}, "P5")
+    clean = validate_parameters({"surface_volume": PUBLIC_VOLUME,
+                                 "checkpoint": "/models/c.pth",
+                                 "shuffle_seeds": 8}, "P5")
+    assert clean["shuffle_seeds"] == 8
+
+
 def test_auto_autocast_is_refused_at_enqueue() -> None:
     """On these checkpoints `auto` means fp16, and fp16 means NaN -- refused
     here rather than discovered after the GPU time was spent."""

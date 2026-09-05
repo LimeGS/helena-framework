@@ -535,3 +535,35 @@ def test_the_evidence_arrays_beside_the_aggregate_are_offered_but_not_chosen(
     chosen = client.get(
         "/api/ink/maps/p5-tsf/render.png?map=stability_std.npy")
     assert chosen.headers["X-Map-Name"] == "stability_std.npy"
+
+
+# -- the shuffled-layer control reaches the table ----------------------------
+
+SHUFFLE_CONTROL = {
+    "seeds": 8, "enough_seeds": True, "min_seeds_for_a_percentile": 8,
+    "percentile": 95,
+    "real": {"0.5": 1.75, "0.6": 2.33, "0.7": 3.81},
+    "p95": {"0.5": 1.9, "0.6": 2.6, "0.7": 4.02},
+    "exceeds_p95": {"0.5": False, "0.6": False, "0.7": False},
+    "sustained_exceeds_p95": False,
+    "per_seed": [],
+}
+
+
+def test_the_table_carries_the_shuffle_control_when_the_job_asked_for_one(panel):
+    row = panel.ink_run_row({
+        "job_id": "p5-x", "sample_id": "PHerc1447", "profile_id": "p", "state": "succeeded",
+        "parameters": {"surface_volume": "/v.zarr"},
+        "result": {"liveness": {"verdict": "ALIVE"}, "shuffle_control": SHUFFLE_CONTROL},
+    })
+    assert row["shuffle_control"] == SHUFFLE_CONTROL
+    assert row["shuffle_control"]["sustained_exceeds_p95"] is False
+
+
+def test_a_job_that_asked_for_no_control_carries_none(panel):
+    row = panel.ink_run_row({
+        "job_id": "p5-y", "sample_id": "PHerc0139", "profile_id": "p", "state": "succeeded",
+        "parameters": {"surface_volume": "/v.zarr"},
+        "result": {"liveness": {"verdict": "ALIVE"}},
+    })
+    assert row["shuffle_control"] is None

@@ -33,9 +33,10 @@ import numpy as np
 import run_ink_9um  # noqa: E402
 from prepare_9um_isotropic_input import IncompatibleSourceScale  # noqa: E402
 from run_ink_9um import (  # noqa: E402
-    EXPERIMENTAL_MARK, build_reverse_summary, checkpoint_verdict,
-    default_batch_size_for_host, detect_gpu_vram_mb, inference_command,
-    load_lane_profile, preparation_command,
+    EXPERIMENTAL_MARK, MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE, build_reverse_summary,
+    checkpoint_verdict, default_batch_size_for_host, detect_gpu_vram_mb,
+    inference_command, load_lane_profile, preparation_command, shuffle_envelope,
+    shuffle_layers_into, shuffle_source,
 )
 
 PROFILE = ROOT / "framework/profiles/03-ink/ink-9um-hybrid-3d2d-screening-1.0.0.json"
@@ -775,3 +776,131 @@ def test_every_receipt_is_stamped_the_certified_ones_included():
     assert "receipt = trust.stamp(receipt)" in source
     assert source.index("trust.stamp(receipt)") < source.index("write_text("), (
         "the stamp has to land before the receipt is written")
+
+
+# -- the shuffled-layer control ----------------------------------------------
+#
+# PHerc1447 gave a clean false positive: 1.75 -> 2.33 -> 3.81 "rising", the
+# pattern validated as ink on 0139, and shuffling its layers left the
+# asymmetry standing. One seed is not a control either -- the same intact
+# volume spans 1.10 to 4.05 across permutations -- so this is an envelope of
+# N seeds against the p95, with eight as the floor.
+
+
+def _asymmetry(r05, r06, r07):
+    return {"thresholds": {"0.5": {"ratio": r05}, "0.6": {"ratio": r06},
+                           "0.7": {"ratio": r07}}}
+
+
+def _seed(seed, r05, r06, r07):
+    return {"seed": seed, "permutation_sha256": "p" * 64,
+            "asymmetry": _asymmetry(r05, r06, r07), "runtime_seconds": 12.0}
+
+
+def test_the_shuffle_permutes_z_only_and_is_seeded(tmp_path):
+    zarr = pytest.importorskip("zarr")
+    src = tmp_path / "vol.zarr"
+    group = zarr.open_group(str(src), mode="w")
+    rng = np.random.default_rng(0)
+    volume = rng.integers(0, 255, size=(6, 4, 4), dtype=np.uint8)
+    (group.create_array if hasattr(group, "create_array") else group.create_dataset)(
+        "0", shape=volume.shape, dtype=volume.dtype, chunks=(6, 4, 4))
+    group["0"][:] = volume
+    group.attrs["multiscales"] = [{"version": "0.4"}]
+
+    a = shuffle_layers_into(src, tmp_path / "a.zarr", seed=3)
+    b = shuffle_layers_into(src, tmp_path / "b.zarr", seed=3)
+    c = shuffle_layers_into(src, tmp_path / "c.zarr", seed=4)
+
+    out_a = np.asarray(zarr.open_group(str(tmp_path / "a.zarr"), mode="r")["0"])
+    assert a["permutation_sha256"] == b["permutation_sha256"], "seeded, so repeatable"
+    assert a["permutation_sha256"] != c["permutation_sha256"]
+    assert a["depth"] == 6
+    # Every layer is still there, whole: the set of planes is unchanged and
+    # only their order moved.
+    assert sorted(map(bytes, out_a)) == sorted(map(bytes, volume))
+    assert not np.array_equal(out_a, volume), "seed 3 is not the identity here"
+    assert dict(zarr.open_group(str(tmp_path / "a.zarr"), mode="r").attrs)["multiscales"] == \
+        [{"version": "0.4"}], "the scale metadata travels with the copy"
+
+
+def test_the_shuffle_refuses_to_overwrite(tmp_path):
+    pytest.importorskip("zarr")
+    (tmp_path / "x.zarr").mkdir()
+    with pytest.raises(RuntimeError, match="refusing"):
+        shuffle_layers_into(tmp_path / "x.zarr", tmp_path / "x.zarr", seed=0)
+
+
+def test_the_envelope_is_the_p95_of_the_seeds_against_the_real_run():
+    real = _asymmetry(1.75, 2.33, 3.81)
+    # Every seed's ratio stays under the real one at every threshold, so the
+    # p95 does too and the comparison reads "real above" three times.
+    seeds = [_seed(i, 1.0 + i * 0.05, 1.2 + i * 0.05, 1.5 + i * 0.05) for i in range(10)]
+
+    env = shuffle_envelope(real, seeds)
+
+    assert env["seeds"] == 10 and env["enough_seeds"] is True
+    assert env["real"]["0.7"] == 3.81
+    assert env["p95"]["0.7"] == pytest.approx(np.percentile([1.5 + i * 0.05 for i in range(10)], 95))
+    assert env["exceeds_p95"] == {"0.5": True, "0.6": True, "0.7": True}
+    assert env["sustained_exceeds_p95"] is True
+    assert [s["seed"] for s in env["per_seed"]] == list(range(10))
+
+
+def test_a_false_positive_sits_inside_the_envelope():
+    """The PHerc1447 shape: rising with threshold, and the shuffled volume
+    rises just the same."""
+    real = _asymmetry(1.75, 2.33, 3.81)
+    seeds = [_seed(i, 1.8, 2.5, 3.8 + 0.05 * i) for i in range(8)]
+
+    env = shuffle_envelope(real, seeds)
+
+    assert env["exceeds_p95"]["0.7"] is False
+    assert env["sustained_exceeds_p95"] is False
+
+
+def test_an_unreadable_threshold_is_none_not_a_number():
+    """The 300-pixel guard on either side, or on every seed: no comparison,
+    rather than one built from a fabricated ratio."""
+    real = _asymmetry(1.5, None, 2.0)
+    seeds = [_seed(0, 1.0, 1.0, None), _seed(1, 1.1, 1.1, None)]
+
+    env = shuffle_envelope(real, seeds)
+
+    assert env["p95"]["0.7"] is None and env["exceeds_p95"]["0.7"] is None
+    assert env["real"]["0.6"] is None and env["exceeds_p95"]["0.6"] is None
+    assert env["exceeds_p95"]["0.5"] is True
+    assert env["sustained_exceeds_p95"] is False
+    assert env["seeds_readable"] == {"0.5": 2, "0.6": 2, "0.7": 0}
+
+
+def test_too_few_seeds_is_said_not_refused():
+    env = shuffle_envelope(_asymmetry(2, 2, 2), [_seed(0, 1, 1, 1)])
+    assert env["enough_seeds"] is False
+    assert env["min_seeds_for_a_percentile"] == MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE == 8
+
+
+def test_no_seeds_is_an_empty_envelope():
+    env = shuffle_envelope(_asymmetry(2, 2, 2), [])
+    assert env["seeds"] == 0
+    assert env["p95"] == {"0.5": None, "0.6": None, "0.7": None}
+
+
+def test_a_shuffle_needs_the_volume_here(tmp_path):
+    (tmp_path / "vol.zarr").mkdir()
+    assert shuffle_source(str(tmp_path / "vol.zarr")) == tmp_path / "vol.zarr"
+    with pytest.raises(ValueError, match="shuffle_seeds needs a local"):
+        shuffle_source("s3://bucket/segment.zarr")
+
+
+def test_the_receipt_keeps_only_the_numbers_of_each_seed():
+    """Each seed is a full copy of the volume and two maps; N of them beside
+    a 9 GB worker is how a disk fills mid-run. Read off the source, since the
+    loop itself needs a GPU."""
+    import inspect
+    import run_ink_9um
+
+    loop = inspect.getsource(run_ink_9um.main)
+    assert "shutil.rmtree(shuffled_dir" in loop
+    assert loop.index("forward_reverse_asymmetry(") < loop.index("shutil.rmtree(shuffled_dir"), (
+        "the numbers are read before the copy is removed")

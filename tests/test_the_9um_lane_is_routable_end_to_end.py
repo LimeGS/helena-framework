@@ -113,6 +113,14 @@ def test_a_queued_job_can_pick_the_autocast_dtype(tmp_path):
     assert argv[argv.index("--amp-dtype") + 1] == "fp16"
 
 
+def test_a_queued_job_can_ask_for_the_shuffled_layer_control(tmp_path):
+    job = {"phase": "P5", "profile_id": PROFILE, "sample_id": "PHerc1447",
+           "parameters": {"surface_volume": "/vol.zarr",
+                          "checkpoint": "/models/step.pth", "shuffle_seeds": 8}}
+    argv = command_for(job, runner=ADAPTER, output_dir="/runs/p5-9um")
+    assert argv[argv.index("--shuffle-seeds") + 1] == "8"
+
+
 def test_the_queue_still_refuses_it_without_the_source_scale(tmp_path):
     """Pooling needs to know what it is pooling from. Guessing 2.4 would pool
     a native 9 um render into a 38 um one."""

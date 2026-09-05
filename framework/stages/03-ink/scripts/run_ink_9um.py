@@ -45,6 +45,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -138,6 +139,125 @@ def checkpoint_verdict(profile: dict[str, Any], checkpoint_sha: str
             f"checkpoint digest {checkpoint_sha} is not the {declared} this "
             "profile declares. Nothing was run.")
     return execution_mode.Trust(), None
+
+
+# -- the shuffled-layer control ----------------------------------------------
+#
+# The only thing that separates signal from artefact where there are no
+# labels. Measured by the 5090 team: PHerc1447 gave a clean false positive --
+# 1.75 -> 2.33 -> 3.81 "rising", the very pattern validated as ink on 0139 --
+# and shuffling its layers left the asymmetry standing and growing. And one
+# seed is not a control: the same intact volume under different permutations
+# spans 1.10 to 4.05. So this is an envelope of N seeds against the 95th
+# percentile, with eight as the floor below which the percentile means little.
+
+MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE = 8
+SHUFFLE_PERCENTILE = 95
+
+
+def shuffle_layers_into(source: Path, destination: Path, seed: int) -> dict[str, Any]:
+    """Write a copy of the surface volume with its z layers permuted.
+
+    z only: the in-plane structure the model reads is untouched, and what is
+    destroyed is exactly the depth ordering a detection depends on. The
+    permutation is seeded, so a receipt naming the seed names the control,
+    and it is recorded by digest rather than listed -- a 40-element list says
+    nothing a reader can check that a hash does not.
+    """
+    import zarr  # noqa: PLC0415
+
+    source, destination = Path(source), Path(destination)
+    if destination.exists():
+        raise RuntimeError(f"refusing to overwrite: {destination}")
+    group = zarr.open_group(str(source), mode="r")
+    volume = np.asarray(group["0"])
+    depth = int(volume.shape[0])
+    permutation = np.random.default_rng(int(seed)).permutation(depth)
+    shuffled = volume[permutation]
+
+    out = zarr.open_group(str(destination), mode="w")
+    chunks = tuple(min(128, size) for size in shuffled.shape)
+    # Both zarr APIs, for the reason prepare_9um_isotropic_input gives: this
+    # image's zarr is upstream's 2.x and the repository's is 3.x.
+    if hasattr(out, "create_array"):
+        out.create_array("0", shape=shuffled.shape, dtype=shuffled.dtype, chunks=chunks)
+    else:
+        out.create_dataset("0", shape=shuffled.shape, dtype=shuffled.dtype, chunks=chunks)
+    out["0"][:] = shuffled
+    for key, value in dict(group.attrs).items():
+        out.attrs[key] = value
+    return {
+        "seed": int(seed),
+        "depth": depth,
+        "permutation_sha256": hashlib.sha256(permutation.astype("<i8").tobytes()).hexdigest(),
+    }
+
+
+def shuffle_envelope(real: dict[str, Any] | None,
+                     per_seed: list[dict[str, Any]]) -> dict[str, Any]:
+    """The real run's asymmetry against the p95 of the shuffled runs'.
+
+    Pure: takes asymmetry blocks (forward_reverse_asymmetry's own shape) and
+    returns numbers. A threshold whose real ratio or whose envelope is
+    unreadable -- the 300-pixel guard fired, or every seed's did -- comes out
+    None rather than as a fabricated comparison. `enough_seeds` is stated,
+    not enforced: how many to run is the caller's, and the receipt says
+    whether it was enough for the percentile to mean anything.
+    """
+    thresholds = ("0.5", "0.6", "0.7")
+    real_ratios = {
+        t: ((real or {}).get("thresholds") or {}).get(t, {}).get("ratio")
+        for t in thresholds
+    }
+    seed_ratios = {t: [] for t in thresholds}
+    for block in per_seed:
+        for t in thresholds:
+            ratio = (block.get("asymmetry") or {}).get("thresholds", {}).get(t, {}).get("ratio")
+            if ratio is not None:
+                seed_ratios[t].append(float(ratio))
+    p95 = {t: (float(np.percentile(v, SHUFFLE_PERCENTILE)) if v else None)
+           for t, v in seed_ratios.items()}
+    exceeds = {
+        t: (None if real_ratios[t] is None or p95[t] is None
+            else bool(real_ratios[t] > p95[t]))
+        for t in thresholds
+    }
+    return {
+        "seeds": len(per_seed),
+        "enough_seeds": len(per_seed) >= MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE,
+        "min_seeds_for_a_percentile": MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE,
+        "percentile": SHUFFLE_PERCENTILE,
+        "real": real_ratios,
+        "p95": p95,
+        "seeds_readable": {t: len(v) for t, v in seed_ratios.items()},
+        "exceeds_p95": exceeds,
+        # Mirrors sustained_above_1_5: both of the two thresholds the team
+        # reads, and neither unreadable.
+        "sustained_exceeds_p95": bool(exceeds["0.6"] and exceeds["0.7"]),
+        "per_seed": [
+            {"seed": b["seed"], "permutation_sha256": b["permutation_sha256"],
+             "ratios": {t: (b.get("asymmetry") or {}).get("thresholds", {}).get(t, {}).get("ratio")
+                        for t in thresholds},
+             "runtime_seconds": b.get("runtime_seconds")}
+            for b in per_seed
+        ],
+    }
+
+
+def shuffle_source(surface_volume: str) -> Path:
+    """The local zarr a shuffle reads, or a refusal before any GPU is spent.
+
+    The control permutes bytes, so it needs them here. After pooling or a
+    resample they are; a cached URL is; a bare URL is not, and streaming a
+    volume N more times to shuffle it is not a cost this lane takes quietly.
+    """
+    path = Path(str(surface_volume))
+    if not path.is_dir():
+        raise ValueError(
+            f"shuffle_seeds needs a local surface volume and {surface_volume} is "
+            "not a directory here: pool or resample a layer stack, or set "
+            "HELENA_INK_9UM_ZARR_CACHE so the URL is mirrored first")
+    return path
 
 
 def sha256_file(path: Path) -> str:
@@ -592,6 +712,13 @@ def main() -> int:
     ap.add_argument("--layer-end", type=int, default=None,
                     help="override the profile's default_execution.layer_end "
                          "-- must be given with --layer-start, never alone")
+    ap.add_argument("--shuffle-seeds", type=int, default=0,
+                    help="run N extra inferences on copies of the volume with "
+                         "their z layers shuffled (seeded 0..N-1) and record the "
+                         "real forward/reverse asymmetry against the p95 of "
+                         "theirs; the only control there is where no labels "
+                         "are. 8 is the floor for the percentile to mean "
+                         "anything; costs N runs of direction:both")
     ap.add_argument("--amp-dtype", choices=AMP_DTYPES, default=None,
                     help="override the profile's default_execution.amp_dtype "
                          "(pinned bf16: upstream's own default falls back to "
@@ -628,6 +755,18 @@ def main() -> int:
     except (ValueError, IncompatibleSourceScale) as refused:
         # Before a GPU is claimed: a scale this recipe cannot reach is not
         # something to discover after the model is resident.
+        print(str(refused), file=sys.stderr)
+        return 3
+    if args.shuffle_seeds < 0:
+        print(f"shuffle_seeds cannot be negative, got {args.shuffle_seeds}", file=sys.stderr)
+        return 3
+    if args.shuffle_seeds and profile["default_execution"]["direction"] != "both":
+        print("shuffle_seeds compares forward against reverse, which only a "
+              "direction: both profile writes", file=sys.stderr)
+        return 3
+    try:
+        shuffle_from = shuffle_source(surface_volume) if args.shuffle_seeds else None
+    except ValueError as refused:
         print(str(refused), file=sys.stderr)
         return 3
     argv = inference_command(profile, surface_volume=surface_volume,
@@ -708,6 +847,40 @@ def main() -> int:
         np.save(directory / "probability_reverse.npy", reverse)
         reverse_summary = build_reverse_summary(probability, reverse)
 
+    # The shuffled-layer control, one seed at a time and nothing kept but the
+    # numbers: each seed is a full copy of the volume and two maps, and N of
+    # them beside a 9 GB worker is how a disk fills mid-run.
+    shuffle_control: dict[str, Any] | None = None
+    if args.shuffle_seeds:
+        per_seed: list[dict[str, Any]] = []
+        for seed in range(int(args.shuffle_seeds)):
+            shuffled_dir = directory / f"shuffle-seed-{seed}"
+            shuffled_zarr = shuffled_dir / "surface-volume.zarr"
+            shuffled_dir.mkdir(parents=True, exist_ok=True)
+            record = shuffle_layers_into(shuffle_from, shuffled_zarr, seed)
+            seed_argv = [
+                str(shuffled_zarr) if a == str(surface_volume)
+                else str(shuffled_dir / OUTPUT_MAP_NAME) if a == str(output_tiff)
+                else a
+                for a in argv
+            ]
+            seed_started = time.time()
+            seed_run = subprocess.run(seed_argv, timeout=args.timeout_seconds)
+            record["runtime_seconds"] = round(time.time() - seed_started, 2)
+            seed_forward = shuffled_dir / OUTPUT_MAP_NAME
+            seed_reverse = shuffled_dir / REVERSE_MAP_NAME
+            if seed_run.returncode == 0 and seed_forward.is_file() and seed_reverse.is_file():
+                record["asymmetry"] = forward_reverse_asymmetry(
+                    read_map(seed_forward), read_map(seed_reverse))
+            else:
+                record["asymmetry"] = None
+                record["failed"] = (f"exit {seed_run.returncode}" if seed_run.returncode
+                                    else "wrote no forward/reverse pair")
+            per_seed.append(record)
+            shutil.rmtree(shuffled_dir, ignore_errors=True)
+        shuffle_control = shuffle_envelope(
+            (reverse_summary or {}).get("asymmetry"), per_seed)
+
     # No `valid` mask: unlike the tiled lanes this runner blends over the whole
     # plane, and `probability > 0` would silently drop the genuine no-ink floor
     # this recipe emits, which is 0.25 and not 0.
@@ -745,6 +918,9 @@ def main() -> int:
         "direction": profile["default_execution"]["direction"],
         "published_map": "probability.npy (forward)",
         "reverse": reverse_summary,
+        # The real asymmetry against the p95 of N shuffled-layer runs, or
+        # None when none were asked for. See shuffle_envelope.
+        "shuffle_control": shuffle_control,
         # 255 steps across a range that occupies roughly 0.22 to 0.81 in
         # practice. Stated because a reader comparing this lane's map against a
         # float lane's is comparing resolutions as well as models.
@@ -770,7 +946,16 @@ def main() -> int:
             "control's own stack with its layers shuffled, p50 came out "
             "identical to the real order while p99 and std separated "
             "cleanly. See liveness.metrics and reverse.asymmetry.",
-        ],
+        ] + ([
+            "shuffle_control is an envelope, not a verdict: an asymmetry "
+            "above the shuffled p95 is one that shuffling did not produce, "
+            "which is necessary for ink and not sufficient; below it, the "
+            "map's asymmetry is one a permuted volume also gives",
+        ] + ([] if shuffle_control["enough_seeds"] else [
+            f"shuffle_control ran {shuffle_control['seeds']} seeds, under the "
+            f"{MIN_SHUFFLE_SEEDS_FOR_A_PERCENTILE} the percentile needs to mean "
+            "much: one seed alone spans 1.10 to 4.05 on an intact volume",
+        ]) if shuffle_control else []),
     }
     # Every receipt says which lane produced it, the certified ones included:
     # is_certified fails closed on a document with no stamp, so a certified run

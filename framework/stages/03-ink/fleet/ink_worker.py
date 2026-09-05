@@ -1999,6 +1999,9 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             # other lane, and on a forward-only or reverse-only 9 um run: there
             # is no second map to have compared it against.
             "reverse": (receipt or {}).get("reverse"),
+            # The real asymmetry against the p95 of N shuffled-layer runs.
+            # None unless the job asked for shuffle_seeds.
+            "shuffle_control": (receipt or {}).get("shuffle_control"),
             # Which lane produced this, carried onto the job row because that
             # is what P7 reads. Absent on every lane that does not stamp yet,
             # and is_certified reads absence as "not certified" on purpose.
