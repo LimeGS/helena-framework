@@ -150,6 +150,54 @@ def test_cpu_p8_worker_carries_column_atlas_python_runtime() -> None:
     assert "import PIL" in containerfile
 
 
+def test_the_composed_image_puts_the_fitter_where_the_lane_looks() -> None:
+    """The same failure as above, one layer down, and it actually happened.
+
+    ``run_spiral_fit.py`` falls back to /opt/lanes/spiral/spiral-fitting when
+    VILLA_SPIRAL_ROOT is unset, because at 23adee04 upstream moved the scripts
+    into a spiral-fitting package. The composed image still set that variable
+    to the pre-23adee04 /opt/lanes/spiral/spiral and still checked a file
+    there, and it kept passing -- against a lane image nothing had rebuilt,
+    which still had the old tree inside it. The first build against a lane
+    image genuinely at the locked commit failed with FileNotFoundError on a
+    path that no longer exists.
+
+    Both ends of that, tied together: what the image says the root is, and
+    what the runner assumes when nothing says.
+    """
+    containerfile = (ROOT / "containers/images/Containerfile.worker-cpp").read_text()
+    runner = (
+        ROOT / "framework/stages/01-segmentation/scripts/run_spiral_fit.py"
+    ).read_text()
+
+    assert "VILLA_SPIRAL_ROOT=/opt/lanes/spiral/spiral-fitting" in containerfile
+    assert '"/opt/lanes/spiral/spiral-fitting"' in runner, (
+        "the runner's fallback and the image's layout have drifted apart")
+    assert "/opt/lanes/spiral/spiral/fit_spiral.py" not in containerfile, (
+        "the composed image still checks the pre-23adee04 path")
+
+
+def test_the_composed_image_checks_what_the_lane_actually_reads() -> None:
+    """The old check asserted six module-level constants in fit_spiral.py,
+    because the scroll was selected by rewriting them. The scroll is a
+    spiral-scroll.json manifest now, so those six are gone and asserting them
+    would refuse every build. What the runner reads instead is
+    fit_session.FIT_INPUT_CATALOG, which is what the image checks for.
+
+    Upstream writes it annotated, so the check has to know about AnnAssign as
+    well as Assign -- verified against the image at the locked commit, where
+    it is `FIT_INPUT_CATALOG: tuple[FitInputSpec, ...] = (...)`.
+    """
+    containerfile = (ROOT / "containers/images/Containerfile.worker-cpp").read_text()
+
+    assert "FIT_INPUT_CATALOG" in containerfile
+    assert "ast.AnnAssign" in containerfile, (
+        "an annotated assignment is a different AST node, and upstream's is "
+        "annotated: this check would fail on a symbol that is plainly there")
+    assert "spiral_outward_sense" not in containerfile, (
+        "the rebind-era constants are still being asserted")
+
+
 # -- the same failure, through the runtime rather than the phase -------------
 #
 # Three lanes need an image their claiming worker may not be running. The

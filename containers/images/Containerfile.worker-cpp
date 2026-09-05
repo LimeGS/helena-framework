@@ -163,7 +163,7 @@ RUN set -eu; \
 
 
 ENV VILLA_PYTHON=/opt/lanes/spiral/venv/bin/python \
-    VILLA_SPIRAL_ROOT=/opt/lanes/spiral/spiral \
+    VILLA_SPIRAL_ROOT=/opt/lanes/spiral/spiral-fitting \
     VILLA_LASAGNA_ROOT=/opt/lanes/spiral/lasagna \
     WANDB_MODE=disabled
 
@@ -189,31 +189,56 @@ RUN python3 -c "import psycopg2, numpy, tifffile" \
 RUN /opt/lanes/spiral/venv/bin/python -c "import torch, zarr, tifffile" \
  && echo "the lane half imports its own environment"
 
-# The six the rebind rewrites, checked as a build-time fact rather than
-# discovered by a refused job: this image is only useful while they are still
-# module-level assignments in upstream's script.
+# What the lane actually reaches for, checked as a build-time fact rather than
+# discovered by a refused job.
+#
+# This used to assert that fit_spiral.py still assigned six scroll constants at
+# module level, because the scroll was selected by rewriting them. At 23adee04
+# upstream moved the scripts into a spiral-fitting package and the scroll into a
+# spiral-scroll.json manifest, so those six assignments are gone and the rebind
+# with them -- run_spiral_fit.py writes the manifest instead.
+#
+# The check went on passing anyway for as long as the lane image on the host was
+# the pre-23adee04 one: it was reading the old tree, out of an image nothing had
+# rebuilt. The first build against a lane image actually at the locked commit is
+# what surfaced it, as FileNotFoundError on a path this stage no longer has.
+#
+# So: the fitter is where the runner looks for it, and fit_session carries the
+# catalogue the runner reads to build that manifest.
 RUN /opt/lanes/spiral/venv/bin/python - <<'CHECK'
 import ast, sys
+from pathlib import Path
 
-tree = ast.parse(open('/opt/lanes/spiral/spiral/fit_spiral.py').read())
-wanted = {'dataset_path', 'scroll_name', 'z_begin', 'z_end', 'voxel_size_um',
-          'spiral_outward_sense'}
-found = set()
-for statement in tree.body:
-    if not isinstance(statement, ast.Assign):
-        continue
-    for target in statement.targets:
-        if isinstance(target, ast.Name):
-            found.add(target.id)
-        elif isinstance(target, ast.Tuple):
-            found.update(element.id for element in target.elts
-                         if isinstance(element, ast.Name))
-absent = sorted(wanted - found)
-if absent:
-    sys.exit(f'fit_spiral.py no longer assigns {absent} at module level; the '
-             'scroll is selected somewhere the rebind does not look, and every '
-             'job this image claimed would be refused')
-print('spiral: all six scroll constants are rebindable')
+root = Path('/opt/lanes/spiral/spiral-fitting')
+fitter = root / 'fit_spiral.py'
+if not fitter.is_file():
+    sys.exit(f'{fitter} is not here; this image cannot run the P1 lane')
+
+# Imported rather than parsed would run its module level, which reaches for
+# CLI arguments and a GPU. The catalogue is a module-level assignment, so the
+# AST answers the question without any of that.
+session = root / 'fit_session.py'
+if not session.is_file():
+    sys.exit(f'{session} is not here; run_spiral_fit.py reads FIT_INPUT_CATALOG '
+             'from it to decide which inputs a dataset must carry')
+# AnnAssign as well as Assign: upstream writes it annotated
+# (`FIT_INPUT_CATALOG: tuple[FitInputSpec, ...] = (...)`), which is a
+# different AST node, and a check that only knew about the plain form would
+# fail this build for a symbol that is plainly there.
+assigned = set()
+for statement in ast.parse(session.read_text()).body:
+    if isinstance(statement, ast.AnnAssign):
+        if isinstance(statement.target, ast.Name):
+            assigned.add(statement.target.id)
+    elif isinstance(statement, ast.Assign):
+        for target in statement.targets:
+            if isinstance(target, ast.Name):
+                assigned.add(target.id)
+if 'FIT_INPUT_CATALOG' not in assigned:
+    sys.exit('fit_session.py no longer assigns FIT_INPUT_CATALOG at module '
+             'level; the lane surveys a dataset against it before spending a '
+             'lease, and every job this image claimed would be refused')
+print('spiral: the fitter and its input catalogue are both where the lane looks')
 CHECK
 
 WORKDIR /workspace/campaign-x
