@@ -761,6 +761,18 @@ def check_stage_and_profile_identity(root: Path) -> Iterable[str]:
             continue
         require(method_id in methods, f"profile {profile_id} references unknown method")
         expected_checkpoint = methods[method_id].get("known_checkpoint_sha256")
+        # An experimental lane declares, in so many words, that it pins nothing:
+        # it runs whatever weights it is handed and its receipts certify nothing.
+        # The marker is what exempts it -- never a bare null, which is a pin
+        # somebody forgot -- and a marked profile that also carries a digest is
+        # a contradiction rather than a stricter version of itself.
+        if (profile.get("safety") or {}).get("experimental_unpinned_checkpoint") is True:
+            require(
+                profile.get("checkpoint_sha256") is None,
+                f"profile {profile_id} is marked experimental and still pins a "
+                "checkpoint; one of the two is a lie",
+            )
+            continue
         if expected_checkpoint is not None:
             require(
                 profile.get("checkpoint_sha256") == expected_checkpoint,

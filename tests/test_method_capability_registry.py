@@ -122,6 +122,13 @@ def test_ink_profiles_bind_registered_method_and_checkpoint() -> None:
             )
             continue
         method = entries[profile["method_id"]]
+        # Mirror of the audit's exemption: a lane marked experimental pins
+        # nothing, and must not pin anything. A bare null is not that lane.
+        if (profile.get("safety") or {}).get("experimental_unpinned_checkpoint") is True:
+            assert profile["checkpoint_sha256"] is None, (
+                f"{path.name} is marked experimental and still pins a checkpoint")
+            bound += 1
+            continue
         assert profile["checkpoint_sha256"] == method["known_checkpoint_sha256"]
         # The adapter must be the registry's, unless a later profile supersedes
         # this one. A superseded profile records what it ran with -- its hash is
@@ -138,3 +145,27 @@ def test_ink_profiles_bind_registered_method_and_checkpoint() -> None:
         bound += 1
 
     assert bound >= 4, "the executable ink lanes must still be bound"
+
+
+def test_a_bare_null_checkpoint_is_not_exempt_from_the_binding() -> None:
+    """The exemption is the marker, never the null: a profile that simply
+    forgot its pin has to keep failing."""
+    document = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    entries = {entry["method_id"]: entry for entry in document["entries"]}
+    profile = json.loads((ROOT / "framework/profiles/03-ink/"
+                          "ink-9um-hybrid-3d2d-screening-1.0.0.json").read_text())
+    profile["checkpoint_sha256"] = None
+    profile["safety"].pop("experimental_unpinned_checkpoint", None)
+
+    method = entries[profile["method_id"]]
+    assert profile["checkpoint_sha256"] != method["known_checkpoint_sha256"], (
+        "with no marker the ordinary binding applies, and null does not bind")
+
+
+def test_the_experimental_profile_is_bound_by_its_marker_and_pins_nothing() -> None:
+    profile = json.loads((ROOT / "framework/profiles/03-ink/"
+                          "ink-9um-experimental-1.0.0.json").read_text())
+    assert profile["safety"]["experimental_unpinned_checkpoint"] is True
+    assert profile["checkpoint_sha256"] is None
+    assert not _checkpoint_digests(profile), (
+        "an unpinned lane must not smuggle a digest anywhere in its notes")

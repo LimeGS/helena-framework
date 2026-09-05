@@ -235,7 +235,7 @@ PHASE_PARAMETERS: dict[str, dict[str, type]] = {
            "model_config": str,
            "batch_size": int, "num_workers": int, "layer_start": int,
            "layer_end": int, "min_valid_ratio": float,
-           "resample_from_um": float,
+           "resample_from_um": float, "amp_dtype": str,
            "device": str, "on_degenerate": str, "artifact_store": str},
     "P7": {"map_path": str, "screening_of": str,
            **CONTROL_BINDING_PARAMETERS,
@@ -542,6 +542,11 @@ PARAMETER_HELP: dict[str, dict[str, Any]] = {
                                  "XY-only, no claim of Z isotropy, about a 4% correlation "
                                  "cost measured on the public control -- left empty the "
                                  "guard refuses exactly as it does today"},
+    "amp_dtype": {"label": "Autocast dtype", "placeholder": "bf16",
+                  "note": "the 9 um lane pins bf16: upstream's own default reads "
+                          "the checkpoint's mixed_precision and these carry none, "
+                          "so it falls back to fp16, which returns NaN; change it "
+                          "only for a card that cannot do bf16"},
     "min_valid_ratio": {"label": "Minimum valid ratio",
                         "note": "skip a tile with less real data than this, so padding is "
                                 "never scored as signal"},
@@ -1018,6 +1023,11 @@ def validate_parameters(parameters: dict[str, Any], phase: str = "P5", *,
         raise JobRejected(f"min_valid_ratio out of range: {clean['min_valid_ratio']}")
     if clean.get("on_degenerate") not in (None, "fail", "warn"):
         raise JobRejected("on_degenerate must be 'fail' or 'warn'")
+    if clean.get("amp_dtype") not in (None, "default", "fp16", "bf16"):
+        # Not `auto`: on these checkpoints it means fp16, which returns NaN.
+        raise JobRejected(
+            f"amp_dtype must be 'default', 'fp16' or 'bf16', got "
+            f"{clean.get('amp_dtype')!r}")
     # `auto` is the default and means "the card if the worker that claims this
     # has one". An explicit `cuda` is a requirement the runner refuses to
     # silently downgrade, and `cpu` is a caller saying plainly that the slower
@@ -1488,7 +1498,10 @@ INK_ADAPTERS: dict[str, dict[str, Any]] = {
                   # 4 scrolls scanned at 8.64 um/116 keV stop being refused --
                   # the largest single unblock of scroll surface this lane
                   # has had, at a measured ~4% correlation cost, not free.
-                  "resample_from_um": "--resample-from-um"},
+                  "resample_from_um": "--resample-from-um",
+                  # A property of the card, like batch_size. The profile pins
+                  # bf16 and this only exists for a card that cannot do it.
+                  "amp_dtype": "--amp-dtype"},
     },
 }
 INK_PROFILE_DIR = "framework/profiles/03-ink"

@@ -9596,6 +9596,11 @@ def ink_run_row(job: dict[str, Any]) -> dict[str, Any]:
                        for key in ("layer_stack", "tiff_dir", "surface_volume")
                        if parameters.get(key)), None),
         "profile_id": job.get("profile_id"),
+        # Which lane produced this map. Null on a screening from before
+        # receipts were stamped; false on the experimental lane's, whose
+        # maps P7 refuses to adjudicate.
+        "certified": result.get("certified"),
+        "execution_mode": result.get("execution_mode"),
         "state": job.get("state"),
         "mission_id": job.get("mission_id"),
         "attempts": job.get("attempts"),

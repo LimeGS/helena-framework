@@ -72,6 +72,17 @@ def test_naming_none_of_the_three_is_still_refused() -> None:
         validate_parameters({"checkpoint": "/models/c.pth"}, "P5")
 
 
+def test_auto_autocast_is_refused_at_enqueue() -> None:
+    """On these checkpoints `auto` means fp16, and fp16 means NaN -- refused
+    here rather than discovered after the GPU time was spent."""
+    with pytest.raises(JobRejected) as refused:
+        validate_parameters({"surface_volume": PUBLIC_VOLUME,
+                             "checkpoint": "/models/c.pth",
+                             "amp_dtype": "auto"}, "P5")
+
+    assert "amp_dtype" in str(refused.value)
+
+
 def test_resample_from_um_against_a_ready_volume_is_refused() -> None:
     """resample_from_um is an instruction to pooling. A ready surface_volume
     never reaches pooling, so this would be a knob silently ignored rather

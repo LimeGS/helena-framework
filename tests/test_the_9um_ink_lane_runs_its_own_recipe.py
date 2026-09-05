@@ -33,8 +33,9 @@ import numpy as np
 import run_ink_9um  # noqa: E402
 from prepare_9um_isotropic_input import IncompatibleSourceScale  # noqa: E402
 from run_ink_9um import (  # noqa: E402
-    build_reverse_summary, default_batch_size_for_host, detect_gpu_vram_mb,
-    inference_command, load_lane_profile, preparation_command,
+    EXPERIMENTAL_MARK, build_reverse_summary, checkpoint_verdict,
+    default_batch_size_for_host, detect_gpu_vram_mb, inference_command,
+    load_lane_profile, preparation_command,
 )
 
 PROFILE = ROOT / "framework/profiles/03-ink/ink-9um-hybrid-3d2d-screening-1.0.0.json"
@@ -249,6 +250,57 @@ def test_a_negative_worker_count_is_refused():
         inference_command(profile, surface_volume="v.zarr",
                           checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
                           num_workers=-1)
+
+
+# -- amp_dtype: pinned, never `auto` -------------------------------------------
+#
+# Upstream's `auto` reads mixed_precision from the checkpoint's own config and,
+# when it carries none -- the ink_9um checkpoints carry none -- falls back to
+# PyTorch's default CUDA autocast, fp16. Measured by the 5090 team: fp16 returns
+# NaN, and upstream's uint8 cast turns NaN into a map that looks like a result.
+# This lane never sent the flag at all, which meant `auto`.
+
+def test_the_autocast_dtype_is_pinned_and_always_sent():
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+    assert argv[argv.index("--amp-dtype") + 1] == "bf16"
+
+
+def test_a_caller_may_pick_another_autocast_dtype():
+    """A property of the card, like batch_size: a card that cannot do bf16
+    has no other way to say so."""
+    profile = load_lane_profile(PROFILE)
+    argv = inference_command(profile, surface_volume="v.zarr",
+                             checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                             amp_dtype="fp16")
+    assert argv[argv.index("--amp-dtype") + 1] == "fp16"
+
+
+def test_auto_is_not_a_choice():
+    """`auto` is exactly the value that produced the NaN maps."""
+    profile = load_lane_profile(PROFILE)
+    with pytest.raises(ValueError, match="amp_dtype"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"),
+                          amp_dtype="auto")
+
+
+def test_a_profile_that_pins_no_dtype_is_refused():
+    """Absent is not a default here: absent was how the lane ran before, and
+    it meant `auto`."""
+    profile = load_lane_profile(PROFILE)
+    profile["default_execution"].pop("amp_dtype")
+    with pytest.raises(ValueError, match="amp_dtype"):
+        inference_command(profile, surface_volume="v.zarr",
+                          checkpoint=Path("c.pth"), output_tiff=Path("o.tif"))
+
+
+def test_both_shipped_profiles_pin_bf16():
+    for name in ("ink-9um-hybrid-3d2d-screening-1.0.0.json",
+                 "ink-9um-dense-native-1.0.0.json"):
+        profile = load_lane_profile(ROOT / "framework/profiles/03-ink" / name)
+        assert profile["default_execution"]["amp_dtype"] == "bf16", name
 
 
 # -- layer_start / layer_end as job parameters -------------------------------
@@ -548,7 +600,7 @@ def test_the_lane_names_its_own_file_inside_the_job_directory(
 
     def fake_inference_command(profile, *, surface_volume, checkpoint, output_tiff,
                                batch_size=None, num_workers=None,
-                               layer_start=None, layer_end=None):
+                               layer_start=None, layer_end=None, amp_dtype=None):
         seen["output_tiff"] = Path(output_tiff)
         return ["true"]
 
@@ -635,3 +687,91 @@ def test_a_forward_only_run_never_calls_this_at_all():
     assert "reverse_summary = build_reverse_summary(probability, reverse)" in source
     # Nothing calls build_reverse_summary outside that guarded block.
     assert source.count("build_reverse_summary(") == 1
+
+
+# -- the experimental lane: a declared absence, not a mismatch ----------------
+#
+# The controlled lanes pin a checkpoint's sha256 and refuse anything else.
+# Measuring 14 checkpoints against two segments through the fleet meant 14
+# profiles requested by hand, so the sweep ran by docker exec -- outside the
+# queue, no receipts, no liveness gate. ink-9um-experimental pins nothing on
+# purpose, says so by its own marker, and runs in the EXPLORATORY lane, where
+# its receipt certifies nothing and P7 will not adjudicate it.
+#
+# What must not change: a hash that does not match what a profile declares is
+# integrity and stays refused in every lane. And a bare null with no marker is
+# a pin somebody forgot, not an experimental lane.
+
+EXPERIMENTAL = ROOT / "framework/profiles/03-ink/ink-9um-experimental-1.0.0.json"
+
+
+def test_the_experimental_profile_declares_its_absence():
+    profile = load_lane_profile(EXPERIMENTAL)
+    assert profile["checkpoint_sha256"] is None
+    assert profile["safety"][EXPERIMENTAL_MARK] is True
+    assert profile["method_id"] == "ink-9um-hybrid-3d2d@1.0.0", (
+        "same architecture and runner as the controlled lane; only the pin differs")
+    assert profile["default_execution"] == load_lane_profile(PROFILE)["default_execution"]
+
+
+def test_an_experimental_profile_runs_whatever_it_is_handed_in_the_exploratory_lane():
+    from framework.contracts import execution_mode
+
+    trust, refused = checkpoint_verdict(load_lane_profile(EXPERIMENTAL), "f" * 64)
+
+    assert refused is None
+    assert trust.mode == execution_mode.EXPLORATORY
+    assert trust.certified is False
+    assert any("not pinned" in reason for reason in trust.unmet)
+    assert any("f" * 64 in reason for reason in trust.unmet), (
+        "the receipt has to say which weights actually ran")
+
+
+def test_a_pinned_profile_still_refuses_a_different_checkpoint():
+    """Integrity, not a mode: running anyway would act on weights known not
+    to be the ones meant."""
+    trust, refused = checkpoint_verdict(load_lane_profile(PROFILE), "f" * 64)
+
+    assert refused is not None and "is not the" in refused
+    assert trust.certified is True, "the certified lane, and it did not run"
+
+
+def test_a_pinned_profile_handed_its_own_checkpoint_is_certified():
+    profile = load_lane_profile(PROFILE)
+    trust, refused = checkpoint_verdict(profile, profile["checkpoint_sha256"])
+
+    assert refused is None
+    assert trust.certified is True
+
+
+def test_a_bare_null_is_a_forgotten_pin_not_an_experimental_lane():
+    profile = load_lane_profile(PROFILE)
+    profile["checkpoint_sha256"] = None
+
+    trust, refused = checkpoint_verdict(profile, "f" * 64)
+
+    assert refused is not None and "pins no checkpoint_sha256" in refused
+    assert EXPERIMENTAL_MARK in refused, "the refusal names the way out"
+
+
+def test_a_marked_profile_that_also_pins_is_a_contradiction():
+    profile = load_lane_profile(EXPERIMENTAL)
+    profile["checkpoint_sha256"] = "e" * 64
+
+    _, refused = checkpoint_verdict(profile, "e" * 64)
+
+    assert refused is not None and "one of the two is a lie" in refused
+
+
+def test_every_receipt_is_stamped_the_certified_ones_included():
+    """is_certified fails closed on a document with no stamp, so a certified
+    run that did not say so would be refused downstream exactly like an
+    exploratory one. The stamp is applied in main(), read here off the source
+    because the run itself needs a GPU."""
+    import inspect
+    import run_ink_9um
+
+    source = inspect.getsource(run_ink_9um.main)
+    assert "receipt = trust.stamp(receipt)" in source
+    assert source.index("trust.stamp(receipt)") < source.index("write_text("), (
+        "the stamp has to land before the receipt is written")

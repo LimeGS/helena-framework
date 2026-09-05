@@ -100,6 +100,36 @@ def _quotes_uncertified(value: object, *, depth: int = 0) -> bool:
     return False
 
 
+def declares_uncertified(document: object) -> bool:
+    """Whether this document says, itself, that it certifies nothing.
+
+    The complement is not `is_certified`. That one fails closed on a missing
+    stamp, which is right for a reader deciding what to lean on: absence of a
+    claim is not a claim. It is wrong for a gate that stands in front of
+    everything produced before stamps existed. Every screening on the fleet
+    from before this module reached P5 carries no stamp at all -- and every one
+    of them came out of a pinned lane under the integrity rules that have not
+    changed, which is to say they were certified by construction and simply
+    never said so. A gate that read their silence as a refusal would block the
+    adjudication of every existing map the day it deployed.
+
+    So this asks the narrower question: did the run declare itself
+    exploratory, or quote something that did? Only the experimental lane
+    produces such a document, and it always stamps. A forged `certified: true`
+    still does not help anyone: `is_certified` is what a reader uses, and this
+    is only what a gate uses to refuse.
+    """
+    if not isinstance(document, dict):
+        return False
+    if document.get("execution_mode") == EXPLORATORY:
+        return True
+    if document.get("certified") is False:
+        return True
+    if document.get("uncertified_because"):
+        return True
+    return _quotes_uncertified(document)
+
+
 def require_certified_input(document: object, *, what: str) -> None:
     """Refuse, in a certified run, to read something that certifies nothing."""
     if not is_certified(document):

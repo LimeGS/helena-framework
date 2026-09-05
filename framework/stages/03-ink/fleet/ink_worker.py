@@ -42,6 +42,7 @@ from job_store import (  # noqa: E402
 from framework.contracts.slice_order import (  # noqa: E402
     SliceOrderError, ordered_tiff_files,
 )
+from framework.contracts import execution_mode  # noqa: E402
 
 
 CONTROL_BINDING_FIELDS = (
@@ -1439,6 +1440,18 @@ def resolve_screened_map(store: InkJobStore, job: dict, destination: Path) -> di
             != binding):
         raise RuntimeError("P5 result lacks its persisted control binding")
     result = screening.get("result") or {}
+    # The exclusion execution_mode exists for, at the one place a P5 map
+    # becomes evidence: an exploratory screening -- the experimental lane's,
+    # which ran whatever weights it was handed -- may be looked at and never
+    # adjudicated. By declaration, not by absence: every screening from before
+    # receipts were stamped came out of a pinned lane and carries no stamp at
+    # all, and refusing those would block every existing map the day this
+    # deployed. See execution_mode.declares_uncertified for the reasoning.
+    if execution_mode.declares_uncertified(result):
+        raise RuntimeError(
+            f"screening {screening_id} certifies nothing"
+            f"{': ' + '; '.join(result.get('uncertified_because') or []) if result.get('uncertified_because') else ''}"
+            " -- P7 adjudicates evidence, and an exploratory map is not that")
     verdict = ((result.get("liveness") or {}).get("verdict"))
     if verdict != "ALIVE":
         # The gate P6 was written to be and never was: screening finds shapes in
@@ -1986,6 +1999,12 @@ def run_job(store: InkJobStore, job: dict, *, runs_root: Path, timeout: int) -> 
             # other lane, and on a forward-only or reverse-only 9 um run: there
             # is no second map to have compared it against.
             "reverse": (receipt or {}).get("reverse"),
+            # Which lane produced this, carried onto the job row because that
+            # is what P7 reads. Absent on every lane that does not stamp yet,
+            # and is_certified reads absence as "not certified" on purpose.
+            "certified": (receipt or {}).get("certified"),
+            "execution_mode": (receipt or {}).get("execution_mode"),
+            "uncertified_because": (receipt or {}).get("uncertified_because"),
             "output_dir": str(output),
             "ran_by": worker_code_revision(),
         }
