@@ -198,3 +198,14 @@ def test_0_4_0_and_0_4_1_disagree_on_exactly_the_patch_related_overrides():
         assert v040["config_overrides"][shared_key] == v041["config_overrides"][shared_key]
     assert v040["config_overrides"]["input_disable_patches"] is True
     assert v041["config_overrides"]["input_disable_patches"] is False
+
+
+def test_verified_patches_dir_is_the_unverified_ones_twin():
+    """Same absence by default, same shape when given, same refusals."""
+    assert adapter.LAYOUT_DEFAULTS["verified_patches_dir"] == ""
+    assert adapter.validate_layout(None)["verified_patches_dir"] == ""
+    assert adapter.validate_layout({"verified_patches_dir": "verified_patches"})[
+        "verified_patches_dir"] == "verified_patches"
+    for bad in ("a/b", "{name}", ".."):
+        with pytest.raises(adapter.ScrollSpecRefused, match="verified_patches_dir"):
+            adapter.validate_layout({"verified_patches_dir": bad})

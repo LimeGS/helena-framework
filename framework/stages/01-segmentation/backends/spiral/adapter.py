@@ -275,12 +275,19 @@ DEFAULT_TRACKS_FILE = "2um_ds2_ps256_surf_v2.dbm"
 # lasagna_volume_name or tracks_file, except there is no "upstream's own
 # value" to fall back to -- only "not asked for".
 DEFAULT_UNVERIFIED_PATCHES_DIR = ""
+# The same absence for verified patches: upstream's other patch role, with
+# the same empty conventional_relative and the same "not asked for" default.
+# Upstream's own docstring for the winding model says the raw spiral surface
+# can sit a whole turn off the sheet and is spliced with verified patches for
+# that reason; a profile that wants them has to say where they are.
+DEFAULT_VERIFIED_PATCHES_DIR = ""
 LAYOUT_DEFAULTS: dict[str, Any] = {
     "lasagna_volume_name": DEFAULT_LASAGNA_VOLUME_NAME,
     "normal_zarr_group": "4",
     "lasagna_scale": 4,
     "tracks_file": DEFAULT_TRACKS_FILE,
     "unverified_patches_dir": DEFAULT_UNVERIFIED_PATCHES_DIR,
+    "verified_patches_dir": DEFAULT_VERIFIED_PATCHES_DIR,
 }
 
 # Which array each lasagna path override key names, mirroring the three-way
@@ -324,7 +331,8 @@ def validate_layout(layout: Mapping[str, Any] | None) -> dict[str, Any]:
     A fifth key, `unverified_patches_dir`, joined at spiral-fitter-v1@0.4.1
     and is unrelated to the other four: it names where grown patches live,
     not how the fit reads lasagna or tracks, and its default is empty rather
-    than upstream's -- see DEFAULT_UNVERIFIED_PATCHES_DIR.
+    than upstream's -- see DEFAULT_UNVERIFIED_PATCHES_DIR. A sixth,
+    `verified_patches_dir`, is its twin for upstream's other patch role.
     """
     given = dict(layout or {})
     unknown = sorted(set(given) - set(LAYOUT_DEFAULTS))
@@ -397,6 +405,17 @@ def validate_layout(layout: Mapping[str, Any] | None) -> dict[str, Any]:
     # is a way to point the fitter (and, upstream, an unverified-patches
     # loader that does `os.listdir(path)`) somewhere this platform did not
     # mean to.
+    for key in ("unverified_patches_dir", "verified_patches_dir"):
+        value = str(checked[key])
+        if not value:
+            continue
+        if any(brace in value for brace in "{}"):
+            raise ScrollSpecRefused(
+                f"{key} is {value!r}; a directory name, not a template")
+        if value != Path(value).name or value in (".", ".."):
+            raise ScrollSpecRefused(
+                f"{key} is {value!r}; it is one directory directly under the "
+                "dataset root, not a path")
     unverified_patches_dir = str(checked["unverified_patches_dir"])
     if unverified_patches_dir:
         if any(brace in unverified_patches_dir for brace in "{}"):
@@ -528,6 +547,9 @@ def scroll_spec_document(binding: Mapping[str, Any],
         # default and this `if` express.
         paths["unverified_patches"] = (
             f"{dataset}/{checked_layout['unverified_patches_dir']}")
+    if checked_layout["verified_patches_dir"]:
+        paths["verified_patches"] = (
+            f"{dataset}/{checked_layout['verified_patches_dir']}")
     if paths:
         unknown = sorted(set(paths) - set(SCROLL_SPEC_PATH_OVERRIDE_KEYS))
         if unknown:  # pragma: no cover - defensive; _LASAGNA_PATH_KEYS is closed

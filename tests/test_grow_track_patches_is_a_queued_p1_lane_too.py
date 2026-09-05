@@ -192,5 +192,5 @@ def test_the_form_lists_the_lane_and_its_own_exactly_one_of_rule():
 
 
 def test_every_new_p1_parameter_is_documented_for_the_form():
-    for name in ("unverified_patches_dir", "seeds", "random_count"):
+    for name in ("unverified_patches_dir", "verified_patches_dir", "seeds", "random_count"):
         assert name in PHASE_PARAMETERS["P1"]

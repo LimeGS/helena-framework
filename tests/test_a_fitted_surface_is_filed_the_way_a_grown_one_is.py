@@ -485,3 +485,127 @@ def test_cancelling_the_runner_takes_the_subprocess_down_with_it(tmp_path):
         f"cancelling took {elapsed:.1f}s; the child was not reaped promptly")
     # And this process is still here to write a receipt about it.
     assert signal.getsignal(signal.SIGTERM) is not None
+
+
+# -- what the receipt says about the checkpoint, and about the patches -------
+#
+# winding_model_9um reads z_begin/z_end/dr_per_winding from the fit's .ckpt and
+# an audit reads the same three; a receipt that named the checkpoint's path
+# and nothing inside it left both to reopen a torch archive. The reading runs
+# in the lane's interpreter through describe_spiral_checkpoint.py with
+# upstream's own helpers, which this fake root can supply or withhold.
+
+FAKE_CHECKPOINT_IO = '''\
+import json
+def load_checkpoint_cpu(path):
+    spec = json.loads(open(path, "rb").read()[4:])
+    return {"schema_version": 2, "completed_iterations": 30000,
+            "spiral_and_transform": {"dr_per_winding_logit": 1.25},
+            "resolved_config": {"model_gap_expander_min_gap": 1.0,
+                                "model_initial_dr_per_winding": 16.0},
+            "z_begin": 4500, "z_end": 7500,
+            "spiral_outward_sense": spec["spiral_outward_sense"],
+            "lasagna_scale": 4,
+            "input_manifest": {"unverified_patches": "/ds/unverified_patches"}}
+'''
+
+FAKE_GAP = '''\
+import math
+def lower_bounded_dr(raw_logit, min_gap):
+    # upstream: min_gap + softplus(logit * 12.0); a plain float stands in for
+    # the tensor here
+    x = float(raw_logit) * 12.0
+    return min_gap + math.log1p(math.exp(x))
+'''
+
+
+def test_the_receipt_names_the_checkpoint_and_hashes_it_even_when_it_cannot_read_it(tmp_path):
+    """The fake root carries no checkpoint_io: the block still names the
+    file and its digest, and says why the rest is absent."""
+    pytest.importorskip("numpy"); pytest.importorskip("tifffile")
+    dataset(tmp_path / "ds"); fitter(tmp_path / "spiral")
+
+    assert run(tmp_path) == 0
+    block = receipt_of(tmp_path)["checkpoint"]
+    assert block["path"].endswith("run/fit/checkpoint_fitted.ckpt")
+    assert len(block["sha256"]) == 64
+    assert block["described"] is False
+    assert "checkpoint_io" in block["describe_error"]
+    assert "dr_per_winding" not in block, "no number was read, so none is written"
+
+
+def test_the_receipt_reads_dr_per_winding_and_the_z_range_out_of_the_checkpoint(tmp_path):
+    """With upstream's helpers present the block carries what the winding
+    model and the audit both need, computed by upstream's own function."""
+    import math
+    pytest.importorskip("numpy"); pytest.importorskip("tifffile")
+    dataset(tmp_path / "ds"); root = fitter(tmp_path / "spiral")
+    (root / "checkpoint_io.py").write_text(FAKE_CHECKPOINT_IO)
+    (root / "gap_parameterization.py").write_text(FAKE_GAP)
+
+    assert run(tmp_path) == 0
+    block = receipt_of(tmp_path)["checkpoint"]
+    assert block["described"] is True
+    assert (block["z_begin"], block["z_end"]) == (4500, 7500)
+    assert block["spiral_outward_sense"] == "ACW", "CCW went in, the fitter's ACW comes out"
+    assert block["completed_iterations"] == 30000
+    assert block["dr_per_winding"] == pytest.approx(1.0 + math.log1p(math.exp(1.25 * 12.0)))
+    assert block["input_manifest"]["unverified_patches"].endswith("unverified_patches")
+
+
+def _patches(dataset_root: Path, name: str, *, uuids=("a1", "b2")) -> Path:
+    directory = dataset_root / name
+    for uuid in uuids:
+        (directory / uuid).mkdir(parents=True, exist_ok=True)
+        for axis in ("x", "y", "z"):
+            (directory / uuid / f"{axis}.tif").write_bytes(b"tif" + uuid.encode() + axis.encode())
+        (directory / uuid / "meta.json").write_text("{}")
+    return directory
+
+
+def test_the_patch_set_the_fit_was_pointed_at_is_named_by_digest(tmp_path):
+    pytest.importorskip("numpy"); pytest.importorskip("tifffile")
+    ds = dataset(tmp_path / "ds"); fitter(tmp_path / "spiral")
+    _patches(ds, "unverified_patches")
+
+    assert run(tmp_path, "--unverified-patches-dir", "unverified_patches") == 0
+    patches = receipt_of(tmp_path)["patches"]
+    assert patches["unverified"]["entries"] == 8, "two patches, four files each"
+    first = patches["unverified"]["sha256"]
+    assert len(first) == 64
+    assert "verified" not in patches, "not asked for, not claimed absent"
+
+    # One re-grown mesh is a different set, and one fewer mesh is too.
+    assert runner.patch_set_digest(ds / "unverified_patches")["sha256"] == first
+    (ds / "unverified_patches/a1/x.tif").write_bytes(b"regrown")
+    regrown = runner.patch_set_digest(ds / "unverified_patches")
+    assert regrown["sha256"] != first and regrown["entries"] == 8
+    (ds / "unverified_patches/b2/meta.json").unlink()
+    fewer = runner.patch_set_digest(ds / "unverified_patches")
+    assert fewer["entries"] == 7 and fewer["sha256"] not in (first, regrown["sha256"])
+
+
+def test_a_patch_directory_that_is_named_and_missing_is_said_not_hidden(tmp_path):
+    pytest.importorskip("numpy"); pytest.importorskip("tifffile")
+    dataset(tmp_path / "ds"); fitter(tmp_path / "spiral")
+
+    assert run(tmp_path, "--unverified-patches-dir", "nobody_grew_these") == 0
+    assert receipt_of(tmp_path)["patches"]["unverified"]["missing"] is True
+
+
+def test_a_run_that_named_no_patches_claims_nothing_about_them(tmp_path):
+    pytest.importorskip("numpy"); pytest.importorskip("tifffile")
+    dataset(tmp_path / "ds"); fitter(tmp_path / "spiral")
+
+    assert run(tmp_path) == 0
+    assert receipt_of(tmp_path)["patches"] is None
+
+
+def test_verified_patches_reach_the_manifest_beside_the_unverified_ones(tmp_path):
+    dataset(tmp_path / "ds"); fitter(tmp_path / "spiral")
+
+    assert run(tmp_path, "--dry-run", "--verified-patches-dir", "verified_patches",
+               "--unverified-patches-dir", "unverified_patches") == 0
+    paths = receipt_of(tmp_path)["scroll_spec"]["document"]["paths"]
+    assert paths["verified_patches"].endswith("/ds/verified_patches")
+    assert paths["unverified_patches"].endswith("/ds/unverified_patches")

@@ -44,6 +44,7 @@ unchanged.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import signal
@@ -282,6 +283,88 @@ def register_fitted_surface(store: Any, artifact_store: Any, directory: Path, *,
             "surface_dir": str(directory)}
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def patch_set_digest(directory: Path) -> dict[str, Any]:
+    """One digest over a directory of patches, so a receipt can name the set.
+
+    Sorted relative path plus each file's own digest, hashed together: two
+    runs handed the same 186 meshes get the same value, one handed 185 of
+    them or one re-grown mesh does not. The count is beside it because a
+    reader checking "did the fit see our patches" wants a number before a
+    hash.
+    """
+    digest = hashlib.sha256()
+    entries = 0
+    for path in sorted(p for p in Path(directory).rglob("*") if p.is_file()):
+        digest.update(str(path.relative_to(directory)).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(sha256_file(path).encode("ascii"))
+        digest.update(b"\n")
+        entries += 1
+    return {"dir": str(directory), "entries": entries, "sha256": digest.hexdigest()}
+
+
+def patch_sets(dataset: Path, layout: dict[str, Any]) -> dict[str, Any] | None:
+    """The patch directories this run was pointed at, each named by digest.
+
+    None when the layout names neither: a receipt that said "no patches"
+    for a run that was never asked about patches would be claiming an
+    absence it did not measure. A named directory that is not there is
+    recorded as such rather than hidden -- the fit will say the same thing
+    in its own way, and the two should agree.
+    """
+    found: dict[str, Any] = {}
+    for role, key in (("unverified", "unverified_patches_dir"),
+                      ("verified", "verified_patches_dir")):
+        name = str(layout.get(key) or "")
+        if not name:
+            continue
+        directory = Path(dataset) / name
+        found[role] = (patch_set_digest(directory) if directory.is_dir()
+                       else {"dir": str(directory), "missing": True})
+    return found or None
+
+
+def describe_checkpoint(checkpoint: Path, *, interpreter: str, spiral_root: Path,
+                        environment: dict[str, str]) -> dict[str, Any]:
+    """The checkpoint's path, its digest, and what it says about the fit.
+
+    The reading runs in the lane's interpreter through
+    describe_spiral_checkpoint.py, because it needs torch and upstream's own
+    helpers. A checkpoint that cannot be described is still named and hashed
+    -- the fit happened -- and the receipt says why the rest is absent rather
+    than dropping the block or failing a finished fit over a receipt field.
+    """
+    block: dict[str, Any] = {"path": str(checkpoint), "sha256": sha256_file(checkpoint)}
+    argv = [interpreter, str(Path(__file__).resolve().parent / "describe_spiral_checkpoint.py"),
+            str(checkpoint), "--spiral-root", str(spiral_root)]
+    try:
+        completed = subprocess.run(  # noqa: S603 - argv is built here
+            argv, capture_output=True, text=True, env=environment, timeout=600)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        block.update({"described": False,
+                      "describe_error": f"{type(error).__name__}: {error}"})
+        return block
+    if completed.returncode != 0:
+        said = (completed.stderr or "").strip().splitlines()
+        block.update({"described": False,
+                      "describe_error": said[-1] if said else f"exit {completed.returncode}"})
+        return block
+    try:
+        block.update(json.loads(completed.stdout))
+        block["described"] = True
+    except ValueError as error:
+        block.update({"described": False, "describe_error": f"unreadable output: {error}"})
+    return block
+
+
 def run_subprocess(argv: list[str], *, cwd: Path, environment: dict[str, str]) -> int:
     """Run one subprocess, and take it down when this process is asked to
     stop.
@@ -372,6 +455,11 @@ def main(argv: list[str] | None = None) -> int:
                              "written and unverified_patches stays inert, "
                              "even under a profile that enables it -- see "
                              "adapter.DEFAULT_UNVERIFIED_PATCHES_DIR")
+    parser.add_argument("--verified-patches-dir",
+                        help="one directory directly under the dataset root "
+                             "holding verified patches; unset means not asked "
+                             "for. Whether they supervise the fit is the "
+                             "profile's input_use_verified_patches, not this")
     parser.add_argument("--random-seed", type=int,
                         help="upstream's own optimizer_random_seed. Two fits "
                              "differing only in this are the only error bar "
@@ -402,7 +490,8 @@ def main(argv: list[str] | None = None) -> int:
          ("normal_zarr_group", args.normal_zarr_group),
          ("lasagna_scale", args.lasagna_scale),
          ("tracks_file", args.tracks_file),
-         ("unverified_patches_dir", args.unverified_patches_dir))
+         ("unverified_patches_dir", args.unverified_patches_dir),
+         ("verified_patches_dir", args.verified_patches_dir))
         if value is not None}
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -553,6 +642,13 @@ def main(argv: list[str] | None = None) -> int:
                 f"{fit_dir}. Nothing is exported: a run with no checkpoint is "
                 "not a run with an empty one.")
             return finish(1)
+        # What the fit produced, named and read: winding_model_9um wants the
+        # .ckpt's z_begin/z_end/dr_per_winding and an audit wants the same,
+        # and neither should have to reopen a torch archive to get them. The
+        # patch sets the run was pointed at are named by digest beside it.
+        receipt["checkpoint"] = describe_checkpoint(
+            checkpoint, interpreter=interpreter, spiral_root=root, environment=environment)
+        receipt["patches"] = patch_sets(dataset, layout)
 
         # Step 5: the fitter writes checkpoints, not surfaces, at this commit.
         # Upstream's own flatten_spiral_checkpoint.py reconstructs the
