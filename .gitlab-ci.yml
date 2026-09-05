@@ -638,16 +638,22 @@ build and publish the villa toolchain:
             echo "layer is its storage or an upload limit, not this host)" >&2
             exit 1
           }
-          listed="$(docker run --rm "${HELENA_CURL_IMAGE:-curlimages/curl:8.11.1}" \
-            --silent --fail "https://${HELENA_REGISTRY%%/*}/v2/${HELENA_REGISTRY#*/}/$repo/tags/list" 2>/dev/null || true)"
-          case "$listed" in
-            *"\"$name\""*) ;;
-            *) echo "$repo:$name is not in the registry's tag list after the push:" >&2
-               echo "  $listed" >&2
-               exit 1 ;;
-          esac
+          # Through the daemon, which is what pushed: the registry's
+          # certificate is signed by an internal CA the daemon trusts and a
+          # stock curl image does not, so asking tags/list from curlimages
+          # answered "unable to get local issuer certificate", read as an empty
+          # list, and failed a push that had landed. A pull of the tag just
+          # pushed resolves its manifest from the registry every time -- every
+          # layer is already here, so it costs a round trip and no bytes -- and
+          # an unknown tag is a non-zero exit, not a silent nothing.
+          docker pull -q "$HELENA_REGISTRY/$repo:$name" >/dev/null 2>&1 || {
+            echo "$repo:$name is not in the registry after the push: the daemon" >&2
+            echo "  cannot resolve its manifest there, so the bytes are not where" >&2
+            echo "  the push said they went" >&2
+            exit 1
+          }
         done
-        echo "published $repo at $short, and the registry lists it"
+        echo "published $repo at $short, and the registry serves it back"
       }
       publish_internal helena-villa:local helena-villa
       publish_internal helena-villa-python:local helena-villa-python

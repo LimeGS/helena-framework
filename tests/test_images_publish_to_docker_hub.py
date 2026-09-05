@@ -254,5 +254,11 @@ def test_the_toolchain_push_is_bounded_and_verified_against_the_registry():
     from push is not the bytes being there: the registry's tag list is."""
     script = "\n".join(CI_PARSED[TOOLCHAIN]["script"])
     assert 'timeout 1500 docker push "$HELENA_REGISTRY/$repo:$name"' in script
-    assert "/tags/list" in script, "nothing asks the registry whether the tag landed"
-    assert "is not in the registry's tag list after the push" in script
+    # Through the daemon, not curl: the registry's certificate is from an
+    # internal CA that a stock curl image does not carry, and the first
+    # version of this check read that TLS failure as an empty tag list and
+    # failed a push that had landed.
+    assert 'docker pull -q "$HELENA_REGISTRY/$repo:$name"' in script, (
+        "nothing asks the registry whether the tag landed")
+    assert "/tags/list" not in script, "a curl without the CA reads as an empty list"
+    assert "is not in the registry after the push" in script
