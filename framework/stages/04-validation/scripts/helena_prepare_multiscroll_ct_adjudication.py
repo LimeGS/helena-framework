@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import re
 import time
 from dataclasses import dataclass
@@ -34,7 +33,7 @@ import numpy as np
 import requests
 import tifffile
 import zarr
-from PIL import Image, ImageDraw, ImageEnhance, ImageFont
+from PIL import Image, ImageDraw
 from scipy import ndimage
 
 

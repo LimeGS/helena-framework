@@ -196,7 +196,7 @@ def test_qc_diagnostic_fields_exposes_only_safe_bounded_values():
         "Authorization: Bearer bearer-value "
         "Cookie: helena_session=cookie-value "
         "password=hunter2 secret=private token=raw-token "
-        "AWS_ACCESS_KEY_ID=AKIAABCDEFGHIJKLMNOP"
+        "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE"
     )
     fields = app._qc_diagnostic_fields({
         "status": "RETRYABLE_QC_UNAVAILABLE",
@@ -211,7 +211,7 @@ def test_qc_diagnostic_fields_exposes_only_safe_bounded_values():
     for forbidden in (
         "/srv/helena", "private-bucket", "hunter2", "private-db",
         "internal.example", "bearer-value", "cookie-value", "raw-token",
-        "AKIAABCDEFGHIJKLMNOP", "must-never-be-read",
+        "AKIAIOSFODNN7EXAMPLE", "must-never-be-read",
     ):
         assert forbidden not in encoded
     assert "<path>" in fields["error"]
@@ -286,7 +286,7 @@ def test_qc_diagnostic_fields_redacts_common_aws_credential_assignments():
 
     fields = app._qc_diagnostic_fields({
         "error": (
-            "RuntimeError: AWS_ACCESS_KEY_ID=AKIAABCDEFGHIJKLMNOP "
+            "RuntimeError: AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE "
             "AWS_SECRET_ACCESS_KEY=aws-secret-value "
             "AWS_SESSION_TOKEN=aws-session-value "
             "AWS_SECURITY_TOKEN=aws-security-value"
@@ -295,7 +295,7 @@ def test_qc_diagnostic_fields_redacts_common_aws_credential_assignments():
 
     assert fields["error_type"] == "RuntimeError"
     for forbidden in (
-        "AKIAABCDEFGHIJKLMNOP",
+        "AKIAIOSFODNN7EXAMPLE",
         "aws-secret-value",
         "aws-session-value",
         "aws-security-value",

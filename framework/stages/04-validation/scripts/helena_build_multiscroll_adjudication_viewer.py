@@ -9,7 +9,6 @@ the benchmark manifest or execute either gate.
 from __future__ import annotations
 
 import argparse
-import html
 import json
 from pathlib import Path
 

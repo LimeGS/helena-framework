@@ -448,7 +448,6 @@ def test_the_comparison_says_what_regenerating_would_change(built: dict) -> None
             f"{sample} would change a derived field: {fields}")
 
 import ast
-import inspect
 import textwrap
 
 

@@ -16,14 +16,13 @@ import hashlib
 import json
 import os
 import shutil
-import sys
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Any, Iterable
+from typing import Any
 
 
 ROOT = next(parent for parent in Path(__file__).resolve().parents if (parent / ".git").exists())

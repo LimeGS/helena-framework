@@ -9,7 +9,6 @@ sys.path.insert(0, "/workspace/campaign-x/framework/stages/02-flattening")
 sys.path.insert(0, "/workspace/campaign-x/framework/stages/01-segmentation")
 from panel import app as A
 import numpy as np
-from fleet.finalizer import triangulate_tifxyz_grid
 
 control = A.first_letters_control_policy()
 kr = control["known_region"]

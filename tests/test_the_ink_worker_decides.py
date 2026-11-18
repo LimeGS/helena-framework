@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from control_manifest import IN_FORCE_ID, IN_FORCE_PATH  # noqa: E402
+from control_manifest import IN_FORCE_PATH  # noqa: E402
 
 # The stack fixtures are real TIFFs, because what is verified is the content of
 # a render and a stub would verify the stub. Skipped where the worker's own

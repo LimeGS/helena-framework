@@ -34,7 +34,6 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 ARTIFACT_SCHEMA = "campaignx.artifact.v1"
 SELECTION_SCHEMA = "campaignx.artifact_selection.v1"

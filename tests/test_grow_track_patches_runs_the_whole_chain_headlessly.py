@@ -216,7 +216,6 @@ def test_no_unverified_patches_dir_is_refused_rather_than_defaulted(tmp_path):
         "growth_overrides": {}, "dataset_layout": {}}
     (profile_dir / "bare.json").write_text(json.dumps(bare_profile))
 
-    import importlib
     original_dir = runner.PROFILE_DIR
     try:
         runner.PROFILE_DIR = profile_dir

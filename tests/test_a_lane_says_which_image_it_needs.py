@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))
 
 from job_store import (  # noqa: E402
-    INK_ADAPTERS, JobRejected, lane_image, runtime_image_for,
+    INK_ADAPTERS, lane_image, runtime_image_for,
 )
 
 NINE_UM = "framework/stages/03-ink/scripts/run_ink_9um.py"

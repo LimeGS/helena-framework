@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from control_manifest import IN_FORCE_ID, IN_FORCE_PATH  # noqa: E402
+from control_manifest import IN_FORCE_PATH  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "framework/stages/03-ink/fleet"))

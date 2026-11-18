@@ -3,7 +3,7 @@
 The proof aborts at the cap, so the receipt says 4000001 and nothing about the
 true total. Without that number there is no way to tell a bound that is short by
 a little from an approach that does not scale."""
-import json, sys
+import sys
 sys.path.insert(0, "/workspace/campaign-x")
 sys.path.insert(0, "/workspace/campaign-x/framework/stages/02-flattening")
 sys.path.insert(0, "/workspace/campaign-x/framework/stages/01-segmentation")

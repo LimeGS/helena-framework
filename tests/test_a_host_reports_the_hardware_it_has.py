@@ -9,7 +9,6 @@ after the machine had rendered a layer stack on one of them.
 
 from __future__ import annotations
 
-import re
 import sys
 import time
 from pathlib import Path

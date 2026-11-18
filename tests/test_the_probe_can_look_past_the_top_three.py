@@ -74,7 +74,7 @@ def test_all_four_copies_of_the_bound_agree() -> None:
     assert constant, "seed_probe no longer names the bound, so there is nothing to compare against"
     ceiling = int(constant.group(1))
 
-    assert f"1 <= top_k <= TOP_K_MAXIMUM" in probe, (
+    assert "1 <= top_k <= TOP_K_MAXIMUM" in probe, (
         "the runtime check hardcodes a bound again instead of reading the constant"
     )
 

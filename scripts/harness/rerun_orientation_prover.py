@@ -1,7 +1,7 @@
 """Run the orientation prover on the control's own inputs and print the real
 ValueError. The route classifies it as GEOMETRY_INVALID and keeps only the
 exception type, so the message exists nowhere else."""
-import json, os, sys, traceback
+import sys, traceback
 sys.path.insert(0, "/workspace/campaign-x")
 sys.path.insert(0, "/workspace/campaign-x/scripts/harness")
 sys.path.insert(0, "/workspace/campaign-x/framework/stages/02-flattening")
@@ -35,7 +35,7 @@ try:
 except Exception:
     traceback.print_exc(); raise SystemExit(0)
 
-from orientation_parity import prove_orientation, _grown_vertex_normals
+from orientation_parity import _grown_vertex_normals
 try:
     _grown_vertex_normals(np.asarray(v, dtype=np.float64),
                           np.asarray(f, dtype=np.int64))

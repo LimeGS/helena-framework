@@ -14,7 +14,6 @@ route. Two of them read the source directly, which is the only way to assert
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 

@@ -622,7 +622,7 @@ def test_the_worker_source_never_requests_ink():
 
 def test_the_default_executor_calls_run_control_region_preflight(monkeypatch):
     """Not a reimplementation of the measurement. The same function, moved."""
-    from fleet import candidate_preflight, preflight_worker
+    from fleet import candidate_preflight
 
     seen = {}
 

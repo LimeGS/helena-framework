@@ -101,7 +101,6 @@ def sample_columns(
     Returns what `assess_lamina` needs plus the read set of every object the
     volume answered with, so a verdict can name the bytes it was measured from.
     """
-    import numpy as np
     import tifffile
 
     sampling = profile["sampling"]

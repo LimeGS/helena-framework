@@ -58,3 +58,6 @@ workspace/archive/
 workspace/receipts/
 vendor/
 .local/
+
+# --- Local agent and IDE state ---------------------------------------------
+.claude/

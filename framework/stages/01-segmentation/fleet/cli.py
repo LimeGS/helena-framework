@@ -33,7 +33,6 @@ from .planner import (
     OpenCodePlanner,
     OpenRouterFusionPlanner,
     Planner,
-    screen_candidates,
 )
 from .preflight_worker import (
     CandidatePreflightWorker,
@@ -1348,9 +1347,6 @@ def command_flatten(args: argparse.Namespace) -> int:
 
     _sys.path.insert(0, str(args.repo_root / "framework/stages/02-flattening"))
     from flatten import (  # noqa: PLC0415
-        FlatteningFailed,
-        SurfaceNotAdmissible,
-        SurfaceNotCertified,
         flatten_surface,
         load_profile,
     )

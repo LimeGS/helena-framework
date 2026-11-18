@@ -394,7 +394,6 @@ def load_model(
     *,
     architecture: dict[str, int] | None = None,
 ):
-    import torch
     import torch.nn as nn
     from timesformer_pytorch import TimeSformer
 

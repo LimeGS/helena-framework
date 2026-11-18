@@ -64,9 +64,9 @@ def main() -> int:
     elif A.shape != B.shape:
         # Different geometry is a real answer, not a failure to compare: it
         # means the change moved the render, so there is no pixel to pair.
-        print(f"\\nDifferent shapes, so there is no per-pixel comparison to make. "
-              f"That is itself the finding: the change altered the render's own "
-              f"geometry, not just its values.")
+        print("\\nDifferent shapes, so there is no per-pixel comparison to make. "
+              "That is itself the finding: the change altered the render's own "
+              "geometry, not just its values.")
         report["comparable"] = False
     else:
         valid = np.isfinite(A) & np.isfinite(B)

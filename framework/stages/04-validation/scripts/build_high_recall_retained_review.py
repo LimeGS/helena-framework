@@ -35,7 +35,6 @@ from analyze_ink_stability import (
     probability_image,
 )
 from build_orthogonal_candidate_review import (
-    crop_with_padding,
     labeled_panel,
     load_stack,
     map_analysis_half_size_to_source,

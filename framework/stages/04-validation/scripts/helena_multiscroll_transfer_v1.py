@@ -17,7 +17,7 @@ import random
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 BENCHMARK_ID = "MULTISCROLL_TRANSFER_V1"

@@ -20,7 +20,7 @@ import argparse
 import csv
 import hashlib
 import json
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any

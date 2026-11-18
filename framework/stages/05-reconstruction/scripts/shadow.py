@@ -25,7 +25,6 @@ from campaign_x_phase2.calibration import apply_temperature  # noqa: E402
 from campaign_x_phase2.constraint_graph import ConstraintGraph, Edge  # noqa: E402
 from campaign_x_phase2.contracts import constraints_to_point_collection  # noqa: E402
 from campaign_x_phase2.surface_candidates import (  # noqa: E402
-    FEATURE_NAMES,
     Surface,
     generate_surface_candidates,
 )

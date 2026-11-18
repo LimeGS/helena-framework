@@ -714,7 +714,7 @@ class PanelArtifactStore:
         return destination
 
     def delete_probe(self, artifact_uri: str, manifest: dict[str, Any]) -> dict[str, Any]:
-        expected = f"/probes/"
+        expected = "/probes/"
         if not artifact_uri.startswith(self.base) or expected not in artifact_uri:
             raise ValueError(
                 "probe artifact URI is outside this artifact store's probe namespace")

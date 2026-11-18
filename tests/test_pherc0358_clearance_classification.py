@@ -24,7 +24,6 @@ import hashlib
 import importlib.util
 import json
 import math
-import re
 import sys
 from pathlib import Path
 
