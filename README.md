@@ -8,6 +8,8 @@
   <a href="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml"><img src="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml/badge.svg" alt="audit"></a>
   <a href="https://github.com/LimeGS/helena-framework/actions/workflows/audit.yml"><img src="https://img.shields.io/badge/coverage-%E2%89%A560%25-brightgreen.svg" alt="coverage at least 60%"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
+  <img src="https://img.shields.io/badge/python-3.11%E2%80%933.12-blue.svg" alt="Python 3.11–3.12">
+  <a href="https://github.com/LimeGS/helena-framework/releases"><img src="https://img.shields.io/github/v/release/LimeGS/helena-framework?include_prereleases" alt="release"></a>
 </p>
 
 Helena is the orchestration and evidence layer for the volume → surface → ink →
@@ -258,6 +260,21 @@ running deployment and is skipped without one.
 Versions follow Semantic Versioning and the current one is in `VERSION`, which
 the compose defaults and the build script are checked against. Profiles, runs
 and receipts carry their own immutable identities, which never move with it.
+
+## Related projects
+
+Part of the LimeGS toolchain for the [Vesuvius Challenge](https://scrollprize.org):
+
+- [winding-field](https://github.com/LimeGS/winding-field): winding-field core and reproducible evaluation.
+- [winding-field-cli](https://github.com/LimeGS/winding-field-cli): end-to-end CLI from CT to fibres, winding field, meshes and flattened charts.
+- [ink-sdk](https://github.com/LimeGS/ink-sdk): standalone ink inference on surface volumes, or on tifxyz meshes plus CT.
+- [herculaneum-legibility-index](https://github.com/LimeGS/herculaneum-legibility-index): legibility triage over the official ink maps.
+- [herculaneum-legibility-v5](https://github.com/LimeGS/herculaneum-legibility-v5): corrected-label retraining of the legibility classifier.
+- [vesuvius-chat](https://github.com/LimeGS/vesuvius-chat): search the Discord research archive from a web chat or an AI agent.
+
+## Citation
+
+If you use this work, please cite it with the metadata in [CITATION.cff](CITATION.cff) (GitHub's **Cite this repository** button reads it).
 
 ## TODO
 - Update to the latest villa commit (Ongoing tonight).

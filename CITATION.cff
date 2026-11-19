@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it using the metadata from this file."
+type: software
+title: "Helena Exploration Framework"
+abstract: "Collaborative, reproducible, auditable orchestration for reading Herculaneum scrolls. Pools GPUs behind one queue, pins every checkpoint and artifact by hash, keeps geometry, CT support, model response and human review separate."
+authors:
+  - name: LimeGS
+repository-code: https://github.com/LimeGS/helena-framework
+license: MIT
+keywords:
+  - gpu-orchestration
+  - herculaneum-scrolls
+  - python
+  - reproducibility
+  - vesuvius-challenge
